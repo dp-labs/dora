@@ -95,7 +95,7 @@ apt-get install gcc g++ make git zlib1g-dev zstd libzstd-dev -y
 You can just do a normal git clone:
 
 ```shell
-git clone https://github.com/dora-org/dora.git
+git clone https://github.com/dp-labs/dora.git
 cd dora
 ```
 
