@@ -46,7 +46,7 @@ Firstly, see the [developing guide](./docs/dev/guide.md) to install all build de
 ### Cargo
 
 ```shell
-cargo install --git https://github.com/dora-org/dora.git --path crates/dora-cli
+cargo install --git https://github.com/dp-labs/dora.git dora-cli
 ```
 
 ### Build from Source
