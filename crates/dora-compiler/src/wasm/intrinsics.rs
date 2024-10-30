@@ -1,0 +1,289 @@
+use std::collections::hash_map::Entry;
+use std::collections::HashMap;
+use std::ops::Deref;
+
+use crate::context::Context;
+use crate::intrinsics::Intrinsics;
+use anyhow::Result;
+use melior::ir::r#type::Type;
+use melior::ir::{OperationRef, Value};
+use melior::{dialect::llvm::r#type::r#struct, ir::r#type::FunctionType};
+use wasmer_types::{
+    FunctionIndex, GlobalIndex, MemoryIndex, ModuleInfo, SignatureIndex, TableIndex, VMOffsets,
+};
+
+/// Represents a set of WebAssembly (WASM) intrinsic types and utilities for interacting with
+/// WebAssembly-specific constructs within the target intermediate representation (IR).
+/// The `WASMIntrinsics` struct provides essential types like function references, external
+/// references, and context types, along with common intrinsics inherited from the base `Intrinsics`.
+///
+/// # Fields:
+/// - `ctx_ty`: The `Type` representing the context type in the WebAssembly runtime, typically
+///   used to manage the execution environment for WebAssembly functions.
+/// - `ctx_ptr_ty`: The pointer type to the context, used for passing the context in calls to
+///   WebAssembly functions.
+/// - `any_func_ty`: The `Type` representing a generic WebAssembly function type, which can be
+///   used when a specific function signature is not known or is dynamic.
+/// - `func_ref_ty`: The `Type` representing a WebAssembly function reference, used to refer to
+///   functions within the module or imported functions.
+/// - `extern_ref_ty`: The `Type` representing an external reference, used for passing references
+///   to external objects into WebAssembly functions.
+/// - `intrinsics`: A collection of common intrinsics that are inherited from the base `Intrinsics`
+///   struct. These include shared low-level types and functions that are not specific to WebAssembly
+///   but are still required for efficient code generation.
+///
+/// # Example Usage:
+/// ```no_check
+/// let wasm_intrinsics = WASMIntrinsics {
+///     ctx_ty: /* WebAssembly context type */,
+///     ctx_ptr_ty: /* Pointer to the WebAssembly context */,
+///     any_func_ty: /* Type for any WebAssembly function */,
+///     func_ref_ty: /* Function reference type */,
+///     extern_ref_ty: /* External reference type */,
+///     intrinsics: /* Common intrinsics inherited from base */,
+/// };
+///
+/// // Use wasm_intrinsics to reference types in WebAssembly code generation.
+/// let context_type = wasm_intrinsics.ctx_ty;
+/// ```
+///
+/// # Notes:
+/// - The `WASMIntrinsics` struct is crucial for providing type definitions and low-level operations
+///   required when generating or interacting with WebAssembly code in the IR.
+/// - The types provided by this struct are essential for modeling WebAssembly-specific behavior,
+///   such as calling functions, referencing external entities, and managing the execution context.
+/// - All pointers are opaque in LLVM 18.
+#[derive(Debug)]
+pub struct WASMIntrinsics<'c> {
+    /// The type representing the WebAssembly execution context.
+    pub ctx_ty: Type<'c>,
+
+    /// The pointer type to the WebAssembly execution context.
+    pub ctx_ptr_ty: Type<'c>,
+
+    /// The type for representing any WebAssembly function.
+    pub any_func_ty: Type<'c>,
+
+    /// The type representing a reference to a WebAssembly function.
+    pub func_ref_ty: Type<'c>,
+
+    /// The type for representing a reference to an external object.
+    pub extern_ref_ty: Type<'c>,
+
+    /// Intrinsics inherited from the base `Intrinsics` structure.
+    pub(crate) intrinsics: Intrinsics<'c>,
+}
+
+impl<'c> WASMIntrinsics<'c> {
+    /// Create an [`Intrinsics`] for the given MLIR Builtin [`Context`].
+    pub fn declare(context: &'c Context) -> Self {
+        let intrinsics = Intrinsics::declare(context);
+        let ctx_ty = intrinsics.i8_ty;
+        let ctx_ptr_ty = intrinsics.ptr_ty;
+        let sig_index_ty = intrinsics.i32_ty;
+        let any_func_ty = r#struct(
+            &context.mlir_context,
+            &[intrinsics.ptr_ty, sig_index_ty, ctx_ptr_ty],
+            false,
+        );
+        let func_ref_ty = intrinsics.ptr_ty;
+        let extern_ref_ty = intrinsics.ptr_ty;
+        Self {
+            ctx_ty,
+            ctx_ptr_ty,
+            any_func_ty,
+            func_ref_ty,
+            extern_ref_ty,
+            intrinsics,
+        }
+    }
+}
+
+impl<'c> Deref for WASMIntrinsics<'c> {
+    type Target = Intrinsics<'c>;
+
+    fn deref(&self) -> &Self::Target {
+        &self.intrinsics
+    }
+}
+
+#[derive(Clone, Copy)]
+pub enum MemoryCache<'c, 'a> {
+    /// The memory moves around.
+    Dynamic {
+        ptr_to_base_ptr: Value<'c, 'a>,
+        ptr_to_current_length: Value<'c, 'a>,
+    },
+    /// The memory is always in the same place.
+    Static { base_ptr: Value<'c, 'a> },
+}
+
+struct TableCache<'c, 'a> {
+    ptr_to_base_ptr: Value<'c, 'a>,
+    ptr_to_bounds: Value<'c, 'a>,
+}
+
+#[derive(Clone, Copy)]
+pub enum GlobalCache<'c, 'a> {
+    Mut {
+        ptr_to_value: Value<'c, 'a>,
+        value_type: Value<'c, 'a>,
+    },
+    Const {
+        value: Value<'c, 'a>,
+    },
+}
+
+/// Represents a cache for a WebAssembly function during execution or compilation. The `FunctionCache`
+/// struct holds a reference to the actual operation for the function and its associated function type.
+///
+/// # Fields:
+/// - `func`: A reference to the `OperationRef`, representing the underlying operation for the WebAssembly
+///   function in the intermediate representation.
+/// - `func_type`: The type of the WebAssembly function, which includes its signature (parameter and return types).
+///
+/// # Example Usage:
+/// ```no_check
+/// let function_cache = FunctionCache {
+///     func: /* OperationRef representing the function */,
+///     func_type: /* FunctionType for the function signature */,
+/// };
+///
+/// // Access the cached function's operation and type.
+/// let operation_ref = function_cache.func;
+/// let function_signature = function_cache.func_type;
+/// ```
+///
+/// # Notes:
+/// - The `FunctionCache` is used to optimize repeated access to WebAssembly functions by caching the operations
+///   and function types during execution or code generation.
+#[derive(Clone)]
+pub struct FunctionCache<'c, 'a> {
+    /// A reference to the operation representing the WebAssembly function.
+    pub func: OperationRef<'c, 'a>,
+
+    /// The type of the WebAssembly function, including its parameter and return types.
+    pub func_type: FunctionType<'c>,
+}
+
+/// Represents a collection of cached entities within a WebAssembly execution context. The `CtxType` struct
+/// holds caches for various components such as memories, tables, signatures, globals, and functions, allowing
+/// for efficient reuse and access during WebAssembly execution or compilation.
+///
+/// # Fields:
+/// - `wasm_module`: A reference to the `ModuleInfo` that provides metadata and information about the WebAssembly module.
+/// - `cached_memories`: A map caching the `MemoryCache` instances associated with the WebAssembly memories, indexed by `MemoryIndex`.
+/// - `cached_tables`: A map caching the `TableCache` instances associated with the WebAssembly tables, indexed by `TableIndex`.
+/// - `cached_sigindices`: A map caching signature indices as `Value` instances, allowing for efficient signature lookups.
+/// - `cached_globals`: A map caching the `GlobalCache` instances associated with the WebAssembly globals, indexed by `GlobalIndex`.
+/// - `cached_functions`: A map caching `FunctionCache` instances for WebAssembly functions, allowing efficient access to cached functions.
+/// - `cached_memory_grow`: A map caching values for memory growth, indexed by `MemoryIndex`.
+/// - `cached_memory_size`: A map caching values for memory size, indexed by `MemoryIndex`.
+/// - `offsets`: Contains offsets for the various WebAssembly memory and table elements in the execution environment.
+///
+/// # Example Usage:
+/// ```no_check
+/// let ctx_type = CtxType {
+///     wasm_module: /* Reference to the ModuleInfo */,
+///     cached_memories: HashMap::new(),
+///     cached_tables: HashMap::new(),
+///     cached_sigindices: HashMap::new(),
+///     cached_globals: HashMap::new(),
+///     cached_functions: HashMap::new(),
+///     cached_memory_grow: HashMap::new(),
+///     cached_memory_size: HashMap::new(),
+///     offsets: /* VMOffsets for memory and table element offsets */,
+/// };
+///
+/// // Access the cached memory or function within the execution context.
+/// let memory_cache = ctx_type.cached_memories.get(&memory_index);
+/// let function_cache = ctx_type.cached_functions.get(&function_index);
+/// ```
+///
+/// # Notes:
+/// - The `CtxType` struct is essential for efficiently managing the state and resources of a WebAssembly
+///   execution environment by caching frequently accessed elements like functions, memories, and tables.
+pub struct CtxType<'c, 'a> {
+    /// A reference to the WebAssembly module information, providing metadata about the module.
+    wasm_module: &'a ModuleInfo,
+
+    /// A cache of WebAssembly memories, indexed by `MemoryIndex`.
+    cached_memories: HashMap<MemoryIndex, MemoryCache<'c, 'a>>,
+
+    /// A cache of WebAssembly tables, indexed by `TableIndex`.
+    cached_tables: HashMap<TableIndex, TableCache<'c, 'a>>,
+
+    /// A cache of signature indices as `Value` instances.
+    cached_sigindices: HashMap<SignatureIndex, Value<'c, 'a>>,
+
+    /// A cache of WebAssembly globals, indexed by `GlobalIndex`.
+    cached_globals: HashMap<GlobalIndex, GlobalCache<'c, 'a>>,
+
+    /// A cache of WebAssembly functions, indexed by `FunctionIndex`.
+    cached_functions: HashMap<FunctionIndex, FunctionCache<'c, 'a>>,
+
+    /// A cache for memory growth values, indexed by `MemoryIndex`.
+    cached_memory_grow: HashMap<MemoryIndex, Value<'c, 'a>>,
+
+    /// A cache for memory size values, indexed by `MemoryIndex`.
+    cached_memory_size: HashMap<MemoryIndex, Value<'c, 'a>>,
+
+    /// Contains the offsets for memory and table elements within the WebAssembly execution context.
+    offsets: VMOffsets,
+}
+
+impl<'c, 'a> CtxType<'c, 'a> {
+    pub fn new(wasm_module: &'a ModuleInfo) -> CtxType<'c, 'a> {
+        CtxType {
+            wasm_module,
+            cached_memories: HashMap::new(),
+            cached_tables: HashMap::new(),
+            cached_sigindices: HashMap::new(),
+            cached_globals: HashMap::new(),
+            cached_functions: HashMap::new(),
+            cached_memory_grow: HashMap::new(),
+            cached_memory_size: HashMap::new(),
+            offsets: VMOffsets::new(8, wasm_module),
+        }
+    }
+
+    pub fn add_func(
+        &mut self,
+        function_index: FunctionIndex,
+        func: OperationRef<'c, 'a>,
+        func_type: FunctionType<'c>,
+    ) {
+        match self.cached_functions.entry(function_index) {
+            Entry::Occupied(_) => unreachable!("duplicate function"),
+            Entry::Vacant(entry) => {
+                entry.insert(FunctionCache { func, func_type });
+            }
+        }
+    }
+}
+
+pub fn is_sret(func_sig: &wasmer_types::FunctionType) -> Result<bool> {
+    let func_sig_returns_bit_widths = func_sig
+        .results()
+        .iter()
+        .map(|ty| match ty {
+            wasmer_types::Type::I32 | wasmer_types::Type::F32 => 32,
+            wasmer_types::Type::I64 | wasmer_types::Type::F64 => 64,
+            wasmer_types::Type::V128 => 128,
+            wasmer_types::Type::ExternRef | wasmer_types::Type::FuncRef => 64, /* pointer */
+        })
+        .collect::<Vec<i32>>();
+
+    Ok(!matches!(
+        func_sig_returns_bit_widths.as_slice(),
+        [] | [_]
+            | [32, 32]
+            | [32, 64]
+            | [64, 32]
+            | [64, 64]
+            | [32, 32, 32]
+            | [32, 32, 64]
+            | [64, 32, 32]
+            | [32, 32, 32, 32]
+    ))
+}

@@ -1,0 +1,17 @@
+---
+source: crates/dora-compiler/src/conversion/tests.rs
+expression: op
+---
+module {
+  func.func @add(%arg0: i32, %arg1: i32) -> i32 {
+    %c1_i32 = arith.constant 1 : i32
+    %c2_i32 = arith.constant 2 : i32
+    %c3_i32 = arith.constant 3 : i32
+    %0 = arith.muli %c1_i32, %c2_i32 : i32
+    %1 = arith.muli %0, %c3_i32 : i32
+    %2 = arith.addi %arg0, %arg1 : i32
+    %c0_i32 = arith.constant 0 : i32
+    %3 = arith.subi %c0_i32, %2 : i32
+    return %3 : i32
+  }
+}
