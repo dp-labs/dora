@@ -1,5 +1,11 @@
 <h1 align="center">Dora: The Ultimate Layer for on-chain Computing and Verification</h1>
 
+<p align="center">
+  <img src="https://github.com/dp-labs/dora/workflows/CI/badge.svg">
+  <img src="https://img.shields.io/badge/PRs-welcome-brightgreen.svg?style=flat-square">
+  <img src="https://img.shields.io/github/license/dp-labs/dora.svg">
+</p>
+
 ## Introduction
 
 Dora is a modular machine layer designed to bring real-world computing use cases on-chain, featuring in-house ZK verification capabilities.
