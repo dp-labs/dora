@@ -7,8 +7,8 @@ use crate::{
 use crate::{symbols, ExitStatusCode};
 use dora_primitives::account::{AccountInfo, AccountStatus};
 use dora_primitives::{EVMAddress as Address, B256, H160};
-use ruint::aliases::U256;
 use melior::ExecutionEngine;
+use ruint::aliases::U256 as EU256;
 use sha3::{Digest, Keccak256};
 use std::collections::HashMap;
 
@@ -31,56 +31,56 @@ pub type MainFunc = extern "C" fn(&mut RuntimeContext, initial_gas: u64) -> u8;
 /// assert_eq!(number.lo, 0);
 /// ```
 #[repr(C, align(8))]
-#[derive(Clone, Copy, PartialEq, Eq)]
-pub struct EU256([u8; 32]);
+#[derive(Clone, Copy, Debug, Default, Eq, Hash, Ord, PartialEq, PartialOrd)]
+pub struct U256([u8; 32]);
 
 macro_rules! impl_conversions_through_u256 {
     ($($ty:ty),*) => {
         $(
-            impl From<$ty> for EU256 {
+            impl From<$ty> for U256 {
                 #[inline]
                 fn from(value: $ty) -> Self {
-                    Self::from_u256(U256::from(value))
+                    Self::from_u256(EU256::from(value))
                 }
             }
 
-            impl From<&$ty> for EU256 {
+            impl From<&$ty> for U256 {
                 #[inline]
                 fn from(value: &$ty) -> Self {
                     Self::from(*value)
                 }
             }
 
-            impl From<&mut $ty> for EU256 {
+            impl From<&mut $ty> for U256 {
                 #[inline]
                 fn from(value: &mut $ty) -> Self {
                     Self::from(*value)
                 }
             }
 
-            impl TryFrom<EU256> for $ty {
+            impl TryFrom<U256> for $ty {
                 type Error = ();
 
                 #[inline]
-                fn try_from(value: EU256) -> Result<Self, Self::Error> {
+                fn try_from(value: U256) -> Result<Self, Self::Error> {
                     value.to_u256().try_into().map_err(drop)
                 }
             }
 
-            impl TryFrom<&EU256> for $ty {
+            impl TryFrom<&U256> for $ty {
                 type Error = ();
 
                 #[inline]
-                fn try_from(value: &EU256) -> Result<Self, Self::Error> {
+                fn try_from(value: &U256) -> Result<Self, Self::Error> {
                     (*value).try_into()
                 }
             }
 
-            impl TryFrom<&mut EU256> for $ty {
+            impl TryFrom<&mut U256> for $ty {
                 type Error = ();
 
                 #[inline]
-                fn try_from(value: &mut EU256) -> Result<Self, Self::Error> {
+                fn try_from(value: &mut U256) -> Result<Self, Self::Error> {
                     (*value).try_into()
                 }
             }
@@ -90,28 +90,28 @@ macro_rules! impl_conversions_through_u256 {
 
 impl_conversions_through_u256!(bool, u8, u16, u32, u64, usize, u128);
 
-impl From<U256> for EU256 {
+impl From<EU256> for U256 {
     #[inline]
-    fn from(value: U256) -> Self {
+    fn from(value: EU256) -> Self {
         Self::from_u256(value)
     }
 }
 
-impl From<&U256> for EU256 {
+impl From<&EU256> for U256 {
     #[inline]
-    fn from(value: &U256) -> Self {
+    fn from(value: &EU256) -> Self {
         Self::from(*value)
     }
 }
 
-impl From<&mut U256> for EU256 {
+impl From<&mut EU256> for U256 {
     #[inline]
-    fn from(value: &mut U256) -> Self {
+    fn from(value: &mut EU256) -> Self {
         Self::from(*value)
     }
 }
 
-impl EU256 {
+impl U256 {
     /// The zero value.
     pub const ZERO: Self = Self([0; 32]);
 
@@ -153,9 +153,9 @@ impl EU256 {
 
     /// Converts a [`U256`].
     #[inline]
-    pub const fn from_u256(value: U256) -> Self {
+    pub const fn from_u256(value: EU256) -> Self {
         #[cfg(target_endian = "little")]
-        return unsafe { core::mem::transmute::<U256, Self>(value) };
+        return unsafe { core::mem::transmute::<EU256, Self>(value) };
         #[cfg(target_endian = "big")]
         return Self(value.to_be_bytes());
     }
@@ -163,15 +163,15 @@ impl EU256 {
     /// Converts a [`U256`] reference to a [`U256`].
     #[inline]
     #[cfg(target_endian = "little")]
-    pub const fn from_u256_ref(value: &U256) -> &Self {
-        unsafe { &*(value as *const U256 as *const Self) }
+    pub const fn from_u256_ref(value: &EU256) -> &Self {
+        unsafe { &*(value as *const EU256 as *const Self) }
     }
 
     /// Converts a [`U256`] mutable reference to a [`U256`].
     #[inline]
     #[cfg(target_endian = "little")]
-    pub fn from_u256_mut(value: &mut U256) -> &mut Self {
-        unsafe { &mut *(value as *mut U256 as *mut Self) }
+    pub fn from_u256_mut(value: &mut EU256) -> &mut Self {
+        unsafe { &mut *(value as *mut EU256 as *mut Self) }
     }
 
     /// Return the memory representation of this integer as a byte array in big-endian (network)
@@ -222,20 +222,20 @@ impl EU256 {
     /// Casts this value to a [`U256`]. This is a no-op on little-endian systems.
     #[cfg(target_endian = "little")]
     #[inline]
-    pub const fn as_u256(&self) -> &U256 {
-        unsafe { &*(self as *const Self as *const U256) }
+    pub const fn as_u256(&self) -> &EU256 {
+        unsafe { &*(self as *const Self as *const EU256) }
     }
 
     /// Casts this value to a [`U256`]. This is a no-op on little-endian systems.
     #[cfg(target_endian = "little")]
     #[inline]
-    pub fn as_u256_mut(&mut self) -> &mut U256 {
-        unsafe { &mut *(self as *mut Self as *mut U256) }
+    pub fn as_u256_mut(&mut self) -> &mut EU256 {
+        unsafe { &mut *(self as *mut Self as *mut EU256) }
     }
 
     /// Converts this value to a [`U256`]. This is a simple copy on little-endian systems.
     #[inline]
-    pub const fn to_u256(&self) -> U256 {
+    pub const fn to_u256(&self) -> EU256 {
         #[cfg(target_endian = "little")]
         return *self.as_u256();
         #[cfg(target_endian = "big")]
@@ -244,57 +244,23 @@ impl EU256 {
 
     /// Converts this value to a [`U256`]. This is a no-op on little-endian systems.
     #[inline]
-    pub const fn into_u256(self) -> U256 {
+    pub const fn into_u256(self) -> EU256 {
         #[cfg(target_endian = "little")]
-        return unsafe { core::mem::transmute::<Self, U256>(self) };
+        return unsafe { core::mem::transmute::<Self, EU256>(self) };
         #[cfg(target_endian = "big")]
         return U256::from_be_bytes(self.0);
     }
+
+    #[inline]
+    pub fn copy_from(&mut self, value: &Address) {
+        let mut buffer = [0u8; 32];
+        buffer[12..32].copy_from_slice(&value.0);
+        *self = U256::from_be_bytes(buffer);
+    }
 }
 
-// impl U256 {
-//     pub fn from_fixed_be_bytes(bytes: [u8; 32]) -> Self {
-//         let hi = u128::from_be_bytes(bytes[0..16].try_into().unwrap());
-//         let lo = u128::from_be_bytes(bytes[16..32].try_into().unwrap());
-//         U256 { hi, lo }
-//     }
-
-//     pub fn copy_from(&mut self, value: &Address) {
-//         let mut buffer = [0u8; 32];
-//         buffer[12..32].copy_from_slice(&value.0);
-//         self.lo = u128::from_be_bytes(buffer[16..32].try_into().unwrap());
-//         self.hi = u128::from_be_bytes(buffer[0..16].try_into().unwrap());
-//     }
-
-//     pub fn to_primitive_u256(&self) -> EU256 {
-//         (EU256::from(self.hi) << 128) + self.lo
-//     }
-
-//     pub fn to_le_bytes(&self) -> [u8; 32] {
-//         let mut bytes = [0u8; 32];
-//         let lo_bytes = self.lo.to_le_bytes();
-//         bytes[0..16].copy_from_slice(&lo_bytes);
-//         let hi_bytes = self.hi.to_le_bytes();
-//         bytes[16..32].copy_from_slice(&hi_bytes);
-//         bytes
-//     }
-
-//     pub fn to_be_bytes(&self) -> [u8; 32] {
-//         let mut bytes = [0u8; 32];
-//         let hi_bytes = self.hi.to_be_bytes();
-//         bytes[0..16].copy_from_slice(&hi_bytes);
-//         let lo_bytes = self.lo.to_be_bytes();
-//         bytes[16..32].copy_from_slice(&lo_bytes);
-//         bytes
-//     }
-
-//     pub fn zero() -> U256 {
-//         U256 { lo: 0, hi: 0 }
-//     }
-// }
-
-impl From<&EU256> for Address {
-    fn from(value: &EU256) -> Self {
+impl From<&U256> for Address {
+    fn from(value: &U256) -> Self {
         Address::from_slice(&value.to_be_bytes())
     }
 }
@@ -397,7 +363,7 @@ pub struct RuntimeContext<'c> {
     pub journal: Journal<'c>,
     pub call_frame: CallFrame,
     pub inner_context: InnerContext,
-    pub transient_storage: HashMap<(Address, U256), U256>,
+    pub transient_storage: HashMap<(Address, EU256), EU256>,
 }
 
 /// Represents log data generated by contract execution, including topics and data.
@@ -677,11 +643,11 @@ impl<'c> RuntimeContext<'c> {
         let mut hasher = Keccak256::new();
         hasher.update(data);
         let result = hasher.finalize();
-        *hash_ptr = EU256::from_be_bytes(result.into()).to_u256();
+        *hash_ptr = U256::from_be_bytes(result.into());
     }
 
     pub extern "C" fn store_in_callvalue_ptr(&self, value: &mut U256) {
-        *value = self.env.tx.value;
+        *value = U256::from(&self.env.tx.value);
     }
 
     pub extern "C" fn store_in_blobbasefee_ptr(&self, value: &mut u128) {
@@ -697,7 +663,7 @@ impl<'c> RuntimeContext<'c> {
     }
 
     pub extern "C" fn store_in_gasprice_ptr(&self, value: &mut U256) {
-        *value = self.env.tx.gas_price;
+        *value = U256::from(&self.env.tx.gas_price);
     }
 
     pub extern "C" fn get_chainid(&self) -> u64 {
@@ -767,19 +733,17 @@ impl<'c> RuntimeContext<'c> {
 
     pub extern "C" fn read_storage(&mut self, stg_key: &U256, stg_value: &mut U256) {
         let address = self.env.tx.get_address();
-        let key = stg_key;
-
         let result = self
             .journal
-            .read_storage(&address, &key)
+            .read_storage(&address, stg_key.as_u256())
             .unwrap_or_default()
             .present_value;
-        *stg_value = result;
+        *stg_value = U256::from(result);
     }
 
     pub extern "C" fn write_storage(&mut self, stg_key: &U256, stg_value: &mut U256) -> i64 {
-        let key = stg_key;
-        let value = stg_value;
+        let key = stg_key.to_u256();
+        let value = stg_value.to_u256();
 
         let address = match self.env.tx.transact_to {
             TransactTo::Call(address) => address,
@@ -869,18 +833,19 @@ impl<'c> RuntimeContext<'c> {
     }
 
     pub extern "C" fn get_block_number(&self, number: &mut U256) {
-        *number = self.env.block.number;
+        *number = U256::from(self.env.block.number);
     }
 
     pub extern "C" fn get_block_hash(&mut self, number: &mut U256) {
-        let hash = if number < self.env.block.number.saturating_sub(EU256::from(256))
-            || number >= self.env.block.number
+        let number_as_u256 = number.to_u256();
+        let hash = if number_as_u256 < self.env.block.number.saturating_sub(EU256::from(256))
+            || number_as_u256 >= self.env.block.number
         {
             B256::zero()
         } else {
-            self.journal.get_block_hash(&number)
+            self.journal.get_block_hash(&number_as_u256)
         };
-        *number = U256::from_be_bytes(hash.as_bytes());
+        *number = U256::from_be_bytes(hash.to_fixed_bytes());
     }
 
     fn create_log(&mut self, offset: u32, size: u32, topics: Vec<U256>) {
@@ -898,14 +863,13 @@ impl<'c> RuntimeContext<'c> {
 
     #[allow(clippy::clone_on_copy)]
     pub extern "C" fn get_address_ptr(&mut self) -> *const u8 {
-        // Just keep alive using the `clone()` function, the address stack value maybe freed by Rust in the release mode.
         let address = self.env.tx.get_address().clone();
         address.as_ptr()
     }
 
     pub extern "C" fn get_prevrandao(&self, prevrandao: &mut U256) {
         let randao = self.env.block.prevrandao.unwrap_or_default();
-        *prevrandao = EU256::from_be_bytes(randao.into()).to_u256();
+        *prevrandao = U256::from_be_bytes(randao.into());
     }
 
     pub extern "C" fn get_coinbase_ptr(&self) -> *const u8 {
@@ -913,11 +877,11 @@ impl<'c> RuntimeContext<'c> {
     }
 
     pub extern "C" fn store_in_timestamp_ptr(&self, value: &mut U256) {
-        *value = self.env.block.timestamp;
+        *value = U256::from(&self.env.block.timestamp);
     }
 
     pub extern "C" fn store_in_basefee_ptr(&self, basefee: &mut U256) {
-        *basefee = self.env.block.basefee;
+        *basefee = U256::from(&self.env.block.basefee);
     }
 
     pub extern "C" fn store_in_balance(&mut self, address: &U256, balance: &mut U256) {
@@ -953,7 +917,7 @@ impl<'c> RuntimeContext<'c> {
         *blobhash = usize::try_from(index.lo)
             .ok()
             .and_then(|idx| self.env.tx.blob_hashes.get(idx).cloned())
-            .map(|x| U256::from_fixed_be_bytes(x.into()))
+            .map(|x| U256::from_be_bytes(x.into()))
             .unwrap_or_default();
     }
 
@@ -989,7 +953,7 @@ impl<'c> RuntimeContext<'c> {
             Some(account_info) => account_info.code_hash,
             _ => B256::zero(),
         };
-        *address = U256::from_fixed_be_bytes(hash.to_fixed_bytes());
+        *address = U256::from_be_bytes(hash.to_fixed_bytes());
     }
 
     fn create_aux(
@@ -1044,7 +1008,7 @@ impl<'c> RuntimeContext<'c> {
             true
         };
 
-        let _ = self.journal.set_balance(&sender_address, EU256::zero());
+        let _ = self.journal.set_balance(&sender_address, EU256::from(0));
         if self.journal.get_account(&sender_address).is_some() {
             let _ = self
                 .journal
@@ -1059,17 +1023,21 @@ impl<'c> RuntimeContext<'c> {
     }
 
     pub extern "C" fn read_transient_storage(&mut self, stg_key: &U256, stg_value: &mut U256) {
+        let key = stg_key.to_u256();
         let address = self.env.tx.get_address();
-        *stg_value = self
+        let result = self
             .transient_storage
-            .get(&(address, *stg_key))
+            .get(&(address, key))
             .cloned()
-            .unwrap_or(EU256::ZERO::to_u256());
+            .unwrap_or(EU256::from(0));
+        *stg_value = U256::from(result);
     }
 
     pub extern "C" fn write_transient_storage(&mut self, stg_key: &U256, stg_value: &mut U256) {
         let address = self.env.tx.get_address();
-        self.transient_storage.insert((address, *stg_key), stg_value);
+        let key = stg_key.to_u256();
+        let value = stg_value.to_u256();
+        self.transient_storage.insert((address, key), value);
     }
 
     /// Computes the contract address based on the sender's address and nonce.
@@ -1128,7 +1096,7 @@ impl<'c> RuntimeContext<'c> {
     /// ```
     pub fn compute_contract_address2(
         address: H160,
-        salt: U256,
+        salt: EU256,
         initialization_code: &[u8],
     ) -> Address {
         // Compute the destination address using the second method

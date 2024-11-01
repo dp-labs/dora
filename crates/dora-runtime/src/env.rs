@@ -1,5 +1,3 @@
-use crate::context::EU256;
-
 use super::constants::{
     gas_cost::{
         init_code_cost, MAX_CODE_SIZE, TX_ACCESS_LIST_ADDRESS_COST,
