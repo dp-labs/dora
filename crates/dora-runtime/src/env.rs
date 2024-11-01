@@ -1,3 +1,5 @@
+use crate::context::EU256;
+
 use super::constants::{
     gas_cost::{
         init_code_cost, MAX_CODE_SIZE, TX_ACCESS_LIST_ADDRESS_COST,
@@ -7,7 +9,8 @@ use super::constants::{
     MAX_BLOB_NUMBER_PER_BLOCK, VERSIONED_HASH_VERSION_KZG,
 };
 use super::result::InvalidTransaction;
-use dora_primitives::{Bytes, EVMAddress as Address, B256, U256};
+use dora_primitives::{Bytes, EVMAddress as Address, B256};
+use ruint::aliases::U256;
 
 /// Represents the execution environment for the EVM, including block, transaction, and EVM configuration.
 ///
@@ -248,9 +251,9 @@ impl Default for TxEnv {
         Self {
             caller: Address::zero(),
             gas_limit: i64::MAX as _,
-            gas_price: U256::zero(),
+            gas_price: EU256::ZERO,
             transact_to: TransactTo::Call(Address::zero()),
-            value: U256::zero(),
+            value: EU256::ZERO,
             data: Bytes::new(),
             access_list: Vec::new(),
             blob_hashes: Vec::new(),

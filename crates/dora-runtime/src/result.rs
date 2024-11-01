@@ -1,5 +1,6 @@
 use core::fmt;
-use dora_primitives::{account::Account, db::DatabaseError, Bytes, EVMAddress as Address, U256};
+use dora_primitives::{account::Account, db::DatabaseError, Bytes, EVMAddress as Address};
+use ruint::aliases::U256;
 use std::{boxed::Box, collections::HashMap, string::String};
 
 /// Represents the result of an EVM execution along with the updated account state.

@@ -1,8 +1,9 @@
 use dora_primitives::{
     account::{Account, AccountInfo, AccountStatus, EMPTY_CODE_HASH_STR},
     db::{Database, MemoryDb, StorageSlot},
-    Bytecode, EVMAddress as Address, B256, U256,
+    Bytecode, EVMAddress as Address, B256,
 };
+use ruint::aliases::U256;
 use sha3::{Digest, Keccak256};
 use std::collections::{hash_map::Entry, HashMap};
 use std::str::FromStr;
