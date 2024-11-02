@@ -15,21 +15,46 @@ use std::collections::HashMap;
 /// Function type for the main entrypoint of the generated code.
 pub type MainFunc = extern "C" fn(&mut RuntimeContext, initial_gas: u64) -> u8;
 
-/// A 256-bit unsigned integer represented as two 128-bit components.
+/// A 256-bit unsigned integer type with alignment for compatibility in C.
 ///
-/// The `U256` struct is useful for representing large integers in blockchain applications,
-/// especially for Ethereum-related calculations where 256-bit values are common.
+/// `U256` provides methods for conversion between different byte orders and offers several
+/// trait implementations for efficient conversions to and from other integer types. It is
+/// aligned to 8 bytes and represented as an array of 32 bytes.
 ///
-/// # Fields:
-/// - `lo`: The lower 128 bits of the 256-bit number.
-/// - `hi`: The higher 128 bits of the 256-bit number.
+/// # Examples
 ///
-/// # Example Usage:
-/// ```no_check
-/// let number = U256 { lo: 0, hi: 1 };
-/// assert_eq!(number.hi, 1);
-/// assert_eq!(number.lo, 0);
 /// ```
+/// let num = U256::ZERO;
+/// let be_bytes = num.to_be_bytes();
+/// let from_bytes = U256::from_be_bytes(be_bytes);
+/// assert_eq!(num, from_bytes);
+/// ```
+///
+/// # Fields
+///
+/// - `ZERO`: Constant representing the zero value for `U256`.
+///
+/// # Methods
+///
+/// - `from_ne_bytes`: Creates a `U256` from native-endian bytes.
+/// - `from_be_bytes`: Creates a `U256` from big-endian bytes.
+/// - `from_le_bytes`: Creates a `U256` from little-endian bytes.
+/// - `to_ne_bytes`: Converts the integer to a byte array in native byte order.
+/// - `to_be_bytes`: Converts the integer to a byte array in big-endian byte order.
+/// - `to_le_bytes`: Converts the integer to a byte array in little-endian byte order.
+///
+/// # Trait Implementations
+///
+/// Implements `Clone`, `Copy`, `Debug`, `Default`, `Eq`, `Hash`, `Ord`, `PartialEq`, `PartialOrd`.
+///
+/// Includes conversion implementations from various integer types (`bool`, `u8`, `u16`, `u32`,
+/// `u64`, `usize`, `u128`) through `impl_conversions_through_u256!` macro, and allows conversion
+/// to and from an external 256-bit type, `EU256`.
+///
+/// # Safety
+///
+/// Some methods (e.g., `from_u256` on little-endian platforms) rely on `unsafe` transmutation
+/// for efficient internal representation and conversion.
 #[repr(C, align(8))]
 #[derive(Clone, Copy, Debug, Default, Eq, Hash, Ord, PartialEq, PartialOrd)]
 pub struct U256([u8; 32]);
@@ -256,6 +281,23 @@ impl U256 {
         let mut buffer = [0u8; 32];
         buffer[12..32].copy_from_slice(&value.0);
         *self = U256::from_be_bytes(buffer);
+    }
+}
+
+/// TODO: considering traits for various chain protocol
+impl U256 {
+    /// Checks if this `U256` value represents a valid 20-byte Ethereum address.
+    ///
+    /// A valid Ethereum address is stored in the lower 20 bytes of this `U256` value,
+    /// meaning that the higher 12 bytes of this `U256` must be zero.
+    ///
+    /// # Returns
+    ///
+    /// `true` if the high 12 bytes are zero, indicating a valid Ethereum address.
+    /// `false` otherwise.
+    pub fn is_valid_eth_address(&self) -> bool {
+        let bytes = self.to_be_bytes();
+        bytes[0..12] == [0u8; 12]
     }
 }
 
@@ -884,39 +926,35 @@ impl<'c> RuntimeContext<'c> {
         *basefee = U256::from(&self.env.block.basefee);
     }
 
-    pub extern "C" fn store_in_balance(&mut self, address: &U256, balance: &mut U256) {
-        // Ensure address is a valid 20-byte Ethereum address
-        if (address.hi >> 32) != 0 {
-            balance.hi = 0;
-            balance.lo = 0;
+    pub extern "C" fn store_in_balance(&mut self, mut address: &U256, balance: &mut U256) {
+        if !address.is_valid_eth_address() {
+            address = &U256::ZERO;
             return;
         }
 
-        let address = Address::from_slice(
-            &[
-                &address.hi.to_be_bytes()[12..16],
-                &address.lo.to_be_bytes()[..],
-            ]
-            .concat(),
-        );
-
-        if let Some(a) = self.journal.get_account(&address) {
-            balance.hi = (a.balance >> 128).low_u128();
-            balance.lo = a.balance.low_u128();
+        let addr = Address::from(address);
+        if let Some(a) = self.journal.get_account(&addr) {
+            *balance = *address;
         } else {
-            balance.hi = 0;
-            balance.lo = 0;
+            *balance = U256::ZERO;
         }
     }
 
     pub extern "C" fn get_blob_hash_at_index(&mut self, index: &U256, blobhash: &mut U256) {
-        if index.hi != 0 {
+        // Check if the high 12 bytes are zero, indicating a valid usize-compatible index
+        if index.0[0..12] != [0u8; 12] {
             *blobhash = U256::default();
             return;
         }
-        *blobhash = usize::try_from(index.lo)
-            .ok()
-            .and_then(|idx| self.env.tx.blob_hashes.get(idx).cloned())
+
+        // Convert the low 20 bytes into a usize for the index
+        let idx = usize::from_be_bytes(index.0[12..32].try_into().unwrap_or_default());
+        *blobhash = self
+            .env
+            .tx
+            .blob_hashes
+            .get(idx)
+            .cloned()
             .map(|x| U256::from_be_bytes(x.into()))
             .unwrap_or_default();
     }
@@ -999,12 +1037,16 @@ impl<'c> RuntimeContext<'c> {
 
         let receiver_is_empty = if let Some(receiver) = self.journal.get_account(&receiver_address)
         {
+            let balance = U256::from_be_bytes((receiver.balance + sender_balance).into());
             let _ = self
                 .journal
-                .set_balance(&receiver_address, receiver.balance + sender_balance);
+                .set_balance(&receiver_address, *balance.as_u256());
             receiver.is_empty()
         } else {
-            let _ = self.journal.new_account(receiver_address, sender_balance);
+            let balance = U256::from_be_bytes(sender_balance.into());
+            let _ = self
+                .journal
+                .new_account(receiver_address, *balance.as_u256());
             true
         };
 
@@ -1107,8 +1149,7 @@ impl<'c> RuntimeContext<'c> {
         };
 
         let mut hasher = Keccak256::new();
-        let mut salt_bytes = [0; 32];
-        salt.to_big_endian(&mut salt_bytes);
+        let salt_bytes: [u8; 32] = salt.to_be_bytes();
         hasher.update([0xff]);
         hasher.update(address.as_bytes());
         hasher.update(salt_bytes);

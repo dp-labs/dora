@@ -1,7 +1,8 @@
+use super::context::U256 as DU256;
 use dora_primitives::{
     account::{Account, AccountInfo, AccountStatus, EMPTY_CODE_HASH_STR},
     db::{Database, MemoryDb, StorageSlot},
-    Bytecode, EVMAddress as Address, B256,
+    Bytecode, EVMAddress as Address, B256, U256 as EU256,
 };
 use ruint::aliases::U256;
 use sha3::{Digest, Keccak256};
@@ -128,7 +129,7 @@ impl From<AccountInfo> for JournalAccount {
     fn from(info: AccountInfo) -> Self {
         Self {
             nonce: info.nonce,
-            balance: info.balance,
+            balance: *DU256::from_be_bytes(info.balance.into()).as_u256(),
             storage: Default::default(),
             bytecode_hash: info.code_hash,
             status: AccountStatus::Cold,
@@ -147,8 +148,9 @@ impl From<&JournalAccount> for AccountInfo {
     /// # Returns:
     /// - `AccountInfo`: A new `AccountInfo` created from the `JournalAccount`.
     fn from(acc: &JournalAccount) -> Self {
+        let bytes: [u8; 32] = acc.balance.to_be_bytes();
         Self {
-            balance: acc.balance,
+            balance: EU256::from_big_endian(&bytes),
             nonce: acc.nonce,
             code_hash: acc.bytecode_hash,
             code: None,

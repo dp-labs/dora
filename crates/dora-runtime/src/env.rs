@@ -6,6 +6,7 @@ use super::constants::{
     },
     MAX_BLOB_NUMBER_PER_BLOCK, VERSIONED_HASH_VERSION_KZG,
 };
+use super::context::U256 as DU256;
 use super::result::InvalidTransaction;
 use dora_primitives::{Bytes, EVMAddress as Address, B256};
 use ruint::aliases::U256;
@@ -249,9 +250,9 @@ impl Default for TxEnv {
         Self {
             caller: Address::zero(),
             gas_limit: i64::MAX as _,
-            gas_price: EU256::ZERO,
+            gas_price: DU256::ZERO.to_u256(),
             transact_to: TransactTo::Call(Address::zero()),
-            value: EU256::ZERO,
+            value: DU256::ZERO.to_u256(),
             data: Bytes::new(),
             access_list: Vec::new(),
             blob_hashes: Vec::new(),
