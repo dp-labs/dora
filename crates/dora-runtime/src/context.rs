@@ -926,15 +926,15 @@ impl<'c> RuntimeContext<'c> {
         *basefee = U256::from(&self.env.block.basefee);
     }
 
-    pub extern "C" fn store_in_balance(&mut self, mut address: &U256, balance: &mut U256) {
+    pub extern "C" fn store_in_balance(&mut self, address: &U256, balance: &mut U256) {
         if !address.is_valid_eth_address() {
-            address = &U256::ZERO;
+            *balance = U256::ZERO;
             return;
         }
 
         let addr = Address::from(address);
         if let Some(a) = self.journal.get_account(&addr) {
-            *balance = *address;
+            *balance = U256::from_be_bytes(a.balance.into());
         } else {
             *balance = U256::ZERO;
         }
