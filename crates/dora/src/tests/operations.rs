@@ -3,9 +3,10 @@
 use crate::{run_evm, run_evm_program, tests::INIT_GAS};
 use bytes::Bytes;
 use dora_compiler::evm::program::{Operation, Program};
-use dora_primitives::{db::MemoryDb, Address, Bytecode, B256, H160, U256};
+use dora_primitives::{db::MemoryDb, Address, Bytecode, B256, H160};
 use dora_runtime::env::{Env, TransactTo};
 use num_bigint::{BigInt, BigUint};
+use ruint::aliases::U256;
 
 #[test]
 fn add() {
