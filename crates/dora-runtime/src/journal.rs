@@ -3,6 +3,7 @@ use dora_primitives::{
     db::{Database, MemoryDb, StorageSlot},
     Bytecode, EVMAddress as Address, B256, U256,
 };
+use rustc_hash::FxHashMap;
 use sha3::{Digest, Keccak256};
 use std::collections::{hash_map::Entry, HashMap};
 use std::str::FromStr;
@@ -64,7 +65,7 @@ impl From<U256> for JournalStorageSlot {
 pub struct JournalAccount {
     pub nonce: u64,
     pub balance: U256,
-    pub storage: HashMap<U256, JournalStorageSlot>,
+    pub storage: FxHashMap<U256, JournalStorageSlot>,
     pub bytecode_hash: B256,
     pub status: AccountStatus,
 }
@@ -107,7 +108,7 @@ impl JournalAccount {
         Self {
             nonce: 0,
             balance,
-            storage: Default::default(),
+            storage: FxHashMap::default(),
             bytecode_hash: B256::from_str(EMPTY_CODE_HASH_STR).unwrap_or_default(),
             status: AccountStatus::Created,
         }
@@ -128,7 +129,7 @@ impl From<AccountInfo> for JournalAccount {
         Self {
             nonce: info.nonce,
             balance: info.balance,
-            storage: Default::default(),
+            storage: FxHashMap::default(),
             bytecode_hash: info.code_hash,
             status: AccountStatus::Cold,
         }
