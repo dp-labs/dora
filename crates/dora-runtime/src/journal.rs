@@ -493,10 +493,11 @@ impl<'a> Journal<'a> {
             return *hash;
         }
 
+        let num_bytes: [u8; 32] = number.to_be_bytes();
         let block_hash = self
             .db
             .as_mut()
-            .and_then(|db| db.block_hash(*number).ok())
+            .and_then(|db| db.block_hash(EU256::from_big_endian(&num_bytes)).ok())
             .unwrap_or_default();
 
         self.block_hashes.insert(*number, block_hash);
@@ -518,10 +519,19 @@ impl<'a> Journal<'a> {
                     .iter()
                     .map(|(&key, slot)| {
                         (
-                            key,
+                            {
+                                let bytes: [u8; 32] = key.to_be_bytes();
+                                EU256::from_big_endian(&bytes)
+                            },
                             StorageSlot {
-                                original_value: slot.original_value,
-                                present_value: slot.present_value,
+                                original_value: {
+                                    let bytes: [u8; 32] = slot.original_value.to_be_bytes();
+                                    EU256::from_big_endian(&bytes)
+                                },
+                                present_value: {
+                                    let bytes: [u8; 32] = slot.present_value.to_be_bytes();
+                                    EU256::from_big_endian(&bytes)
+                                },
                                 is_cold: false,
                             },
                         )
@@ -532,7 +542,10 @@ impl<'a> Journal<'a> {
                     *address,
                     Account {
                         info: AccountInfo {
-                            balance: acc.balance,
+                            balance: {
+                                let bytes: [u8; 32] = acc.balance.to_be_bytes();
+                                EU256::from_big_endian(&bytes)
+                            },
                             nonce: acc.nonce,
                             code_hash: acc.bytecode_hash,
                             code,
