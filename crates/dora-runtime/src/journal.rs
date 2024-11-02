@@ -619,7 +619,14 @@ impl<'a> Journal<'a> {
     fn _fetch_storage_from_db(&mut self, address: &Address, key: &U256) -> JournalStorageSlot {
         self.db
             .as_mut()
-            .and_then(|db| db.storage(*address, *key).ok())
+            .and_then(|db| {
+                db.storage(*address, {
+                    let bytes: [u8; 32] = key.to_be_bytes();
+                    EU256::from_big_endian(&bytes)
+                })
+                .ok()
+                .map(|value| U256::from_be_bytes(value.into()))
+            })
             .map(JournalStorageSlot::from)
             .unwrap_or_default()
     }
