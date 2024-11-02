@@ -55,6 +55,11 @@ pub type MainFunc = extern "C" fn(&mut RuntimeContext, initial_gas: u64) -> u8;
 ///
 /// Some methods (e.g., `from_u256` on little-endian platforms) rely on `unsafe` transmutation
 /// for efficient internal representation and conversion.
+///
+/// TODO: This is still a transitional solution aimed at improving runtime performance. A more comprehensive 
+/// U256 design should be considered, keeping global needs and extensibility. Once the new U256 
+/// design is completed, a global, unified modification may be needed to eliminate a buncle of conversions 
+/// between different U256 types, and achieving optimal processing performance.
 #[repr(C, align(8))]
 #[derive(Clone, Copy, Debug, Default, Eq, Hash, Ord, PartialEq, PartialOrd)]
 pub struct U256([u8; 32]);
