@@ -1051,7 +1051,7 @@ fn origin() {
 #[test]
 fn caller() {
     let addr = Address::from_low_u64_le(10000);
-    let mut value = dora_runtime::context::U256::zero();
+    let mut value = dora_runtime::context::U256Slot::ZERO;
     value.copy_from(&addr);
     let operations = vec![
         Operation::Caller,
@@ -1063,11 +1063,7 @@ fn caller() {
         Operation::Return,
     ];
     let (env, mut db) = default_env_and_db_setup(operations);
-    run_program_assert_num_result(
-        env,
-        &mut db,
-        BigUint::from(value.to_primitive_u256().as_u128()),
-    );
+    run_program_assert_num_result(env, &mut db, BigUint::from_bytes_le(&value.to_le_bytes()));
 }
 
 #[test]

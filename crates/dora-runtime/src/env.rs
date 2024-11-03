@@ -6,10 +6,8 @@ use super::constants::{
     },
     MAX_BLOB_NUMBER_PER_BLOCK, VERSIONED_HASH_VERSION_KZG,
 };
-use super::context::U256 as DU256;
 use super::result::InvalidTransaction;
-use dora_primitives::{Bytes, EVMAddress as Address, B256};
-use ruint::aliases::U256;
+use dora_primitives::{Bytes, EVMAddress as Address, B256, U256};
 
 /// Represents the execution environment for the EVM, including block, transaction, and EVM configuration.
 ///
@@ -250,9 +248,9 @@ impl Default for TxEnv {
         Self {
             caller: Address::zero(),
             gas_limit: i64::MAX as _,
-            gas_price: DU256::ZERO.to_u256(),
+            gas_price: U256::ZERO,
             transact_to: TransactTo::Call(Address::zero()),
-            value: DU256::ZERO.to_u256(),
+            value: U256::ZERO,
             data: Bytes::new(),
             access_list: Vec::new(),
             blob_hashes: Vec::new(),

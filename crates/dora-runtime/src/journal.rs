@@ -1,14 +1,11 @@
-use super::context::U256 as DU256;
 use dora_primitives::{
     account::{Account, AccountInfo, AccountStatus, EMPTY_CODE_HASH_STR},
     db::{Database, MemoryDb, StorageSlot},
-    Bytecode, EVMAddress as Address, B256, U256 as EU256,
+    Bytecode, EVMAddress as Address, B256, U256,
 };
-use ruint::aliases::U256;
 use rustc_hash::FxHashMap;
 use sha3::{Digest, Keccak256};
-use std::collections::{hash_map::Entry, HashMap};
-use std::str::FromStr;
+use std::{collections::hash_map::Entry, str::FromStr};
 
 /// Represents a journal entry for an individual storage slot, maintaining both its original and present values.
 ///
@@ -130,7 +127,7 @@ impl From<AccountInfo> for JournalAccount {
     fn from(info: AccountInfo) -> Self {
         Self {
             nonce: info.nonce,
-            balance: *DU256::from_be_bytes(info.balance.into()).as_u256(),
+            balance: info.balance,
             storage: Default::default(),
             bytecode_hash: info.code_hash,
             status: AccountStatus::Cold,
@@ -149,9 +146,8 @@ impl From<&JournalAccount> for AccountInfo {
     /// # Returns:
     /// - `AccountInfo`: A new `AccountInfo` created from the `JournalAccount`.
     fn from(acc: &JournalAccount) -> Self {
-        let bytes: [u8; 32] = acc.balance.to_be_bytes();
         Self {
-            balance: EU256::from_big_endian(&bytes),
+            balance: acc.balance,
             nonce: acc.nonce,
             code_hash: acc.bytecode_hash,
             code: None,
@@ -159,8 +155,8 @@ impl From<&JournalAccount> for AccountInfo {
     }
 }
 
-type AccountState = HashMap<Address, JournalAccount>;
-type ContractState = HashMap<B256, Bytecode>;
+type AccountState = FxHashMap<Address, JournalAccount>;
+type ContractState = FxHashMap<B256, Bytecode>;
 
 /// A struct that manages account and contract states in memory, tracking changes during execution.
 ///
@@ -183,7 +179,7 @@ type ContractState = HashMap<B256, Bytecode>;
 pub struct Journal<'a> {
     accounts: AccountState,
     contracts: ContractState,
-    block_hashes: HashMap<U256, B256>,
+    block_hashes: FxHashMap<U256, B256>,
     db: Option<&'a mut MemoryDb>,
 }
 
@@ -406,7 +402,7 @@ impl<'a> Journal<'a> {
         if self._get_account(address).is_none() {
             return;
         };
-        let slots: HashMap<U256, JournalStorageSlot> = keys
+        let slots: FxHashMap<U256, JournalStorageSlot> = keys
             .iter()
             .map(|key| (*key, self._fetch_storage_from_db(address, key)))
             .collect();
@@ -493,19 +489,17 @@ impl<'a> Journal<'a> {
         if let Some(hash) = self.block_hashes.get(number) {
             return *hash;
         }
-
-        let num_bytes: [u8; 32] = number.to_be_bytes();
         let block_hash = self
             .db
             .as_mut()
-            .and_then(|db| db.block_hash(EU256::from_big_endian(&num_bytes)).ok())
+            .and_then(|db| db.block_hash(*number).ok())
             .unwrap_or_default();
 
         self.block_hashes.insert(*number, block_hash);
         block_hash
     }
 
-    pub fn into_state(&self) -> HashMap<Address, Account> {
+    pub fn into_state(&self) -> FxHashMap<Address, Account> {
         self.accounts
             .iter()
             .map(|(address, acc)| {
@@ -520,19 +514,10 @@ impl<'a> Journal<'a> {
                     .iter()
                     .map(|(&key, slot)| {
                         (
-                            {
-                                let bytes: [u8; 32] = key.to_be_bytes();
-                                EU256::from_big_endian(&bytes)
-                            },
+                            key,
                             StorageSlot {
-                                original_value: {
-                                    let bytes: [u8; 32] = slot.original_value.to_be_bytes();
-                                    EU256::from_big_endian(&bytes)
-                                },
-                                present_value: {
-                                    let bytes: [u8; 32] = slot.present_value.to_be_bytes();
-                                    EU256::from_big_endian(&bytes)
-                                },
+                                original_value: slot.original_value,
+                                present_value: slot.present_value,
                                 is_cold: false,
                             },
                         )
@@ -543,10 +528,7 @@ impl<'a> Journal<'a> {
                     *address,
                     Account {
                         info: AccountInfo {
-                            balance: {
-                                let bytes: [u8; 32] = acc.balance.to_be_bytes();
-                                EU256::from_big_endian(&bytes)
-                            },
+                            balance: acc.balance,
                             nonce: acc.nonce,
                             code_hash: acc.bytecode_hash,
                             code,
@@ -620,14 +602,7 @@ impl<'a> Journal<'a> {
     fn _fetch_storage_from_db(&mut self, address: &Address, key: &U256) -> JournalStorageSlot {
         self.db
             .as_mut()
-            .and_then(|db| {
-                db.storage(*address, {
-                    let bytes: [u8; 32] = key.to_be_bytes();
-                    EU256::from_big_endian(&bytes)
-                })
-                .ok()
-                .map(|value| U256::from_be_bytes(value.into()))
-            })
+            .and_then(|db| db.storage(*address, *key).ok())
             .map(JournalStorageSlot::from)
             .unwrap_or_default()
     }
