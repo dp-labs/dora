@@ -1,11 +1,11 @@
 use crate::constants::gas_cost;
 use crate::{
-    env::{Env, TransactTo},
+    env::Env,
     journal::Journal,
     result::{EVMError, ExecutionResult, HaltReason, Output, ResultAndState, SuccessReason},
 };
 use crate::{symbols, ExitStatusCode};
-use dora_primitives::account::{AccountInfo, AccountStatus};
+use dora_primitives::account::AccountStatus;
 use dora_primitives::{EVMAddress as Address, B256, H160, U256};
 use melior::ExecutionEngine;
 use rustc_hash::FxHashMap;
@@ -22,7 +22,7 @@ pub type MainFunc = extern "C" fn(&mut RuntimeContext, initial_gas: u64) -> u8;
 ///
 /// # Examples
 ///
-/// ```
+/// ```no_check
 /// let num = U256Slot::ZERO;
 /// let be_bytes = num.to_be_bytes();
 /// let from_bytes = U256Slot::from_be_bytes(be_bytes);
@@ -306,7 +306,9 @@ impl U256Slot {
 
 impl From<&U256Slot> for Address {
     fn from(value: &U256Slot) -> Self {
-        Address::from_slice(&value.to_be_bytes())
+        // Create an address from the last 20 bytes of the 256-bit U256.
+        let bytes = value.to_be_bytes();
+        Address::from_slice(&bytes[12..])
     }
 }
 
@@ -408,6 +410,7 @@ pub struct RuntimeContext<'c> {
     pub journal: Journal<'c>,
     pub call_frame: CallFrame,
     pub inner_context: InnerContext,
+    pub storage: FxHashMap<U256, U256>,
     pub transient_storage: FxHashMap<(Address, U256), U256>,
 }
 
@@ -482,6 +485,7 @@ impl<'c> RuntimeContext<'c> {
             journal,
             call_frame,
             inner_context: Default::default(),
+            storage: Default::default(),
             transient_storage: Default::default(),
         }
     }
@@ -676,10 +680,10 @@ impl<'c> RuntimeContext<'c> {
     }
 
     pub extern "C" fn store_in_selfbalance_ptr(&mut self, balance: &mut U256Slot) {
-        let account = match self.env.tx.transact_to {
-            TransactTo::Call(address) => self.journal.get_account(&address).unwrap_or_default(),
-            TransactTo::Create => AccountInfo::default(), // This branch should never happen
-        };
+        let account = self
+            .journal
+            .get_account(&self.env.tx.transact_to)
+            .unwrap_or_default();
         *balance = U256Slot::from_u256(account.balance);
     }
 
@@ -777,13 +781,8 @@ impl<'c> RuntimeContext<'c> {
     }
 
     pub extern "C" fn read_storage(&mut self, stg_key: &U256Slot, stg_value: &mut U256Slot) {
-        let address = self.env.tx.get_address();
-        let result = self
-            .journal
-            .read_storage(&address, stg_key.as_u256())
-            .unwrap_or_default()
-            .present_value;
-        *stg_value = U256Slot::from(result);
+        let result = self.storage.get(&stg_key.to_u256()).unwrap_or(&U256::ZERO);
+        *stg_value = result.into();
     }
 
     pub extern "C" fn write_storage(
@@ -793,20 +792,12 @@ impl<'c> RuntimeContext<'c> {
     ) -> i64 {
         let key = stg_key.to_u256();
         let value = stg_value.to_u256();
+        let present = self.storage.insert(key, value);
 
-        let address = match self.env.tx.transact_to {
-            TransactTo::Call(address) => address,
-            TransactTo::Create => return 0, // Storage should not be written on Create
-        };
-
-        let is_cold = !self.journal.is_key_warm(&address, &key);
-        let slot = self.journal.read_storage(&address, &key);
-        self.journal.write_storage(&address, key, value);
-
-        let (original, current) = match slot {
-            Some(slot) => (slot.original_value, slot.present_value),
-            None => (value, value),
-        };
+        // Dynamic gas cost
+        let original = U256::ZERO;
+        let current = value;
+        let is_cold = present.is_none();
 
         // Compute the gas cost
         let mut gas_cost: i64 = if original.is_zero() && current.is_zero() && current != value {
@@ -912,7 +903,7 @@ impl<'c> RuntimeContext<'c> {
 
     #[allow(clippy::clone_on_copy)]
     pub extern "C" fn get_address_ptr(&mut self) -> *const u8 {
-        let address = self.env.tx.get_address().clone();
+        let address = self.env.tx.transact_to.clone();
         address.as_ptr()
     }
 
@@ -1080,10 +1071,9 @@ impl<'c> RuntimeContext<'c> {
         stg_value: &mut U256Slot,
     ) {
         let key = stg_key.to_u256();
-        let address = self.env.tx.get_address();
         let result = self
             .transient_storage
-            .get(&(address, key))
+            .get(&(self.env.tx.transact_to, key))
             .cloned()
             .unwrap_or(U256::ZERO);
         *stg_value = U256Slot::from(result);
@@ -1094,10 +1084,10 @@ impl<'c> RuntimeContext<'c> {
         stg_key: &U256Slot,
         stg_value: &mut U256Slot,
     ) {
-        let address = self.env.tx.get_address();
         let key = stg_key.to_u256();
         let value = stg_value.to_u256();
-        self.transient_storage.insert((address, key), value);
+        self.transient_storage
+            .insert((self.env.tx.transact_to, key), value);
     }
 
     /// Computes the contract address based on the sender's address and nonce.

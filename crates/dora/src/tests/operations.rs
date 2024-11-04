@@ -4,7 +4,7 @@ use crate::{run_evm, run_evm_program, tests::INIT_GAS};
 use bytes::Bytes;
 use dora_compiler::evm::program::{Operation, Program};
 use dora_primitives::{db::MemoryDb, Address, Bytecode, B256, H160};
-use dora_runtime::env::{Env, TransactTo};
+use dora_runtime::env::Env;
 use num_bigint::{BigInt, BigUint};
 use ruint::aliases::U256;
 
@@ -3343,7 +3343,7 @@ pub(crate) fn default_env_and_db_setup(operations: Vec<Operation>) -> (Env, Memo
         Address::from_low_u64_be(40),
         Bytecode::from(program.to_opcode()),
     );
-    env.tx.transact_to = TransactTo::Call(address);
+    env.tx.transact_to = address;
     env.block.coinbase = Address::from_low_u64_be(80);
     let db = MemoryDb::new().with_contract(address, bytecode);
     (env, db)

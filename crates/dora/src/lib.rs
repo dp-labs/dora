@@ -13,11 +13,11 @@ use dora_primitives::{
     db::{Database, MemoryDb},
     Address, Bytecode,
 };
+use dora_runtime::context::RuntimeContext;
 use dora_runtime::executor::Executor;
 use dora_runtime::journal::Journal;
 use dora_runtime::result::ResultAndState;
 use dora_runtime::{context::CallFrame, env::Env};
-use dora_runtime::{context::RuntimeContext, env::TransactTo};
 use std::hint::black_box;
 
 /// Run EVM bytecode from a hex-encoded string and return the execution result and final state.
@@ -83,7 +83,7 @@ pub fn run_evm_program(
     let mut env: Env = Default::default();
     env.tx.gas_limit = 999_999;
     env.tx.data = Bytes::from(calldata.to_vec());
-    env.tx.transact_to = TransactTo::Call(address);
+    env.tx.transact_to = address;
     let mut db = MemoryDb::default().with_contract(address, bytecode);
     let journal = Journal::new(&mut db);
     let mut context = RuntimeContext::new(

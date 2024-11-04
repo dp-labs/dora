@@ -3,7 +3,7 @@ use bytes::Bytes;
 use clap::{Args, Parser, Subcommand};
 use dora_primitives::db::MemoryDb;
 use dora_primitives::{Address, Bytecode};
-use dora_runtime::env::{Env, TransactTo};
+use dora_runtime::env::Env;
 use ruint::aliases::U256;
 use std::str::FromStr;
 use tracing::{error, info};
@@ -87,7 +87,7 @@ fn main() -> Result<()> {
             env.tx.gas_limit = run_args.gas_limit;
             env.tx.value = U256::from_str(&run_args.value).context("Failed to parse value")?;
             env.tx.caller = sender;
-            env.tx.transact_to = TransactTo::Call(address);
+            env.tx.transact_to = address;
             env.tx.data = Bytes::from(calldata);
             env.block.number = U256::from(run_args.block_number);
             env.block.timestamp = U256::from(run_args.timestamp);
