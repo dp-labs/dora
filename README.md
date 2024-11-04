@@ -43,7 +43,11 @@ Check out contract examples [here](./examples/).
 
 ## Benchmarks
 
-See [here](./tests/bench/) for more information.
+Dora performed well in basic test cases. The benchmark results are shown below. For more benchmark tests, see [here](./tests/bench/).
+
+![image](https://github.com/user-attachments/assets/477a16b3-ac86-4aa2-a4d8-1e82d7dd950b)
+![image](https://github.com/user-attachments/assets/6d1a3d4a-96f2-44ef-864c-f8d776019b7a)
+
 
 ## Installation
 
@@ -67,7 +71,7 @@ Then you can find the binary `dora` in the `target/release` folder.
 
 ## How it Works
 
-The Dora compiler is built on a unified intermediate representation(IR) layer tailored for blockchain applications, following a streamlined process to transform and optimize code into an ideal executable format. After thorough analysis and verification, the VM executes machine code generated from compiled native modules, which optimized for both main processors and co-processors.
+The Dora compiler is built on a unified intermediate representation(IR) layer tailored for blockchain applications, following a streamlined process to transform and optimize code into an ideal executable format. After thorough analysis and verification, the VM executes machine code generated from compiled native modules, which optimized for both main processors and co-processors. See [Tech design](./docs/design/tech.md) for more information.
 
 ## Roadmap
 
