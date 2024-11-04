@@ -83,7 +83,7 @@ impl Env {
     /// env.validate_transaction()?;
     /// ```
     pub fn validate_transaction(&mut self) -> Result<(), InvalidTransaction> {
-        let is_create = matches!(self.tx.transact_to, TransactTo::Create);
+        let is_create = self.tx.transact_to.is_zero();
 
         if is_create && self.tx.data.len() > 2 * MAX_CODE_SIZE {
             return Err(InvalidTransaction::CreateInitCodeSizeLimit);
@@ -133,9 +133,10 @@ impl Env {
             })
             .sum();
 
-        let create_cost = match self.tx.transact_to {
-            TransactTo::Call(_) => 0,
-            TransactTo::Create => TX_CREATE_COST + init_code_cost(self.tx.data.len()),
+        let create_cost = if !self.tx.transact_to.is_zero() {
+            0
+        } else {
+            TX_CREATE_COST + init_code_cost(self.tx.data.len())
         };
 
         let access_list_cost: u64 = self
@@ -235,7 +236,7 @@ pub struct TxEnv {
     pub caller: Address,
     pub gas_limit: u64,
     pub gas_price: U256,
-    pub transact_to: TransactTo,
+    pub transact_to: Address,
     pub value: U256,
     pub data: Bytes,
     pub access_list: Vec<(Address, Vec<U256>)>,
@@ -248,35 +249,15 @@ impl Default for TxEnv {
         Self {
             caller: Address::zero(),
             gas_limit: i64::MAX as _,
-            gas_price: U256::zero(),
-            transact_to: TransactTo::Call(Address::zero()),
-            value: U256::zero(),
+            gas_price: U256::ZERO,
+            transact_to: Address::zero(),
+            value: U256::ZERO,
             data: Bytes::new(),
             access_list: Vec::new(),
             blob_hashes: Vec::new(),
             max_fee_per_blob_gas: None,
         }
     }
-}
-
-/// Defines the destination of a transaction, either a contract call or a contract creation.
-///
-/// The `TransactTo` enum represents the possible destinations of a transaction. It can either be
-/// a contract call with a specific address, or a contract creation where no address is specified.
-///
-/// # Variants:
-/// - `Call(Address)`: Indicates a transaction to call a contract at a specific address.
-/// - `Create`: Indicates a transaction to create a new contract.
-///
-/// # Example Usage:
-/// ```no_check
-/// let tx_to_call = TransactTo::Call(Address::from_low_u64_be(0x123));
-/// let tx_to_create = TransactTo::Create;
-/// ```
-#[derive(Clone, Debug)]
-pub enum TransactTo {
-    Call(Address),
-    Create,
 }
 
 impl TxEnv {
@@ -293,10 +274,8 @@ impl TxEnv {
     /// let tx_env = TxEnv::default();
     /// assert_eq!(tx_env.get_address(), Address::zero());
     /// ```
+    #[inline]
     pub fn get_address(&self) -> Address {
-        match self.transact_to {
-            TransactTo::Call(addr) => addr,
-            TransactTo::Create => Address::zero(),
-        }
+        self.transact_to
     }
 }
