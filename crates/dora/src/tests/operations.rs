@@ -1051,7 +1051,7 @@ fn origin() {
 #[test]
 fn caller() {
     let addr = Address::from_low_u64_le(10000);
-    let mut value = dora_runtime::context::U256Slot::ZERO;
+    let mut value = dora_runtime::context::Bytes32::ZERO;
     value.copy_from(&addr);
     let operations = vec![
         Operation::Caller,
