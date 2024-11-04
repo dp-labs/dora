@@ -45,9 +45,13 @@ Check out contract examples [here](./examples/).
 
 Dora performed well in basic test cases. The benchmark results are shown below. For more benchmark tests, see [here](./tests/bench/).
 
-![image](https://github.com/user-attachments/assets/477a16b3-ac86-4aa2-a4d8-1e82d7dd950b)
-![image](https://github.com/user-attachments/assets/6d1a3d4a-96f2-44ef-864c-f8d776019b7a)
+- `Fib(70)`
 
+![image](https://github.com/user-attachments/assets/477a16b3-ac86-4aa2-a4d8-1e82d7dd950b)
+
+- `Counter`
+
+![image](https://github.com/user-attachments/assets/6d1a3d4a-96f2-44ef-864c-f8d776019b7a)
 
 ## Installation
 
