@@ -321,7 +321,7 @@ impl MemoryDb {
     /// db.with_contract(address, bytecode);
     /// ```
     pub fn with_contract(mut self, address: Address, bytecode: Bytecode) -> Self {
-        self.insert_contract(address, bytecode, U256::zero());
+        self.insert_contract(address, bytecode, U256::ZERO);
         self
     }
 
@@ -383,8 +383,8 @@ impl MemoryDb {
     /// - `key`: The storage key to retrieve the value from.
     ///
     /// # Returns
-    ///
-    /// - `U256`: The storage value stored at the key, or `U256::zero()` if not found.
+    ///?
+    /// - `U256`: The storage value stored at the key, or `U256::ZERO` if not found.
     ///
     /// # Example
     ///
@@ -547,7 +547,7 @@ impl DbAccount {
     pub fn empty() -> Self {
         DbAccount {
             nonce: 0,
-            balance: U256::zero(),
+            balance: U256::ZERO,
             storage: HashMap::new(),
             bytecode_hash: B256::from_str(EMPTY_CODE_HASH_STR).unwrap(),
             status: AccountStatus::Created,
