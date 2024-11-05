@@ -1,10 +1,12 @@
+use alloy_eips::eip2930::AccessList;
+use alloy_primitives::Bytes;
 use anyhow::{Context, Result};
 use clap::{Args, Parser, Subcommand};
 use dora_primitives::db::MemoryDb;
 use dora_primitives::{Address, Bytecode, B256, U256};
 use dora_runtime::env::{Env, TransactTo};
 use indicatif::{ProgressBar, ProgressDrawTarget};
-use serde::{Deserialize, Serialize};
+use serde::{de, Deserialize, Serialize};
 use std::collections::BTreeMap;
 use std::{
     collections::HashMap,
@@ -203,7 +205,7 @@ pub fn find_all_json_tests(path: &Path) -> Vec<PathBuf> {
 
 pub fn execute_test(path: &Path) -> Result<(), TestError> {
     let s = std::fs::read_to_string(path)?;
-    let suite= serde_json::from_str(&s).map_err(|e| TestError {
+    let suite = serde_json::from_str(&s).map_err(|e| TestError {
         name: path.to_string_lossy().to_string(),
         kind: e.into(),
     })?;
@@ -230,71 +232,84 @@ fn setup_env(test: &Test) -> Env {
     env.block.number = test.env.current_number;
     env.block.coinbase = test.env.current_coinbase;
     env.block.timestamp = test.env.current_timestamp;
-    env.block.gas_limit = test.env.current_gas_limit;
     env.block.basefee = test.env.current_base_fee.unwrap_or_default();
-    env.block.difficulty = test.env.current_difficulty;
     // after the Merge prevrandao replaces mix_hash field in block and replaced difficulty opcode in EVM.
     env.block.prevrandao = test.env.current_random;
     // EIP-4844
     if let Some(current_excess_blob_gas) = test.env.current_excess_blob_gas {
-        env.block
-            .set_blob_excess_gas_and_price(current_excess_blob_gas.to());
-    } else if let (Some(parent_blob_gas_used), Some(parent_excess_blob_gas)) = (
+        env.block.excess_blob_gas = Some(current_excess_blob_gas.as_u64());
+    } else if let (Some(_), Some(parent_excess_blob_gas)) = (
         test.env.parent_blob_gas_used,
         test.env.parent_excess_blob_gas,
     ) {
-        env.block
-            .set_blob_excess_gas_and_price(calc_excess_blob_gas(
-                parent_blob_gas_used.to(),
-                parent_excess_blob_gas.to(),
-            ));
+        env.block.excess_blob_gas = Some(parent_excess_blob_gas.as_u64());
     }
 
     // tx env
     env.tx.caller = if let Some(address) = test.transaction.sender {
         address
     } else {
-        recover_address(unit.transaction.secret_key.as_slice()).ok_or_else(|| TestError {
-            name: name.clone(),
-            kind: TestErrorKind::UnknownPrivateKey(test.transaction.secret_key),
-        })?
+        panic!("Test error: Transaction sender is None");
     };
-    env.tx.gas_price = unit
+    env.tx.gas_price = test
         .transaction
         .gas_price
         .or(test.transaction.max_fee_per_gas)
         .unwrap_or_default();
-    env.tx.gas_priority_fee = test.transaction.max_priority_fee_per_gas;
+    // TODO: missing env.block.gas_limit, env.block.difficulty, env.tx.gas_priority_fee
     // EIP-4844
-    env.tx.blob_hashes = test.transaction.blob_versioned_hashes;
+    env.tx.blob_hashes = test.transaction.blob_versioned_hashes.clone();
     env.tx.max_fee_per_blob_gas = test.transaction.max_fee_per_blob_gas;
 
     env
 }
 
+pub fn deserialize_str_as_u64<'de, D>(deserializer: D) -> Result<u64, D::Error>
+where
+    D: de::Deserializer<'de>,
+{
+    let string = String::deserialize(deserializer)?;
+
+    if let Some(stripped) = string.strip_prefix("0x") {
+        u64::from_str_radix(stripped, 16)
+    } else {
+        string.parse()
+    }
+    .map_err(serde::de::Error::custom)
+}
+
+pub fn deserialize_maybe_empty<'de, D>(deserializer: D) -> Result<Option<Address>, D::Error>
+where
+    D: de::Deserializer<'de>,
+{
+    let string = String::deserialize(deserializer)?;
+    if string.is_empty() {
+        Ok(None)
+    } else {
+        string.parse().map_err(de::Error::custom).map(Some)
+    }
+}
+
 fn main() -> Result<()> {
     tracing_subscriber::fmt::init();
-
     let cli = Cli::parse();
 
     match &cli.command {
-        Commands::Run(run_args) => {
-            Ok(for path in &run_args.path {
-                println!("\nRunning tests in {}...", path.display());
+        Commands::Run(run_args) => Ok(for path in &run_args.path {
+            println!("\nRunning tests in {}...", path.display());
 
-                let tests = find_all_json_tests(path);
-                let pb = ProgressBar::new(tests.len() as u64);
-                pb.set_draw_target(ProgressDrawTarget::stdout());
+            let tests = find_all_json_tests(path);
+            let pb = ProgressBar::new(tests.len() as u64);
+            pb.set_draw_target(ProgressDrawTarget::stdout());
 
-                for test_path in tests {
-                    match execute_test(&test_path) {
-                        Ok(_) => pb.inc(1),
-                        Err(e) => eprintln!("Test failed: {:?}", e),
-                    }
+            for test_path in tests {
+                match execute_test(&test_path) {
+                    Ok(_) => pb.inc(1),
+                    Err(e) => eprintln!("Test failed: {:?}", e),
                 }
+            }
 
-                pb.finish_with_message("All tests completed");
-            })
-        }
+            pb.finish_with_message("All tests completed");
+        }),
     }
 }
