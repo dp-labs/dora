@@ -5,8 +5,7 @@ use dora_primitives::{
 };
 use rustc_hash::FxHashMap;
 use sha3::{Digest, Keccak256};
-use std::collections::{hash_map::Entry, HashMap};
-use std::str::FromStr;
+use std::{collections::hash_map::Entry, str::FromStr};
 
 /// Represents a journal entry for an individual storage slot, maintaining both its original and present values.
 ///
@@ -129,7 +128,7 @@ impl From<AccountInfo> for JournalAccount {
         Self {
             nonce: info.nonce,
             balance: info.balance,
-            storage: FxHashMap::default(),
+            storage: Default::default(),
             bytecode_hash: info.code_hash,
             status: AccountStatus::Cold,
         }
@@ -156,8 +155,8 @@ impl From<&JournalAccount> for AccountInfo {
     }
 }
 
-type AccountState = HashMap<Address, JournalAccount>;
-type ContractState = HashMap<B256, Bytecode>;
+type AccountState = FxHashMap<Address, JournalAccount>;
+type ContractState = FxHashMap<B256, Bytecode>;
 
 /// A struct that manages account and contract states in memory, tracking changes during execution.
 ///
@@ -180,7 +179,7 @@ type ContractState = HashMap<B256, Bytecode>;
 pub struct Journal<'a> {
     accounts: AccountState,
     contracts: ContractState,
-    block_hashes: HashMap<U256, B256>,
+    block_hashes: FxHashMap<U256, B256>,
     db: Option<&'a mut MemoryDb>,
 }
 
@@ -403,7 +402,7 @@ impl<'a> Journal<'a> {
         if self._get_account(address).is_none() {
             return;
         };
-        let slots: HashMap<U256, JournalStorageSlot> = keys
+        let slots: FxHashMap<U256, JournalStorageSlot> = keys
             .iter()
             .map(|key| (*key, self._fetch_storage_from_db(address, key)))
             .collect();
@@ -490,7 +489,6 @@ impl<'a> Journal<'a> {
         if let Some(hash) = self.block_hashes.get(number) {
             return *hash;
         }
-
         let block_hash = self
             .db
             .as_mut()
@@ -501,7 +499,7 @@ impl<'a> Journal<'a> {
         block_hash
     }
 
-    pub fn into_state(&self) -> HashMap<Address, Account> {
+    pub fn into_state(&self) -> FxHashMap<Address, Account> {
         self.accounts
             .iter()
             .map(|(address, acc)| {
