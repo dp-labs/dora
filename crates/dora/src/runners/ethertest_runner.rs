@@ -7,9 +7,8 @@ use dora_primitives::{Address, Bytecode, B256, U256};
 use dora_runtime::env::{Env, TransactTo};
 use indicatif::{ProgressBar, ProgressDrawTarget};
 use serde::{de, Deserialize, Serialize};
-use std::collections::BTreeMap;
 use std::{
-    collections::HashMap,
+    collections::{HashMap, BTreeMap},
     io::{stderr, stdout},
     path::{Path, PathBuf},
     sync::{atomic::AtomicBool, Arc, Mutex},
