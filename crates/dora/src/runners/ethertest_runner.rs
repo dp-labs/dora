@@ -1,7 +1,8 @@
 use alloy_eips::eip2930::AccessList;
-use alloy_primitives::Bytes;
+use alloy_primitives::{keccak256, Bytes};
 use anyhow::{Context, Result};
 use clap::{Args, Parser, Subcommand};
+use dora::run_evm;
 use dora_primitives::db::MemoryDb;
 use dora_primitives::{Address, Bytecode, B256, U256};
 use dora_runtime::env::{Env, TransactTo};
@@ -15,6 +16,7 @@ use std::{
     time::{Duration, Instant},
 };
 use thiserror::Error;
+use tracing::{error, info};
 use walkdir::{DirEntry, WalkDir};
 
 #[derive(Parser)]
@@ -185,9 +187,24 @@ pub fn execute_test(path: &Path) -> Result<(), TestError> {
         kind: e.into(),
     })?;
 
-    for (name, test_case) in suite.0 {
-        let mut env = setup_env(&test_case);
-        // TODO: EXECUTE TEST WITH POST
+    for (_, test) in suite.0 {
+        let env = setup_env(&test);
+
+        for (address, info) in test.pre {
+            let mut db = MemoryDb::new().with_contract(address, Bytecode::from(info.code));
+
+            // TODO: test.post
+
+            match run_evm(env.clone(), &mut db) {
+                Ok(result) => {
+                    info!("Execution result: {:#?}", result);
+                }
+                Err(e) => {
+                    error!("Execution failed: {}", e);
+                    std::process::exit(1);
+                }
+            }
+        }
     }
 
     Ok(())
