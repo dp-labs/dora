@@ -1,9 +1,9 @@
 use alloy_eips::eip2930::AccessList;
-use alloy_primitives::{Bytes, TxKind};
 use anyhow::Result;
 use clap::{Args, Parser, Subcommand};
 use dora::run_evm;
 use dora_primitives::db::MemoryDb;
+use dora_primitives::Bytes;
 use dora_primitives::{Address, Bytecode, B256, U256};
 use dora_runtime::env::Env;
 use indicatif::{ProgressBar, ProgressDrawTarget};
@@ -65,9 +65,9 @@ struct TestEnv {
     pub current_random: Option<B256>,
     pub current_beacon_root: Option<B256>,
     pub current_withdrawals_root: Option<B256>,
-    pub parent_blob_gas_used: Option<U256>,
-    pub parent_excess_blob_gas: Option<U256>,
-    pub current_excess_blob_gas: Option<U256>,
+    pub parent_blob_gas_used: Option<u64>,
+    pub parent_excess_blob_gas: Option<u64>,
+    pub current_excess_blob_gas: Option<u64>,
 }
 
 #[derive(Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
@@ -206,7 +206,7 @@ pub fn execute_test(path: &Path) -> Result<(), TestError> {
     })?;
 
     for (_, test) in suite.0 {
-        let env = setup_env(&test);
+        let mut env = setup_env(&test);
 
         for (address, info) in test.pre {
             let mut db = MemoryDb::new().with_contract(address, Bytecode::from(info.code));
@@ -226,20 +226,28 @@ pub fn execute_test(path: &Path) -> Result<(), TestError> {
                         .get(testcase.indexes.data)
                         .unwrap()
                         .clone();
-                    env.tx.access_list = test
+                    // Mapping access list
+                    let access_list = test
                         .transaction
                         .access_lists
                         .get(testcase.indexes.data)
                         .and_then(Option::as_deref)
                         .cloned()
                         .unwrap_or_default();
+                    for item in access_list {
+                        env.tx.access_list.push((
+                            Address::from_slice(&item.address.0 .0),
+                            item.storage_keys
+                                .iter()
+                                .map(|key| U256::from_be_bytes(key.0))
+                                .collect(),
+                        ));
+                    }
+
                     // TODO: env.tx.authorization_list
 
-                    let to = match test.transaction.to {
-                        Some(add) => TxKind::Call(add),
-                        None => TxKind::Create,
-                    };
-                    env.tx.transact_to = to;
+                    // Transaction to or zero address to create.
+                    env.tx.transact_to = test.transaction.to.unwrap_or_default();
 
                     match run_evm(env.clone(), &mut db) {
                         Ok(result) => {
@@ -267,12 +275,12 @@ fn setup_env(test: &Test) -> Env {
     env.block.basefee = test.env.current_base_fee.unwrap_or_default();
     env.block.prevrandao = test.env.current_random;
     if let Some(current_excess_blob_gas) = test.env.current_excess_blob_gas {
-        env.block.excess_blob_gas = Some(current_excess_blob_gas.as_u64());
+        env.block.excess_blob_gas = Some(current_excess_blob_gas);
     } else if let (Some(_), Some(parent_excess_blob_gas)) = (
         test.env.parent_blob_gas_used,
         test.env.parent_excess_blob_gas,
     ) {
-        env.block.excess_blob_gas = Some(parent_excess_blob_gas.as_u64());
+        env.block.excess_blob_gas = Some(parent_excess_blob_gas);
     }
     env.tx.caller = test
         .transaction
