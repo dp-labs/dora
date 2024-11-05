@@ -1,19 +1,16 @@
 use alloy_eips::eip2930::AccessList;
-use alloy_primitives::{keccak256, Bytes};
-use anyhow::{Context, Result};
+use alloy_primitives::{Bytes, TxKind};
+use anyhow::Result;
 use clap::{Args, Parser, Subcommand};
 use dora::run_evm;
 use dora_primitives::db::MemoryDb;
 use dora_primitives::{Address, Bytecode, B256, U256};
-use dora_runtime::env::{Env, TransactTo};
+use dora_runtime::env::Env;
 use indicatif::{ProgressBar, ProgressDrawTarget};
 use serde::{de, Deserialize, Serialize};
 use std::{
     collections::{BTreeMap, HashMap},
-    io::{stderr, stdout},
     path::{Path, PathBuf},
-    sync::{atomic::AtomicBool, Arc, Mutex},
-    time::{Duration, Instant},
 };
 use thiserror::Error;
 use tracing::{error, info};
@@ -122,8 +119,29 @@ pub struct AccountInfo {
 #[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Deserialize, Hash)]
 pub enum SpecName {
     Frontier,
+    FrontierToHomesteadAt5,
     Homestead,
-    // Add all other specifications...
+    HomesteadToDaoAt5,
+    HomesteadToEIP150At5,
+    EIP150,
+    EIP158, // EIP-161: State trie clearing
+    EIP158ToByzantiumAt5,
+    Byzantium,
+    ByzantiumToConstantinopleAt5, // SKIPPED
+    ByzantiumToConstantinopleFixAt5,
+    Constantinople, // SKIPPED
+    ConstantinopleFix,
+    Istanbul,
+    Berlin,
+    BerlinToLondonAt5,
+    London,
+    Paris,
+    Merge,
+    Shanghai,
+    Cancun,
+    Prague,
+    PragueEOF,
+    Osaka, // SKIPPED
     #[serde(other)]
     Unknown,
 }
@@ -142,7 +160,7 @@ pub struct PostStateTest {
 
 #[derive(Debug, PartialEq, Eq, Deserialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
-struct TestIndexes {
+pub struct TestIndexes {
     pub data: usize,
     pub gas: usize,
     pub value: usize,
@@ -193,15 +211,45 @@ pub fn execute_test(path: &Path) -> Result<(), TestError> {
         for (address, info) in test.pre {
             let mut db = MemoryDb::new().with_contract(address, Bytecode::from(info.code));
 
-            // TODO: test.post
-
-            match run_evm(env.clone(), &mut db) {
-                Ok(result) => {
-                    info!("Execution result: {:#?}", result);
+            // post and execution
+            for (spec_name, tests) in &test.post {
+                if *spec_name == SpecName::Constantinople || *spec_name == SpecName::Osaka {
+                    continue;
                 }
-                Err(e) => {
-                    error!("Execution failed: {}", e);
-                    std::process::exit(1);
+
+                for (index, testcase) in tests.into_iter().enumerate() {
+                    env.tx.gas_limit =
+                        test.transaction.gas_limit[testcase.indexes.gas].saturating_to();
+                    env.tx.data = test
+                        .transaction
+                        .data
+                        .get(testcase.indexes.data)
+                        .unwrap()
+                        .clone();
+                    env.tx.access_list = test
+                        .transaction
+                        .access_lists
+                        .get(testcase.indexes.data)
+                        .and_then(Option::as_deref)
+                        .cloned()
+                        .unwrap_or_default();
+                    // TODO: env.tx.authorization_list
+
+                    let to = match test.transaction.to {
+                        Some(add) => TxKind::Call(add),
+                        None => TxKind::Create,
+                    };
+                    env.tx.transact_to = to;
+
+                    match run_evm(env.clone(), &mut db) {
+                        Ok(result) => {
+                            info!("Execution result: {:#?}", result);
+                        }
+                        Err(e) => {
+                            error!("Execution failed: {}", e);
+                            std::process::exit(1);
+                        }
+                    }
                 }
             }
         }
