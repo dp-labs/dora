@@ -65,9 +65,9 @@ struct TestEnv {
     pub current_random: Option<B256>,
     pub current_beacon_root: Option<B256>,
     pub current_withdrawals_root: Option<B256>,
-    pub parent_blob_gas_used: Option<u64>,
-    pub parent_excess_blob_gas: Option<u64>,
-    pub current_excess_blob_gas: Option<u64>,
+    pub parent_blob_gas_used: Option<U256>,
+    pub parent_excess_blob_gas: Option<U256>,
+    pub current_excess_blob_gas: Option<U256>,
 }
 
 #[derive(Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
@@ -217,7 +217,7 @@ pub fn execute_test(path: &Path) -> Result<(), TestError> {
                     continue;
                 }
 
-                for (index, testcase) in tests.into_iter().enumerate() {
+                for (_index, testcase) in tests.iter().enumerate() {
                     env.tx.gas_limit =
                         test.transaction.gas_limit[testcase.indexes.gas].saturating_to();
                     env.tx.data = test
@@ -275,12 +275,12 @@ fn setup_env(test: &Test) -> Env {
     env.block.basefee = test.env.current_base_fee.unwrap_or_default();
     env.block.prevrandao = test.env.current_random;
     if let Some(current_excess_blob_gas) = test.env.current_excess_blob_gas {
-        env.block.excess_blob_gas = Some(current_excess_blob_gas);
+        env.block.excess_blob_gas = Some(current_excess_blob_gas.to());
     } else if let (Some(_), Some(parent_excess_blob_gas)) = (
         test.env.parent_blob_gas_used,
         test.env.parent_excess_blob_gas,
     ) {
-        env.block.excess_blob_gas = Some(parent_excess_blob_gas);
+        env.block.excess_blob_gas = Some(parent_excess_blob_gas.to());
     }
     env.tx.caller = test
         .transaction
@@ -291,7 +291,7 @@ fn setup_env(test: &Test) -> Env {
         .gas_price
         .or(test.transaction.max_fee_per_gas)
         .unwrap_or_default();
-    env.tx.blob_hashes = test.transaction.blob_versioned_hashes.clone();
+    env.tx.blob_hashes.clone_from(&test.transaction.blob_versioned_hashes);
     env.tx.max_fee_per_blob_gas = test.transaction.max_fee_per_blob_gas;
     env
 }
