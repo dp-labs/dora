@@ -217,7 +217,7 @@ pub fn execute_test(path: &Path) -> Result<(), TestError> {
                     continue;
                 }
 
-                for (_index, testcase) in tests.iter().enumerate() {
+                for testcase in tests.iter() {
                     env.tx.gas_limit =
                         test.transaction.gas_limit[testcase.indexes.gas].saturating_to();
                     env.tx.data = test
