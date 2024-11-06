@@ -291,7 +291,9 @@ fn setup_env(test: &Test) -> Env {
         .gas_price
         .or(test.transaction.max_fee_per_gas)
         .unwrap_or_default();
-    env.tx.blob_hashes.clone_from(&test.transaction.blob_versioned_hashes);
+    env.tx
+        .blob_hashes
+        .clone_from(&test.transaction.blob_versioned_hashes);
     env.tx.max_fee_per_blob_gas = test.transaction.max_fee_per_blob_gas;
     env
 }
