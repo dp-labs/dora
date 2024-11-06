@@ -1,10 +1,9 @@
-use alloy_eips::eip2930::AccessList;
 use anyhow::Result;
 use clap::{Args, Parser, Subcommand};
 use dora::run_evm;
 use dora_primitives::db::MemoryDb;
 use dora_primitives::Bytes;
-use dora_primitives::{Address, Bytecode, B256, U256};
+use dora_primitives::{Address, B256, U256};
 use dora_runtime::env::Env;
 use indicatif::{ProgressBar, ProgressDrawTarget};
 use serde::{de, Deserialize, Serialize};
@@ -93,6 +92,15 @@ struct Transaction {
     pub blob_versioned_hashes: Vec<B256>,
     pub max_fee_per_blob_gas: Option<U256>,
 }
+
+#[derive(Debug, PartialEq, Eq, Serialize, Deserialize, Clone)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct AccessListItem {
+    pub address: Address,
+    pub storage_keys: Vec<B256>,
+}
+
+pub type AccessList = Vec<AccessListItem>;
 
 #[derive(Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
@@ -199,65 +207,76 @@ pub fn find_all_json_tests(path: &Path) -> Vec<PathBuf> {
 }
 
 pub fn execute_test(path: &Path) -> Result<(), TestError> {
+    let name = path.to_string_lossy().to_string();
+    info!("testing {:?}", name);
     let s = std::fs::read_to_string(path).unwrap();
     let suite: TestSuite = serde_json::from_str(&s).map_err(|e| TestError {
-        name: path.to_string_lossy().to_string(),
+        name,
         kind: e.into(),
     })?;
 
-    for (_, test) in suite.0 {
-        let mut env = setup_env(&test);
-
-        for (address, info) in test.pre {
-            let mut db = MemoryDb::new().with_contract(address, Bytecode::from(info.code));
-
-            // post and execution
-            for (spec_name, tests) in &test.post {
-                if *spec_name == SpecName::Constantinople || *spec_name == SpecName::Osaka {
-                    continue;
+    for (name, suite) in suite.0 {
+        // NOTE: currently we only support Cancun spec
+        let Some(tests) = suite.post.get(&SpecName::Cancun) else {
+            continue;
+        };
+        let Some(to) = suite.transaction.to else {
+            info!("suite {:?} has no transaction address", name);
+            continue;
+        };
+        let Some(account) = suite.pre.get(&to) else {
+            info!("suite {:?} has no transaction address account info", name);
+            continue;
+        };
+        let mut env = setup_env(&suite);
+        for test_case in tests {
+            env.tx.gas_limit = suite.transaction.gas_limit[test_case.indexes.gas].saturating_to();
+            env.tx.data = suite
+                .transaction
+                .data
+                .get(test_case.indexes.data)
+                .unwrap()
+                .clone();
+            // Mapping access list
+            let access_list = suite
+                .transaction
+                .access_lists
+                .get(test_case.indexes.data)
+                .and_then(Option::as_deref)
+                .unwrap_or_default();
+            for item in access_list {
+                env.tx.access_list.push((
+                    Address::from_slice(&item.address.0),
+                    item.storage_keys
+                        .iter()
+                        .map(|key| U256::from_be_bytes(key.0))
+                        .collect(),
+                ));
+            }
+            let mut db = MemoryDb::new().with_contract(to, account.code.clone());
+            for (address, account_info) in suite.pre.iter() {
+                db = db.with_contract(address.to_owned(), account_info.code.clone());
+                db.set_account(
+                    address.to_owned(),
+                    account_info.nonce,
+                    account_info.balance,
+                    account_info.storage.clone(),
+                );
+            }
+            let res = run_evm(env.clone(), &mut db);
+            match res {
+                Ok(res) => {
+                    if test_case.expect_exception.is_some() {
+                        assert!(!res.result.is_success());
+                        // NOTE: the expect_exception string is an error description, we don't check the expected error
+                        continue;
+                    }
+                    assert!(res.result.is_success());
+                    assert_eq!(res.result.output().cloned(), suite.out);
                 }
-
-                for testcase in tests.iter() {
-                    env.tx.gas_limit =
-                        test.transaction.gas_limit[testcase.indexes.gas].saturating_to();
-                    env.tx.data = test
-                        .transaction
-                        .data
-                        .get(testcase.indexes.data)
-                        .unwrap()
-                        .clone();
-                    // Mapping access list
-                    let access_list = test
-                        .transaction
-                        .access_lists
-                        .get(testcase.indexes.data)
-                        .and_then(Option::as_deref)
-                        .cloned()
-                        .unwrap_or_default();
-                    for item in access_list {
-                        env.tx.access_list.push((
-                            Address::from_slice(&item.address.0 .0),
-                            item.storage_keys
-                                .iter()
-                                .map(|key| U256::from_be_bytes(key.0))
-                                .collect(),
-                        ));
-                    }
-
-                    // TODO: env.tx.authorization_list
-
-                    // Transaction to or zero address to create.
-                    env.tx.transact_to = test.transaction.to.unwrap_or_default();
-
-                    match run_evm(env.clone(), &mut db) {
-                        Ok(result) => {
-                            info!("Execution result: {:#?}", result);
-                        }
-                        Err(e) => {
-                            error!("Execution failed: {}", e);
-                            std::process::exit(1);
-                        }
-                    }
+                Err(e) => {
+                    error!("Execution failed: {}", e);
+                    std::process::exit(1);
                 }
             }
         }
@@ -269,6 +288,7 @@ pub fn execute_test(path: &Path) -> Result<(), TestError> {
 fn setup_env(test: &Test) -> Env {
     let mut env = Env::default();
     env.cfg.chain_id = 1;
+    env.tx.transact_to = test.transaction.to.unwrap_or_default();
     env.block.number = test.env.current_number;
     env.block.coinbase = test.env.current_coinbase;
     env.block.timestamp = test.env.current_timestamp;
