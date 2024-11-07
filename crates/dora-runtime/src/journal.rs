@@ -171,19 +171,19 @@ type ContractState = FxHashMap<B256, Bytecode>;
 ///
 /// # Example Usage:
 /// ```no_check
-/// let mut journal = Journal::new(&mut memory_db);
+/// let mut journal = Journal::new(memory_db);
 /// journal.new_account(address, U256::from(1000));
 /// journal.new_contract(contract_address, bytecode, U256::from(500));
 /// ```
 #[derive(Default, Debug)]
-pub struct Journal<'a> {
+pub struct Journal {
     accounts: AccountState,
     contracts: ContractState,
     block_hashes: FxHashMap<U256, B256>,
-    db: Option<&'a mut MemoryDb>,
+    pub db: MemoryDb,
 }
 
-impl<'a> Journal<'a> {
+impl Journal {
     /// Creates a new `Journal` with a reference to a mutable `MemoryDb`.
     ///
     /// This initializes an empty journal, optionally connected to a `MemoryDb` for database interactions.
@@ -196,13 +196,18 @@ impl<'a> Journal<'a> {
     ///
     /// # Example Usage:
     /// ```no_check
-    /// let mut journal = Journal::new(&mut memory_db);
+    /// let mut journal = Journal::new(memory_db);
     /// ```
-    pub fn new(db: &'a mut MemoryDb) -> Self {
+    pub fn new(db: MemoryDb) -> Self {
         Self {
-            db: Some(db),
+            db,
             ..Default::default()
         }
+    }
+
+    #[inline]
+    pub fn cloned_db(&self) -> MemoryDb {
+        self.db.clone()
     }
 
     /// Adds a new account to the journal with the given address and initial balance.
@@ -355,12 +360,10 @@ impl<'a> Journal<'a> {
         };
 
         let hash = acc.bytecode_hash;
-        self.contracts.get(&hash).cloned().unwrap_or_else(|| {
-            self.db
-                .as_mut()
-                .and_then(|db| db.code_by_hash(hash).ok())
-                .unwrap_or_default()
-        })
+        self.contracts
+            .get(&hash)
+            .cloned()
+            .unwrap_or_else(|| self.db.code_by_hash(hash).unwrap_or_default())
     }
 
     /// Checks if an account is considered "warm" (not cold) for gas metering purposes.
@@ -489,11 +492,7 @@ impl<'a> Journal<'a> {
         if let Some(hash) = self.block_hashes.get(number) {
             return *hash;
         }
-        let block_hash = self
-            .db
-            .as_mut()
-            .and_then(|db| db.block_hash(*number).ok())
-            .unwrap_or_default();
+        let block_hash = self.db.block_hash(*number).unwrap_or_default();
 
         self.block_hashes.insert(*number, block_hash);
         block_hash
@@ -553,7 +552,7 @@ impl<'a> Journal<'a> {
             accounts: self.accounts.clone(),
             contracts: self.contracts.clone(),
             block_hashes: self.block_hashes.clone(),
-            db: self.db.take(),
+            db: self.db.clone(),
         }
     }
 
@@ -564,7 +563,7 @@ impl<'a> Journal<'a> {
     ///
     /// # Parameters
     /// - `other`: The `Journal` instance containing the state to merge from a successful execution.
-    pub fn extend_from_successful(&mut self, other: Journal<'a>) {
+    pub fn extend_from_successful(&mut self, other: Journal) {
         self.accounts = other.accounts;
         self.contracts = other.contracts;
         self.block_hashes = other.block_hashes;
@@ -578,7 +577,7 @@ impl<'a> Journal<'a> {
     ///
     /// # Parameters
     /// - `other`: The `Journal` instance containing the state to merge from a reverted execution.
-    pub fn extend_from_reverted(&mut self, other: Journal<'a>) {
+    pub fn extend_from_reverted(&mut self, other: Journal) {
         self.db = other.db;
     }
 
@@ -587,11 +586,10 @@ impl<'a> Journal<'a> {
     }
 
     fn _get_account_mut(&mut self, address: &Address) -> Option<&mut JournalAccount> {
-        let db = self.db.as_mut()?;
         match self.accounts.entry(*address) {
             Entry::Occupied(e) => Some(e.into_mut()),
             Entry::Vacant(e) => {
-                let acc = db.basic(*address).ok().flatten()?;
+                let acc = self.db.basic(*address).ok().flatten()?;
                 let mut journal_acc = JournalAccount::from(acc);
                 journal_acc.status = AccountStatus::Loaded;
                 Some(e.insert(journal_acc))
@@ -601,8 +599,8 @@ impl<'a> Journal<'a> {
 
     fn _fetch_storage_from_db(&mut self, address: &Address, key: &U256) -> JournalStorageSlot {
         self.db
-            .as_mut()
-            .and_then(|db| db.storage(*address, *key).ok())
+            .storage(*address, *key)
+            .ok()
             .map(JournalStorageSlot::from)
             .unwrap_or_default()
     }

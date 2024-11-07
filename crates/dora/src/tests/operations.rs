@@ -23,7 +23,7 @@ fn add() {
         Operation::Return,
     ];
     let (env, mut db) = default_env_and_db_setup(operations);
-    run_program_assert_num_result(env, &mut db, a + b);
+    run_program_assert_num_result(env, db, a + b);
 }
 
 #[test]
@@ -41,7 +41,7 @@ fn add_overflow_u64() {
         Operation::Return,
     ];
     let (env, mut db) = default_env_and_db_setup(operations);
-    run_program_assert_num_result(env, &mut db, a + b);
+    run_program_assert_num_result(env, db, a + b);
 }
 
 #[test]
@@ -59,7 +59,7 @@ fn add_overflow_u128() {
         Operation::Return,
     ];
     let (env, mut db) = default_env_and_db_setup(operations);
-    run_program_assert_num_result(env, &mut db, a + b);
+    run_program_assert_num_result(env, db, a + b);
 }
 
 #[test]
@@ -77,7 +77,7 @@ fn mul() {
         Operation::Return,
     ];
     let (env, mut db) = default_env_and_db_setup(operations);
-    run_program_assert_num_result(env, &mut db, a * b);
+    run_program_assert_num_result(env, db, a * b);
 }
 
 #[test]
@@ -95,7 +95,7 @@ fn mul_large() {
         Operation::Return,
     ];
     let (env, mut db) = default_env_and_db_setup(operations);
-    run_program_assert_num_result(env, &mut db, a * b);
+    run_program_assert_num_result(env, db, a * b);
 }
 
 #[test]
@@ -113,7 +113,7 @@ fn mul_overflow() {
         Operation::Return,
     ];
     let (env, mut db) = default_env_and_db_setup(operations);
-    run_program_assert_num_result(env, &mut db, a * b);
+    run_program_assert_num_result(env, db, a * b);
 }
 
 #[test]
@@ -131,7 +131,7 @@ fn sub() {
         Operation::Return,
     ];
     let (env, mut db) = default_env_and_db_setup(operations);
-    run_program_assert_num_result(env, &mut db, a - b);
+    run_program_assert_num_result(env, db, a - b);
 }
 
 #[test]
@@ -151,7 +151,7 @@ fn sub_underflow() {
     let (env, mut db) = default_env_and_db_setup(operations);
     run_program_assert_num_result(
         env,
-        &mut db,
+        db,
         BigUint::from(2_u8).pow(256_u32) - BigUint::from(10_u8),
     );
 }
@@ -173,7 +173,7 @@ fn sub_underflow_u64() {
     let (env, mut db) = default_env_and_db_setup(operations);
     run_program_assert_num_result(
         env,
-        &mut db,
+        db,
         BigUint::from(2_u8).pow(256_u32) - BigUint::from(1_u8),
     );
 }
@@ -193,7 +193,7 @@ fn div() {
         Operation::Return,
     ];
     let (env, mut db) = default_env_and_db_setup(operations);
-    run_program_assert_num_result(env, &mut db, a / b);
+    run_program_assert_num_result(env, db, a / b);
 }
 
 #[test]
@@ -211,7 +211,7 @@ fn div_by_zero() {
         Operation::Return,
     ];
     let (env, mut db) = default_env_and_db_setup(operations);
-    run_program_assert_num_result(env, &mut db, BigUint::from(0_u8));
+    run_program_assert_num_result(env, db, BigUint::from(0_u8));
 }
 
 #[test]
@@ -229,7 +229,7 @@ fn div_zero() {
         Operation::Return,
     ];
     let (env, mut db) = default_env_and_db_setup(operations);
-    run_program_assert_num_result(env, &mut db, BigUint::from(0_u8));
+    run_program_assert_num_result(env, db, BigUint::from(0_u8));
 }
 
 #[test]
@@ -247,7 +247,7 @@ fn mod_by_zero() {
         Operation::Return,
     ];
     let (env, mut db) = default_env_and_db_setup(operations);
-    run_program_assert_num_result(env, &mut db, BigUint::from(0_u8));
+    run_program_assert_num_result(env, db, BigUint::from(0_u8));
 }
 
 #[test]
@@ -265,7 +265,7 @@ fn mod_zero() {
         Operation::Return,
     ];
     let (env, mut db) = default_env_and_db_setup(operations);
-    run_program_assert_num_result(env, &mut db, BigUint::from(0_u8));
+    run_program_assert_num_result(env, db, BigUint::from(0_u8));
 }
 
 #[test]
@@ -284,7 +284,7 @@ fn sdiv_positive() {
         Operation::Return,
     ];
     let (env, mut db) = default_env_and_db_setup(operations);
-    run_program_assert_num_result(env, &mut db, a / b);
+    run_program_assert_num_result(env, db, a / b);
 }
 
 #[test]
@@ -313,7 +313,7 @@ fn sdiv_negative() {
         Operation::Return,
     ];
     let (env, mut db) = default_env_and_db_setup(operations);
-    run_program_assert_num_result(env, &mut db, BigUint::from(1_u8));
+    run_program_assert_num_result(env, db, BigUint::from(1_u8));
 }
 
 #[test]
@@ -331,7 +331,7 @@ fn modulus() {
         Operation::Return,
     ];
     let (env, mut db) = default_env_and_db_setup(operations);
-    run_program_assert_num_result(env, &mut db, a % b);
+    run_program_assert_num_result(env, db, a % b);
 }
 
 #[test]
@@ -349,7 +349,7 @@ fn modulus_large_numbers() {
         Operation::Return,
     ];
     let (env, mut db) = default_env_and_db_setup(operations);
-    run_program_assert_num_result(env, &mut db, a % b);
+    run_program_assert_num_result(env, db, a % b);
 }
 
 #[test]
@@ -367,7 +367,7 @@ fn smod() {
         Operation::Return,
     ];
     let (env, mut db) = default_env_and_db_setup(operations);
-    run_program_assert_num_result(env, &mut db, a % b);
+    run_program_assert_num_result(env, db, a % b);
 }
 
 #[test]
@@ -388,7 +388,7 @@ fn smod_negative() {
         Operation::Return,
     ];
     let (env, mut db) = default_env_and_db_setup(operations);
-    run_program_assert_num_result(env, &mut db, biguint_256_from_bigint(BigInt::from(-2_i8)));
+    run_program_assert_num_result(env, db, biguint_256_from_bigint(BigInt::from(-2_i8)));
 }
 
 #[test]
@@ -411,7 +411,7 @@ fn addmod() {
         Operation::Return,
     ];
     let (env, mut db) = default_env_and_db_setup(operations);
-    run_program_assert_num_result(env, &mut db, (a + b) % den);
+    run_program_assert_num_result(env, db, (a + b) % den);
 }
 
 #[test]
@@ -434,7 +434,7 @@ fn addmod_large_mod() {
         Operation::Return,
     ];
     let (env, mut db) = default_env_and_db_setup(operations);
-    run_program_assert_num_result(env, &mut db, (a + b) % den);
+    run_program_assert_num_result(env, db, (a + b) % den);
 }
 
 #[test]
@@ -457,7 +457,7 @@ fn mulmod() {
         Operation::Return,
     ];
     let (env, mut db) = default_env_and_db_setup(operations);
-    run_program_assert_num_result(env, &mut db, (a * b) % den);
+    run_program_assert_num_result(env, db, (a * b) % den);
 }
 
 #[test]
@@ -480,7 +480,7 @@ fn mulmod_zero_mod() {
         Operation::Return,
     ];
     let (env, mut db) = default_env_and_db_setup(operations);
-    run_program_assert_num_result(env, &mut db, 0_u8.into());
+    run_program_assert_num_result(env, db, 0_u8.into());
 }
 
 #[test]
@@ -498,7 +498,7 @@ fn exp() {
         Operation::Return,
     ];
     let (env, mut db) = default_env_and_db_setup(operations);
-    run_program_assert_num_result(env, &mut db, a.pow(b));
+    run_program_assert_num_result(env, db, a.pow(b));
 }
 
 #[test]
@@ -516,7 +516,7 @@ fn exp_large_base() {
         Operation::Return,
     ];
     let (env, mut db) = default_env_and_db_setup(operations);
-    run_program_assert_num_result(env, &mut db, a.pow(b));
+    run_program_assert_num_result(env, db, a.pow(b));
 }
 
 #[test]
@@ -534,7 +534,7 @@ fn exp_edge_case() {
         Operation::Return,
     ];
     let (env, mut db) = default_env_and_db_setup(operations);
-    run_program_assert_num_result(env, &mut db, a.pow(b));
+    run_program_assert_num_result(env, db, a.pow(b));
 }
 
 #[test]
@@ -552,7 +552,7 @@ fn signextend() {
         Operation::Return,
     ];
     let (env, mut db) = default_env_and_db_setup(operations);
-    run_program_assert_num_result(env, &mut db, biguint_256_from_bigint(BigInt::from(-1_i8)));
+    run_program_assert_num_result(env, db, biguint_256_from_bigint(BigInt::from(-1_i8)));
 }
 
 #[test]
@@ -570,7 +570,7 @@ fn lt() {
         Operation::Return,
     ];
     let (env, mut db) = default_env_and_db_setup(operations);
-    run_program_assert_num_result(env, &mut db, (a < b).into());
+    run_program_assert_num_result(env, db, (a < b).into());
 }
 
 #[test]
@@ -588,7 +588,7 @@ fn gt() {
         Operation::Return,
     ];
     let (env, mut db) = default_env_and_db_setup(operations);
-    run_program_assert_num_result(env, &mut db, (a > b).into());
+    run_program_assert_num_result(env, db, (a > b).into());
 }
 
 #[test]
@@ -606,7 +606,7 @@ fn eq_true() {
         Operation::Return,
     ];
     let (env, mut db) = default_env_and_db_setup(operations);
-    run_program_assert_num_result(env, &mut db, (a == b).into());
+    run_program_assert_num_result(env, db, (a == b).into());
 }
 
 #[test]
@@ -624,7 +624,7 @@ fn eq_false() {
         Operation::Return,
     ];
     let (env, mut db) = default_env_and_db_setup(operations);
-    run_program_assert_num_result(env, &mut db, (a == b).into());
+    run_program_assert_num_result(env, db, (a == b).into());
 }
 
 #[test]
@@ -640,7 +640,7 @@ fn iszero_true() {
         Operation::Return,
     ];
     let (env, mut db) = default_env_and_db_setup(operations);
-    run_program_assert_num_result(env, &mut db, 1_u8.into());
+    run_program_assert_num_result(env, db, 1_u8.into());
 }
 
 #[test]
@@ -656,7 +656,7 @@ fn iszero_false() {
         Operation::Return,
     ];
     let (env, mut db) = default_env_and_db_setup(operations);
-    run_program_assert_num_result(env, &mut db, 0_u8.into());
+    run_program_assert_num_result(env, db, 0_u8.into());
 }
 
 #[test]
@@ -673,7 +673,7 @@ fn and_identical_non_zero() {
         Operation::Return,
     ];
     let (env, mut db) = default_env_and_db_setup(operations);
-    run_program_assert_num_result(env, &mut db, BigUint::from(0xFF_u8));
+    run_program_assert_num_result(env, db, BigUint::from(0xFF_u8));
 }
 
 #[test]
@@ -690,7 +690,7 @@ fn and_zero_with_non_zero() {
         Operation::Return,
     ];
     let (env, mut db) = default_env_and_db_setup(operations);
-    run_program_assert_num_result(env, &mut db, 0_u32.into());
+    run_program_assert_num_result(env, db, 0_u32.into());
 }
 
 #[test]
@@ -713,7 +713,7 @@ fn and_zero_with_large() {
         Operation::Return,
     ];
     let (env, mut db) = default_env_and_db_setup(operations);
-    run_program_assert_num_result(env, &mut db, 0_u32.into());
+    run_program_assert_num_result(env, db, 0_u32.into());
 }
 
 #[test]
@@ -730,7 +730,7 @@ fn or_identical_non_zero() {
         Operation::Return,
     ];
     let (env, mut db) = default_env_and_db_setup(operations);
-    run_program_assert_num_result(env, &mut db, BigUint::from(0xFF_u8));
+    run_program_assert_num_result(env, db, BigUint::from(0xFF_u8));
 }
 
 #[test]
@@ -747,7 +747,7 @@ fn or_zero_with_non_zero() {
         Operation::Return,
     ];
     let (env, mut db) = default_env_and_db_setup(operations);
-    run_program_assert_num_result(env, &mut db, BigUint::from(0xFF_u8));
+    run_program_assert_num_result(env, db, BigUint::from(0xFF_u8));
 }
 
 #[test]
@@ -772,7 +772,7 @@ fn or_zero_with_large() {
     let (env, mut db) = default_env_and_db_setup(operations);
     run_program_assert_num_result(
         env,
-        &mut db,
+        db,
         BigUint::from_bytes_be(&[
             0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF,
             0xFF, 0xFF,
@@ -794,7 +794,7 @@ fn xor_non_zero() {
         Operation::Return,
     ];
     let (env, mut db) = default_env_and_db_setup(operations);
-    run_program_assert_num_result(env, &mut db, BigUint::from(0xFF_u8));
+    run_program_assert_num_result(env, db, BigUint::from(0xFF_u8));
 }
 
 #[test]
@@ -811,7 +811,7 @@ fn xor_zero_with_non_zero() {
         Operation::Return,
     ];
     let (env, mut db) = default_env_and_db_setup(operations);
-    run_program_assert_num_result(env, &mut db, BigUint::from(0xFF_u8));
+    run_program_assert_num_result(env, db, BigUint::from(0xFF_u8));
 }
 
 #[test]
@@ -832,7 +832,7 @@ fn xor_large_with_zero() {
         Operation::Return,
     ];
     let (env, mut db) = default_env_and_db_setup(operations);
-    run_program_assert_num_result(env, &mut db, a);
+    run_program_assert_num_result(env, db, a);
 }
 
 #[test]
@@ -850,7 +850,7 @@ fn not() {
     let (env, mut db) = default_env_and_db_setup(operations);
     run_program_assert_num_result(
         env,
-        &mut db,
+        db,
         BigUint::from_bytes_be(&[
             0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
             0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
@@ -873,7 +873,7 @@ fn byte() {
         Operation::Return,
     ];
     let (env, mut db) = default_env_and_db_setup(operations);
-    run_program_assert_num_result(env, &mut db, 0_u8.into());
+    run_program_assert_num_result(env, db, 0_u8.into());
 }
 
 #[test]
@@ -890,7 +890,7 @@ fn shl() {
         Operation::Return,
     ];
     let (env, mut db) = default_env_and_db_setup(operations);
-    run_program_assert_num_result(env, &mut db, 2_u8.into());
+    run_program_assert_num_result(env, db, 2_u8.into());
 }
 
 #[test]
@@ -907,7 +907,7 @@ fn shr() {
         Operation::Return,
     ];
     let (env, mut db) = default_env_and_db_setup(operations);
-    run_program_assert_num_result(env, &mut db, 0_u8.into());
+    run_program_assert_num_result(env, db, 0_u8.into());
 }
 
 #[test]
@@ -924,7 +924,7 @@ fn sar() {
         Operation::Return,
     ];
     let (env, mut db) = default_env_and_db_setup(operations);
-    run_program_assert_num_result(env, &mut db, 1_u8.into());
+    run_program_assert_num_result(env, db, 1_u8.into());
 }
 
 #[test]
@@ -946,7 +946,7 @@ fn keccak256_empty_bytes() {
     )
     .unwrap();
     let (env, mut db) = default_env_and_db_setup(operations);
-    run_program_assert_num_result(env, &mut db, expected);
+    run_program_assert_num_result(env, db, expected);
 }
 
 #[test]
@@ -978,7 +978,7 @@ fn keccak256_padded_data() {
     )
     .unwrap();
     let (env, mut db) = default_env_and_db_setup(operations);
-    run_program_assert_num_result(env, &mut db, expected);
+    run_program_assert_num_result(env, db, expected);
 }
 
 #[test]
@@ -1000,7 +1000,7 @@ fn keccak256_single_byte() {
     )
     .unwrap();
     let (env, mut db) = default_env_and_db_setup(operations);
-    run_program_assert_num_result(env, &mut db, expected);
+    run_program_assert_num_result(env, db, expected);
 }
 
 #[test]
@@ -1015,7 +1015,7 @@ fn address() {
         Operation::Return,
     ];
     let (env, mut db) = default_env_and_db_setup(operations);
-    run_program_assert_num_result(env, &mut db, 40_u8.into());
+    run_program_assert_num_result(env, db, 40_u8.into());
 }
 
 #[test]
@@ -1030,7 +1030,7 @@ fn balance() {
         Operation::Return,
     ];
     let (env, mut db) = default_env_and_db_setup(operations);
-    run_program_assert_num_result(env, &mut db, 0_u8.into());
+    run_program_assert_num_result(env, db, 0_u8.into());
 }
 
 #[test]
@@ -1045,7 +1045,7 @@ fn origin() {
         Operation::Return,
     ];
     let (env, mut db) = default_env_and_db_setup(operations);
-    run_program_assert_num_result(env, &mut db, 0_u8.into());
+    run_program_assert_num_result(env, db, 0_u8.into());
 }
 
 #[test]
@@ -1063,7 +1063,7 @@ fn caller() {
         Operation::Return,
     ];
     let (env, mut db) = default_env_and_db_setup(operations);
-    run_program_assert_num_result(env, &mut db, BigUint::from_bytes_le(&value.to_le_bytes()));
+    run_program_assert_num_result(env, db, BigUint::from_bytes_le(&value.to_le_bytes()));
 }
 
 #[test]
@@ -1078,7 +1078,7 @@ fn callvalue() {
         Operation::Return,
     ];
     let (env, mut db) = default_env_and_db_setup(operations);
-    run_program_assert_num_result(env, &mut db, 0_u8.into());
+    run_program_assert_num_result(env, db, 0_u8.into());
 }
 
 #[test]
@@ -1094,7 +1094,7 @@ fn calldataload_zero_offset() {
         Operation::Return,
     ];
     let (env, mut db) = default_env_and_db_setup(operations);
-    run_program_assert_num_result(env, &mut db, 0_u8.into());
+    run_program_assert_num_result(env, db, 0_u8.into());
 }
 
 #[test]
@@ -1110,7 +1110,7 @@ fn calldataload_non_zero_offset() {
         Operation::Return,
     ];
     let (env, mut db) = default_env_and_db_setup(operations);
-    run_program_assert_num_result(env, &mut db, 0_u8.into());
+    run_program_assert_num_result(env, db, 0_u8.into());
 }
 
 #[test]
@@ -1125,7 +1125,7 @@ fn calldatasize() {
         Operation::Return,
     ];
     let (env, mut db) = default_env_and_db_setup(operations);
-    run_program_assert_num_result(env, &mut db, 0_u8.into());
+    run_program_assert_num_result(env, db, 0_u8.into());
 }
 
 #[test]
@@ -1141,7 +1141,7 @@ fn calldatacopy() {
         Operation::Return,
     ];
     let (env, mut db) = default_env_and_db_setup(operations);
-    run_program_assert_num_result(env, &mut db, 0_u8.into());
+    run_program_assert_num_result(env, db, 0_u8.into());
 }
 
 #[test]
@@ -1157,7 +1157,7 @@ fn calldatacopy_small_range() {
         Operation::Return,
     ];
     let (env, mut db) = default_env_and_db_setup(operations);
-    run_program_assert_num_result(env, &mut db, 0_u8.into());
+    run_program_assert_num_result(env, db, 0_u8.into());
 }
 
 #[test]
@@ -1173,7 +1173,7 @@ fn calldatacopy_large_range() {
         Operation::Return,
     ];
     let (env, mut db) = default_env_and_db_setup(operations);
-    run_program_assert_num_result(env, &mut db, 0_u8.into());
+    run_program_assert_num_result(env, db, 0_u8.into());
 }
 
 #[test]
@@ -1188,7 +1188,7 @@ fn codesize() {
         Operation::Return,
     ];
     let (env, mut db) = default_env_and_db_setup(operations);
-    run_program_assert_num_result(env, &mut db, 7_u8.into());
+    run_program_assert_num_result(env, db, 7_u8.into());
 }
 
 #[test]
@@ -1205,7 +1205,7 @@ fn codesize_with_push_pop() {
         Operation::Return,
     ];
     let (env, mut db) = default_env_and_db_setup(operations);
-    run_program_assert_num_result(env, &mut db, 10_u8.into());
+    run_program_assert_num_result(env, db, 10_u8.into());
 }
 
 #[test]
@@ -1221,7 +1221,7 @@ fn codecopy() {
         Operation::Return,
     ];
     let (env, mut db) = default_env_and_db_setup(operations);
-    run_program_assert_num_result(env, &mut db, 0_u8.into());
+    run_program_assert_num_result(env, db, 0_u8.into());
 }
 
 #[test]
@@ -1244,7 +1244,7 @@ fn codecopy_with_large_value() {
         Operation::Return,
     ];
     let (env, mut db) = default_env_and_db_setup(operations);
-    run_program_assert_num_result(env, &mut db, 0_u8.into());
+    run_program_assert_num_result(env, db, 0_u8.into());
 }
 
 #[test]
@@ -1260,7 +1260,7 @@ fn codecopy_partial() {
         Operation::Return,
     ];
     let (env, mut db) = default_env_and_db_setup(operations);
-    run_program_assert_num_result(env, &mut db, 0_u8.into());
+    run_program_assert_num_result(env, db, 0_u8.into());
 }
 
 #[test]
@@ -1276,7 +1276,7 @@ fn codecopy_large_offset() {
         Operation::Return,
     ];
     let (env, mut db) = default_env_and_db_setup(operations);
-    run_program_assert_num_result(env, &mut db, 0_u8.into());
+    run_program_assert_num_result(env, db, 0_u8.into());
 }
 
 #[test]
@@ -1291,7 +1291,7 @@ fn gasprice() {
         Operation::Return,
     ];
     let (env, mut db) = default_env_and_db_setup(operations);
-    run_program_assert_num_result(env, &mut db, 0_u8.into());
+    run_program_assert_num_result(env, db, 0_u8.into());
 }
 
 // #[test]
@@ -1329,7 +1329,7 @@ fn extcodesize() {
         Operation::Return,
     ];
     let (env, mut db) = default_env_and_db_setup(operations);
-    run_program_assert_num_result(env, &mut db, 20_u8.into());
+    run_program_assert_num_result(env, db, 20_u8.into());
 }
 
 #[test]
@@ -1345,7 +1345,7 @@ fn extcodesize_nonexistent_address() {
         Operation::Return,
     ];
     let (env, mut db) = default_env_and_db_setup(operations);
-    run_program_assert_num_result(env, &mut db, 0_u8.into());
+    run_program_assert_num_result(env, db, 0_u8.into());
 }
 
 #[test]
@@ -1361,7 +1361,7 @@ fn extcodesize_zero_address() {
         Operation::Return,
     ];
     let (env, mut db) = default_env_and_db_setup(operations);
-    run_program_assert_num_result(env, &mut db, 0_u8.into());
+    run_program_assert_num_result(env, db, 0_u8.into());
 }
 
 // #[test]
@@ -1409,7 +1409,7 @@ fn extcodecopy_full() {
         Operation::Return,
     ];
     let (env, mut db) = default_env_and_db_setup(operations);
-    run_program_assert_num_result(env, &mut db, 0_u8.into());
+    run_program_assert_num_result(env, db, 0_u8.into());
 }
 
 // #[test]
@@ -1426,7 +1426,7 @@ fn extcodecopy_specific_length() {
         Operation::Return,
     ];
     let (env, mut db) = default_env_and_db_setup(operations);
-    run_program_assert_num_result(env, &mut db, 0_u8.into());
+    run_program_assert_num_result(env, db, 0_u8.into());
 }
 
 // #[test]
@@ -1443,7 +1443,7 @@ fn extcodecopy_partial() {
         Operation::Return,
     ];
     let (env, mut db) = default_env_and_db_setup(operations);
-    run_program_assert_num_result(env, &mut db, 0_u8.into());
+    run_program_assert_num_result(env, db, 0_u8.into());
 }
 
 // #[test]
@@ -1461,7 +1461,7 @@ fn extcodecopy_out_of_bounds() {
         Operation::Return,
     ];
     let (env, mut db) = default_env_and_db_setup(operations);
-    run_program_assert_num_result(env, &mut db, 0_u8.into());
+    run_program_assert_num_result(env, db, 0_u8.into());
 }
 
 // #[test]
@@ -1518,7 +1518,7 @@ fn returndatasize() {
         Operation::Return,
     ];
     let (env, mut db) = default_env_and_db_setup(operations);
-    run_program_assert_num_result(env, &mut db, 0_u8.into());
+    run_program_assert_num_result(env, db, 0_u8.into());
 }
 
 #[test]
@@ -1541,7 +1541,7 @@ fn returndatacopy() {
         Operation::Return,
     ];
     let (env, mut db) = default_env_and_db_setup(operations);
-    run_program_assert_num_result(env, &mut db, 0_u8.into());
+    run_program_assert_num_result(env, db, 0_u8.into());
 }
 
 // #[test]
@@ -1606,7 +1606,7 @@ fn returndatacopy_full() {
         Operation::ReturnDataCopy,
     ];
     let (env, mut db) = default_env_and_db_setup(operations);
-    run_program_assert_num_result(env, &mut db, 0_u8.into());
+    run_program_assert_num_result(env, db, 0_u8.into());
 }
 
 #[test]
@@ -1629,7 +1629,7 @@ fn returndatacopy_offset_size_adjustments() {
         Operation::Return,
     ];
     let (env, mut db) = default_env_and_db_setup(operations);
-    run_program_assert_num_result(env, &mut db, 0_u8.into());
+    run_program_assert_num_result(env, db, 0_u8.into());
 }
 
 #[test]
@@ -1649,7 +1649,7 @@ fn returndatacopy_out_of_bounds() {
         Operation::Return,
     ];
     let (env, mut db) = default_env_and_db_setup(operations);
-    run_program_assert_num_result(env, &mut db, 0_u8.into());
+    run_program_assert_num_result(env, db, 0_u8.into());
 }
 
 // #[test]
@@ -1677,7 +1677,7 @@ fn extcodehash() {
         Operation::Return,
     ];
     let (env, mut db) = default_env_and_db_setup(operations);
-    run_program_assert_num_result(env, &mut db, 0_u8.into());
+    run_program_assert_num_result(env, db, 0_u8.into());
 }
 
 #[test]
@@ -1693,7 +1693,7 @@ fn extcodehash_nonexistent_address() {
         Operation::Return,
     ];
     let (env, mut db) = default_env_and_db_setup(operations);
-    run_program_assert_num_result(env, &mut db, 0_u8.into());
+    run_program_assert_num_result(env, db, 0_u8.into());
 }
 
 #[test]
@@ -1709,7 +1709,7 @@ fn extcodehash_empty_address() {
         Operation::Return,
     ];
     let (env, mut db) = default_env_and_db_setup(operations);
-    run_program_assert_num_result(env, &mut db, 0_u8.into());
+    run_program_assert_num_result(env, db, 0_u8.into());
 }
 
 #[test]
@@ -1725,7 +1725,7 @@ fn blockhash_invalid_block_number() {
         Operation::Return,
     ];
     let (env, mut db) = default_env_and_db_setup(operations);
-    run_program_assert_num_result(env, &mut db, 0_u8.into());
+    run_program_assert_num_result(env, db, 0_u8.into());
 }
 
 // #[test]
@@ -1748,7 +1748,7 @@ fn _blockhash_previous_block() {
     let (mut env, mut db) = default_env_and_db_setup(operations);
     env.block.number = U256::from(current_block_number);
     db.insert_block_hash(U256::from(block_number), B256::from_low_u64_be(block_hash));
-    run_program_assert_num_result(env, &mut db, expected_block_hash);
+    run_program_assert_num_result(env, db, expected_block_hash);
 }
 
 #[test]
@@ -1763,7 +1763,7 @@ fn coinbase() {
         Operation::Return,
     ];
     let (env, mut db) = default_env_and_db_setup(operations);
-    run_program_assert_num_result(env, &mut db, 80_u8.into());
+    run_program_assert_num_result(env, db, 80_u8.into());
 }
 
 #[test]
@@ -1778,7 +1778,7 @@ fn timestamp() {
         Operation::Return,
     ];
     let (env, mut db) = default_env_and_db_setup(operations);
-    run_program_assert_num_result(env, &mut db, 0_u8.into());
+    run_program_assert_num_result(env, db, 0_u8.into());
 }
 
 #[test]
@@ -1793,7 +1793,7 @@ fn number() {
         Operation::Return,
     ];
     let (env, mut db) = default_env_and_db_setup(operations);
-    run_program_assert_num_result(env, &mut db, 0_u8.into());
+    run_program_assert_num_result(env, db, 0_u8.into());
 }
 
 #[test]
@@ -1808,7 +1808,7 @@ fn prevrandao() {
         Operation::Return,
     ];
     let (env, mut db) = default_env_and_db_setup(operations);
-    run_program_assert_num_result(env, &mut db, 0_u8.into());
+    run_program_assert_num_result(env, db, 0_u8.into());
 }
 
 #[test]
@@ -1823,7 +1823,7 @@ fn gaslimit() {
         Operation::Return,
     ];
     let (env, mut db) = default_env_and_db_setup(operations);
-    run_program_assert_num_result(env, &mut db, 999_999_u64.into());
+    run_program_assert_num_result(env, db, 999_999_u64.into());
 }
 
 #[test]
@@ -1838,7 +1838,7 @@ fn chainid() {
         Operation::Return,
     ];
     let (env, mut db) = default_env_and_db_setup(operations);
-    run_program_assert_num_result(env, &mut db, 0_u8.into());
+    run_program_assert_num_result(env, db, 0_u8.into());
 }
 
 #[test]
@@ -1853,7 +1853,7 @@ fn selfbalance() {
         Operation::Return,
     ];
     let (env, mut db) = default_env_and_db_setup(operations);
-    run_program_assert_num_result(env, &mut db, 0_u8.into());
+    run_program_assert_num_result(env, db, 0_u8.into());
 }
 
 #[test]
@@ -1868,7 +1868,7 @@ fn basefee() {
         Operation::Return,
     ];
     let (env, mut db) = default_env_and_db_setup(operations);
-    run_program_assert_num_result(env, &mut db, 0_u8.into());
+    run_program_assert_num_result(env, db, 0_u8.into());
 }
 
 #[test]
@@ -1884,7 +1884,7 @@ fn blobhash() {
         Operation::Return,
     ];
     let (env, mut db) = default_env_and_db_setup(operations);
-    run_program_assert_num_result(env, &mut db, 0_u8.into());
+    run_program_assert_num_result(env, db, 0_u8.into());
 }
 
 #[test]
@@ -1899,7 +1899,7 @@ fn blobbasefee() {
         Operation::Return,
     ];
     let (env, mut db) = default_env_and_db_setup(operations);
-    run_program_assert_num_result(env, &mut db, 0_u8.into());
+    run_program_assert_num_result(env, db, 0_u8.into());
 }
 
 #[test]
@@ -1916,7 +1916,7 @@ fn push_pop() {
         Operation::Return,
     ];
     let (env, mut db) = default_env_and_db_setup(operations);
-    run_program_assert_num_result(env, &mut db, 125986_u32.into());
+    run_program_assert_num_result(env, db, 125986_u32.into());
 }
 
 #[test]
@@ -1933,7 +1933,7 @@ fn push_pop_1() {
         Operation::Return,
     ];
     let (env, mut db) = default_env_and_db_setup(operations);
-    run_program_assert_num_result(env, &mut db, 24_u8.into());
+    run_program_assert_num_result(env, db, 24_u8.into());
 }
 
 #[test]
@@ -1952,7 +1952,7 @@ fn push_multiple_pop() {
         Operation::Return,
     ];
     let (env, mut db) = default_env_and_db_setup(operations);
-    run_program_assert_num_result(env, &mut db, 1_u8.into());
+    run_program_assert_num_result(env, db, 1_u8.into());
 }
 
 #[test]
@@ -1972,7 +1972,7 @@ fn push_stack_depth() {
         Operation::Return,
     ];
     let (env, mut db) = default_env_and_db_setup(operations);
-    run_program_assert_num_result(env, &mut db, 20_u8.into());
+    run_program_assert_num_result(env, db, 20_u8.into());
 }
 
 #[test]
@@ -1988,7 +1988,7 @@ fn push_dup1() {
         Operation::Return,
     ];
     let (env, mut db) = default_env_and_db_setup(operations);
-    run_program_assert_num_result(env, &mut db, 1_u8.into());
+    run_program_assert_num_result(env, db, 1_u8.into());
 }
 
 #[test]
@@ -2005,7 +2005,7 @@ fn push_dup2() {
         Operation::Return,
     ];
     let (env, mut db) = default_env_and_db_setup(operations);
-    run_program_assert_num_result(env, &mut db, 1_u8.into());
+    run_program_assert_num_result(env, db, 1_u8.into());
 }
 
 #[test]
@@ -2032,7 +2032,7 @@ fn mstore_mload() {
     let (env, mut db) = default_env_and_db_setup(operations);
     run_program_assert_num_result(
         env,
-        &mut db,
+        db,
         BigUint::from_bytes_be(&[
             0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
             0xFF,
@@ -2056,7 +2056,7 @@ fn mstore_mload_1() {
         Operation::Return,
     ];
     let (env, mut db) = default_env_and_db_setup(operations);
-    run_program_assert_num_result(env, &mut db, 1024_u64.into());
+    run_program_assert_num_result(env, db, 1024_u64.into());
 }
 
 #[test]
@@ -2071,7 +2071,7 @@ fn mstore_1() {
         Operation::Return,
     ];
     let (env, mut db) = default_env_and_db_setup(operations);
-    run_program_assert_num_result(env, &mut db, 0_u32.into());
+    run_program_assert_num_result(env, db, 0_u32.into());
 }
 
 #[test]
@@ -2089,7 +2089,7 @@ fn mstore_2() {
         Operation::Return,
     ];
     let (env, mut db) = default_env_and_db_setup(operations);
-    run_program_assert_num_result(env, &mut db, 0_u32.into());
+    run_program_assert_num_result(env, db, 0_u32.into());
 }
 
 #[test]
@@ -2112,7 +2112,7 @@ fn mstore() {
     let (env, mut db) = default_env_and_db_setup(operations);
     run_program_assert_num_result(
         env,
-        &mut db,
+        db,
         BigUint::from_bytes_be(&[
             0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
             0xFF,
@@ -2132,7 +2132,7 @@ fn mstore_high_address() {
         Operation::Return,
     ];
     let (env, mut db) = default_env_and_db_setup(operations);
-    run_program_assert_num_result(env, &mut db, 0_u32.into());
+    run_program_assert_num_result(env, db, 0_u32.into());
 }
 
 #[test]
@@ -2151,7 +2151,7 @@ fn mload_1() {
         Operation::Return,
     ];
     let (env, mut db) = default_env_and_db_setup(operations);
-    run_program_assert_num_result(env, &mut db, 0_u64.into());
+    run_program_assert_num_result(env, db, 0_u64.into());
 }
 
 #[test]
@@ -2167,7 +2167,7 @@ fn mload_uninitialized() {
         Operation::Return,
     ];
     let (env, mut db) = default_env_and_db_setup(operations);
-    run_program_assert_num_result(env, &mut db, 0_u32.into());
+    run_program_assert_num_result(env, db, 0_u32.into());
 }
 
 #[test]
@@ -2189,7 +2189,7 @@ fn mstore8() {
     let mut expect_bytes: Vec<u8> = vec![0x00; 31];
     expect_bytes.push(0xFF);
     let (env, mut db) = default_env_and_db_setup(operations);
-    run_program_assert_num_result(env, &mut db, BigUint::from_bytes_le(&expect_bytes));
+    run_program_assert_num_result(env, db, BigUint::from_bytes_le(&expect_bytes));
 }
 
 #[test]
@@ -2252,7 +2252,7 @@ fn sload() {
         Operation::Return,
     ];
     let (env, mut db) = default_env_and_db_setup(operations);
-    run_program_assert_num_result(env, &mut db, 46_u8.into());
+    run_program_assert_num_result(env, db, 46_u8.into());
 }
 
 #[test]
@@ -2271,7 +2271,7 @@ fn sload_1() {
         Operation::Return,
     ];
     let (env, mut db) = default_env_and_db_setup(operations);
-    run_program_assert_num_result(env, &mut db, 0_u64.into());
+    run_program_assert_num_result(env, db, 0_u64.into());
 }
 
 #[test]
@@ -2290,7 +2290,7 @@ fn sstore() {
         Operation::Return,
     ];
     let (env, mut db) = default_env_and_db_setup(operations);
-    run_program_assert_num_result(env, &mut db, 100_u64.into());
+    run_program_assert_num_result(env, db, 100_u64.into());
 }
 
 #[test]
@@ -2309,7 +2309,7 @@ fn sstore_1() {
         Operation::Return,
     ];
     let (env, mut db) = default_env_and_db_setup(operations);
-    run_program_assert_num_result(env, &mut db, 65535_u32.into());
+    run_program_assert_num_result(env, db, 65535_u32.into());
 }
 
 #[test]
@@ -2335,7 +2335,7 @@ fn sstore_multiple_slots() {
     ];
     let (env, mut db) = default_env_and_db_setup(operations);
     // 3 means 2 + 1 from the storage slot 600 and slot 500
-    run_program_assert_num_result(env, &mut db, 3_u8.into());
+    run_program_assert_num_result(env, db, 3_u8.into());
 }
 
 #[test]
@@ -2355,7 +2355,7 @@ fn sstore_high_slot() {
         Operation::Return,
     ];
     let (env, mut db) = default_env_and_db_setup(operations);
-    run_program_assert_num_result(env, &mut db, 777_u64.into());
+    run_program_assert_num_result(env, db, 777_u64.into());
 }
 
 #[test]
@@ -2371,7 +2371,7 @@ fn sload_uninitialized() {
         Operation::Return,
     ];
     let (env, mut db) = default_env_and_db_setup(operations);
-    run_program_assert_num_result(env, &mut db, 0_u32.into());
+    run_program_assert_num_result(env, db, 0_u32.into());
 }
 
 #[test]
@@ -2391,7 +2391,7 @@ fn sload_high_slot() {
         Operation::Return,
     ];
     let (env, mut db) = default_env_and_db_setup(operations);
-    run_program_assert_num_result(env, &mut db, 0_u32.into());
+    run_program_assert_num_result(env, db, 0_u32.into());
 }
 
 #[test]
@@ -2415,7 +2415,7 @@ fn sload_multiple_slots() {
         Operation::Return,
     ];
     let (env, mut db) = default_env_and_db_setup(operations);
-    run_program_assert_num_result(env, &mut db, 0_u8.into());
+    run_program_assert_num_result(env, db, 0_u8.into());
 }
 
 #[test]
@@ -2436,7 +2436,7 @@ fn jump() {
         Operation::Return,
     ];
     let (env, mut db) = default_env_and_db_setup(operations);
-    run_program_assert_num_result(env, &mut db, a.into());
+    run_program_assert_num_result(env, db, a.into());
 }
 
 #[test]
@@ -2459,7 +2459,7 @@ fn jumpi_with_false_condition() {
         Operation::Return,
     ];
     let (env, mut db) = default_env_and_db_setup(operations);
-    run_program_assert_num_result(env, &mut db, b.into());
+    run_program_assert_num_result(env, db, b.into());
 }
 
 #[test]
@@ -2482,7 +2482,7 @@ fn jumpi_does_not_revert_if_pc_is_wrong_but_branch_is_not_taken() {
         Operation::Return,
     ];
     let (env, mut db) = default_env_and_db_setup(operations);
-    run_program_assert_num_result(env, &mut db, b.into());
+    run_program_assert_num_result(env, db, b.into());
 }
 
 #[test]
@@ -2500,7 +2500,7 @@ fn jumpdest() {
         Operation::Return,
     ];
     let (env, mut db) = default_env_and_db_setup(operations);
-    run_program_assert_num_result(env, &mut db, expected.into());
+    run_program_assert_num_result(env, db, expected.into());
 }
 
 #[test]
@@ -2520,7 +2520,7 @@ fn pc() {
         Operation::Return,
     ];
     let (env, mut db) = default_env_and_db_setup(operations);
-    run_program_assert_num_result(env, &mut db, 6_u8.into());
+    run_program_assert_num_result(env, db, 6_u8.into());
 }
 
 #[test]
@@ -2543,7 +2543,7 @@ fn mload_misze() {
         Operation::Return,
     ];
     let (env, mut db) = default_env_and_db_setup(operations);
-    run_program_assert_num_result(env, &mut db, 96_u8.into());
+    run_program_assert_num_result(env, db, 96_u8.into());
 }
 
 // #[test]
@@ -2563,7 +2563,7 @@ fn gas() {
         Operation::Return,
     ];
     let (env, mut db) = default_env_and_db_setup(operations);
-    run_program_assert_num_result(env, &mut db, 0_u8.into());
+    run_program_assert_num_result(env, db, 0_u8.into());
 }
 
 #[test]
@@ -2582,7 +2582,7 @@ fn tstore_tload() {
         Operation::Return,
     ];
     let (env, mut db) = default_env_and_db_setup(operations);
-    run_program_assert_num_result(env, &mut db, 46_u8.into());
+    run_program_assert_num_result(env, db, 46_u8.into());
 }
 
 #[test]
@@ -2601,7 +2601,7 @@ fn tstore_0() {
         Operation::Return,
     ];
     let (env, mut db) = default_env_and_db_setup(operations);
-    run_program_assert_num_result(env, &mut db, BigUint::from_bytes_be(&[0xFF, 0xFF]));
+    run_program_assert_num_result(env, db, BigUint::from_bytes_be(&[0xFF, 0xFF]));
 }
 
 #[test]
@@ -2620,7 +2620,7 @@ fn tstore_1() {
         Operation::Return,
     ];
     let (env, mut db) = default_env_and_db_setup(operations);
-    run_program_assert_num_result(env, &mut db, BigUint::from_bytes_be(&[0xFF, 0xFF]));
+    run_program_assert_num_result(env, db, BigUint::from_bytes_be(&[0xFF, 0xFF]));
 }
 
 #[test]
@@ -2649,7 +2649,7 @@ fn mstore_mcopy() {
         Operation::Return,
     ];
     let (env, mut db) = default_env_and_db_setup(operations);
-    run_program_assert_num_result(env, &mut db, 254_u8.into());
+    run_program_assert_num_result(env, db, 254_u8.into());
 }
 
 #[test]
@@ -2666,7 +2666,7 @@ fn swap() {
         Operation::Return,
     ];
     let (env, mut db) = default_env_and_db_setup(operations);
-    run_program_assert_num_result(env, &mut db, 2_u8.into());
+    run_program_assert_num_result(env, db, 2_u8.into());
 }
 
 #[test]
@@ -2683,7 +2683,7 @@ fn swap_1() {
         Operation::Return,
     ];
     let (env, mut db) = default_env_and_db_setup(operations);
-    run_program_assert_num_result(env, &mut db, 2_u8.into());
+    run_program_assert_num_result(env, db, 2_u8.into());
 }
 
 // #[test]
@@ -2702,7 +2702,7 @@ fn create() {
         Operation::Return,
     ];
     let (env, mut db) = default_env_and_db_setup(operations);
-    run_program_assert_num_result(env, &mut db, 0_u8.into());
+    run_program_assert_num_result(env, db, 0_u8.into());
 }
 
 // #[test]
@@ -2721,7 +2721,7 @@ fn create_1() {
         Operation::Return,
     ];
     let (env, mut db) = default_env_and_db_setup(operations);
-    run_program_assert_num_result(env, &mut db, 0_u8.into());
+    run_program_assert_num_result(env, db, 0_u8.into());
 }
 
 // #[test]
@@ -2740,7 +2740,7 @@ fn create_2() {
         Operation::Return,
     ];
     let (env, mut db) = default_env_and_db_setup(operations);
-    run_program_assert_num_result(env, &mut db, 0_u8.into());
+    run_program_assert_num_result(env, db, 0_u8.into());
 }
 
 // #[test]
@@ -2767,7 +2767,7 @@ fn create_3() {
         Operation::Return,
     ];
     let (env, mut db) = default_env_and_db_setup(operations);
-    run_program_assert_num_result(env, &mut db, 0_u8.into());
+    run_program_assert_num_result(env, db, 0_u8.into());
 }
 
 // #[test]
@@ -2786,7 +2786,7 @@ fn create_with_value() {
         Operation::Return,
     ];
     let (env, mut db) = default_env_and_db_setup(operations);
-    run_program_assert_num_result(env, &mut db, 0_u8.into());
+    run_program_assert_num_result(env, db, 0_u8.into());
 }
 
 // #[test]
@@ -2806,7 +2806,7 @@ fn create2_with_salt() {
         Operation::Return,
     ];
     let (env, mut db) = default_env_and_db_setup(operations);
-    run_program_assert_num_result(env, &mut db, 0_u8.into());
+    run_program_assert_num_result(env, db, 0_u8.into());
 }
 
 // #[test]
@@ -2833,7 +2833,7 @@ fn create2_with_large_salt() {
         Operation::Return,
     ];
     let (env, mut db) = default_env_and_db_setup(operations);
-    run_program_assert_num_result(env, &mut db, 0_u8.into());
+    run_program_assert_num_result(env, db, 0_u8.into());
 }
 
 #[test]
@@ -2848,7 +2848,7 @@ fn log0() {
         Operation::Return,
     ];
     let (env, mut db) = default_env_and_db_setup(operations);
-    run_program_assert_num_result(env, &mut db, 0_u8.into());
+    run_program_assert_num_result(env, db, 0_u8.into());
 }
 
 #[test]
@@ -2864,7 +2864,7 @@ fn log1() {
         Operation::Return,
     ];
     let (env, mut db) = default_env_and_db_setup(operations);
-    run_program_assert_num_result(env, &mut db, 0_u8.into());
+    run_program_assert_num_result(env, db, 0_u8.into());
 }
 
 #[test]
@@ -2881,7 +2881,7 @@ fn log2() {
         Operation::Return,
     ];
     let (env, mut db) = default_env_and_db_setup(operations);
-    run_program_assert_num_result(env, &mut db, 0_u8.into());
+    run_program_assert_num_result(env, db, 0_u8.into());
 }
 
 #[test]
@@ -2899,7 +2899,7 @@ fn log3() {
         Operation::Return,
     ];
     let (env, mut db) = default_env_and_db_setup(operations);
-    run_program_assert_num_result(env, &mut db, 0_u8.into());
+    run_program_assert_num_result(env, db, 0_u8.into());
 }
 
 #[test]
@@ -2918,7 +2918,7 @@ fn log4() {
         Operation::Return,
     ];
     let (env, mut db) = default_env_and_db_setup(operations);
-    run_program_assert_num_result(env, &mut db, 0_u8.into());
+    run_program_assert_num_result(env, db, 0_u8.into());
 }
 
 // #[test]
@@ -2941,7 +2941,7 @@ fn call() {
         Operation::Return,
     ];
     let (env, mut db) = default_env_and_db_setup(operations);
-    run_program_assert_num_result(env, &mut db, 0_u8.into());
+    run_program_assert_num_result(env, db, 0_u8.into());
 }
 
 // #[test]
@@ -2977,7 +2977,7 @@ fn call_1() {
         Operation::Return,
     ];
     let (env, mut db) = default_env_and_db_setup(operations);
-    run_program_assert_num_result(env, &mut db, 0_u8.into());
+    run_program_assert_num_result(env, db, 0_u8.into());
 }
 
 // #[test]
@@ -3021,7 +3021,7 @@ fn call_2() {
         Operation::Return,
     ];
     let (env, mut db) = default_env_and_db_setup(operations);
-    run_program_assert_num_result(env, &mut db, 0_u8.into());
+    run_program_assert_num_result(env, db, 0_u8.into());
 }
 
 // #[test]
@@ -3044,7 +3044,7 @@ fn callcode() {
         Operation::Return,
     ];
     let (env, mut db) = default_env_and_db_setup(operations);
-    run_program_assert_num_result(env, &mut db, 0_u8.into());
+    run_program_assert_num_result(env, db, 0_u8.into());
 }
 
 // #[test]
@@ -3091,7 +3091,7 @@ fn callcode_1() {
         Operation::Return,
     ];
     let (env, mut db) = default_env_and_db_setup(operations);
-    run_program_assert_num_result(env, &mut db, 0_u8.into());
+    run_program_assert_num_result(env, db, 0_u8.into());
 }
 
 #[test]
@@ -3102,7 +3102,7 @@ fn rreturn() {
         Operation::Return,
     ];
     let (env, mut db) = default_env_and_db_setup(operations);
-    run_program_assert_num_result(env, &mut db, 0_u8.into());
+    run_program_assert_num_result(env, db, 0_u8.into());
 }
 
 #[test]
@@ -3113,7 +3113,7 @@ fn return_large_data() {
         Operation::Return,
     ];
     let (env, mut db) = default_env_and_db_setup(operations);
-    run_program_assert_num_result(env, &mut db, 0_u8.into());
+    run_program_assert_num_result(env, db, 0_u8.into());
 }
 
 #[test]
@@ -3133,7 +3133,7 @@ fn store_return() {
         Operation::Return,
     ];
     let (env, mut db) = default_env_and_db_setup(operations);
-    run_program_assert_num_result(env, &mut db, 0_u8.into());
+    run_program_assert_num_result(env, db, 0_u8.into());
 }
 
 // #[test]
@@ -3155,7 +3155,7 @@ fn delegatecall() {
         Operation::Return,
     ];
     let (env, mut db) = default_env_and_db_setup(operations);
-    run_program_assert_num_result(env, &mut db, 0_u8.into());
+    run_program_assert_num_result(env, db, 0_u8.into());
 }
 
 // #[test]
@@ -3201,7 +3201,7 @@ fn delegatecall_1() {
         Operation::Return,
     ];
     let (env, mut db) = default_env_and_db_setup(operations);
-    run_program_assert_num_result(env, &mut db, 0_u8.into());
+    run_program_assert_num_result(env, db, 0_u8.into());
 }
 
 // #[test]
@@ -3223,7 +3223,7 @@ fn staticcall() {
         Operation::Return,
     ];
     let (env, mut db) = default_env_and_db_setup(operations);
-    run_program_assert_num_result(env, &mut db, 0_u8.into());
+    run_program_assert_num_result(env, db, 0_u8.into());
 }
 
 #[test]
@@ -3234,7 +3234,7 @@ fn revert() {
         Operation::Revert,
     ];
     let (env, mut db) = default_env_and_db_setup(operations);
-    run_program_assert_revert(env, &mut db);
+    run_program_assert_revert(env, db);
 }
 
 #[test]
@@ -3245,7 +3245,7 @@ fn revert_large_data() {
         Operation::Revert,
     ];
     let (env, mut db) = default_env_and_db_setup(operations);
-    run_program_assert_revert(env, &mut db);
+    run_program_assert_revert(env, db);
 }
 
 #[test]
@@ -3265,21 +3265,21 @@ fn mstore_revert() {
         Operation::Revert,
     ];
     let (env, mut db) = default_env_and_db_setup(operations);
-    run_program_assert_revert(env, &mut db);
+    run_program_assert_revert(env, db);
 }
 
 #[test]
 fn invalid() {
     let operations = vec![Operation::Invalid];
     let (env, mut db) = default_env_and_db_setup(operations);
-    run_program_assert_halt(env, &mut db);
+    run_program_assert_halt(env, db);
 }
 
 #[test]
 fn stop() {
     let operations = vec![Operation::Stop];
     let (env, mut db) = default_env_and_db_setup(operations);
-    run_program_assert_num_result(env, &mut db, 0_u8.into());
+    run_program_assert_num_result(env, db, 0_u8.into());
 }
 
 #[test]
@@ -3302,7 +3302,7 @@ fn selfdestruct() {
         Operation::Return,
     ];
     let (env, mut db) = default_env_and_db_setup(operations);
-    run_program_assert_num_result(env, &mut db, 0_u8.into());
+    run_program_assert_num_result(env, db, 0_u8.into());
 }
 
 #[test]
@@ -3319,7 +3319,7 @@ fn selfdestruct_zero_address() {
         Operation::Return,
     ];
     let (env, mut db) = default_env_and_db_setup(operations);
-    run_program_assert_num_result(env, &mut db, 0_u8.into());
+    run_program_assert_num_result(env, db, 0_u8.into());
 }
 
 fn biguint_256_from_bigint(value: BigInt) -> BigUint {
@@ -3349,19 +3349,19 @@ pub(crate) fn default_env_and_db_setup(operations: Vec<Operation>) -> (Env, Memo
     (env, db)
 }
 
-fn run_program_assert_num_result(env: Env, db: &mut MemoryDb, expected_result: BigUint) {
+fn run_program_assert_num_result(env: Env, mut db: MemoryDb, expected_result: BigUint) {
     let result = run_evm(env, db).unwrap().result;
     assert!(result.is_success());
     let result_data = BigUint::from_bytes_be(result.output().unwrap_or(&Bytes::new()));
     assert_eq!(result_data, expected_result);
 }
 
-fn run_program_assert_halt(env: Env, db: &mut MemoryDb) {
+fn run_program_assert_halt(env: Env, mut db: MemoryDb) {
     let result = run_evm(env, db).unwrap().result;
     assert!(result.is_halt());
 }
 
-fn run_program_assert_revert(env: Env, db: &mut MemoryDb) {
+fn run_program_assert_revert(env: Env, mut db: MemoryDb) {
     let result = run_evm(env, db).unwrap().result;
     assert!(result.is_revert());
 }
