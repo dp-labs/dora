@@ -6,6 +6,6 @@ pub type Bytecode = Bytes;
 pub type B256 = H256;
 
 pub mod account;
-pub mod code;
 pub mod config;
 pub mod db;
+pub mod transaction;

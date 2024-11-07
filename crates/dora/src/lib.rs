@@ -9,7 +9,7 @@ use dora_compiler::{
     evm::{self, program::Program, EVMCompiler},
     pass, Compiler,
 };
-use dora_primitives::code::Transaction;
+use dora_primitives::transaction::Transaction;
 use dora_primitives::{
     db::{Database, MemoryDb},
     Address, Bytecode,
@@ -142,6 +142,18 @@ pub fn run_evm(env: Env, mut db: MemoryDb) -> Result<ResultAndState> {
     context.get_result().map_err(|e| anyhow::anyhow!(e))
 }
 
+/// A specific implementation of the `Transaction` trait for executing EVM (Ethereum Virtual Machine) transactions.
+///
+/// `EVMTransaction` uses `RuntimeContext` for its execution context and returns a `Result` containing
+/// `ResultAndState` after execution. This struct is designed to handle Ethereum-style transaction processing
+/// by setting the initial gas limit and cloning the database state before running the EVM.
+///
+/// # Example
+/// ```rust
+/// let mut ctx = RuntimeContext::default();
+/// let evm_tx = EVMTransaction::default();
+/// let result = evm_tx.run(&mut ctx, 21_000);
+/// ```
 #[derive(Debug, Default)]
 pub struct EVMTransaction;
 
