@@ -263,7 +263,7 @@ pub fn execute_test(path: &Path) -> Result<(), TestError> {
                     account_info.storage.clone(),
                 );
             }
-            let res = run_evm(env.clone(), &mut db);
+            let res = run_evm(env.clone(), db);
             match res {
                 Ok(res) => {
                     if test_case.expect_exception.is_some() {

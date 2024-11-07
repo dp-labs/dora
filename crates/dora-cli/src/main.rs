@@ -92,9 +92,9 @@ fn main() -> Result<()> {
             env.block.number = U256::from(run_args.block_number);
             env.block.timestamp = U256::from(run_args.timestamp);
             // Set DB
-            let mut db = MemoryDb::new().with_contract(address, Bytecode::from(bytecode));
+            let db = MemoryDb::new().with_contract(address, Bytecode::from(bytecode));
             // Run the contract
-            match dora::run_evm(env, &mut db) {
+            match dora::run_evm(env, db) {
                 Ok(result) => {
                     info!("Execution result: {:#?}", result);
                 }

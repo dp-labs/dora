@@ -9,6 +9,7 @@ use dora_compiler::{
     evm::{self, program::Program, EVMCompiler},
     pass, Compiler,
 };
+use dora_primitives::code::Transaction;
 use dora_primitives::{
     db::{Database, MemoryDb},
     Address, Bytecode,
@@ -18,7 +19,7 @@ use dora_runtime::executor::Executor;
 use dora_runtime::journal::Journal;
 use dora_runtime::result::ResultAndState;
 use dora_runtime::{context::CallFrame, env::Env};
-use std::hint::black_box;
+use std::{hint::black_box, sync::Arc};
 
 /// Run EVM bytecode from a hex-encoded string and return the execution result and final state.
 ///
@@ -84,12 +85,12 @@ pub fn run_evm_program(
     env.tx.gas_limit = 999_999;
     env.tx.data = Bytes::from(calldata.to_vec());
     env.tx.transact_to = address;
-    let mut db = MemoryDb::default().with_contract(address, bytecode);
-    let journal = Journal::new(&mut db);
+    let journal = Journal::new(MemoryDb::default().with_contract(address, bytecode));
     let mut context = RuntimeContext::new(
         env,
         journal,
         CallFrame::new(Address::from_low_u64_le(10000)),
+        Arc::new(EVMTransaction),
     );
     let executor = Executor::new(module.module(), &context, Default::default());
     black_box(executor.execute(black_box(&mut context), black_box(initial_gas)));
@@ -110,7 +111,7 @@ pub fn run_evm_program(
 /// # Errors
 ///
 /// Returns an error if the program fails to execute or if the bytecode or address is invalid.
-pub fn run_evm(env: Env, db: &mut MemoryDb) -> Result<ResultAndState> {
+pub fn run_evm(env: Env, mut db: MemoryDb) -> Result<ResultAndState> {
     let code_address = env.tx.get_address();
     let opcodes = db.code_by_address(code_address)?;
     let program = Program::from_opcode(&opcodes);
@@ -134,10 +135,26 @@ pub fn run_evm(env: Env, db: &mut MemoryDb) -> Result<ResultAndState> {
         env,
         journal,
         CallFrame::new(Address::from_low_u64_le(10000)),
+        Arc::new(EVMTransaction),
     );
     let executor = Executor::new(module.module(), &context, Default::default());
     black_box(executor.execute(black_box(&mut context), black_box(gas_limit)));
     context.get_result().map_err(|e| anyhow::anyhow!(e))
+}
+
+#[derive(Debug, Default)]
+pub struct EVMTransaction;
+
+impl Transaction for EVMTransaction {
+    type Context = RuntimeContext;
+    type Result = Result<ResultAndState>;
+
+    fn run(&self, ctx: &mut Self::Context, initial_gas: u64) -> Self::Result {
+        let mut env = ctx.env.clone();
+        env.tx.gas_limit = initial_gas;
+        let db = ctx.journal.cloned_db();
+        run_evm(env, db)
+    }
 }
 
 /// Run hex-encoded EVM bytecode with custom calldata and return the execution result and final state.

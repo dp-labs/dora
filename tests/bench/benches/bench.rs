@@ -1,5 +1,6 @@
 #![allow(missing_docs)]
 
+use ::dora::EVMTransaction;
 use criterion::{
     criterion_group, criterion_main, measurement::WallTime, BenchmarkGroup, Criterion,
 };
@@ -13,6 +14,7 @@ use dora_runtime::executor::Executor;
 use dora_runtime::journal::Journal;
 use dora_runtime::{context::CallFrame, env::Env};
 use std::hint::black_box;
+use std::sync::Arc;
 use std::time::Duration;
 
 fn bench(c: &mut Criterion) {
@@ -56,12 +58,12 @@ fn run_bench(c: &mut Criterion, bench: &Bench) {
     env.tx.gas_limit = 999_999;
     env.tx.data = Bytes::from(calldata.to_vec());
     env.tx.transact_to = address;
-    let mut db = MemoryDb::default().with_contract(address, bytecode);
-    let journal = Journal::new(&mut db);
+    let journal = Journal::new(MemoryDb::default().with_contract(address, bytecode));
     let mut context = RuntimeContext::new(
         env,
         journal,
         CallFrame::new(Address::from_low_u64_le(10000)),
+        Arc::new(EVMTransaction),
     );
     let executor = Executor::new(module.module(), &context, Default::default());
     let func = executor.get_main_entrypoint();
