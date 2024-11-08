@@ -1,15 +1,16 @@
 use std::sync::Arc;
 
-use crate::constants::gas_cost;
+use crate::constants::{call_opcode, gas_cost, precompiles, CallType};
 use crate::{
     env::Env,
     journal::Journal,
     result::{EVMError, ExecutionResult, HaltReason, Output, ResultAndState, SuccessReason},
 };
 use crate::{symbols, ExitStatusCode};
+use bytes::Bytes;
 use dora_primitives::account::AccountStatus;
-use dora_primitives::code::Transaction;
 use dora_primitives::db::Database;
+use dora_primitives::transaction::Transaction;
 use dora_primitives::{EVMAddress as Address, B256, H160, U256};
 use melior::ExecutionEngine;
 use rustc_hash::FxHashMap;
@@ -642,18 +643,157 @@ impl RuntimeContext {
 
     pub extern "C" fn call(
         &mut self,
-        _gas_to_send: u64,
-        _call_to_address: &U256,
-        _value_to_transfer: &U256,
-        _args_offset: u32,
-        _args_size: u32,
-        _ret_offset: u32,
-        _ret_size: u32,
-        _available_gas: u64,
-        _consumed_gas: &mut u64,
-        _call_type: u8,
+        mut gas_to_send: u64,
+        call_to_address: &Bytes32,
+        value_to_transfer: &Bytes32,
+        args_offset: u32,
+        args_size: u32,
+        ret_offset: u32,
+        ret_size: u32,
+        available_gas: u64,
+        consumed_gas: &mut u64,
+        call_type: u8,
     ) -> u8 {
-        unimplemented!()
+        let callee_address = Address::from(call_to_address);
+        let (return_code, return_data) = match callee_address {
+            x if x == Address::from_low_u64_be(precompiles::ECRECOVER_ADDRESS) => (
+                call_opcode::SUCCESS_RETURN_CODE,
+                // TODO: Implement ecrecover logic
+                Bytes::new(),
+            ),
+            x if x == Address::from_low_u64_be(precompiles::IDENTITY_ADDRESS) => (
+                call_opcode::SUCCESS_RETURN_CODE,
+                // TODO: Implement identity logic
+                Bytes::new(),
+            ),
+            x if x == Address::from_low_u64_be(precompiles::SHA2_256_ADDRESS) => (
+                call_opcode::SUCCESS_RETURN_CODE,
+                // TODO: Implement sha2_256 logic
+                Bytes::new(),
+            ),
+            x if x == Address::from_low_u64_be(precompiles::RIPEMD_160_ADDRESS) => (
+                call_opcode::SUCCESS_RETURN_CODE,
+                // TODO: Implement ripemd_160 logic
+                Bytes::new(),
+            ),
+            x if x == Address::from_low_u64_be(precompiles::MODEXP_ADDRESS) => (
+                call_opcode::SUCCESS_RETURN_CODE,
+                // TODO: Implement modexp logic
+                Bytes::new(),
+            ),
+            x if x == Address::from_low_u64_be(precompiles::BLAKE2F_ADDRESS) => (
+                call_opcode::SUCCESS_RETURN_CODE,
+                // TODO: Implement blake2f logic
+                Bytes::new(),
+            ),
+            _ => {
+                let call_type = CallType::try_from(call_type)
+                    .expect("Error while parsing CallType on call syscall");
+                // Retrieve or create the callee account in journal
+                let callee_account = match self.journal.get_account(&callee_address) {
+                    Some(acc) => {
+                        *consumed_gas = call_opcode::WARM_MEMORY_ACCESS_COST;
+                        acc
+                    }
+                    None => return call_opcode::REVERT_RETURN_CODE,
+                };
+
+                let caller_address = self.env.tx.get_address();
+                let caller_account = self
+                    .journal
+                    .get_account(&caller_address)
+                    .unwrap_or_default();
+
+                let mut stipend = 0;
+                if !value_to_transfer.as_u256().is_zero() {
+                    if caller_account.balance < *value_to_transfer.as_u256() {
+                        return call_opcode::REVERT_RETURN_CODE;
+                    }
+                    *consumed_gas += call_opcode::NOT_ZERO_VALUE_COST;
+                    if callee_account.is_empty() {
+                        *consumed_gas += call_opcode::EMPTY_CALLEE_COST;
+                    }
+                    if available_gas < *consumed_gas {
+                        return call_opcode::REVERT_RETURN_CODE;
+                    }
+                    stipend = call_opcode::STIPEND_GAS_ADDITION;
+
+                    let _ = self.journal.set_balance(
+                        &caller_address,
+                        caller_account.balance - value_to_transfer.as_u256(),
+                    );
+                    let _ = self.journal.set_balance(
+                        &callee_address,
+                        callee_account.balance + value_to_transfer.as_u256(),
+                    );
+                }
+
+                let remaining_gas = available_gas - *consumed_gas;
+                gas_to_send = std::cmp::min(
+                    remaining_gas / call_opcode::GAS_CAP_DIVISION_FACTOR,
+                    gas_to_send,
+                );
+                *consumed_gas += gas_to_send;
+                gas_to_send += stipend;
+
+                let mut new_env = self.env.clone();
+                let this_address = self.env.tx.get_address();
+                let (new_frame_caller, new_value, transact_to) = match call_type {
+                    CallType::Call | CallType::StaticCall => {
+                        (this_address, value_to_transfer, callee_address)
+                    }
+                    CallType::CallCode => (this_address, value_to_transfer, this_address),
+                    CallType::DelegateCall => (
+                        self.call_frame.caller,
+                        Bytes32::from_u256_ref(&self.env.tx.value),
+                        this_address,
+                    ),
+                };
+
+                new_env.tx.value = *new_value.as_u256();
+                new_env.tx.transact_to = transact_to;
+                new_env.tx.gas_limit = gas_to_send;
+                new_env.tx.caller = self.env.tx.caller;
+                let off = args_offset as usize;
+                let size = args_size as usize;
+                new_env.tx.data = Bytes::from(self.inner_context.memory[off..off + size].to_vec());
+
+                let journal = self.journal.eject_base();
+                let call_frame = CallFrame::new(new_frame_caller);
+                let mut ctx = Self::new(new_env, journal, call_frame, self.transaction.clone());
+
+                let result = self.transaction.run(&mut ctx, gas_to_send).unwrap().result;
+
+                let unused_gas = gas_to_send - result.gas_used();
+                *consumed_gas -= unused_gas;
+                *consumed_gas -= result.gas_refunded();
+
+                let return_code = if result.is_success() {
+                    self.journal.extend_from_successful(ctx.journal);
+                    call_opcode::SUCCESS_RETURN_CODE
+                } else {
+                    self.journal.extend_from_reverted(ctx.journal);
+                    call_opcode::REVERT_RETURN_CODE
+                };
+
+                let output = result.into_output().unwrap_or_default();
+                (return_code, output)
+            }
+        };
+
+        self.call_frame.last_call_return_data.clear();
+        self.call_frame
+            .last_call_return_data
+            .clone_from(&return_data.to_vec());
+        Self::copy_exact(
+            &mut self.inner_context.memory,
+            &return_data,
+            ret_offset,
+            0,
+            ret_size,
+        );
+
+        return_code
     }
 
     fn copy_exact(

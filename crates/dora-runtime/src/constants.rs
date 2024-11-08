@@ -281,8 +281,8 @@ pub mod precompiles {
     pub const RIPEMD_160_ADDRESS: u64 = 0x03;
     pub const IDENTITY_COST: u64 = 15;
     pub const IDENTITY_ADDRESS: u64 = 0x04;
-    pub const BLAKE2_COST: u64 = 60;
-    pub const BLAKE2_ADDRESS: u64 = 0x05;
+    pub const MODEXP_ADDRESS: u64 = 0x05;
+    pub const BLAKE2F_ADDRESS: u64 = 0x09;
 }
 
 // CallType enum and parsing
