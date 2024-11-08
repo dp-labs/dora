@@ -980,41 +980,59 @@ impl RuntimeContext {
         self.create_log(offset, size, vec![]);
     }
 
-    pub extern "C" fn append_log_with_one_topic(&mut self, offset: u32, size: u32, topic: &U256) {
-        self.create_log(offset, size, vec![*topic]);
+    pub extern "C" fn append_log_with_one_topic(
+        &mut self,
+        offset: u32,
+        size: u32,
+        topic: &Bytes32,
+    ) {
+        self.create_log(offset, size, vec![topic.to_u256()]);
     }
 
     pub extern "C" fn append_log_with_two_topics(
         &mut self,
         offset: u32,
         size: u32,
-        topic1: &U256,
-        topic2: &U256,
+        topic1: &Bytes32,
+        topic2: &Bytes32,
     ) {
-        self.create_log(offset, size, vec![*topic1, *topic2]);
+        self.create_log(offset, size, vec![topic1.to_u256(), topic2.to_u256()]);
     }
 
     pub extern "C" fn append_log_with_three_topics(
         &mut self,
         offset: u32,
         size: u32,
-        topic1: &U256,
-        topic2: &U256,
-        topic3: &U256,
+        topic1: &Bytes32,
+        topic2: &Bytes32,
+        topic3: &Bytes32,
     ) {
-        self.create_log(offset, size, vec![*topic1, *topic2, *topic3]);
+        self.create_log(
+            offset,
+            size,
+            vec![topic1.to_u256(), topic2.to_u256(), topic3.to_u256()],
+        );
     }
 
     pub extern "C" fn append_log_with_four_topics(
         &mut self,
         offset: u32,
         size: u32,
-        topic1: &U256,
-        topic2: &U256,
-        topic3: &U256,
-        topic4: &U256,
+        topic1: &Bytes32,
+        topic2: &Bytes32,
+        topic3: &Bytes32,
+        topic4: &Bytes32,
     ) {
-        self.create_log(offset, size, vec![*topic1, *topic2, *topic3, *topic4]);
+        self.create_log(
+            offset,
+            size,
+            vec![
+                topic1.to_u256(),
+                topic2.to_u256(),
+                topic3.to_u256(),
+                topic4.to_u256(),
+            ],
+        );
     }
 
     pub extern "C" fn get_block_number(&self, number: &mut Bytes32) {
