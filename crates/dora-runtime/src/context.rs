@@ -644,8 +644,8 @@ impl RuntimeContext {
     pub extern "C" fn call(
         &mut self,
         mut gas_to_send: u64,
-        call_to_address: &U256,
-        value_to_transfer: &U256,
+        call_to_address: &Bytes32,
+        value_to_transfer: &Bytes32,
         args_offset: u32,
         args_size: u32,
         ret_offset: u32,
@@ -654,7 +654,7 @@ impl RuntimeContext {
         consumed_gas: &mut u64,
         call_type: u8,
     ) -> u8 {
-        let callee_address = Address::from(Bytes32::from_u256_ref(call_to_address));
+        let callee_address = Address::from(call_to_address);
         let (return_code, return_data) = match callee_address {
             x if x == Address::from_low_u64_be(precompiles::ECRECOVER_ADDRESS) => (
                 call_opcode::SUCCESS_RETURN_CODE,
@@ -705,8 +705,8 @@ impl RuntimeContext {
                     .unwrap_or_default();
 
                 let mut stipend = 0;
-                if !value_to_transfer.is_zero() {
-                    if caller_account.balance < *value_to_transfer {
+                if !value_to_transfer.as_u256().is_zero() {
+                    if caller_account.balance < *value_to_transfer.as_u256() {
                         return call_opcode::REVERT_RETURN_CODE;
                     }
                     *consumed_gas += call_opcode::NOT_ZERO_VALUE_COST;
@@ -718,12 +718,14 @@ impl RuntimeContext {
                     }
                     stipend = call_opcode::STIPEND_GAS_ADDITION;
 
-                    let _ = self
-                        .journal
-                        .set_balance(&caller_address, caller_account.balance - value_to_transfer);
-                    let _ = self
-                        .journal
-                        .set_balance(&callee_address, callee_account.balance + value_to_transfer);
+                    let _ = self.journal.set_balance(
+                        &caller_address,
+                        caller_account.balance - value_to_transfer.as_u256(),
+                    );
+                    let _ = self.journal.set_balance(
+                        &callee_address,
+                        callee_account.balance + value_to_transfer.as_u256(),
+                    );
                 }
 
                 let remaining_gas = available_gas - *consumed_gas;
@@ -741,12 +743,14 @@ impl RuntimeContext {
                         (this_address, value_to_transfer, callee_address)
                     }
                     CallType::CallCode => (this_address, value_to_transfer, this_address),
-                    CallType::DelegateCall => {
-                        (self.call_frame.caller, &self.env.tx.value, this_address)
-                    }
+                    CallType::DelegateCall => (
+                        self.call_frame.caller,
+                        Bytes32::from_u256_ref(&self.env.tx.value),
+                        this_address,
+                    ),
                 };
 
-                new_env.tx.value = *new_value;
+                new_env.tx.value = *new_value.as_u256();
                 new_env.tx.transact_to = transact_to;
                 new_env.tx.gas_limit = gas_to_send;
                 new_env.tx.caller = self.env.tx.caller;

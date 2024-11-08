@@ -149,8 +149,12 @@ pub fn run_evm(env: Env, mut db: MemoryDb) -> Result<ResultAndState> {
 /// by setting the initial gas limit and cloning the database state before running the EVM.
 ///
 /// # Example
-/// ```rust
-/// let mut ctx = RuntimeContext::default();
+/// ```no_check
+/// use dora_primitives::transaction::Transaction;
+/// use dora_runtime::context::RuntimeContext;
+/// use dora::EVMTransaction;
+///
+/// let mut ctx = RuntimeContext::new();
 /// let evm_tx = EVMTransaction::default();
 /// let result = evm_tx.run(&mut ctx, 21_000);
 /// ```
