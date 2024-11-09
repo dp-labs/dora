@@ -47,11 +47,12 @@ Dora performed well in basic test cases. The benchmark results are shown below. 
 
 - `Fib(70)`
 
-![image](https://github.com/user-attachments/assets/477a16b3-ac86-4aa2-a4d8-1e82d7dd950b)
+![7891731069869_ pic](https://github.com/user-attachments/assets/acc20aae-9f98-4323-b4e4-b64cb1536515)
 
 - `Counter`
 
-![image](https://github.com/user-attachments/assets/6d1a3d4a-96f2-44ef-864c-f8d776019b7a)
+![7881731069869_ pic](https://github.com/user-attachments/assets/bac100ed-01ea-4106-aaf1-1b486624713f)
+
 
 ## Installation
 
