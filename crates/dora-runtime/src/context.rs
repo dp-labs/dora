@@ -2,6 +2,7 @@ use std::sync::{Arc, RwLock};
 
 use crate::constants::{call_opcode, gas_cost, precompiles, CallType};
 use crate::host::Host;
+use crate::precompiles::{blake2f, ecrecover, identity, modexp, ripemd_160, sha2_256};
 use crate::{
     journal::Journal,
     result::{EVMError, ExecutionResult, HaltReason, Output, ResultAndState, SuccessReason},
@@ -376,37 +377,46 @@ impl RuntimeContext {
         call_type: u8,
     ) -> u8 {
         let callee_address = Address::from(call_to_address);
+        let off = args_offset as usize;
+        let size = args_size as usize;
+        let calldata = Bytes::copy_from_slice(&self.inner_context.memory[off..off + size]);
         let (return_code, return_data) = match callee_address {
-            x if x == Address::from_low_u64_be(precompiles::ECRECOVER_ADDRESS) => (
-                call_opcode::SUCCESS_RETURN_CODE,
-                // TODO: Implement ecrecover logic
-                Bytes::new(),
-            ),
-            x if x == Address::from_low_u64_be(precompiles::IDENTITY_ADDRESS) => (
-                call_opcode::SUCCESS_RETURN_CODE,
-                // TODO: Implement identity logic
-                Bytes::new(),
-            ),
-            x if x == Address::from_low_u64_be(precompiles::SHA2_256_ADDRESS) => (
-                call_opcode::SUCCESS_RETURN_CODE,
-                // TODO: Implement sha2_256 logic
-                Bytes::new(),
-            ),
-            x if x == Address::from_low_u64_be(precompiles::RIPEMD_160_ADDRESS) => (
-                call_opcode::SUCCESS_RETURN_CODE,
-                // TODO: Implement ripemd_160 logic
-                Bytes::new(),
-            ),
-            x if x == Address::from_low_u64_be(precompiles::MODEXP_ADDRESS) => (
-                call_opcode::SUCCESS_RETURN_CODE,
-                // TODO: Implement modexp logic
-                Bytes::new(),
-            ),
-            x if x == Address::from_low_u64_be(precompiles::BLAKE2F_ADDRESS) => (
-                call_opcode::SUCCESS_RETURN_CODE,
-                // TODO: Implement blake2f logic
-                Bytes::new(),
-            ),
+            x if x == Address::from_low_u64_be(precompiles::ECRECOVER_ADDRESS) => {
+                ecrecover(&calldata, gas_to_send, consumed_gas).map_or_else(
+                    |_err| (call_opcode::REVERT_RETURN_CODE, Bytes::default()),
+                    |output: Bytes| (call_opcode::SUCCESS_RETURN_CODE, output),
+                )
+            }
+            x if x == Address::from_low_u64_be(precompiles::IDENTITY_ADDRESS) => {
+                identity(&calldata, gas_to_send, consumed_gas).map_or_else(
+                    |_err| (call_opcode::REVERT_RETURN_CODE, Bytes::default()),
+                    |output: Bytes| (call_opcode::SUCCESS_RETURN_CODE, output),
+                )
+            }
+            x if x == Address::from_low_u64_be(precompiles::SHA2_256_ADDRESS) => {
+                sha2_256(&calldata, gas_to_send, consumed_gas).map_or_else(
+                    |_err| (call_opcode::REVERT_RETURN_CODE, Bytes::default()),
+                    |output: Bytes| (call_opcode::SUCCESS_RETURN_CODE, output),
+                )
+            }
+            x if x == Address::from_low_u64_be(precompiles::RIPEMD_160_ADDRESS) => {
+                ripemd_160(&calldata, gas_to_send, consumed_gas).map_or_else(
+                    |_err| (call_opcode::REVERT_RETURN_CODE, Bytes::default()),
+                    |output: Bytes| (call_opcode::SUCCESS_RETURN_CODE, output),
+                )
+            }
+            x if x == Address::from_low_u64_be(precompiles::MODEXP_ADDRESS) => {
+                modexp(&calldata, gas_to_send, consumed_gas).map_or_else(
+                    |_err| (call_opcode::REVERT_RETURN_CODE, Bytes::default()),
+                    |output: Bytes| (call_opcode::SUCCESS_RETURN_CODE, output),
+                )
+            }
+            x if x == Address::from_low_u64_be(precompiles::BLAKE2F_ADDRESS) => {
+                blake2f(&calldata, gas_to_send, consumed_gas).map_or_else(
+                    |_err| (call_opcode::REVERT_RETURN_CODE, Bytes::default()),
+                    |output: Bytes| (call_opcode::SUCCESS_RETURN_CODE, output),
+                )
+            }
             _ => {
                 let call_type = CallType::try_from(call_type)
                     .expect("Error while parsing CallType on call syscall");
