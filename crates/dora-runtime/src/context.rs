@@ -381,30 +381,42 @@ impl RuntimeContext {
         let size = args_size as usize;
         let calldata = Bytes::copy_from_slice(&self.inner_context.memory[off..off + size]);
         let (return_code, return_data) = match callee_address {
-            x if x == Address::from_low_u64_be(precompiles::ECRECOVER_ADDRESS) => (
-                call_opcode::SUCCESS_RETURN_CODE,
-                ecrecover(&calldata, gas_to_send, consumed_gas).unwrap_or_default(),
-            ),
-            x if x == Address::from_low_u64_be(precompiles::IDENTITY_ADDRESS) => (
-                call_opcode::SUCCESS_RETURN_CODE,
-                identity(&calldata, gas_to_send, consumed_gas),
-            ),
-            x if x == Address::from_low_u64_be(precompiles::SHA2_256_ADDRESS) => (
-                call_opcode::SUCCESS_RETURN_CODE,
-                sha2_256(&calldata, gas_to_send, consumed_gas),
-            ),
-            x if x == Address::from_low_u64_be(precompiles::RIPEMD_160_ADDRESS) => (
-                call_opcode::SUCCESS_RETURN_CODE,
-                ripemd_160(&calldata, gas_to_send, consumed_gas),
-            ),
-            x if x == Address::from_low_u64_be(precompiles::MODEXP_ADDRESS) => (
-                call_opcode::SUCCESS_RETURN_CODE,
-                modexp(&calldata, gas_to_send, consumed_gas),
-            ),
-            x if x == Address::from_low_u64_be(precompiles::BLAKE2F_ADDRESS) => (
-                call_opcode::SUCCESS_RETURN_CODE,
-                blake2f(&calldata, gas_to_send, consumed_gas).unwrap_or_default(),
-            ),
+            x if x == Address::from_low_u64_be(precompiles::ECRECOVER_ADDRESS) => {
+                ecrecover(&calldata, gas_to_send, consumed_gas).map_or_else(
+                    |_err| (call_opcode::REVERT_RETURN_CODE, Bytes::default()),
+                    |output: Bytes| (call_opcode::SUCCESS_RETURN_CODE, output),
+                )
+            }
+            x if x == Address::from_low_u64_be(precompiles::IDENTITY_ADDRESS) => {
+                identity(&calldata, gas_to_send, consumed_gas).map_or_else(
+                    |_err| (call_opcode::REVERT_RETURN_CODE, Bytes::default()),
+                    |output: Bytes| (call_opcode::SUCCESS_RETURN_CODE, output),
+                )
+            }
+            x if x == Address::from_low_u64_be(precompiles::SHA2_256_ADDRESS) => {
+                sha2_256(&calldata, gas_to_send, consumed_gas).map_or_else(
+                    |_err| (call_opcode::REVERT_RETURN_CODE, Bytes::default()),
+                    |output: Bytes| (call_opcode::SUCCESS_RETURN_CODE, output),
+                )
+            }
+            x if x == Address::from_low_u64_be(precompiles::RIPEMD_160_ADDRESS) => {
+                ripemd_160(&calldata, gas_to_send, consumed_gas).map_or_else(
+                    |_err| (call_opcode::REVERT_RETURN_CODE, Bytes::default()),
+                    |output: Bytes| (call_opcode::SUCCESS_RETURN_CODE, output),
+                )
+            }
+            x if x == Address::from_low_u64_be(precompiles::MODEXP_ADDRESS) => {
+                modexp(&calldata, gas_to_send, consumed_gas).map_or_else(
+                    |_err| (call_opcode::REVERT_RETURN_CODE, Bytes::default()),
+                    |output: Bytes| (call_opcode::SUCCESS_RETURN_CODE, output),
+                )
+            }
+            x if x == Address::from_low_u64_be(precompiles::BLAKE2F_ADDRESS) => {
+                blake2f(&calldata, gas_to_send, consumed_gas).map_or_else(
+                    |_err| (call_opcode::REVERT_RETURN_CODE, Bytes::default()),
+                    |output: Bytes| (call_opcode::SUCCESS_RETURN_CODE, output),
+                )
+            }
             _ => {
                 let call_type = CallType::try_from(call_type)
                     .expect("Error while parsing CallType on call syscall");
