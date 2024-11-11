@@ -5,20 +5,15 @@ use revm_precompile::{
     secp256k1::ec_recover_run, PrecompileErrors,
 };
 use sha2::{Digest, Sha256};
-use std::fmt;
 use std::mem::transmute;
 
 /// Current implementation serves as a baseline:
 /// + Five functions reuse the REVM implementation
 /// + `sha2_256` utilizes the `sha2` crate with the ASM feature enabled
 /// + Future performance optimizations may consider porting high-performance SIMD implementations
-pub struct PError(PrecompileErrors);
+// pub struct PError(PrecompileErrors);
 
-impl fmt::Debug for PError {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "PError({:?})", self.0)
-    }
-}
+type PError = PrecompileErrors;
 
 /// ECRECOVER precompile implementation.
 pub fn ecrecover(
@@ -73,7 +68,7 @@ pub fn modexp(calldata: &Bytes, gas_limit: u64, consumed_gas: &mut u64) -> Bytes
 /// BLAKE2 F precompile implementation.
 pub fn blake2f(calldata: &Bytes, gas_limit: u64, consumed_gas: &mut u64) -> Result<Bytes, PError> {
     let calldata = unsafe { transmute::<&bytes::Bytes, &revm_precompile::Bytes>(calldata) };
-    let output = blake2_run(calldata, gas_limit).map_err(PError)?;
+    let output = blake2_run(calldata, gas_limit).unwrap();
     *consumed_gas += output.gas_used;
     Ok(output.bytes.into())
 }
