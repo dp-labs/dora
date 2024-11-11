@@ -11,7 +11,6 @@ use std::mem::transmute;
 /// + Five functions reuse the REVM implementation
 /// + `sha2_256` utilizes the `sha2` crate with the ASM feature enabled
 /// + Future performance optimizations may consider porting high-performance SIMD implementations
-// pub struct PError(PrecompileErrors);
 
 type PError = PrecompileErrors;
 
