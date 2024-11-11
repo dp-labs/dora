@@ -2,6 +2,7 @@ pub mod constants;
 pub mod context;
 pub mod env;
 pub mod executor;
+pub mod host;
 pub mod journal;
 pub mod result;
 pub mod symbols;

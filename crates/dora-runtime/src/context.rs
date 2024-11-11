@@ -1,316 +1,21 @@
-use std::sync::Arc;
+use std::sync::{Arc, RwLock};
 
 use crate::constants::{call_opcode, gas_cost, precompiles, CallType};
+use crate::host::Host;
 use crate::{
-    env::Env,
     journal::Journal,
     result::{EVMError, ExecutionResult, HaltReason, Output, ResultAndState, SuccessReason},
 };
 use crate::{symbols, ExitStatusCode};
 use bytes::Bytes;
-use dora_primitives::account::AccountStatus;
 use dora_primitives::db::Database;
 use dora_primitives::transaction::Transaction;
-use dora_primitives::{EVMAddress as Address, B256, H160, U256};
+use dora_primitives::{Bytes32, EVMAddress as Address, B256, H160, U256};
 use melior::ExecutionEngine;
-use rustc_hash::FxHashMap;
 use sha3::{Digest, Keccak256};
 
 /// Function type for the main entrypoint of the generated code.
 pub type MainFunc = extern "C" fn(&mut RuntimeContext, initial_gas: u64) -> u8;
-
-/// A fixed size array of 32 bytes for storing 256-bit EVM values.
-///
-/// `U256` provides methods for conversion between different byte orders and offers several
-/// trait implementations for efficient conversions to and from other integer types. It is
-/// aligned to 8 bytes and represented as an array of 32 bytes.
-///
-/// # Examples
-///
-/// ```no_check
-/// let num = Bytes32::ZERO;
-/// let be_bytes = num.to_be_bytes();
-/// let from_bytes = Bytes32::from_be_bytes(be_bytes);
-/// assert_eq!(num, from_bytes);
-/// ```
-///
-/// # Fields
-///
-/// - `ZERO`: Constant representing the zero value for `Bytes32`.
-///
-/// # Methods
-///
-/// - `from_ne_bytes`: Creates a `Bytes32` from native-endian bytes.
-/// - `from_be_bytes`: Creates a `Bytes32` from big-endian bytes.
-/// - `from_le_bytes`: Creates a `Bytes32` from little-endian bytes.
-/// - `to_ne_bytes`: Converts the integer to a byte array in native byte order.
-/// - `to_be_bytes`: Converts the integer to a byte array in big-endian byte order.
-/// - `to_le_bytes`: Converts the integer to a byte array in little-endian byte order.
-///
-/// # Trait Implementations
-///
-/// Implements `Clone`, `Copy`, `Debug`, `Default`, `Eq`, `Hash`, `Ord`, `PartialEq`, `PartialOrd`.
-///
-/// Includes conversion implementations from various integer types (`bool`, `u8`, `u16`, `u32`,
-/// `u64`, `usize`, `u128`) through `impl_conversions!` macro, and allows conversion
-/// to and from an external 256-bit type, `U256`.
-///
-/// # Safety
-///
-/// Some methods (e.g., `from_u256` on little-endian platforms) rely on `unsafe` transmutation
-/// for efficient internal representation and conversion.
-#[repr(C, align(8))]
-#[derive(Clone, Copy, Debug, Default, Eq, Hash, Ord, PartialEq, PartialOrd)]
-pub struct Bytes32([u8; 32]);
-
-macro_rules! impl_conversions {
-    ($($ty:ty),*) => {
-        $(
-            impl From<$ty> for Bytes32 {
-                #[inline]
-                fn from(value: $ty) -> Self {
-                    Self::from_u256(U256::from(value))
-                }
-            }
-
-            impl From<&$ty> for Bytes32 {
-                #[inline]
-                fn from(value: &$ty) -> Self {
-                    Self::from(*value)
-                }
-            }
-
-            impl From<&mut $ty> for Bytes32 {
-                #[inline]
-                fn from(value: &mut $ty) -> Self {
-                    Self::from(*value)
-                }
-            }
-
-            impl TryFrom<Bytes32> for $ty {
-                type Error = ();
-
-                #[inline]
-                fn try_from(value: Bytes32) -> Result<Self, Self::Error> {
-                    value.to_u256().try_into().map_err(drop)
-                }
-            }
-
-            impl TryFrom<&Bytes32> for $ty {
-                type Error = ();
-
-                #[inline]
-                fn try_from(value: &Bytes32) -> Result<Self, Self::Error> {
-                    (*value).try_into()
-                }
-            }
-
-            impl TryFrom<&mut Bytes32> for $ty {
-                type Error = ();
-
-                #[inline]
-                fn try_from(value: &mut Bytes32) -> Result<Self, Self::Error> {
-                    (*value).try_into()
-                }
-            }
-        )*
-    };
-}
-
-impl_conversions!(bool, u8, u16, u32, u64, usize, u128);
-
-impl From<U256> for Bytes32 {
-    #[inline]
-    fn from(value: U256) -> Self {
-        Self::from_u256(value)
-    }
-}
-
-impl From<&U256> for Bytes32 {
-    #[inline]
-    fn from(value: &U256) -> Self {
-        Self::from(*value)
-    }
-}
-
-impl From<&mut U256> for Bytes32 {
-    #[inline]
-    fn from(value: &mut U256) -> Self {
-        Self::from(*value)
-    }
-}
-
-impl Bytes32 {
-    /// The zero value.
-    pub const ZERO: Self = Self([0; 32]);
-
-    /// Creates a new value from native-endian bytes.
-    #[inline]
-    pub const fn from_ne_bytes(x: [u8; 32]) -> Self {
-        Self(x)
-    }
-
-    /// Creates a new value from big-endian bytes.
-    #[inline]
-    pub fn from_be_bytes(x: [u8; 32]) -> Self {
-        Self::from_be(Self(x))
-    }
-
-    /// Creates a new value from little-endian bytes.
-    #[inline]
-    pub fn from_le_bytes(x: [u8; 32]) -> Self {
-        Self::from_le(Self(x))
-    }
-
-    /// Converts an integer from big endian to the target's endianness.
-    #[inline]
-    pub fn from_be(x: Self) -> Self {
-        #[cfg(target_endian = "little")]
-        return x.swap_bytes();
-        #[cfg(target_endian = "big")]
-        return x;
-    }
-
-    /// Converts an integer from little endian to the target's endianness.
-    #[inline]
-    pub fn from_le(x: Self) -> Self {
-        #[cfg(target_endian = "little")]
-        return x;
-        #[cfg(target_endian = "big")]
-        return x.swap_bytes();
-    }
-
-    /// Converts a [`U256`].
-    #[inline]
-    pub const fn from_u256(value: U256) -> Self {
-        #[cfg(target_endian = "little")]
-        return unsafe { core::mem::transmute::<U256, Self>(value) };
-        #[cfg(target_endian = "big")]
-        return Self(value.to_be_bytes());
-    }
-
-    /// Converts a [`U256`] reference to a [`U256`].
-    #[inline]
-    #[cfg(target_endian = "little")]
-    pub const fn from_u256_ref(value: &U256) -> &Self {
-        unsafe { &*(value as *const U256 as *const Self) }
-    }
-
-    /// Converts a [`U256`] mutable reference to a [`U256`].
-    #[inline]
-    #[cfg(target_endian = "little")]
-    pub fn from_u256_mut(value: &mut U256) -> &mut Self {
-        unsafe { &mut *(value as *mut U256 as *mut Self) }
-    }
-
-    /// Return the memory representation of this integer as a byte array in big-endian (network)
-    /// byte order.
-    #[inline]
-    pub fn to_be_bytes(self) -> [u8; 32] {
-        self.to_be().to_ne_bytes()
-    }
-
-    /// Return the memory representation of this integer as a byte array in little-endian byte
-    /// order.
-    #[inline]
-    pub fn to_le_bytes(self) -> [u8; 32] {
-        self.to_le().to_ne_bytes()
-    }
-
-    /// Return the memory representation of this integer as a byte array in native byte order.
-    #[inline]
-    pub const fn to_ne_bytes(self) -> [u8; 32] {
-        self.0
-    }
-
-    /// Converts `self` to big endian from the target's endianness.
-    #[inline]
-    pub fn to_be(self) -> Self {
-        #[cfg(target_endian = "little")]
-        return self.swap_bytes();
-        #[cfg(target_endian = "big")]
-        return self;
-    }
-
-    /// Converts `self` to little endian from the target's endianness.
-    #[inline]
-    pub fn to_le(self) -> Self {
-        #[cfg(target_endian = "little")]
-        return self;
-        #[cfg(target_endian = "big")]
-        return self.swap_bytes();
-    }
-
-    /// Reverses the byte order of the integer.
-    #[inline]
-    pub fn swap_bytes(mut self) -> Self {
-        self.0.reverse();
-        self
-    }
-
-    /// Casts this value to a [`U256`]. This is a no-op on little-endian systems.
-    #[cfg(target_endian = "little")]
-    #[inline]
-    pub const fn as_u256(&self) -> &U256 {
-        unsafe { &*(self as *const Self as *const U256) }
-    }
-
-    /// Casts this value to a [`U256`]. This is a no-op on little-endian systems.
-    #[cfg(target_endian = "little")]
-    #[inline]
-    pub fn as_u256_mut(&mut self) -> &mut U256 {
-        unsafe { &mut *(self as *mut Self as *mut U256) }
-    }
-
-    /// Converts this value to a [`U256`]. This is a simple copy on little-endian systems.
-    #[inline]
-    pub const fn to_u256(&self) -> U256 {
-        #[cfg(target_endian = "little")]
-        return *self.as_u256();
-        #[cfg(target_endian = "big")]
-        return Bytes32::from_be_bytes(self.0);
-    }
-
-    /// Converts this value to a [`U256`]. This is a no-op on little-endian systems.
-    #[inline]
-    pub const fn into_u256(self) -> U256 {
-        #[cfg(target_endian = "little")]
-        return unsafe { core::mem::transmute::<Self, U256>(self) };
-        #[cfg(target_endian = "big")]
-        return Bytes32::from_be_bytes(self.0);
-    }
-
-    #[inline]
-    pub fn copy_from(&mut self, value: &Address) {
-        let mut buffer = [0u8; 32];
-        buffer[12..32].copy_from_slice(&value.0);
-        *self = Bytes32::from_be_bytes(buffer);
-    }
-}
-
-impl Bytes32 {
-    /// Checks if this `U256` value represents a valid 20-byte Ethereum address.
-    ///
-    /// A valid Ethereum address is stored in the lower 20 bytes of this `U256` value,
-    /// meaning that the higher 12 bytes of this `U256` must be zero.
-    ///
-    /// # Returns
-    ///
-    /// `true` if the high 12 bytes are zero, indicating a valid Ethereum address.
-    /// `false` otherwise.
-    pub fn is_valid_eth_address(&self) -> bool {
-        let bytes = self.to_be_bytes();
-        bytes[0..12] == [0u8; 12]
-    }
-}
-
-impl From<&Bytes32> for Address {
-    fn from(value: &Bytes32) -> Self {
-        // Create an address from the last 20 bytes of the 256-bit U256.
-        let bytes = value.to_be_bytes();
-        Address::from_slice(&bytes[12..])
-    }
-}
 
 /// The internal execution context, which holds the memory, gas, and program state during contract execution.
 ///
@@ -340,13 +45,29 @@ impl From<&Bytes32> for Address {
 /// ```
 #[derive(Debug, Default)]
 pub struct InnerContext {
+    /// Represents the mutable, byte-addressable memory used during contract execution.
+    /// This memory is accessible by smart contracts for reading and writing data.
     memory: Vec<u8>,
+    /// Contains a tuple with the start index and length of the return data in memory.
+    /// This data is returned when a VM operation completes, such as after a `RETURN` or a
+    /// contract call, allowing the caller to process the output of the executed contract.
     return_data: Option<(usize, usize)>,
+    /// The smart contract's bytecode being executed.
     pub program: Vec<u8>,
+    /// The remaining gas for the current execution.
     gas_remaining: Option<u64>,
+    /// The total gas to be refunded at the end of execution.
     gas_refund: u64,
+    /// The exit status code of the VM execution.
     exit_status: Option<ExitStatusCode>,
+    /// Logs captures all log entries emitted by the contract, which can be used for event tracking
+    /// and off-chain data analysis. Logs are essential for notifying external observers about
+    /// significant events that occurred during contract execution.
     logs: Vec<LogData>,
+    /// Whether the context is static.
+    pub is_static: bool,
+    /// Whether the context is EOF init.
+    pub is_eof_init: bool,
 }
 
 /// A frame of execution representing a single call within a smart contract execution context.
@@ -384,6 +105,8 @@ impl CallFrame {
 pub type RuntimeTransaction =
     Arc<dyn Transaction<Context = RuntimeContext, Result = anyhow::Result<ResultAndState>>>;
 
+pub type RuntimeHost = Arc<RwLock<dyn Host>>;
+
 /// The runtime context for smart contract execution, encapsulating the environment and execution state.
 ///
 /// The `RuntimeContext` struct holds all the necessary information required during the execution of a contract.
@@ -409,13 +132,11 @@ pub type RuntimeTransaction =
 /// ```
 #[derive(Debug)]
 pub struct RuntimeContext {
-    pub env: Env,
     pub journal: Journal,
     pub call_frame: CallFrame,
     pub inner_context: InnerContext,
-    pub storage: FxHashMap<U256, U256>,
-    pub transient_storage: FxHashMap<(Address, U256), U256>,
     pub transaction: RuntimeTransaction,
+    pub host: RuntimeHost,
 }
 
 /// Represents log data generated by contract execution, including topics and data.
@@ -484,19 +205,17 @@ impl RuntimeContext {
     /// let context = RuntimeContext::new(env, journal, call_frame);
     /// ```
     pub fn new(
-        env: Env,
         journal: Journal,
         call_frame: CallFrame,
         transaction: RuntimeTransaction,
+        host: RuntimeHost,
     ) -> Self {
         Self {
-            env,
             journal,
             call_frame,
             inner_context: Default::default(),
-            storage: Default::default(),
-            transient_storage: Default::default(),
             transaction,
+            host,
         }
     }
 
@@ -535,11 +254,12 @@ impl RuntimeContext {
     /// let logs = context.logs();
     /// ```
     pub fn logs(&self) -> Vec<Log> {
+        let host = self.host.write().unwrap();
         self.inner_context
             .logs
             .iter()
             .map(|logdata| Log {
-                address: self.env.tx.caller,
+                address: host.env().tx.caller,
                 data: logdata.clone(),
             })
             .collect()
@@ -560,8 +280,9 @@ impl RuntimeContext {
     /// let result = context.get_result();
     /// ```
     pub fn get_result(&self) -> Result<ResultAndState, EVMError> {
+        let host = self.host.read().unwrap();
         let gas_remaining = self.inner_context.gas_remaining.unwrap_or(0);
-        let gas_initial = self.env.tx.gas_limit;
+        let gas_initial = host.env().tx.gas_limit;
         let gas_used = gas_initial.saturating_sub(gas_remaining);
         let gas_refunded = self.inner_context.gas_refund;
 
@@ -698,7 +419,8 @@ impl RuntimeContext {
                     None => return call_opcode::REVERT_RETURN_CODE,
                 };
 
-                let caller_address = self.env.tx.get_address();
+                let host = self.host.read().unwrap();
+                let caller_address = host.env().tx.get_address();
                 let caller_account = self
                     .journal
                     .get_account(&caller_address)
@@ -736,8 +458,7 @@ impl RuntimeContext {
                 *consumed_gas += gas_to_send;
                 gas_to_send += stipend;
 
-                let mut new_env = self.env.clone();
-                let this_address = self.env.tx.get_address();
+                let this_address = host.env().tx.get_address();
                 let (new_frame_caller, new_value, transact_to) = match call_type {
                     CallType::Call | CallType::StaticCall => {
                         (this_address, value_to_transfer, callee_address)
@@ -745,22 +466,25 @@ impl RuntimeContext {
                     CallType::CallCode => (this_address, value_to_transfer, this_address),
                     CallType::DelegateCall => (
                         self.call_frame.caller,
-                        Bytes32::from_u256_ref(&self.env.tx.value),
+                        Bytes32::from_u256_ref(&host.env().tx.value),
                         this_address,
                     ),
                 };
-
+                let new_host = self.host.clone();
+                let mut new_host_ref = new_host.write().unwrap();
+                let new_env = new_host_ref.env_mut();
                 new_env.tx.value = *new_value.as_u256();
                 new_env.tx.transact_to = transact_to;
                 new_env.tx.gas_limit = gas_to_send;
-                new_env.tx.caller = self.env.tx.caller;
+                new_env.tx.caller = host.env().tx.caller;
                 let off = args_offset as usize;
                 let size = args_size as usize;
                 new_env.tx.data = Bytes::from(self.inner_context.memory[off..off + size].to_vec());
+                drop(new_host_ref);
 
                 let journal = self.journal.eject_base();
                 let call_frame = CallFrame::new(new_frame_caller);
-                let mut ctx = Self::new(new_env, journal, call_frame, self.transaction.clone());
+                let mut ctx = Self::new(journal, call_frame, self.transaction.clone(), new_host);
 
                 let result = self.transaction.run(&mut ctx, gas_to_send).unwrap().result;
 
@@ -829,9 +553,10 @@ impl RuntimeContext {
     }
 
     pub extern "C" fn store_in_selfbalance_ptr(&mut self, balance: &mut Bytes32) {
+        let host = self.host.read().unwrap();
         let account = self
             .journal
-            .get_account(&self.env.tx.transact_to)
+            .get_account(&host.env().tx.transact_to)
             .unwrap_or_default();
         *balance = Bytes32::from_u256(account.balance);
     }
@@ -845,15 +570,18 @@ impl RuntimeContext {
     }
 
     pub extern "C" fn store_in_callvalue_ptr(&self, value: &mut Bytes32) {
-        *value = Bytes32::from_u256(self.env.tx.value);
+        let host = self.host.read().unwrap();
+        *value = Bytes32::from_u256(host.env().tx.value);
     }
 
     pub extern "C" fn store_in_blobbasefee_ptr(&self, value: &mut u128) {
-        *value = self.env.block.blob_gasprice.unwrap_or_default();
+        let host = self.host.read().unwrap();
+        *value = host.env().block.blob_gasprice.unwrap_or_default();
     }
 
     pub extern "C" fn get_gaslimit(&self) -> u64 {
-        self.env.tx.gas_limit
+        let host = self.host.read().unwrap();
+        host.env().tx.gas_limit
     }
 
     pub extern "C" fn store_in_caller_ptr(&self, value: &mut Bytes32) {
@@ -861,23 +589,28 @@ impl RuntimeContext {
     }
 
     pub extern "C" fn store_in_gasprice_ptr(&self, value: &mut Bytes32) {
-        *value = Bytes32::from(&self.env.tx.gas_price);
+        let host = self.host.read().unwrap();
+        *value = Bytes32::from(&host.env().tx.gas_price);
     }
 
     pub extern "C" fn get_chainid(&self) -> u64 {
-        self.env.cfg.chain_id
+        let host = self.host.read().unwrap();
+        host.env().cfg.chain_id
     }
 
     pub extern "C" fn get_calldata_ptr(&mut self) -> *const u8 {
-        self.env.tx.data.as_ptr()
+        let host = self.host.read().unwrap();
+        host.env().tx.data.as_ptr()
     }
 
     pub extern "C" fn get_calldata_size_syscall(&self) -> u32 {
-        self.env.tx.data.len() as u32
+        let host = self.host.read().unwrap();
+        host.env().tx.data.len() as u32
     }
 
     pub extern "C" fn get_origin(&self, address: &mut Bytes32) {
-        address.copy_from(&self.env.tx.caller);
+        let host = self.host.read().unwrap();
+        address.copy_from(&host.env().tx.caller);
     }
 
     pub extern "C" fn extend_memory(&mut self, new_size: u32) -> *mut u8 {
@@ -930,19 +663,21 @@ impl RuntimeContext {
     }
 
     pub extern "C" fn read_storage(&mut self, stg_key: &Bytes32, stg_value: &mut Bytes32) {
-        let result = self.storage.get(&stg_key.to_u256()).unwrap_or(&U256::ZERO);
-        *stg_value = result.into();
+        let mut host = self.host.write().unwrap();
+        let addr = host.env().tx.transact_to;
+        let result = host.get_storage(&addr, stg_key);
+        *stg_value = result.value;
     }
 
     pub extern "C" fn write_storage(&mut self, stg_key: &Bytes32, stg_value: &mut Bytes32) -> i64 {
-        let key = stg_key.to_u256();
-        let value = stg_value.to_u256();
-        let present = self.storage.insert(key, value);
+        let mut host = self.host.write().unwrap();
+        let addr = host.env().tx.transact_to;
+        let result = host.set_storage(addr, *stg_key, *stg_value);
 
         // Dynamic gas cost
-        let original = U256::ZERO;
-        let current = value;
-        let is_cold = present.is_none();
+        let original = result.original_value.to_u256();
+        let current = result.present_value.to_u256();
+        let value = stg_value.to_u256();
 
         // Compute the gas cost
         let mut gas_cost: i64 = if original.is_zero() && current.is_zero() && current != value {
@@ -953,7 +688,7 @@ impl RuntimeContext {
             100
         };
 
-        if is_cold {
+        if result.is_cold {
             gas_cost += 2_100; // Extra cost for cold storage
         }
 
@@ -1036,13 +771,15 @@ impl RuntimeContext {
     }
 
     pub extern "C" fn get_block_number(&self, number: &mut Bytes32) {
-        *number = Bytes32::from(self.env.block.number);
+        let host = self.host.read().unwrap();
+        *number = Bytes32::from(host.env().block.number);
     }
 
     pub extern "C" fn get_block_hash(&mut self, number: &mut Bytes32) {
+        let host = self.host.read().unwrap();
         let number_as_u256 = number.to_u256();
-        let hash = if number_as_u256 < self.env.block.number.saturating_sub(U256::from(256))
-            || number_as_u256 >= self.env.block.number
+        let hash = if number_as_u256 < host.env().block.number.saturating_sub(U256::from(256))
+            || number_as_u256 >= host.env().block.number
         {
             B256::zero()
         } else {
@@ -1066,25 +803,30 @@ impl RuntimeContext {
 
     #[allow(clippy::clone_on_copy)]
     pub extern "C" fn get_address_ptr(&mut self) -> *const u8 {
-        let address = self.env.tx.transact_to.clone();
+        let host = self.host.read().unwrap();
+        let address = host.env().tx.transact_to.clone();
         address.as_ptr()
     }
 
     pub extern "C" fn get_prevrandao(&self, prevrandao: &mut Bytes32) {
-        let randao = self.env.block.prevrandao.unwrap_or_default();
+        let host = self.host.read().unwrap();
+        let randao = host.env().block.prevrandao.unwrap_or_default();
         *prevrandao = Bytes32::from_be_bytes(randao.into());
     }
 
     pub extern "C" fn get_coinbase_ptr(&self) -> *const u8 {
-        self.env.block.coinbase.as_ptr()
+        let host = self.host.read().unwrap();
+        host.env().block.coinbase.as_ptr()
     }
 
     pub extern "C" fn store_in_timestamp_ptr(&self, value: &mut Bytes32) {
-        *value = Bytes32::from(&self.env.block.timestamp);
+        let host = self.host.read().unwrap();
+        *value = Bytes32::from(&host.env().block.timestamp);
     }
 
     pub extern "C" fn store_in_basefee_ptr(&self, basefee: &mut Bytes32) {
-        *basefee = Bytes32::from(&self.env.block.basefee);
+        let host = self.host.read().unwrap();
+        *basefee = Bytes32::from(&host.env().block.basefee);
     }
 
     pub extern "C" fn store_in_balance(&mut self, address: &Bytes32, balance: &mut Bytes32) {
@@ -1103,15 +845,18 @@ impl RuntimeContext {
 
     pub extern "C" fn get_blob_hash_at_index(&mut self, index: &Bytes32, blobhash: &mut Bytes32) {
         // Check if the high 12 bytes are zero, indicating a valid usize-compatible index
-        if index.0[0..12] != [0u8; 12] {
+        if index.slice()[0..12] != [0u8; 12] {
             *blobhash = Bytes32::default();
             return;
         }
 
         // Convert the low 20 bytes into a usize for the index
-        let idx = usize::from_be_bytes(index.0[12..32].try_into().unwrap_or_default());
+        let idx = usize::from_be_bytes(index.slice()[12..32].try_into().unwrap_or_default());
         *blobhash = self
-            .env
+            .host
+            .read()
+            .unwrap()
+            .env()
             .tx
             .blob_hashes
             .get(idx)
@@ -1170,7 +915,7 @@ impl RuntimeContext {
         let offset = offset as usize;
         let size = size as usize;
         let minimum_word_size = ((size + 31) / 32) as u64;
-        let sender_address = self.env.tx.get_address();
+        let sender_address = self.host.read().unwrap().env().tx.get_address();
 
         let initialization_bytecode = &self.inner_context.memory[offset..offset + size];
         let db = &mut self.journal.db;
@@ -1198,14 +943,17 @@ impl RuntimeContext {
 
         // Create subcontext for the initialization code
         // TODO: Add call depth check
-        let mut new_env = self.env.clone();
+        let new_host = self.host.clone();
+        let mut new_host_ref = new_host.write().unwrap();
+        let new_env = new_host_ref.env_mut();
         new_env.tx.transact_to = dest_addr;
         new_env.tx.gas_limit = *remaining_gas;
-        new_env.tx.caller = self.env.tx.caller;
+        new_env.tx.caller = self.host.read().unwrap().env().tx.caller;
+        drop(new_host_ref);
         let code = initialization_bytecode.to_vec();
         let journal = Journal::new(db.clone().with_contract(dest_addr, code.into()));
         let call_frame = CallFrame::new(sender_address);
-        let mut ctx = Self::new(new_env, journal, call_frame, self.transaction.clone());
+        let mut ctx = Self::new(journal, call_frame, self.transaction.clone(), new_host);
         let result = self
             .transaction
             .run(&mut ctx, *remaining_gas)
@@ -1263,37 +1011,11 @@ impl RuntimeContext {
     }
 
     pub extern "C" fn selfdestruct(&mut self, receiver_address: &Bytes32) -> u64 {
-        let sender_address = self.env.tx.get_address();
+        let mut host = self.host.write().unwrap();
+        let sender_address = host.env().tx.get_address();
         let receiver_address = Address::from(receiver_address);
-        let sender_balance = self
-            .journal
-            .get_account(&sender_address)
-            .unwrap_or_default()
-            .balance;
-
-        let receiver_is_empty = if let Some(receiver) = self.journal.get_account(&receiver_address)
-        {
-            let balance = Bytes32::from_u256(receiver.balance + sender_balance);
-            let _ = self
-                .journal
-                .set_balance(&receiver_address, *balance.as_u256());
-            receiver.is_empty()
-        } else {
-            let balance = Bytes32::from_u256(sender_balance);
-            let _ = self
-                .journal
-                .new_account(receiver_address, *balance.as_u256());
-            true
-        };
-
-        let _ = self.journal.set_balance(&sender_address, U256::ZERO);
-        if self.journal.get_account(&sender_address).is_some() {
-            let _ = self
-                .journal
-                .set_status(&sender_address, AccountStatus::SelfDestructed);
-        }
-
-        if !sender_balance.is_zero() && receiver_is_empty {
+        let result = host.selfdestruct(&sender_address, receiver_address);
+        if result.had_value && !result.target_exists {
             gas_cost::SELFDESTRUCT_DYNAMIC_GAS as u64
         } else {
             0
@@ -1305,13 +1027,10 @@ impl RuntimeContext {
         stg_key: &Bytes32,
         stg_value: &mut Bytes32,
     ) {
-        let key = stg_key.to_u256();
-        let result = self
-            .transient_storage
-            .get(&(self.env.tx.transact_to, key))
-            .cloned()
-            .unwrap_or(U256::ZERO);
-        *stg_value = Bytes32::from(result);
+        let mut host = self.host.write().unwrap();
+        let addr = host.env().tx.transact_to;
+        let result = host.get_transient_storage(&addr, stg_key);
+        *stg_value = result;
     }
 
     pub extern "C" fn write_transient_storage(
@@ -1319,10 +1038,9 @@ impl RuntimeContext {
         stg_key: &Bytes32,
         stg_value: &mut Bytes32,
     ) {
-        let key = stg_key.to_u256();
-        let value = stg_value.to_u256();
-        self.transient_storage
-            .insert((self.env.tx.transact_to, key), value);
+        let mut host = self.host.write().unwrap();
+        let addr = host.env().tx.transact_to;
+        host.set_transient_storage(&addr, *stg_key, *stg_value);
     }
 
     /// Computes the contract address based on the sender's address and nonce.

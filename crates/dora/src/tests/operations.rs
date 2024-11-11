@@ -3,7 +3,7 @@
 use crate::{run_evm, run_evm_program, tests::INIT_GAS};
 use bytes::Bytes;
 use dora_compiler::evm::program::{Operation, Program};
-use dora_primitives::{db::MemoryDb, Address, Bytecode, B256, H160};
+use dora_primitives::{db::MemoryDb, Address, Bytecode, Bytes32, B256, H160};
 use dora_runtime::env::Env;
 use num_bigint::{BigInt, BigUint};
 use ruint::aliases::U256;
@@ -1051,7 +1051,7 @@ fn origin() {
 #[test]
 fn caller() {
     let addr = Address::from_low_u64_le(10000);
-    let mut value = dora_runtime::context::Bytes32::ZERO;
+    let mut value = Bytes32::ZERO;
     value.copy_from(&addr);
     let operations = vec![
         Operation::Caller,
