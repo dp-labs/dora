@@ -14,12 +14,15 @@ use dora_primitives::{
     db::{Database, MemoryDb},
     Address, Bytecode,
 };
-use dora_runtime::context::RuntimeContext;
 use dora_runtime::executor::Executor;
 use dora_runtime::journal::Journal;
 use dora_runtime::result::ResultAndState;
 use dora_runtime::{context::CallFrame, env::Env};
-use std::{hint::black_box, sync::Arc};
+use dora_runtime::{context::RuntimeContext, host::DummyHost};
+use std::{
+    hint::black_box,
+    sync::{Arc, RwLock},
+};
 
 /// Run EVM bytecode from a hex-encoded string and return the execution result and final state.
 ///
@@ -87,10 +90,10 @@ pub fn run_evm_program(
     env.tx.transact_to = address;
     let journal = Journal::new(MemoryDb::default().with_contract(address, bytecode));
     let mut context = RuntimeContext::new(
-        env,
         journal,
         CallFrame::new(Address::from_low_u64_le(10000)),
         Arc::new(EVMTransaction),
+        Arc::new(RwLock::new(DummyHost::new(env))),
     );
     let executor = Executor::new(module.module(), &context, Default::default());
     black_box(executor.execute(black_box(&mut context), black_box(initial_gas)));
@@ -132,10 +135,10 @@ pub fn run_evm(env: Env, mut db: MemoryDb) -> Result<ResultAndState> {
     let journal = Journal::new(db);
     let gas_limit = env.tx.gas_limit;
     let mut context = RuntimeContext::new(
-        env,
         journal,
         CallFrame::new(Address::from_low_u64_le(10000)),
         Arc::new(EVMTransaction),
+        Arc::new(RwLock::new(DummyHost::new(env))),
     );
     let executor = Executor::new(module.module(), &context, Default::default());
     black_box(executor.execute(black_box(&mut context), black_box(gas_limit)));
@@ -166,7 +169,7 @@ impl Transaction for EVMTransaction {
     type Result = Result<ResultAndState>;
 
     fn run(&self, ctx: &mut Self::Context, initial_gas: u64) -> Self::Result {
-        let mut env = ctx.env.clone();
+        let mut env = ctx.host.read().unwrap().env().clone();
         env.tx.gas_limit = initial_gas;
         let db = ctx.journal.cloned_db();
         run_evm(env, db)
