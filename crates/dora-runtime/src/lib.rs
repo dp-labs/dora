@@ -7,7 +7,6 @@ pub mod journal;
 pub mod precompiles;
 pub mod result;
 pub mod symbols;
-pub mod benches;
 
 #[derive(Debug, Clone)]
 pub enum ExitStatusCode {

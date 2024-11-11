@@ -284,6 +284,7 @@ pub mod precompiles {
     pub const MODEXP_ADDRESS: u64 = 0x05;
     pub const BLAKE2F_ADDRESS: u64 = 0x09;
 
+    #[inline]
     pub fn sha2_256_dynamic_cost(len: u64) -> u64 {
         (len + 31) / 32 * 12
     }
