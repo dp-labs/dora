@@ -30,7 +30,7 @@ pub fn ecrecover(
 /// IDENTITY precompile implementation.
 pub fn identity(calldata: &Bytes, gas_limit: u64, consumed_gas: &mut u64) -> Result<Bytes, PError> {
     let calldata = unsafe { transmute::<&bytes::Bytes, &revm_precompile::Bytes>(calldata) };
-    let output = identity_run(calldata, gas_limit).unwrap();
+    let output = identity_run(calldata, gas_limit)?;
     *consumed_gas += output.gas_used;
     Ok(output.bytes.into())
 }
