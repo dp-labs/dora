@@ -8,6 +8,7 @@ pub type B256 = H256;
 pub mod account;
 pub mod config;
 pub mod db;
+pub mod spec;
 pub mod transaction;
 
 /// A fixed size array of 32 bytes for storing 256-bit EVM values.

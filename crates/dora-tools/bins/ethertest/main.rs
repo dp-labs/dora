@@ -1,7 +1,15 @@
+//! Tools for running [ethertest](https://github.com/ethereum/tests.git)
+//! We can clone the git repo to local and use the tool to run the test
+//! e.g.,
+//! ```shell
+//! git clone https://github.com/ethereum/tests.git
+//! dora-ethertest run tests/GeneralStateTests
+//! ```
 use anyhow::Result;
 use clap::{Args, Parser, Subcommand};
 use dora::run_evm;
 use dora_primitives::db::MemoryDb;
+use dora_primitives::spec::SpecName;
 use dora_primitives::Bytes;
 use dora_primitives::{Address, B256, U256};
 use dora_runtime::env::Env;
@@ -118,40 +126,11 @@ pub struct Authorization {
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct AccountInfo {
     pub balance: U256,
+    #[serde(deserialize_with = "deserialize_str_as_bytes")]
     pub code: Bytes,
     #[serde(deserialize_with = "deserialize_str_as_u64")]
     pub nonce: u64,
     pub storage: HashMap<U256, U256>,
-}
-
-#[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Deserialize, Hash)]
-pub enum SpecName {
-    Frontier,
-    FrontierToHomesteadAt5,
-    Homestead,
-    HomesteadToDaoAt5,
-    HomesteadToEIP150At5,
-    EIP150,
-    EIP158, // EIP-161: State trie clearing
-    EIP158ToByzantiumAt5,
-    Byzantium,
-    ByzantiumToConstantinopleAt5, // SKIPPED
-    ByzantiumToConstantinopleFixAt5,
-    Constantinople, // SKIPPED
-    ConstantinopleFix,
-    Istanbul,
-    Berlin,
-    BerlinToLondonAt5,
-    London,
-    Paris,
-    Merge,
-    Shanghai,
-    Cancun,
-    Prague,
-    PragueEOF,
-    Osaka, // SKIPPED
-    #[serde(other)]
-    Unknown,
 }
 
 #[derive(Debug, PartialEq, Eq, Deserialize)]
@@ -230,7 +209,14 @@ pub fn execute_test(path: &Path) -> Result<(), TestError> {
         };
         let mut env = setup_env(&suite);
         for test_case in tests {
+            // Mapping transaction data and value
             env.tx.gas_limit = suite.transaction.gas_limit[test_case.indexes.gas].saturating_to();
+            env.tx.value = suite
+                .transaction
+                .value
+                .get(test_case.indexes.value)
+                .cloned()
+                .unwrap_or_default();
             env.tx.data = suite
                 .transaction
                 .data
@@ -253,6 +239,7 @@ pub fn execute_test(path: &Path) -> Result<(), TestError> {
                         .collect(),
                 ));
             }
+            // Mapping account into
             let mut db = MemoryDb::new().with_contract(to, account.code.clone());
             for (address, account_info) in suite.pre.iter() {
                 db = db.with_contract(address.to_owned(), account_info.code.clone());
@@ -263,6 +250,7 @@ pub fn execute_test(path: &Path) -> Result<(), TestError> {
                     account_info.storage.clone(),
                 );
             }
+            // Run EVM and get the state result.
             let res = run_evm(env.clone(), db);
             match res {
                 Ok(res) => {
@@ -316,6 +304,26 @@ fn setup_env(test: &Test) -> Env {
         .clone_from(&test.transaction.blob_versioned_hashes);
     env.tx.max_fee_per_blob_gas = test.transaction.max_fee_per_blob_gas;
     env
+}
+
+pub fn deserialize_str_as_bytes<'de, D>(deserializer: D) -> Result<Bytes, D::Error>
+where
+    D: de::Deserializer<'de>,
+{
+    let string = String::deserialize(deserializer)?;
+
+    if let Some(stripped) = string.strip_prefix("0x") {
+        hex::decode(stripped)
+            .map_err(|_| {
+                de::Error::invalid_value(de::Unexpected::Str(&string), &"a valid hex string")
+            })
+            .map(From::from)
+    } else {
+        Err(de::Error::invalid_value(
+            de::Unexpected::Str(&string),
+            &"a valid hex string",
+        ))
+    }
 }
 
 pub fn deserialize_str_as_u64<'de, D>(deserializer: D) -> Result<u64, D::Error>
