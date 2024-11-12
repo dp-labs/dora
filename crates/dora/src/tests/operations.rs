@@ -1062,7 +1062,8 @@ fn caller() {
         Operation::Push0,
         Operation::Return,
     ];
-    let (env, mut db) = default_env_and_db_setup(operations);
+    let (mut env, mut db) = default_env_and_db_setup(operations);
+    env.tx.caller = addr;
     run_program_assert_num_result(env, db, BigUint::from_bytes_le(&value.to_le_bytes()));
 }
 

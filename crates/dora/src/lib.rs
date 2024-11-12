@@ -114,35 +114,54 @@ pub fn run_evm_program(
 /// # Errors
 ///
 /// Returns an error if the program fails to execute or if the bytecode or address is invalid.
-pub fn run_evm(env: Env, mut db: MemoryDb) -> Result<ResultAndState> {
+pub fn run_evm(env: Env, db: MemoryDb) -> Result<ResultAndState> {
     let code_address = env.tx.get_address();
-    let opcodes = db.code_by_address(code_address)?;
-    let program = Program::from_opcode(&opcodes);
-    let context = Context::new();
-    let compiler = EVMCompiler::new(&context);
-    let mut module = compiler.compile(&program, &())?;
-    // Lowering the EVM dialect to MLIR builtin dialects.
-    evm::pass::run(&context.mlir_context, &mut module.mlir_module)?;
-    dora::pass::run(
-        &context.mlir_context,
-        &mut module.mlir_module,
-        &dora::pass::PassOptions {
-            program_code_size: program.code_size,
-        },
-    )?;
-    pass::run(&context.mlir_context, &mut module.mlir_module)?;
-    debug_assert!(module.mlir_module.as_operation().verify());
-    let journal = Journal::new(db);
-    let gas_limit = env.tx.gas_limit;
-    let mut context = RuntimeContext::new(
-        journal,
-        CallFrame::new(Address::from_low_u64_le(10000)),
-        Arc::new(EVMTransaction),
-        Arc::new(RwLock::new(DummyHost::new(env))),
-    );
-    let executor = Executor::new(module.module(), &context, Default::default());
-    black_box(executor.execute(black_box(&mut context), black_box(gas_limit)));
-    context.get_result().map_err(|e| anyhow::anyhow!(e))
+    let mut remaining_gas = env.tx.gas_limit;
+    // Create contracts or emit transactions
+    let runtime_context = if code_address.is_zero() {
+        let value = env.tx.value;
+        let data = env.tx.data.clone();
+        let mut runtime_context = RuntimeContext::new(
+            Journal::new(db),
+            CallFrame::new(env.tx.caller),
+            Arc::new(EVMTransaction),
+            Arc::new(RwLock::new(DummyHost::new(env))),
+        );
+        if runtime_context
+            .create_contract(&data, &mut remaining_gas, value, None)
+            .is_none()
+        {
+            return Err(anyhow::anyhow!("create contract error"));
+        }
+        runtime_context
+    } else {
+        let opcodes = db.code_by_address(code_address)?;
+        let program = Program::from_opcode(&opcodes);
+        let context = Context::new();
+        let compiler = EVMCompiler::new(&context);
+        let mut module = compiler.compile(&program, &())?;
+        // Lowering the EVM dialect to MLIR builtin dialects.
+        evm::pass::run(&context.mlir_context, &mut module.mlir_module)?;
+        dora::pass::run(
+            &context.mlir_context,
+            &mut module.mlir_module,
+            &dora::pass::PassOptions {
+                program_code_size: program.code_size,
+            },
+        )?;
+        pass::run(&context.mlir_context, &mut module.mlir_module)?;
+        debug_assert!(module.mlir_module.as_operation().verify());
+        let mut runtime_context = RuntimeContext::new(
+            Journal::new(db),
+            CallFrame::new(env.tx.caller),
+            Arc::new(EVMTransaction),
+            Arc::new(RwLock::new(DummyHost::new(env))),
+        );
+        let executor = Executor::new(module.module(), &runtime_context, Default::default());
+        black_box(executor.execute(black_box(&mut runtime_context), black_box(remaining_gas)));
+        runtime_context
+    };
+    runtime_context.get_result().map_err(|e| anyhow::anyhow!(e))
 }
 
 /// A specific implementation of the `Transaction` trait for executing EVM (Ethereum Virtual Machine) transactions.
