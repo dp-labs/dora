@@ -1,7 +1,6 @@
 ---
 source: crates/dora-compiler/src/dora/tests/operations.rs
 expression: op
-snapshot_kind: text
 ---
 "builtin.module"() ({
   "llvm.mlir.global"() <{addr_space = 0 : i32, global_type = !llvm.ptr, linkage = #llvm.linkage<internal>, sym_name = "dora_stack_ptr", visibility_ = 0 : i64}> ({
@@ -165,10 +164,10 @@ snapshot_kind: text
     %39 = "arith.muli"(%38, %36) <{overflowFlags = #arith.overflow<none>}> : (i32, i32) -> i32
     %40 = "arith.cmpi"(%34, %39) <{predicate = 6 : i64}> : (i32, i32) -> i1
     "scf.if"(%40) ({
-      %230 = "func.call"(%arg0, %39) <{callee = @dora_extend_memory}> : (!llvm.ptr, i32) -> !llvm.ptr
+      %286 = "func.call"(%arg0, %39) <{callee = @dora_extend_memory}> : (!llvm.ptr, i32) -> !llvm.ptr
       "llvm.store"(%39, %33) <{ordering = 0 : i64}> : (i32, !llvm.ptr) -> ()
-      %231 = "llvm.mlir.addressof"() <{global_name = @dora_memory_ptr}> : () -> !llvm.ptr
-      "llvm.store"(%230, %231) <{ordering = 0 : i64}> : (!llvm.ptr, !llvm.ptr) -> ()
+      %287 = "llvm.mlir.addressof"() <{global_name = @dora_memory_ptr}> : () -> !llvm.ptr
+      "llvm.store"(%286, %287) <{ordering = 0 : i64}> : (!llvm.ptr, !llvm.ptr) -> ()
       "scf.yield"() : () -> ()
     }, {
       "scf.yield"() : () -> ()
@@ -231,10 +230,10 @@ snapshot_kind: text
     %78 = "arith.muli"(%77, %75) <{overflowFlags = #arith.overflow<none>}> : (i32, i32) -> i32
     %79 = "arith.cmpi"(%73, %78) <{predicate = 6 : i64}> : (i32, i32) -> i1
     "scf.if"(%79) ({
-      %230 = "func.call"(%arg0, %78) <{callee = @dora_extend_memory}> : (!llvm.ptr, i32) -> !llvm.ptr
+      %286 = "func.call"(%arg0, %78) <{callee = @dora_extend_memory}> : (!llvm.ptr, i32) -> !llvm.ptr
       "llvm.store"(%78, %72) <{ordering = 0 : i64}> : (i32, !llvm.ptr) -> ()
-      %231 = "llvm.mlir.addressof"() <{global_name = @dora_memory_ptr}> : () -> !llvm.ptr
-      "llvm.store"(%230, %231) <{ordering = 0 : i64}> : (!llvm.ptr, !llvm.ptr) -> ()
+      %287 = "llvm.mlir.addressof"() <{global_name = @dora_memory_ptr}> : () -> !llvm.ptr
+      "llvm.store"(%286, %287) <{ordering = 0 : i64}> : (!llvm.ptr, !llvm.ptr) -> ()
       "scf.yield"() : () -> ()
     }, {
       "scf.yield"() : () -> ()
@@ -349,141 +348,219 @@ snapshot_kind: text
     %146 = "llvm.getelementptr"(%145) <{elem_type = i256, rawConstantIndices = array<i32: -1>}> : (!llvm.ptr) -> !llvm.ptr
     %147 = "llvm.load"(%146) <{ordering = 0 : i64}> : (!llvm.ptr) -> i256
     "llvm.store"(%146, %144) <{ordering = 0 : i64}> : (!llvm.ptr, !llvm.ptr) -> ()
-    %148 = "evm.delegatecall"(%127, %131, %135, %139, %143, %147) : (i256, i256, i256, i256, i256, i256) -> i256
-    %149 = "llvm.mlir.addressof"() <{global_name = @dora_stack_ptr}> : () -> !llvm.ptr
-    %150 = "llvm.load"(%149) <{ordering = 0 : i64}> : (!llvm.ptr) -> !llvm.ptr
-    "llvm.store"(%148, %150) <{ordering = 0 : i64}> : (i256, !llvm.ptr) -> ()
-    %151 = "llvm.getelementptr"(%150) <{elem_type = i256, rawConstantIndices = array<i32: 1>}> : (!llvm.ptr) -> !llvm.ptr
-    "llvm.store"(%151, %149) <{ordering = 0 : i64}> : (!llvm.ptr, !llvm.ptr) -> ()
+    %148 = "arith.constant"() <{value = 0 : i256}> : () -> i256
+    %149 = "arith.trunci"(%127) : (i256) -> i64
+    %150 = "arith.trunci"(%135) : (i256) -> i32
+    %151 = "arith.trunci"(%139) : (i256) -> i32
+    %152 = "arith.trunci"(%143) : (i256) -> i32
+    %153 = "arith.trunci"(%147) : (i256) -> i32
+    %154 = "arith.addi"(%150, %151) <{overflowFlags = #arith.overflow<none>}> : (i32, i32) -> i32
+    %155 = "arith.addi"(%152, %153) <{overflowFlags = #arith.overflow<none>}> : (i32, i32) -> i32
+    %156 = "arith.maxui"(%154, %155) : (i32, i32) -> i32
+    %157 = "llvm.mlir.addressof"() <{global_name = @dora_memory_size}> : () -> !llvm.ptr
+    %158 = "llvm.load"(%157) <{ordering = 0 : i64}> : (!llvm.ptr) -> i32
+    %159 = "arith.constant"() <{value = 31 : i32}> : () -> i32
+    %160 = "arith.constant"() <{value = 32 : i32}> : () -> i32
+    %161 = "arith.addi"(%156, %159) <{overflowFlags = #arith.overflow<none>}> : (i32, i32) -> i32
+    %162 = "arith.divui"(%161, %160) : (i32, i32) -> i32
+    %163 = "arith.muli"(%162, %160) <{overflowFlags = #arith.overflow<none>}> : (i32, i32) -> i32
+    %164 = "arith.cmpi"(%158, %163) <{predicate = 6 : i64}> : (i32, i32) -> i1
+    "scf.if"(%164) ({
+      %286 = "func.call"(%arg0, %163) <{callee = @dora_extend_memory}> : (!llvm.ptr, i32) -> !llvm.ptr
+      "llvm.store"(%163, %157) <{ordering = 0 : i64}> : (i32, !llvm.ptr) -> ()
+      %287 = "llvm.mlir.addressof"() <{global_name = @dora_memory_ptr}> : () -> !llvm.ptr
+      "llvm.store"(%286, %287) <{ordering = 0 : i64}> : (!llvm.ptr, !llvm.ptr) -> ()
+      "scf.yield"() : () -> ()
+    }, {
+      "scf.yield"() : () -> ()
+    }) : (i1) -> ()
+    %165 = "llvm.mlir.addressof"() <{global_name = @dora_gas_counter}> : () -> !llvm.ptr
+    %166 = "llvm.load"(%165) <{ordering = 0 : i64}> : (!llvm.ptr) -> i64
+    %167 = "arith.constant"() <{value = 1 : i256}> : () -> i256
+    %168 = "llvm.alloca"(%167) <{elem_type = i256}> : (i256) -> !llvm.ptr
+    "llvm.store"(%148, %168) <{alignment = 1 : i64, ordering = 0 : i64}> : (i256, !llvm.ptr) -> ()
+    %169 = "arith.constant"() <{value = 1 : i256}> : () -> i256
+    %170 = "llvm.alloca"(%169) <{elem_type = i256}> : (i256) -> !llvm.ptr
+    "llvm.store"(%131, %170) <{alignment = 1 : i64, ordering = 0 : i64}> : (i256, !llvm.ptr) -> ()
+    %171 = "arith.constant"() <{value = 1 : i64}> : () -> i64
+    %172 = "llvm.alloca"(%171) <{elem_type = i64}> : (i64) -> !llvm.ptr
+    %173 = "arith.constant"() <{value = 0 : i8}> : () -> i8
+    %174 = "func.call"(%arg0, %149, %170, %168, %150, %151, %152, %153, %166, %172, %173) <{callee = @dora_call}> : (!llvm.ptr, i64, !llvm.ptr, !llvm.ptr, i32, i32, i32, i32, i64, !llvm.ptr, i8) -> i8
+    %175 = "llvm.load"(%172) <{ordering = 0 : i64}> : (!llvm.ptr) -> i64
+    %176 = "arith.extui"(%174) : (i8) -> i256
+    %177 = "llvm.mlir.addressof"() <{global_name = @dora_stack_ptr}> : () -> !llvm.ptr
+    %178 = "llvm.load"(%177) <{ordering = 0 : i64}> : (!llvm.ptr) -> !llvm.ptr
+    "llvm.store"(%176, %178) <{ordering = 0 : i64}> : (i256, !llvm.ptr) -> ()
+    %179 = "llvm.getelementptr"(%178) <{elem_type = i256, rawConstantIndices = array<i32: 1>}> : (!llvm.ptr) -> !llvm.ptr
+    "llvm.store"(%179, %177) <{ordering = 0 : i64}> : (!llvm.ptr, !llvm.ptr) -> ()
     "cf.br"()[^bb19] : () -> ()
   ^bb19:  // pred: ^bb18
-    %152 = "arith.constant"() <{value = 1 : i256}> : () -> i256
-    %153 = "llvm.mlir.addressof"() <{global_name = @dora_stack_ptr}> : () -> !llvm.ptr
-    %154 = "llvm.load"(%153) <{ordering = 0 : i64}> : (!llvm.ptr) -> !llvm.ptr
-    "llvm.store"(%152, %154) <{ordering = 0 : i64}> : (i256, !llvm.ptr) -> ()
-    %155 = "llvm.getelementptr"(%154) <{elem_type = i256, rawConstantIndices = array<i32: 1>}> : (!llvm.ptr) -> !llvm.ptr
-    "llvm.store"(%155, %153) <{ordering = 0 : i64}> : (!llvm.ptr, !llvm.ptr) -> ()
+    %180 = "arith.constant"() <{value = 1 : i256}> : () -> i256
+    %181 = "llvm.mlir.addressof"() <{global_name = @dora_stack_ptr}> : () -> !llvm.ptr
+    %182 = "llvm.load"(%181) <{ordering = 0 : i64}> : (!llvm.ptr) -> !llvm.ptr
+    "llvm.store"(%180, %182) <{ordering = 0 : i64}> : (i256, !llvm.ptr) -> ()
+    %183 = "llvm.getelementptr"(%182) <{elem_type = i256, rawConstantIndices = array<i32: 1>}> : (!llvm.ptr) -> !llvm.ptr
+    "llvm.store"(%183, %181) <{ordering = 0 : i64}> : (!llvm.ptr, !llvm.ptr) -> ()
     "cf.br"()[^bb20] : () -> ()
   ^bb20:  // pred: ^bb19
-    %156 = "arith.constant"() <{value = 0 : i256}> : () -> i256
-    %157 = "llvm.mlir.addressof"() <{global_name = @dora_stack_ptr}> : () -> !llvm.ptr
-    %158 = "llvm.load"(%157) <{ordering = 0 : i64}> : (!llvm.ptr) -> !llvm.ptr
-    "llvm.store"(%156, %158) <{ordering = 0 : i64}> : (i256, !llvm.ptr) -> ()
-    %159 = "llvm.getelementptr"(%158) <{elem_type = i256, rawConstantIndices = array<i32: 1>}> : (!llvm.ptr) -> !llvm.ptr
-    "llvm.store"(%159, %157) <{ordering = 0 : i64}> : (!llvm.ptr, !llvm.ptr) -> ()
+    %184 = "arith.constant"() <{value = 0 : i256}> : () -> i256
+    %185 = "llvm.mlir.addressof"() <{global_name = @dora_stack_ptr}> : () -> !llvm.ptr
+    %186 = "llvm.load"(%185) <{ordering = 0 : i64}> : (!llvm.ptr) -> !llvm.ptr
+    "llvm.store"(%184, %186) <{ordering = 0 : i64}> : (i256, !llvm.ptr) -> ()
+    %187 = "llvm.getelementptr"(%186) <{elem_type = i256, rawConstantIndices = array<i32: 1>}> : (!llvm.ptr) -> !llvm.ptr
+    "llvm.store"(%187, %185) <{ordering = 0 : i64}> : (!llvm.ptr, !llvm.ptr) -> ()
     "cf.br"()[^bb21] : () -> ()
   ^bb21:  // pred: ^bb20
-    %160 = "llvm.mlir.addressof"() <{global_name = @dora_stack_ptr}> : () -> !llvm.ptr
-    %161 = "llvm.load"(%160) <{ordering = 0 : i64}> : (!llvm.ptr) -> !llvm.ptr
-    %162 = "llvm.getelementptr"(%161) <{elem_type = i256, rawConstantIndices = array<i32: -1>}> : (!llvm.ptr) -> !llvm.ptr
-    %163 = "llvm.load"(%162) <{ordering = 0 : i64}> : (!llvm.ptr) -> i256
-    "llvm.store"(%162, %160) <{ordering = 0 : i64}> : (!llvm.ptr, !llvm.ptr) -> ()
-    %164 = "llvm.mlir.addressof"() <{global_name = @dora_stack_ptr}> : () -> !llvm.ptr
-    %165 = "llvm.load"(%164) <{ordering = 0 : i64}> : (!llvm.ptr) -> !llvm.ptr
-    %166 = "llvm.getelementptr"(%165) <{elem_type = i256, rawConstantIndices = array<i32: -1>}> : (!llvm.ptr) -> !llvm.ptr
-    %167 = "llvm.load"(%166) <{ordering = 0 : i64}> : (!llvm.ptr) -> i256
-    "llvm.store"(%166, %164) <{ordering = 0 : i64}> : (!llvm.ptr, !llvm.ptr) -> ()
-    %168 = "arith.constant"() <{value = 1 : i256}> : () -> i256
-    %169 = "llvm.alloca"(%168) <{elem_type = i256}> : (i256) -> !llvm.ptr
-    "llvm.store"(%163, %169) <{alignment = 1 : i64, ordering = 0 : i64}> : (i256, !llvm.ptr) -> ()
-    %170 = "arith.constant"() <{value = 1 : i256}> : () -> i256
-    %171 = "llvm.alloca"(%170) <{elem_type = i256}> : (i256) -> !llvm.ptr
-    "llvm.store"(%167, %171) <{alignment = 1 : i64, ordering = 0 : i64}> : (i256, !llvm.ptr) -> ()
-    %172 = "func.call"(%arg0, %169, %171) <{callee = @dora_write_storage}> : (!llvm.ptr, !llvm.ptr, !llvm.ptr) -> i64
+    %188 = "llvm.mlir.addressof"() <{global_name = @dora_stack_ptr}> : () -> !llvm.ptr
+    %189 = "llvm.load"(%188) <{ordering = 0 : i64}> : (!llvm.ptr) -> !llvm.ptr
+    %190 = "llvm.getelementptr"(%189) <{elem_type = i256, rawConstantIndices = array<i32: -1>}> : (!llvm.ptr) -> !llvm.ptr
+    %191 = "llvm.load"(%190) <{ordering = 0 : i64}> : (!llvm.ptr) -> i256
+    "llvm.store"(%190, %188) <{ordering = 0 : i64}> : (!llvm.ptr, !llvm.ptr) -> ()
+    %192 = "llvm.mlir.addressof"() <{global_name = @dora_stack_ptr}> : () -> !llvm.ptr
+    %193 = "llvm.load"(%192) <{ordering = 0 : i64}> : (!llvm.ptr) -> !llvm.ptr
+    %194 = "llvm.getelementptr"(%193) <{elem_type = i256, rawConstantIndices = array<i32: -1>}> : (!llvm.ptr) -> !llvm.ptr
+    %195 = "llvm.load"(%194) <{ordering = 0 : i64}> : (!llvm.ptr) -> i256
+    "llvm.store"(%194, %192) <{ordering = 0 : i64}> : (!llvm.ptr, !llvm.ptr) -> ()
+    %196 = "arith.constant"() <{value = 1 : i256}> : () -> i256
+    %197 = "llvm.alloca"(%196) <{elem_type = i256}> : (i256) -> !llvm.ptr
+    "llvm.store"(%191, %197) <{alignment = 1 : i64, ordering = 0 : i64}> : (i256, !llvm.ptr) -> ()
+    %198 = "arith.constant"() <{value = 1 : i256}> : () -> i256
+    %199 = "llvm.alloca"(%198) <{elem_type = i256}> : (i256) -> !llvm.ptr
+    "llvm.store"(%195, %199) <{alignment = 1 : i64, ordering = 0 : i64}> : (i256, !llvm.ptr) -> ()
+    %200 = "func.call"(%arg0, %197, %199) <{callee = @dora_write_storage}> : (!llvm.ptr, !llvm.ptr, !llvm.ptr) -> i64
     "cf.br"()[^bb22] : () -> ()
   ^bb22:  // pred: ^bb21
-    %173 = "arith.constant"() <{value = 0 : i256}> : () -> i256
-    %174 = "llvm.mlir.addressof"() <{global_name = @dora_stack_ptr}> : () -> !llvm.ptr
-    %175 = "llvm.load"(%174) <{ordering = 0 : i64}> : (!llvm.ptr) -> !llvm.ptr
-    "llvm.store"(%173, %175) <{ordering = 0 : i64}> : (i256, !llvm.ptr) -> ()
-    %176 = "llvm.getelementptr"(%175) <{elem_type = i256, rawConstantIndices = array<i32: 1>}> : (!llvm.ptr) -> !llvm.ptr
-    "llvm.store"(%176, %174) <{ordering = 0 : i64}> : (!llvm.ptr, !llvm.ptr) -> ()
+    %201 = "arith.constant"() <{value = 0 : i256}> : () -> i256
+    %202 = "llvm.mlir.addressof"() <{global_name = @dora_stack_ptr}> : () -> !llvm.ptr
+    %203 = "llvm.load"(%202) <{ordering = 0 : i64}> : (!llvm.ptr) -> !llvm.ptr
+    "llvm.store"(%201, %203) <{ordering = 0 : i64}> : (i256, !llvm.ptr) -> ()
+    %204 = "llvm.getelementptr"(%203) <{elem_type = i256, rawConstantIndices = array<i32: 1>}> : (!llvm.ptr) -> !llvm.ptr
+    "llvm.store"(%204, %202) <{ordering = 0 : i64}> : (!llvm.ptr, !llvm.ptr) -> ()
     "cf.br"()[^bb23] : () -> ()
   ^bb23:  // pred: ^bb22
-    %177 = "arith.constant"() <{value = 0 : i256}> : () -> i256
-    %178 = "llvm.mlir.addressof"() <{global_name = @dora_stack_ptr}> : () -> !llvm.ptr
-    %179 = "llvm.load"(%178) <{ordering = 0 : i64}> : (!llvm.ptr) -> !llvm.ptr
-    "llvm.store"(%177, %179) <{ordering = 0 : i64}> : (i256, !llvm.ptr) -> ()
-    %180 = "llvm.getelementptr"(%179) <{elem_type = i256, rawConstantIndices = array<i32: 1>}> : (!llvm.ptr) -> !llvm.ptr
-    "llvm.store"(%180, %178) <{ordering = 0 : i64}> : (!llvm.ptr, !llvm.ptr) -> ()
+    %205 = "arith.constant"() <{value = 0 : i256}> : () -> i256
+    %206 = "llvm.mlir.addressof"() <{global_name = @dora_stack_ptr}> : () -> !llvm.ptr
+    %207 = "llvm.load"(%206) <{ordering = 0 : i64}> : (!llvm.ptr) -> !llvm.ptr
+    "llvm.store"(%205, %207) <{ordering = 0 : i64}> : (i256, !llvm.ptr) -> ()
+    %208 = "llvm.getelementptr"(%207) <{elem_type = i256, rawConstantIndices = array<i32: 1>}> : (!llvm.ptr) -> !llvm.ptr
+    "llvm.store"(%208, %206) <{ordering = 0 : i64}> : (!llvm.ptr, !llvm.ptr) -> ()
     "cf.br"()[^bb24] : () -> ()
   ^bb24:  // pred: ^bb23
-    %181 = "arith.constant"() <{value = 32 : i256}> : () -> i256
-    %182 = "llvm.mlir.addressof"() <{global_name = @dora_stack_ptr}> : () -> !llvm.ptr
-    %183 = "llvm.load"(%182) <{ordering = 0 : i64}> : (!llvm.ptr) -> !llvm.ptr
-    "llvm.store"(%181, %183) <{ordering = 0 : i64}> : (i256, !llvm.ptr) -> ()
-    %184 = "llvm.getelementptr"(%183) <{elem_type = i256, rawConstantIndices = array<i32: 1>}> : (!llvm.ptr) -> !llvm.ptr
-    "llvm.store"(%184, %182) <{ordering = 0 : i64}> : (!llvm.ptr, !llvm.ptr) -> ()
+    %209 = "arith.constant"() <{value = 32 : i256}> : () -> i256
+    %210 = "llvm.mlir.addressof"() <{global_name = @dora_stack_ptr}> : () -> !llvm.ptr
+    %211 = "llvm.load"(%210) <{ordering = 0 : i64}> : (!llvm.ptr) -> !llvm.ptr
+    "llvm.store"(%209, %211) <{ordering = 0 : i64}> : (i256, !llvm.ptr) -> ()
+    %212 = "llvm.getelementptr"(%211) <{elem_type = i256, rawConstantIndices = array<i32: 1>}> : (!llvm.ptr) -> !llvm.ptr
+    "llvm.store"(%212, %210) <{ordering = 0 : i64}> : (!llvm.ptr, !llvm.ptr) -> ()
     "cf.br"()[^bb25] : () -> ()
   ^bb25:  // pred: ^bb24
-    %185 = "arith.constant"() <{value = 0 : i256}> : () -> i256
-    %186 = "llvm.mlir.addressof"() <{global_name = @dora_stack_ptr}> : () -> !llvm.ptr
-    %187 = "llvm.load"(%186) <{ordering = 0 : i64}> : (!llvm.ptr) -> !llvm.ptr
-    "llvm.store"(%185, %187) <{ordering = 0 : i64}> : (i256, !llvm.ptr) -> ()
-    %188 = "llvm.getelementptr"(%187) <{elem_type = i256, rawConstantIndices = array<i32: 1>}> : (!llvm.ptr) -> !llvm.ptr
-    "llvm.store"(%188, %186) <{ordering = 0 : i64}> : (!llvm.ptr, !llvm.ptr) -> ()
+    %213 = "arith.constant"() <{value = 0 : i256}> : () -> i256
+    %214 = "llvm.mlir.addressof"() <{global_name = @dora_stack_ptr}> : () -> !llvm.ptr
+    %215 = "llvm.load"(%214) <{ordering = 0 : i64}> : (!llvm.ptr) -> !llvm.ptr
+    "llvm.store"(%213, %215) <{ordering = 0 : i64}> : (i256, !llvm.ptr) -> ()
+    %216 = "llvm.getelementptr"(%215) <{elem_type = i256, rawConstantIndices = array<i32: 1>}> : (!llvm.ptr) -> !llvm.ptr
+    "llvm.store"(%216, %214) <{ordering = 0 : i64}> : (!llvm.ptr, !llvm.ptr) -> ()
     "cf.br"()[^bb26] : () -> ()
   ^bb26:  // pred: ^bb25
-    %189 = "llvm.mlir.addressof"() <{global_name = @dora_stack_ptr}> : () -> !llvm.ptr
-    %190 = "llvm.load"(%189) <{ordering = 0 : i64}> : (!llvm.ptr) -> !llvm.ptr
-    %191 = "llvm.getelementptr"(%190) <{elem_type = i256, rawConstantIndices = array<i32: -6>}> : (!llvm.ptr) -> !llvm.ptr
-    %192 = "llvm.load"(%191) <{ordering = 0 : i64}> : (!llvm.ptr) -> i256
-    %193 = "llvm.mlir.addressof"() <{global_name = @dora_stack_ptr}> : () -> !llvm.ptr
-    %194 = "llvm.load"(%193) <{ordering = 0 : i64}> : (!llvm.ptr) -> !llvm.ptr
-    "llvm.store"(%192, %194) <{ordering = 0 : i64}> : (i256, !llvm.ptr) -> ()
-    %195 = "llvm.getelementptr"(%194) <{elem_type = i256, rawConstantIndices = array<i32: 1>}> : (!llvm.ptr) -> !llvm.ptr
-    "llvm.store"(%195, %193) <{ordering = 0 : i64}> : (!llvm.ptr, !llvm.ptr) -> ()
+    %217 = "llvm.mlir.addressof"() <{global_name = @dora_stack_ptr}> : () -> !llvm.ptr
+    %218 = "llvm.load"(%217) <{ordering = 0 : i64}> : (!llvm.ptr) -> !llvm.ptr
+    %219 = "llvm.getelementptr"(%218) <{elem_type = i256, rawConstantIndices = array<i32: -6>}> : (!llvm.ptr) -> !llvm.ptr
+    %220 = "llvm.load"(%219) <{ordering = 0 : i64}> : (!llvm.ptr) -> i256
+    %221 = "llvm.mlir.addressof"() <{global_name = @dora_stack_ptr}> : () -> !llvm.ptr
+    %222 = "llvm.load"(%221) <{ordering = 0 : i64}> : (!llvm.ptr) -> !llvm.ptr
+    "llvm.store"(%220, %222) <{ordering = 0 : i64}> : (i256, !llvm.ptr) -> ()
+    %223 = "llvm.getelementptr"(%222) <{elem_type = i256, rawConstantIndices = array<i32: 1>}> : (!llvm.ptr) -> !llvm.ptr
+    "llvm.store"(%223, %221) <{ordering = 0 : i64}> : (!llvm.ptr, !llvm.ptr) -> ()
     "cf.br"()[^bb27] : () -> ()
   ^bb27:  // pred: ^bb26
-    %196 = "arith.constant"() <{value = 65535 : i256}> : () -> i256
-    %197 = "llvm.mlir.addressof"() <{global_name = @dora_stack_ptr}> : () -> !llvm.ptr
-    %198 = "llvm.load"(%197) <{ordering = 0 : i64}> : (!llvm.ptr) -> !llvm.ptr
-    "llvm.store"(%196, %198) <{ordering = 0 : i64}> : (i256, !llvm.ptr) -> ()
-    %199 = "llvm.getelementptr"(%198) <{elem_type = i256, rawConstantIndices = array<i32: 1>}> : (!llvm.ptr) -> !llvm.ptr
-    "llvm.store"(%199, %197) <{ordering = 0 : i64}> : (!llvm.ptr, !llvm.ptr) -> ()
-    "cf.br"()[^bb28] : () -> ()
-  ^bb28:  // pred: ^bb27
-    %200 = "llvm.mlir.addressof"() <{global_name = @dora_stack_ptr}> : () -> !llvm.ptr
-    %201 = "llvm.load"(%200) <{ordering = 0 : i64}> : (!llvm.ptr) -> !llvm.ptr
-    %202 = "llvm.getelementptr"(%201) <{elem_type = i256, rawConstantIndices = array<i32: -1>}> : (!llvm.ptr) -> !llvm.ptr
-    %203 = "llvm.load"(%202) <{ordering = 0 : i64}> : (!llvm.ptr) -> i256
-    "llvm.store"(%202, %200) <{ordering = 0 : i64}> : (!llvm.ptr, !llvm.ptr) -> ()
-    %204 = "llvm.mlir.addressof"() <{global_name = @dora_stack_ptr}> : () -> !llvm.ptr
-    %205 = "llvm.load"(%204) <{ordering = 0 : i64}> : (!llvm.ptr) -> !llvm.ptr
-    %206 = "llvm.getelementptr"(%205) <{elem_type = i256, rawConstantIndices = array<i32: -1>}> : (!llvm.ptr) -> !llvm.ptr
-    %207 = "llvm.load"(%206) <{ordering = 0 : i64}> : (!llvm.ptr) -> i256
-    "llvm.store"(%206, %204) <{ordering = 0 : i64}> : (!llvm.ptr, !llvm.ptr) -> ()
-    %208 = "llvm.mlir.addressof"() <{global_name = @dora_stack_ptr}> : () -> !llvm.ptr
-    %209 = "llvm.load"(%208) <{ordering = 0 : i64}> : (!llvm.ptr) -> !llvm.ptr
-    %210 = "llvm.getelementptr"(%209) <{elem_type = i256, rawConstantIndices = array<i32: -1>}> : (!llvm.ptr) -> !llvm.ptr
-    %211 = "llvm.load"(%210) <{ordering = 0 : i64}> : (!llvm.ptr) -> i256
-    "llvm.store"(%210, %208) <{ordering = 0 : i64}> : (!llvm.ptr, !llvm.ptr) -> ()
-    %212 = "llvm.mlir.addressof"() <{global_name = @dora_stack_ptr}> : () -> !llvm.ptr
-    %213 = "llvm.load"(%212) <{ordering = 0 : i64}> : (!llvm.ptr) -> !llvm.ptr
-    %214 = "llvm.getelementptr"(%213) <{elem_type = i256, rawConstantIndices = array<i32: -1>}> : (!llvm.ptr) -> !llvm.ptr
-    %215 = "llvm.load"(%214) <{ordering = 0 : i64}> : (!llvm.ptr) -> i256
-    "llvm.store"(%214, %212) <{ordering = 0 : i64}> : (!llvm.ptr, !llvm.ptr) -> ()
-    %216 = "llvm.mlir.addressof"() <{global_name = @dora_stack_ptr}> : () -> !llvm.ptr
-    %217 = "llvm.load"(%216) <{ordering = 0 : i64}> : (!llvm.ptr) -> !llvm.ptr
-    %218 = "llvm.getelementptr"(%217) <{elem_type = i256, rawConstantIndices = array<i32: -1>}> : (!llvm.ptr) -> !llvm.ptr
-    %219 = "llvm.load"(%218) <{ordering = 0 : i64}> : (!llvm.ptr) -> i256
-    "llvm.store"(%218, %216) <{ordering = 0 : i64}> : (!llvm.ptr, !llvm.ptr) -> ()
-    %220 = "llvm.mlir.addressof"() <{global_name = @dora_stack_ptr}> : () -> !llvm.ptr
-    %221 = "llvm.load"(%220) <{ordering = 0 : i64}> : (!llvm.ptr) -> !llvm.ptr
-    %222 = "llvm.getelementptr"(%221) <{elem_type = i256, rawConstantIndices = array<i32: -1>}> : (!llvm.ptr) -> !llvm.ptr
-    %223 = "llvm.load"(%222) <{ordering = 0 : i64}> : (!llvm.ptr) -> i256
-    "llvm.store"(%222, %220) <{ordering = 0 : i64}> : (!llvm.ptr, !llvm.ptr) -> ()
-    %224 = "evm.delegatecall"(%203, %207, %211, %215, %219, %223) : (i256, i256, i256, i256, i256, i256) -> i256
+    %224 = "arith.constant"() <{value = 65535 : i256}> : () -> i256
     %225 = "llvm.mlir.addressof"() <{global_name = @dora_stack_ptr}> : () -> !llvm.ptr
     %226 = "llvm.load"(%225) <{ordering = 0 : i64}> : (!llvm.ptr) -> !llvm.ptr
     "llvm.store"(%224, %226) <{ordering = 0 : i64}> : (i256, !llvm.ptr) -> ()
     %227 = "llvm.getelementptr"(%226) <{elem_type = i256, rawConstantIndices = array<i32: 1>}> : (!llvm.ptr) -> !llvm.ptr
     "llvm.store"(%227, %225) <{ordering = 0 : i64}> : (!llvm.ptr, !llvm.ptr) -> ()
+    "cf.br"()[^bb28] : () -> ()
+  ^bb28:  // pred: ^bb27
+    %228 = "llvm.mlir.addressof"() <{global_name = @dora_stack_ptr}> : () -> !llvm.ptr
+    %229 = "llvm.load"(%228) <{ordering = 0 : i64}> : (!llvm.ptr) -> !llvm.ptr
+    %230 = "llvm.getelementptr"(%229) <{elem_type = i256, rawConstantIndices = array<i32: -1>}> : (!llvm.ptr) -> !llvm.ptr
+    %231 = "llvm.load"(%230) <{ordering = 0 : i64}> : (!llvm.ptr) -> i256
+    "llvm.store"(%230, %228) <{ordering = 0 : i64}> : (!llvm.ptr, !llvm.ptr) -> ()
+    %232 = "llvm.mlir.addressof"() <{global_name = @dora_stack_ptr}> : () -> !llvm.ptr
+    %233 = "llvm.load"(%232) <{ordering = 0 : i64}> : (!llvm.ptr) -> !llvm.ptr
+    %234 = "llvm.getelementptr"(%233) <{elem_type = i256, rawConstantIndices = array<i32: -1>}> : (!llvm.ptr) -> !llvm.ptr
+    %235 = "llvm.load"(%234) <{ordering = 0 : i64}> : (!llvm.ptr) -> i256
+    "llvm.store"(%234, %232) <{ordering = 0 : i64}> : (!llvm.ptr, !llvm.ptr) -> ()
+    %236 = "llvm.mlir.addressof"() <{global_name = @dora_stack_ptr}> : () -> !llvm.ptr
+    %237 = "llvm.load"(%236) <{ordering = 0 : i64}> : (!llvm.ptr) -> !llvm.ptr
+    %238 = "llvm.getelementptr"(%237) <{elem_type = i256, rawConstantIndices = array<i32: -1>}> : (!llvm.ptr) -> !llvm.ptr
+    %239 = "llvm.load"(%238) <{ordering = 0 : i64}> : (!llvm.ptr) -> i256
+    "llvm.store"(%238, %236) <{ordering = 0 : i64}> : (!llvm.ptr, !llvm.ptr) -> ()
+    %240 = "llvm.mlir.addressof"() <{global_name = @dora_stack_ptr}> : () -> !llvm.ptr
+    %241 = "llvm.load"(%240) <{ordering = 0 : i64}> : (!llvm.ptr) -> !llvm.ptr
+    %242 = "llvm.getelementptr"(%241) <{elem_type = i256, rawConstantIndices = array<i32: -1>}> : (!llvm.ptr) -> !llvm.ptr
+    %243 = "llvm.load"(%242) <{ordering = 0 : i64}> : (!llvm.ptr) -> i256
+    "llvm.store"(%242, %240) <{ordering = 0 : i64}> : (!llvm.ptr, !llvm.ptr) -> ()
+    %244 = "llvm.mlir.addressof"() <{global_name = @dora_stack_ptr}> : () -> !llvm.ptr
+    %245 = "llvm.load"(%244) <{ordering = 0 : i64}> : (!llvm.ptr) -> !llvm.ptr
+    %246 = "llvm.getelementptr"(%245) <{elem_type = i256, rawConstantIndices = array<i32: -1>}> : (!llvm.ptr) -> !llvm.ptr
+    %247 = "llvm.load"(%246) <{ordering = 0 : i64}> : (!llvm.ptr) -> i256
+    "llvm.store"(%246, %244) <{ordering = 0 : i64}> : (!llvm.ptr, !llvm.ptr) -> ()
+    %248 = "llvm.mlir.addressof"() <{global_name = @dora_stack_ptr}> : () -> !llvm.ptr
+    %249 = "llvm.load"(%248) <{ordering = 0 : i64}> : (!llvm.ptr) -> !llvm.ptr
+    %250 = "llvm.getelementptr"(%249) <{elem_type = i256, rawConstantIndices = array<i32: -1>}> : (!llvm.ptr) -> !llvm.ptr
+    %251 = "llvm.load"(%250) <{ordering = 0 : i64}> : (!llvm.ptr) -> i256
+    "llvm.store"(%250, %248) <{ordering = 0 : i64}> : (!llvm.ptr, !llvm.ptr) -> ()
+    %252 = "arith.constant"() <{value = 0 : i256}> : () -> i256
+    %253 = "arith.trunci"(%231) : (i256) -> i64
+    %254 = "arith.trunci"(%239) : (i256) -> i32
+    %255 = "arith.trunci"(%243) : (i256) -> i32
+    %256 = "arith.trunci"(%247) : (i256) -> i32
+    %257 = "arith.trunci"(%251) : (i256) -> i32
+    %258 = "arith.addi"(%254, %255) <{overflowFlags = #arith.overflow<none>}> : (i32, i32) -> i32
+    %259 = "arith.addi"(%256, %257) <{overflowFlags = #arith.overflow<none>}> : (i32, i32) -> i32
+    %260 = "arith.maxui"(%258, %259) : (i32, i32) -> i32
+    %261 = "llvm.mlir.addressof"() <{global_name = @dora_memory_size}> : () -> !llvm.ptr
+    %262 = "llvm.load"(%261) <{ordering = 0 : i64}> : (!llvm.ptr) -> i32
+    %263 = "arith.constant"() <{value = 31 : i32}> : () -> i32
+    %264 = "arith.constant"() <{value = 32 : i32}> : () -> i32
+    %265 = "arith.addi"(%260, %263) <{overflowFlags = #arith.overflow<none>}> : (i32, i32) -> i32
+    %266 = "arith.divui"(%265, %264) : (i32, i32) -> i32
+    %267 = "arith.muli"(%266, %264) <{overflowFlags = #arith.overflow<none>}> : (i32, i32) -> i32
+    %268 = "arith.cmpi"(%262, %267) <{predicate = 6 : i64}> : (i32, i32) -> i1
+    "scf.if"(%268) ({
+      %286 = "func.call"(%arg0, %267) <{callee = @dora_extend_memory}> : (!llvm.ptr, i32) -> !llvm.ptr
+      "llvm.store"(%267, %261) <{ordering = 0 : i64}> : (i32, !llvm.ptr) -> ()
+      %287 = "llvm.mlir.addressof"() <{global_name = @dora_memory_ptr}> : () -> !llvm.ptr
+      "llvm.store"(%286, %287) <{ordering = 0 : i64}> : (!llvm.ptr, !llvm.ptr) -> ()
+      "scf.yield"() : () -> ()
+    }, {
+      "scf.yield"() : () -> ()
+    }) : (i1) -> ()
+    %269 = "llvm.mlir.addressof"() <{global_name = @dora_gas_counter}> : () -> !llvm.ptr
+    %270 = "llvm.load"(%269) <{ordering = 0 : i64}> : (!llvm.ptr) -> i64
+    %271 = "arith.constant"() <{value = 1 : i256}> : () -> i256
+    %272 = "llvm.alloca"(%271) <{elem_type = i256}> : (i256) -> !llvm.ptr
+    "llvm.store"(%252, %272) <{alignment = 1 : i64, ordering = 0 : i64}> : (i256, !llvm.ptr) -> ()
+    %273 = "arith.constant"() <{value = 1 : i256}> : () -> i256
+    %274 = "llvm.alloca"(%273) <{elem_type = i256}> : (i256) -> !llvm.ptr
+    "llvm.store"(%235, %274) <{alignment = 1 : i64, ordering = 0 : i64}> : (i256, !llvm.ptr) -> ()
+    %275 = "arith.constant"() <{value = 1 : i64}> : () -> i64
+    %276 = "llvm.alloca"(%275) <{elem_type = i64}> : (i64) -> !llvm.ptr
+    %277 = "arith.constant"() <{value = 0 : i8}> : () -> i8
+    %278 = "func.call"(%arg0, %253, %274, %272, %254, %255, %256, %257, %270, %276, %277) <{callee = @dora_call}> : (!llvm.ptr, i64, !llvm.ptr, !llvm.ptr, i32, i32, i32, i32, i64, !llvm.ptr, i8) -> i8
+    %279 = "llvm.load"(%276) <{ordering = 0 : i64}> : (!llvm.ptr) -> i64
+    %280 = "arith.extui"(%278) : (i8) -> i256
+    %281 = "llvm.mlir.addressof"() <{global_name = @dora_stack_ptr}> : () -> !llvm.ptr
+    %282 = "llvm.load"(%281) <{ordering = 0 : i64}> : (!llvm.ptr) -> !llvm.ptr
+    "llvm.store"(%280, %282) <{ordering = 0 : i64}> : (i256, !llvm.ptr) -> ()
+    %283 = "llvm.getelementptr"(%282) <{elem_type = i256, rawConstantIndices = array<i32: 1>}> : (!llvm.ptr) -> !llvm.ptr
+    "llvm.store"(%283, %281) <{ordering = 0 : i64}> : (!llvm.ptr, !llvm.ptr) -> ()
     "cf.br"()[^bb29] : () -> ()
   ^bb29:  // pred: ^bb28
-    %228 = "arith.constant"() <{value = 0 : i32}> : () -> i32
-    %229 = "arith.constant"() <{value = 1 : i8}> : () -> i8
-    "func.call"(%arg0, %228, %228, %arg1, %229) <{callee = @dora_write_result}> : (!llvm.ptr, i32, i32, i64, i8) -> ()
-    "func.return"(%229) : (i8) -> ()
+    %284 = "arith.constant"() <{value = 0 : i32}> : () -> i32
+    %285 = "arith.constant"() <{value = 1 : i8}> : () -> i8
+    "func.call"(%arg0, %284, %284, %arg1, %285) <{callee = @dora_write_result}> : (!llvm.ptr, i32, i32, i64, i8) -> ()
+    "func.return"(%285) : (i8) -> ()
   }) {llvm.emit_c_interface} : () -> ()
 }) : () -> ()
