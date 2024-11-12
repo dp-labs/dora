@@ -126,6 +126,7 @@ pub struct Authorization {
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct AccountInfo {
     pub balance: U256,
+    #[serde(deserialize_with = "deserialize_str_as_bytes")]
     pub code: Bytes,
     #[serde(deserialize_with = "deserialize_str_as_u64")]
     pub nonce: u64,
@@ -303,6 +304,26 @@ fn setup_env(test: &Test) -> Env {
         .clone_from(&test.transaction.blob_versioned_hashes);
     env.tx.max_fee_per_blob_gas = test.transaction.max_fee_per_blob_gas;
     env
+}
+
+pub fn deserialize_str_as_bytes<'de, D>(deserializer: D) -> Result<Bytes, D::Error>
+where
+    D: de::Deserializer<'de>,
+{
+    let string = String::deserialize(deserializer)?;
+
+    if let Some(stripped) = string.strip_prefix("0x") {
+        hex::decode(stripped)
+            .map_err(|_| {
+                de::Error::invalid_value(de::Unexpected::Str(&string), &"a valid hex string")
+            })
+            .map(From::from)
+    } else {
+        Err(de::Error::invalid_value(
+            de::Unexpected::Str(&string),
+            &"a valid hex string",
+        ))
+    }
 }
 
 pub fn deserialize_str_as_u64<'de, D>(deserializer: D) -> Result<u64, D::Error>
