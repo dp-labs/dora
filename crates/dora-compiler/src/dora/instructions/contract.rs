@@ -17,7 +17,6 @@ use melior::{
     ir::{
         attribute::{FlatSymbolRefAttribute, IntegerAttribute},
         operation::OperationRef,
-        r#type::IntegerType,
         Value,
     },
     Context,
@@ -124,8 +123,6 @@ impl<'c> ConversionPass<'c> {
     pub(crate) fn call(
         context: &Context,
         op: &OperationRef<'_, '_>,
-        uint32: IntegerType<'_>,
-        uint256: IntegerType<'_>,
         call_type: CallType,
     ) -> Result<()> {
         operands!(op, gas, address);
@@ -154,10 +151,26 @@ impl<'c> ConversionPass<'c> {
         );
 
         let gas = rewriter.make(arith::trunci(gas, rewriter.intrinsics.i64_ty, location))?;
-        let args_offset = rewriter.make(arith::trunci(args_offset, uint32.into(), location))?;
-        let args_size = rewriter.make(arith::trunci(args_size, uint32.into(), location))?;
-        let ret_offset = rewriter.make(arith::trunci(ret_offset, uint32.into(), location))?;
-        let ret_size = rewriter.make(arith::trunci(ret_size, uint32.into(), location))?;
+        let args_offset = rewriter.make(arith::trunci(
+            args_offset,
+            rewriter.intrinsics.i32_ty,
+            location,
+        ))?;
+        let args_size = rewriter.make(arith::trunci(
+            args_size,
+            rewriter.intrinsics.i32_ty,
+            location,
+        ))?;
+        let ret_offset = rewriter.make(arith::trunci(
+            ret_offset,
+            rewriter.intrinsics.i32_ty,
+            location,
+        ))?;
+        let ret_size = rewriter.make(arith::trunci(
+            ret_size,
+            rewriter.intrinsics.i32_ty,
+            location,
+        ))?;
         let req_arg_mem_size = rewriter.make(arith::addi(args_offset, args_size, location))?;
         let req_ret_mem_size = rewriter.make(arith::addi(ret_offset, ret_size, location))?;
 
@@ -206,7 +219,7 @@ impl<'c> ConversionPass<'c> {
             location,
             LoadStoreOptions::default(),
         ));
-        rewriter.make(arith::extui(result, uint256.into(), location))?;
+        rewriter.make(arith::extui(result, rewriter.intrinsics.i256_ty, location))?;
         Ok(())
     }
 

@@ -795,7 +795,39 @@ impl<'c> ConversionPass<'c> {
                         op.operand(3)?,
                         op.operand(4)?,
                         op.operand(5)?,
-                        op.operand(6).unwrap(),
+                        op.operand(6)?,
+                        op.location(),
+                    )
+                    .into(),
+                );
+            } else if name == "evm.delegatecall" {
+                rewriter::replace_op(
+                    op,
+                    dora_ir::dora::delegatecall(
+                        self.ctx,
+                        rewriter.intrinsics.i256_ty,
+                        op.operand(0)?,
+                        op.operand(1)?,
+                        op.operand(2)?,
+                        op.operand(3)?,
+                        op.operand(4)?,
+                        op.operand(5)?,
+                        op.location(),
+                    )
+                    .into(),
+                );
+            } else if name == "evm.staticcall" {
+                rewriter::replace_op(
+                    op,
+                    dora_ir::dora::staticcall(
+                        self.ctx,
+                        rewriter.intrinsics.i256_ty,
+                        op.operand(0)?,
+                        op.operand(1)?,
+                        op.operand(2)?,
+                        op.operand(3)?,
+                        op.operand(4)?,
+                        op.operand(5)?,
                         op.location(),
                     )
                     .into(),

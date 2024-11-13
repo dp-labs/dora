@@ -2,10 +2,7 @@ use crate::{conversion::walker::walk_operation, errors::Result, value::IntoConte
 use dora_runtime::constants::CallType;
 use melior::{
     dialect::DialectHandle,
-    ir::{
-        r#type::{IntegerType, TypeId},
-        OperationRef,
-    },
+    ir::{r#type::TypeId, OperationRef},
     pass::{create_external, ExternalPass, Pass, RunExternalPass},
     Context, ContextRef,
 };
@@ -73,8 +70,6 @@ impl<'c> ConversionPass<'c> {
             }),
         )?;
         for op in &dora_ops {
-            let uint32 = IntegerType::new(context, 32);
-            let uint256 = IntegerType::new(context, 256);
             let name = op.name().as_string_ref().as_str().unwrap().to_string();
 
             if name == "dora.add" {
@@ -218,11 +213,13 @@ impl<'c> ConversionPass<'c> {
             } else if name == "dora.create2" {
                 Self::create(context, op, true)?;
             } else if name == "dora.call" {
-                Self::call(context, op, uint32, uint256, CallType::Call)?;
+                Self::call(context, op, CallType::Call)?;
             } else if name == "dora.return" {
                 Self::creturn(context, op)?;
+            } else if name == "dora.delegatecall" {
+                Self::call(context, op, CallType::DelegateCall)?;
             } else if name == "dora.staticcall" {
-                Self::call(context, op, uint32, uint256, CallType::StaticCall)?;
+                Self::call(context, op, CallType::StaticCall)?;
             } else if name == "dora.revert" {
                 Self::revert(context, op)?;
             } else if name == "dora.invalid" {
