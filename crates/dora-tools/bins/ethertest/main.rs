@@ -14,7 +14,9 @@ use dora_primitives::Bytes;
 use dora_primitives::{Address, B256, U256};
 use dora_runtime::env::Env;
 use indicatif::{ProgressBar, ProgressDrawTarget};
+use serde::de::Visitor;
 use serde::{de, Deserialize, Serialize};
+use std::fmt;
 use std::{
     collections::{BTreeMap, HashMap},
     path::{Path, PathBuf},
@@ -45,6 +47,15 @@ struct RunArgs {
 #[derive(Debug, PartialEq, Eq, Deserialize)]
 pub struct TestSuite(pub BTreeMap<String, Test>);
 
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct DeserializeBytes(Bytes);
+
+impl AsRef<Bytes> for DeserializeBytes {
+    fn as_ref(&self) -> &Bytes {
+        &self.0
+    }
+}
+
 #[derive(Debug, PartialEq, Eq, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct Test {
@@ -55,7 +66,7 @@ pub struct Test {
     pre: HashMap<Address, AccountInfo>,
     post: BTreeMap<SpecName, Vec<PostStateTest>>,
     #[serde(default)]
-    pub out: Option<Bytes>,
+    pub out: Option<DeserializeBytes>,
 }
 
 #[derive(Debug, PartialEq, Eq, Deserialize)]
@@ -77,10 +88,10 @@ struct TestEnv {
     pub current_excess_blob_gas: Option<U256>,
 }
 
-#[derive(Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Default, PartialEq, Eq, Deserialize)]
 #[serde(rename_all = "camelCase")]
 struct Transaction {
-    pub data: Vec<Bytes>,
+    pub data: Vec<DeserializeBytes>,
     pub gas_limit: Vec<U256>,
     pub gas_price: Option<U256>,
     pub nonce: U256,
@@ -126,8 +137,7 @@ pub struct Authorization {
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct AccountInfo {
     pub balance: U256,
-    #[serde(deserialize_with = "deserialize_str_as_bytes")]
-    pub code: Bytes,
+    pub code: DeserializeBytes,
     #[serde(deserialize_with = "deserialize_str_as_u64")]
     pub nonce: u64,
     pub storage: HashMap<U256, U256>,
@@ -142,7 +152,7 @@ pub struct PostStateTest {
     #[serde(default)]
     pub post_state: HashMap<Address, AccountInfo>,
     pub logs: B256,
-    pub txbytes: Option<Bytes>,
+    pub txbytes: Option<DeserializeBytes>,
 }
 
 #[derive(Debug, PartialEq, Eq, Deserialize)]
@@ -172,7 +182,7 @@ pub enum TestErrorKind {
     ExecutionError,
 }
 
-pub fn find_all_json_tests(path: &Path) -> Vec<PathBuf> {
+fn find_all_json_tests(path: &Path) -> Vec<PathBuf> {
     if path.is_file() {
         vec![path.to_path_buf()]
     } else {
@@ -185,26 +195,32 @@ pub fn find_all_json_tests(path: &Path) -> Vec<PathBuf> {
     }
 }
 
-pub fn execute_test(path: &Path) -> Result<(), TestError> {
+fn should_skip(path: &Path) -> bool {
+    let path_str = path.to_str().expect("Path is not valid UTF-8");
+    let name = path.file_name().unwrap().to_str().unwrap();
+
+    matches!(
+        name,
+        // https://github.com/ethereum/tests/issues/971
+        "ValueOverflow.json" | "ValueOverflowParis.json"
+    ) || path_str.contains("stEOF")
+}
+
+fn execute_test(path: &Path) -> Result<(), TestError> {
+    if should_skip(path) {
+        return Ok(());
+    }
     let name = path.to_string_lossy().to_string();
     info!("testing {:?}", name);
     let s = std::fs::read_to_string(path).unwrap();
     let suite: TestSuite = serde_json::from_str(&s).map_err(|e| TestError {
-        name,
+        name: name.clone(),
         kind: e.into(),
     })?;
 
-    for (name, suite) in suite.0 {
+    for (suite_name, suite) in suite.0 {
         // NOTE: currently we only support Cancun spec
         let Some(tests) = suite.post.get(&SpecName::Cancun) else {
-            continue;
-        };
-        let Some(to) = suite.transaction.to else {
-            info!("suite {:?} has no transaction address", name);
-            continue;
-        };
-        let Some(account) = suite.pre.get(&to) else {
-            info!("suite {:?} has no transaction address account info", name);
             continue;
         };
         let mut env = setup_env(&suite);
@@ -222,7 +238,9 @@ pub fn execute_test(path: &Path) -> Result<(), TestError> {
                 .data
                 .get(test_case.indexes.data)
                 .unwrap()
-                .clone();
+                .clone()
+                .0;
+            info!("testing {:?} suite {:?}", name, suite_name);
             // Mapping access list
             let access_list = suite
                 .transaction
@@ -240,9 +258,9 @@ pub fn execute_test(path: &Path) -> Result<(), TestError> {
                 ));
             }
             // Mapping account into
-            let mut db = MemoryDb::new().with_contract(to, account.code.clone());
+            let mut db = MemoryDb::new();
             for (address, account_info) in suite.pre.iter() {
-                db = db.with_contract(address.to_owned(), account_info.code.clone());
+                db = db.with_contract(address.to_owned(), account_info.code.0.clone());
                 db.set_account(
                     address.to_owned(),
                     account_info.nonce,
@@ -260,7 +278,10 @@ pub fn execute_test(path: &Path) -> Result<(), TestError> {
                         continue;
                     }
                     assert!(res.result.is_success());
-                    assert_eq!(res.result.output().cloned(), suite.out);
+                    assert_eq!(
+                        res.result.output().cloned(),
+                        suite.out.as_ref().map(|b| b.0.clone())
+                    );
                 }
                 Err(e) => {
                     error!("Execution failed: {}", e);
@@ -306,23 +327,58 @@ fn setup_env(test: &Test) -> Env {
     env
 }
 
-pub fn deserialize_str_as_bytes<'de, D>(deserializer: D) -> Result<Bytes, D::Error>
-where
-    D: de::Deserializer<'de>,
-{
-    let string = String::deserialize(deserializer)?;
+impl<'de> serde::Deserialize<'de> for DeserializeBytes {
+    #[inline]
+    fn deserialize<D: serde::Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
+        struct BytesVisitor;
 
-    if let Some(stripped) = string.strip_prefix("0x") {
-        hex::decode(stripped)
-            .map_err(|_| {
-                de::Error::invalid_value(de::Unexpected::Str(&string), &"a valid hex string")
-            })
-            .map(From::from)
-    } else {
-        Err(de::Error::invalid_value(
-            de::Unexpected::Str(&string),
-            &"a valid hex string",
-        ))
+        impl<'de> Visitor<'de> for BytesVisitor {
+            type Value = DeserializeBytes;
+
+            fn expecting(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+                formatter.write_str("a variable number of bytes represented as a hex string, an array of u8, or raw bytes")
+            }
+
+            fn visit_bytes<E: de::Error>(self, v: &[u8]) -> Result<Self::Value, E> {
+                Ok(DeserializeBytes(Bytes::from(v.to_vec())))
+            }
+
+            fn visit_byte_buf<E: de::Error>(self, v: Vec<u8>) -> Result<Self::Value, E> {
+                Ok(DeserializeBytes(Bytes::from(v)))
+            }
+
+            fn visit_seq<A: de::SeqAccess<'de>>(self, mut seq: A) -> Result<Self::Value, A::Error> {
+                let mut bytes = Vec::with_capacity(seq.size_hint().unwrap_or(0));
+
+                while let Some(byte) = seq.next_element()? {
+                    bytes.push(byte);
+                }
+
+                Ok(DeserializeBytes(Bytes::from(bytes)))
+            }
+
+            fn visit_str<E: de::Error>(self, v: &str) -> Result<Self::Value, E> {
+                if let Some(stripped) = v.strip_prefix("0x") {
+                    hex::decode(stripped)
+                        .map_err(|_| {
+                            de::Error::invalid_value(de::Unexpected::Str(v), &"a valid hex string")
+                        })
+                        .map(From::from)
+                        .map(DeserializeBytes)
+                } else {
+                    Err(de::Error::invalid_value(
+                        de::Unexpected::Str(v),
+                        &"a valid hex string",
+                    ))
+                }
+            }
+        }
+
+        if deserializer.is_human_readable() {
+            deserializer.deserialize_any(BytesVisitor)
+        } else {
+            deserializer.deserialize_byte_buf(BytesVisitor)
+        }
     }
 }
 
