@@ -214,6 +214,8 @@ impl<'c> ConversionPass<'c> {
                 Self::create(context, op, true)?;
             } else if name == "dora.call" {
                 Self::call(context, op, CallType::Call)?;
+            } else if name == "dora.callcode" {
+                Self::call(context, op, CallType::CallCode)?;
             } else if name == "dora.return" {
                 Self::creturn(context, op)?;
             } else if name == "dora.delegatecall" {

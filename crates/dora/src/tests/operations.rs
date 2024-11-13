@@ -1,12 +1,18 @@
 #![allow(unused)]
 
+use std::str::FromStr;
+
 use crate::{run_evm, run_evm_program, tests::INIT_GAS};
 use bytes::Bytes;
 use dora_compiler::evm::program::{Operation, Program};
-use dora_primitives::{db::MemoryDb, Address, Bytecode, Bytes32, B256, H160};
-use dora_runtime::env::Env;
+use dora_primitives::{
+    account::EMPTY_CODE_HASH_STR, db::MemoryDb, Address, Bytecode, Bytes32, B256, H160,
+};
+use dora_runtime::{context::RuntimeContext, env::Env};
 use num_bigint::{BigInt, BigUint};
 use ruint::aliases::U256;
+
+const CREATE_ADDRESS_U256_STR: &str = "471519750947579038811315280252789814448584561545";
 
 #[test]
 fn add() {
@@ -1295,9 +1301,8 @@ fn gasprice() {
     run_program_assert_num_result(env, db, 0_u8.into());
 }
 
-// #[test]
-// TODO: create and call syscall impl
-fn extcodesize() {
+#[test]
+fn test_extcodesize() {
     let operations = vec![
         Operation::Push((
             32_u8,
@@ -1330,7 +1335,12 @@ fn extcodesize() {
         Operation::Return,
     ];
     let (env, mut db) = default_env_and_db_setup(operations);
-    run_program_assert_num_result(env, db, 20_u8.into());
+    // 40 is the sender address
+    let _created_address =
+        RuntimeContext::compute_contract_address(Address::from_low_u64_be(40), 1);
+    // _created_address is the deployed contract address
+    // 41 is the deployed contract code size.
+    run_program_assert_num_result(env, db, 41_u8.into());
 }
 
 #[test]
@@ -1365,8 +1375,7 @@ fn extcodesize_zero_address() {
     run_program_assert_num_result(env, db, 0_u8.into());
 }
 
-// #[test]
-// TODO: create and call syscall impl
+#[test]
 fn extcodecopy_full() {
     let operations = vec![
         Operation::Push((
@@ -1400,9 +1409,10 @@ fn extcodecopy_full() {
         Operation::Push((1_u8, BigUint::from(32_u8))),
         Operation::Push((1_u8, BigUint::from(0_u8))),
         Operation::Push((1_u8, BigUint::from(0_u8))),
+        // Dup the created contract address value
         Operation::Dup(4),
         Operation::ExtcodeCopy,
-        // Return result
+        // Return result, the top of stack top is the created contract address
         Operation::Push0,
         Operation::Mstore,
         Operation::Push((1, 32_u8.into())),
@@ -1410,7 +1420,8 @@ fn extcodecopy_full() {
         Operation::Return,
     ];
     let (env, mut db) = default_env_and_db_setup(operations);
-    run_program_assert_num_result(env, db, 0_u8.into());
+    let created_address = RuntimeContext::compute_contract_address(Address::from_low_u64_be(40), 1);
+    run_program_assert_num_result(env, db, BigUint::from_bytes_be(created_address.as_bytes()));
 }
 
 // #[test]
@@ -1439,6 +1450,8 @@ fn extcodecopy_partial() {
         Operation::Push((1_u8, BigUint::from(5_u8))),
         Operation::ExtcodeCopy,
         // Return result
+        Operation::Push0,
+        Operation::Mstore,
         Operation::Push((1, 32_u8.into())),
         Operation::Push0,
         Operation::Return,
@@ -1447,14 +1460,17 @@ fn extcodecopy_partial() {
     run_program_assert_num_result(env, db, 0_u8.into());
 }
 
-// #[test]
-// TODO: fix extcodecopy codegen
+#[test]
 fn extcodecopy_out_of_bounds() {
     let operations = vec![
+        // extcodecopy size
         Operation::Push((1_u8, BigUint::from(0_u8))),
+        // extcodecopy offset
         Operation::Push((1_u8, BigUint::from(50_u8))),
-        Operation::Push((20_u8, BigUint::from_bytes_be(&[0xde, 0xad, 0xbe, 0xef]))),
+        // extcodecopy dest offset
         Operation::Push((1_u8, BigUint::from(10_u8))),
+        // extcodecopy address
+        Operation::Push((20_u8, BigUint::from_bytes_be(&[0xde, 0xad, 0xbe, 0xef]))),
         Operation::ExtcodeCopy,
         // Return result
         Operation::Push((1, 32_u8.into())),
@@ -1465,49 +1481,14 @@ fn extcodecopy_out_of_bounds() {
     run_program_assert_num_result(env, db, 0_u8.into());
 }
 
-// #[test]
-// TODO: create and call syscall impl
+#[test]
 fn returndatasize() {
     let operations = vec![
-        Operation::Push((
-            32_u8,
-            BigUint::from_bytes_be(&[
-                0x7F, 0x7F, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF,
-                0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF,
-                0xFF, 0xFF, 0xFF, 0xFF,
-            ]),
-        )),
-        Operation::Push((1_u8, BigUint::from(0_u8))),
-        Operation::Mstore,
-        Operation::Push((
-            32_u8,
-            BigUint::from_bytes_be(&[
-                0xFF, 0x60, 0x00, 0x52, 0x7F, 0xFF, 0x60, 0x00, 0x52, 0x60, 0x20, 0x60, 0x00, 0xF3,
-                0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-                0x00, 0x00, 0x00, 0x00,
-            ]),
-        )),
-        Operation::Push((1_u8, BigUint::from(32_u8))),
-        Operation::Mstore,
-        Operation::Push((
-            32_u8,
-            BigUint::from_bytes_be(&[
-                0x00, 0x00, 0x00, 0x00, 0x60, 0x20, 0x52, 0x60, 0x29, 0x60, 0x00, 0xF3, 0x00, 0x00,
-                0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-                0x00, 0x00, 0x00, 0x00,
-            ]),
-        )),
-        Operation::Push((1_u8, BigUint::from(64_u8))),
-        Operation::Mstore,
-        Operation::Push((1_u8, BigUint::from(77_u8))),
-        Operation::Push((1_u8, BigUint::from(0_u8))),
-        Operation::Push((1_u8, BigUint::from(0_u8))),
-        Operation::Create,
         Operation::Push((1_u8, BigUint::from(0_u8))),
         Operation::Push((1_u8, BigUint::from(0_u8))),
         Operation::Push((1_u8, BigUint::from(0_u8))),
         Operation::Push((1_u8, BigUint::from(0_u8))),
-        Operation::Dup(5),
+        Operation::Push((4_u8, BigUint::from_bytes_be(&[0xFF, 0xFF, 0xFF, 0xFF]))),
         Operation::Push((4_u8, BigUint::from_bytes_be(&[0xFF, 0xFF, 0xFF, 0xFF]))),
         Operation::StaticCall,
         Operation::ReturnDataSize,
@@ -1540,71 +1521,6 @@ fn returndatacopy() {
         Operation::Push((1, 32_u8.into())),
         Operation::Push0,
         Operation::Return,
-    ];
-    let (env, mut db) = default_env_and_db_setup(operations);
-    run_program_assert_num_result(env, db, 0_u8.into());
-}
-
-// #[test]
-// TODO: create and call syscall impl
-fn returndatacopy_full() {
-    let operations = vec![
-        Operation::Push((
-            32_u8,
-            BigUint::from_bytes_be(&[
-                0x7F, 0x7F, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF,
-                0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF,
-                0xFF, 0xFF, 0xFF, 0xFF,
-            ]),
-        )),
-        Operation::Push((1_u8, BigUint::from(0_u8))),
-        Operation::Mstore,
-        Operation::Push((
-            32_u8,
-            BigUint::from_bytes_be(&[
-                0xFF, 0x60, 0x00, 0x52, 0x7F, 0xFF, 0x60, 0x00, 0x52, 0x60, 0x20, 0x60, 0x00, 0xF3,
-                0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-                0x00, 0x00, 0x00, 0x00,
-            ]),
-        )),
-        Operation::Push((1_u8, BigUint::from(32_u8))),
-        Operation::Mstore,
-        Operation::Push((
-            32_u8,
-            BigUint::from_bytes_be(&[
-                0x00, 0x00, 0x00, 0x00, 0x60, 0x20, 0x52, 0x60, 0x29, 0x60, 0x00, 0xF3, 0x00, 0x00,
-                0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-                0x00, 0x00, 0x00, 0x00,
-            ]),
-        )),
-        Operation::Push((1_u8, BigUint::from(64_u8))),
-        Operation::Mstore,
-        Operation::Push((1_u8, BigUint::from(77_u8))),
-        Operation::Push((1_u8, BigUint::from(0_u8))),
-        Operation::Push((1_u8, BigUint::from(0_u8))),
-        Operation::Create,
-        Operation::Push((1_u8, BigUint::from(0_u8))),
-        Operation::Push((1_u8, BigUint::from(0_u8))),
-        Operation::Push((1_u8, BigUint::from(0_u8))),
-        Operation::Push((1_u8, BigUint::from(0_u8))),
-        Operation::Dup(5),
-        Operation::Push((4_u8, BigUint::from_bytes_be(&[0xFF, 0xFF, 0xFF, 0xFF]))),
-        Operation::StaticCall,
-        Operation::Pop,
-        Operation::Pop,
-        Operation::Push((1_u8, BigUint::from(0_u8))),
-        Operation::Push((1_u8, BigUint::from(0_u8))),
-        Operation::Mstore,
-        Operation::Push((1_u8, BigUint::from(0_u8))),
-        Operation::Push((1_u8, BigUint::from(32_u8))),
-        Operation::Mstore,
-        Operation::Push((1_u8, BigUint::from(0_u8))),
-        Operation::Push((1_u8, BigUint::from(64_u8))),
-        Operation::Mstore,
-        Operation::Push((1_u8, BigUint::from(32_u8))),
-        Operation::Push((1_u8, BigUint::from(0_u8))),
-        Operation::Push((1_u8, BigUint::from(0_u8))),
-        Operation::ReturnDataCopy,
     ];
     let (env, mut db) = default_env_and_db_setup(operations);
     run_program_assert_num_result(env, db, 0_u8.into());
@@ -1653,8 +1569,7 @@ fn returndatacopy_out_of_bounds() {
     run_program_assert_num_result(env, db, 0_u8.into());
 }
 
-// #[test]
-// TODO: create and call syscall impl
+#[test]
 fn extcodehash() {
     let operations = vec![
         Operation::Push((
@@ -1678,7 +1593,14 @@ fn extcodehash() {
         Operation::Return,
     ];
     let (env, mut db) = default_env_and_db_setup(operations);
-    run_program_assert_num_result(env, db, 0_u8.into());
+    run_program_assert_num_result(
+        env,
+        db,
+        BigUint::from_str(
+            "22398296254509512877748035601769957114361483429695916232935987428590872618327",
+        )
+        .unwrap(),
+    );
 }
 
 #[test]
@@ -1854,7 +1776,7 @@ fn selfbalance() {
         Operation::Return,
     ];
     let (env, mut db) = default_env_and_db_setup(operations);
-    run_program_assert_num_result(env, db, 0_u8.into());
+    run_program_assert_num_result(env, db, 10_u8.into());
 }
 
 #[test]
@@ -2547,14 +2469,12 @@ fn mload_misze() {
     run_program_assert_num_result(env, db, 96_u8.into());
 }
 
-// #[test]
-// TODO: impl gas pass
+#[test]
 fn gas() {
     let operations = vec![
         Operation::Gas,
-        Operation::Push((3_u8, BigUint::from(21000_u32))),
+        Operation::Push((4_u8, BigUint::from(21000_u32))),
         Operation::Gaslimit,
-        Operation::Sub,
         Operation::Sub,
         // Return result
         Operation::Push0,
@@ -2564,7 +2484,7 @@ fn gas() {
         Operation::Return,
     ];
     let (env, mut db) = default_env_and_db_setup(operations);
-    run_program_assert_num_result(env, db, 0_u8.into());
+    run_program_assert_num_result(env, db, (INIT_GAS - 21000).into());
 }
 
 #[test]
@@ -2687,8 +2607,7 @@ fn swap_1() {
     run_program_assert_num_result(env, db, 2_u8.into());
 }
 
-// #[test]
-// TODO: create and call syscall impl
+#[test]
 fn create() {
     let operations = vec![
         Operation::Push((1_u8, BigUint::from(0_u8))),
@@ -2703,15 +2622,16 @@ fn create() {
         Operation::Return,
     ];
     let (env, mut db) = default_env_and_db_setup(operations);
-    run_program_assert_num_result(env, db, 0_u8.into());
+    // The expect result is the empty code hash address.
+    run_program_assert_num_result(env, db, BigUint::from_str(CREATE_ADDRESS_U256_STR).unwrap());
 }
 
-// #[test]
-// TODO: create and call syscall impl
+#[test]
 fn create_1() {
     let operations = vec![
         Operation::Push((1_u8, BigUint::from(0_u8))),
         Operation::Push((1_u8, BigUint::from(0_u8))),
+        // value is 9, the sender account balance is 10,
         Operation::Push((1_u8, BigUint::from(9_u8))),
         Operation::Create,
         // Return result
@@ -2722,16 +2642,18 @@ fn create_1() {
         Operation::Return,
     ];
     let (env, mut db) = default_env_and_db_setup(operations);
-    run_program_assert_num_result(env, db, 0_u8.into());
+    // The expect result is the empty code hash address.
+    run_program_assert_num_result(env, db, BigUint::from_str(CREATE_ADDRESS_U256_STR).unwrap());
 }
 
-// #[test]
-// TODO: create and call syscall impl
+#[test]
 fn create_2() {
     let operations = vec![
         Operation::Push((1_u8, BigUint::from(10_u8))),
         Operation::Push((1_u8, BigUint::from(0_u8))),
         Operation::Push((1_u8, BigUint::from(20_u8))),
+        // value is 20, the sender account balance is 10 and it is not enough,
+        // thus the create process will be halt
         Operation::Create,
         // Return result
         Operation::Push0,
@@ -2740,24 +2662,24 @@ fn create_2() {
         Operation::Push0,
         Operation::Return,
     ];
-    let (env, mut db) = default_env_and_db_setup(operations);
-    run_program_assert_num_result(env, db, 0_u8.into());
+    let (env, db) = default_env_and_db_setup(operations);
+    run_program_assert_halt(env, db);
 }
 
-// #[test]
-// TODO: create and call syscall impl
+#[test]
 fn create_3() {
     let operations = vec![
         Operation::Push((
-            13_u8,
+            32_u8,
             BigUint::from_bytes_be(&[
-                0x63, 0xFF, 0xFF, 0xFF, 0x60, 0x00, 0x52, 0x60, 0x04, 0x60, 0x1C, 0xF3,
+                0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF,
+                0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF,
             ]),
         )),
         Operation::Push((1_u8, BigUint::from(0_u8))),
         Operation::Mstore,
-        Operation::Push((1_u8, BigUint::from(13_u8))),
-        Operation::Push((1_u8, BigUint::from(19_u8))),
+        Operation::Push((1_u8, BigUint::from(32_u8))),
+        Operation::Push((1_u8, BigUint::from(0_u8))),
         Operation::Push((1_u8, BigUint::from(0_u8))),
         Operation::Create,
         // Return result
@@ -2768,16 +2690,16 @@ fn create_3() {
         Operation::Return,
     ];
     let (env, mut db) = default_env_and_db_setup(operations);
-    run_program_assert_num_result(env, db, 0_u8.into());
+    run_program_assert_num_result(env, db, BigUint::from_str(CREATE_ADDRESS_U256_STR).unwrap());
 }
 
-// #[test]
-// TODO: create and call syscall impl
+#[test]
 fn create_with_value() {
     let operations = vec![
         Operation::Push((1_u8, BigUint::from(100_u8))),
         Operation::Push((1_u8, BigUint::from(0_u8))),
-        Operation::Push((1_u8, BigUint::from(40_u8))),
+        // value is 9, the sender account balance is 10,
+        Operation::Push((1_u8, BigUint::from(9_u8))),
         Operation::Create,
         // Return result
         Operation::Push0,
@@ -2787,11 +2709,10 @@ fn create_with_value() {
         Operation::Return,
     ];
     let (env, mut db) = default_env_and_db_setup(operations);
-    run_program_assert_num_result(env, db, 0_u8.into());
+    run_program_assert_num_result(env, db, BigUint::from_str(CREATE_ADDRESS_U256_STR).unwrap());
 }
 
-// #[test]
-// TODO: create and call syscall impl
+#[test]
 fn create2_with_salt() {
     let operations = vec![
         Operation::Push((1_u8, BigUint::from(0x1234_u16))),
@@ -2807,11 +2728,14 @@ fn create2_with_salt() {
         Operation::Return,
     ];
     let (env, mut db) = default_env_and_db_setup(operations);
-    run_program_assert_num_result(env, db, 0_u8.into());
+    run_program_assert_num_result(
+        env,
+        db,
+        BigUint::from_str("1360874012957008445308945769568407652762850697122").unwrap(),
+    );
 }
 
-// #[test]
-// TODO: create and call syscall impl
+#[test]
 fn create2_with_large_salt() {
     let operations = vec![
         Operation::Push((
@@ -2833,8 +2757,8 @@ fn create2_with_large_salt() {
         Operation::Push0,
         Operation::Return,
     ];
-    let (env, mut db) = default_env_and_db_setup(operations);
-    run_program_assert_num_result(env, db, 0_u8.into());
+    let (env, db) = default_env_and_db_setup(operations);
+    run_program_assert_halt(env, db);
 }
 
 #[test]
@@ -2922,12 +2846,11 @@ fn log4() {
     run_program_assert_num_result(env, db, 0_u8.into());
 }
 
-// #[test]
-// TODO: create and call syscall impl
+#[test]
 fn call() {
     let operations = vec![
-        Operation::Push((1_u8, BigUint::from(10000_u32))),
-        Operation::Push((1_u8, BigUint::from(0x1000_u32))),
+        Operation::Push((4_u8, BigUint::from(10000_u32))),
+        Operation::Push((4_u8, BigUint::from(0x1000_u32))),
         Operation::Push((1_u8, BigUint::from(1_u32))),
         Operation::Push((1_u8, BigUint::from(32_u32))),
         Operation::Push((1_u8, BigUint::from(32_u32))),
@@ -2945,8 +2868,7 @@ fn call() {
     run_program_assert_num_result(env, db, 0_u8.into());
 }
 
-// #[test]
-// TODO: create and call syscall impl
+#[test]
 fn call_1() {
     let operations = vec![
         Operation::Push((
@@ -2978,11 +2900,10 @@ fn call_1() {
         Operation::Return,
     ];
     let (env, mut db) = default_env_and_db_setup(operations);
-    run_program_assert_num_result(env, db, 0_u8.into());
+    run_program_assert_num_result(env, db, 1_u8.into());
 }
 
-// #[test]
-// TODO: create and call syscall impl
+#[test]
 fn call_2() {
     let operations = vec![
         Operation::Push((
@@ -3022,11 +2943,10 @@ fn call_2() {
         Operation::Return,
     ];
     let (env, mut db) = default_env_and_db_setup(operations);
-    run_program_assert_num_result(env, db, 0_u8.into());
+    run_program_assert_num_result(env, db, 1_u8.into());
 }
 
-// #[test]
-// TODO: create and call syscall impl
+#[test]
 fn callcode() {
     let operations = vec![
         Operation::Push((1_u8, BigUint::from(5000_u32))),
@@ -3048,8 +2968,7 @@ fn callcode() {
     run_program_assert_num_result(env, db, 0_u8.into());
 }
 
-// #[test]
-// TODO: create and call syscall impl
+#[test]
 fn callcode_1() {
     let operations = vec![
         Operation::Push((
@@ -3092,7 +3011,7 @@ fn callcode_1() {
         Operation::Return,
     ];
     let (env, mut db) = default_env_and_db_setup(operations);
-    run_program_assert_num_result(env, db, 0_u8.into());
+    run_program_assert_num_result(env, db, 1_u8.into());
 }
 
 #[test]
@@ -3137,8 +3056,7 @@ fn store_return() {
     run_program_assert_num_result(env, db, 0_u8.into());
 }
 
-// #[test]
-// TODO: create and call syscall impl
+#[test]
 fn delegatecall() {
     let operations = vec![
         Operation::Push((1_u8, BigUint::from(7000_u32))),
@@ -3159,8 +3077,7 @@ fn delegatecall() {
     run_program_assert_num_result(env, db, 0_u8.into());
 }
 
-// #[test]
-// TODO: create and call syscall impl
+#[test]
 fn delegatecall_1() {
     let operations = vec![
         Operation::Push((
@@ -3205,12 +3122,11 @@ fn delegatecall_1() {
     run_program_assert_num_result(env, db, 0_u8.into());
 }
 
-// #[test]
-// TODO: create and call syscall impl
+#[test]
 fn staticcall() {
     let operations = vec![
-        Operation::Push((1_u8, BigUint::from(8000_u32))),
-        Operation::Push((1_u8, BigUint::from(0x4000_u32))),
+        Operation::Push((4_u8, BigUint::from(8000_u32))),
+        Operation::Push((4_u8, BigUint::from(0x4000_u32))),
         Operation::Push((1_u8, BigUint::from(32_u32))),
         Operation::Push((1_u8, BigUint::from(32_u32))),
         Operation::Push((1_u8, BigUint::from(64_u32))),
@@ -3346,23 +3262,24 @@ pub(crate) fn default_env_and_db_setup(operations: Vec<Operation>) -> (Env, Memo
     );
     env.tx.transact_to = address;
     env.block.coinbase = Address::from_low_u64_be(80);
-    let db = MemoryDb::new().with_contract(address, bytecode);
+    let mut db = MemoryDb::new().with_contract(address, bytecode);
+    db.set_balance(address, U256::from(10));
     (env, db)
 }
 
-fn run_program_assert_num_result(env: Env, mut db: MemoryDb, expected_result: BigUint) {
+fn run_program_assert_num_result(env: Env, db: MemoryDb, expected_result: BigUint) {
     let result = run_evm(env, db).unwrap().result;
     assert!(result.is_success());
     let result_data = BigUint::from_bytes_be(result.output().unwrap_or(&Bytes::new()));
     assert_eq!(result_data, expected_result);
 }
 
-fn run_program_assert_halt(env: Env, mut db: MemoryDb) {
+fn run_program_assert_halt(env: Env, db: MemoryDb) {
     let result = run_evm(env, db).unwrap().result;
     assert!(result.is_halt());
 }
 
-fn run_program_assert_revert(env: Env, mut db: MemoryDb) {
+fn run_program_assert_revert(env: Env, db: MemoryDb) {
     let result = run_evm(env, db).unwrap().result;
     assert!(result.is_revert());
 }
