@@ -430,6 +430,7 @@ impl RuntimeContext {
                 };
 
                 let host = self.host.read().unwrap();
+                let caller = host.env().tx.caller;
                 let caller_address = host.env().tx.get_address();
                 let caller_account = self
                     .journal
@@ -471,30 +472,31 @@ impl RuntimeContext {
                 let this_address = host.env().tx.get_address();
                 let (new_frame_caller, new_value, transact_to) = match call_type {
                     CallType::Call | CallType::StaticCall => {
-                        (this_address, value_to_transfer, callee_address)
+                        (this_address, value_to_transfer.to_u256(), callee_address)
                     }
-                    CallType::CallCode => (this_address, value_to_transfer, this_address),
+                    CallType::CallCode => (this_address, value_to_transfer.to_u256(), this_address),
                     CallType::DelegateCall => (
                         self.call_frame.caller,
-                        Bytes32::from_u256_ref(&host.env().tx.value),
+                        Bytes32::from_u256_ref(&host.env().tx.value).to_u256(),
                         this_address,
                     ),
                 };
-                let new_host = self.host.clone();
-                let mut new_host_ref = new_host.write().unwrap();
-                let new_env = new_host_ref.env_mut();
-                new_env.tx.value = *new_value.as_u256();
+                drop(host);
+                let host = self.host.clone();
+                let mut host_ref = host.write().unwrap();
+                let new_env = host_ref.env_mut();
+                new_env.tx.value = new_value;
                 new_env.tx.transact_to = transact_to;
                 new_env.tx.gas_limit = gas_to_send;
-                new_env.tx.caller = host.env().tx.caller;
+                new_env.tx.caller = caller;
                 let off = args_offset as usize;
                 let size = args_size as usize;
                 new_env.tx.data = Bytes::from(self.inner_context.memory[off..off + size].to_vec());
-                drop(new_host_ref);
+                drop(host_ref);
 
                 let journal = self.journal.eject_base();
                 let call_frame = CallFrame::new(new_frame_caller);
-                let mut ctx = Self::new(journal, call_frame, self.transaction.clone(), new_host);
+                let mut ctx = Self::new(journal, call_frame, self.transaction.clone(), host);
 
                 let result = self.transaction.run(&mut ctx, gas_to_send).unwrap().result;
 
@@ -913,31 +915,24 @@ impl RuntimeContext {
         *address = Bytes32::from_be_bytes(hash.to_fixed_bytes());
     }
 
-    fn create_aux(
+    pub fn create_contract(
         &mut self,
-        size: u32,
-        offset: u32,
-        value: &mut Bytes32,
+        bytecode: &[u8],
         remaining_gas: &mut u64,
+        value: U256,
         salt: Option<&Bytes32>,
-    ) -> u8 {
-        let value_as_u256 = value.to_u256();
-        let offset = offset as usize;
-        let size = size as usize;
+    ) -> Option<Address> {
+        let host = self.host.read().unwrap();
+        let size = bytecode.len();
         let minimum_word_size = ((size + 31) / 32) as u64;
-        let sender_address = self.host.read().unwrap().env().tx.get_address();
-
-        let initialization_bytecode = &self.inner_context.memory[offset..offset + size];
+        let sender_address = host.env().tx.get_address();
+        let caller = host.env().tx.caller;
         let db = &mut self.journal.db;
-        let sender_account = db.basic(sender_address).unwrap().unwrap();
+        let sender_account = db.basic(sender_address).unwrap().unwrap_or_default();
 
         let (dest_addr, hash_cost) = match salt {
             Some(s) => (
-                Self::compute_contract_address2(
-                    sender_address,
-                    s.to_u256(),
-                    initialization_bytecode,
-                ),
+                Self::compute_contract_address2(sender_address, s.to_u256(), bytecode),
                 minimum_word_size * gas_cost::HASH_WORD_COST as u64,
             ),
             _ => (
@@ -945,32 +940,30 @@ impl RuntimeContext {
                 0,
             ),
         };
-
         // Check if there is already a contract stored in dest_address
         if let Ok(Some(_)) = db.basic(dest_addr) {
-            return 1;
+            return None;
         }
-
-        // Create subcontext for the initialization code
+        drop(host);
+        // Create sub context for the initialization code
         // TODO: Add call depth check
-        let new_host = self.host.clone();
-        let mut new_host_ref = new_host.write().unwrap();
-        let new_env = new_host_ref.env_mut();
+        let host = self.host.clone();
+        let mut host_ref = host.write().unwrap();
+        let new_env = host_ref.env_mut();
         new_env.tx.transact_to = dest_addr;
         new_env.tx.gas_limit = *remaining_gas;
-        new_env.tx.caller = self.host.read().unwrap().env().tx.caller;
-        drop(new_host_ref);
-        let code = initialization_bytecode.to_vec();
+        new_env.tx.caller = caller;
+        drop(host_ref);
+        let code = bytecode.to_vec();
         let journal = Journal::new(db.clone().with_contract(dest_addr, code.into()));
         let call_frame = CallFrame::new(sender_address);
-        let mut ctx = Self::new(journal, call_frame, self.transaction.clone(), new_host);
+        let mut ctx = Self::new(journal, call_frame, self.transaction.clone(), host);
         let result = self
             .transaction
             .run(&mut ctx, *remaining_gas)
             .unwrap()
             .result;
         let bytecode = result.output().cloned().unwrap_or_default();
-
         // Set the gas cost
         let init_code_cost = minimum_word_size * gas_cost::INIT_WORD_COST as u64;
         let code_deposit_cost = (bytecode.len() as u64) * gas_cost::BYTE_DEPOSIT_COST as u64;
@@ -979,13 +972,10 @@ impl RuntimeContext {
         *remaining_gas = gas_cost;
 
         // Check if balance is enough
-        let Some(sender_balance) = sender_account.balance.checked_sub(value_as_u256) else {
-            *value = Bytes32::from_u256(U256::ZERO);
-            return 0;
-        };
+        let sender_balance = sender_account.balance.checked_sub(value)?;
 
         // Create new contract and update sender account
-        db.insert_contract(dest_addr, bytecode, value_as_u256);
+        db.insert_contract(dest_addr, bytecode, value);
         db.set_account(
             sender_address,
             sender_account.nonce + 1,
@@ -993,10 +983,29 @@ impl RuntimeContext {
             Default::default(),
         );
 
-        value.copy_from(&dest_addr);
-
         // TODO: add dest_addr as warm in the access list
-        0
+        Some(dest_addr)
+    }
+
+    fn create_aux(
+        &mut self,
+        size: u32,
+        offset: u32,
+        value: &mut Bytes32,
+        remaining_gas: &mut u64,
+        salt: Option<&Bytes32>,
+    ) -> u8 {
+        let offset = offset as usize;
+        let size = size as usize;
+        let bytecode = self.inner_context.memory[offset..offset + size].to_vec();
+        let value_u256 = value.to_u256();
+        match self.create_contract(&bytecode, remaining_gas, value_u256, salt) {
+            Some(addr) => {
+                value.copy_from(&addr);
+                0
+            }
+            None => 1,
+        }
     }
 
     pub extern "C" fn create(

@@ -21,7 +21,7 @@ pub trait Database {
     /// # Returns:
     /// - `Result<Option<AccountInfo>, Self::Error>`: A `Result` containing either an `Option` with the `AccountInfo`
     ///   or an error if the query fails. The `Option` will be `None` if the account does not exist.
-    fn basic(&mut self, address: Address) -> Result<Option<AccountInfo>, Self::Error>;
+    fn basic(&self, address: Address) -> Result<Option<AccountInfo>, Self::Error>;
 
     /// Retrieves the contract bytecode for a given code hash.
     ///
@@ -31,7 +31,7 @@ pub trait Database {
     /// # Returns:
     /// - `Result<Bytecode, Self::Error>`: A `Result` containing either the `Bytecode` associated with the hash
     ///   or an error if the query fails.
-    fn code_by_hash(&mut self, code_hash: B256) -> Result<Bytecode, Self::Error>;
+    fn code_by_hash(&self, code_hash: B256) -> Result<Bytecode, Self::Error>;
 
     /// Retrieves a storage value for a given account address and storage index.
     ///
@@ -42,7 +42,7 @@ pub trait Database {
     /// # Returns:
     /// - `Result<U256, Self::Error>`: A `Result` containing either the `U256` value stored at the given index
     ///   or an error if the query fails.
-    fn storage(&mut self, address: Address, index: U256) -> Result<U256, Self::Error>;
+    fn storage(&self, address: Address, index: U256) -> Result<U256, Self::Error>;
 
     /// Retrieves the block hash for a given block number.
     ///
@@ -52,7 +52,7 @@ pub trait Database {
     /// # Returns:
     /// - `Result<B256, Self::Error>`: A `Result` containing either the `B256` hash of the block
     ///   or an error if the query fails.
-    fn block_hash(&mut self, number: U256) -> Result<B256, Self::Error>;
+    fn block_hash(&self, number: U256) -> Result<B256, Self::Error>;
 
     /// Retrieves the contract bytecode for a given address by first fetching the account information
     /// and then querying the code hash or fetching the code directly.
@@ -67,7 +67,7 @@ pub trait Database {
     /// # Default Implementation:
     /// - The method fetches the account information, retrieves the code either from the account or by querying the code hash,
     ///   and returns it. If no code is found, an empty bytecode is returned.
-    fn code_by_address(&mut self, address: Address) -> Result<Bytecode, Self::Error> {
+    fn code_by_address(&self, address: Address) -> Result<Bytecode, Self::Error> {
         let code = self
             .basic(address)?
             .and_then(|acc| acc.code.or_else(|| self.code_by_hash(acc.code_hash).ok()))
@@ -486,19 +486,19 @@ impl MemoryDb {
 impl Database for MemoryDb {
     type Error = Infallible;
 
-    fn basic(&mut self, address: Address) -> Result<Option<AccountInfo>, Self::Error> {
+    fn basic(&self, address: Address) -> Result<Option<AccountInfo>, Self::Error> {
         Ok(self.accounts.get(&address).cloned().map(AccountInfo::from))
     }
 
-    fn code_by_hash(&mut self, code_hash: B256) -> Result<Bytecode, Self::Error> {
+    fn code_by_hash(&self, code_hash: B256) -> Result<Bytecode, Self::Error> {
         Ok(self.contracts.get(&code_hash).cloned().unwrap_or_default())
     }
 
-    fn storage(&mut self, address: Address, index: U256) -> Result<U256, Self::Error> {
+    fn storage(&self, address: Address, index: U256) -> Result<U256, Self::Error> {
         Ok(self.read_storage(address, index))
     }
 
-    fn block_hash(&mut self, number: U256) -> Result<B256, Self::Error> {
+    fn block_hash(&self, number: U256) -> Result<B256, Self::Error> {
         Ok(self.block_hashes.get(&number).cloned().unwrap_or_default())
     }
 }
