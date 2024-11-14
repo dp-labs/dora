@@ -1,8 +1,10 @@
 //! Tools for running [ethertest](https://github.com/ethereum/tests.git)
 //! We can clone the git repo to local and use the tool to run the test
+//! in the dora-tools folder
 //! e.g.,
 //! ```shell
 //! git clone https://github.com/ethereum/tests.git
+//! cargo install --path .
 //! dora-ethertest run tests/GeneralStateTests
 //! ```
 use anyhow::Result;

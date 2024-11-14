@@ -1163,10 +1163,10 @@ impl RuntimeContext {
             // Global variables and syscalls with corresponding function signatures
             let symbols_and_signatures: &[SymbolSignature] = &[
                 // Global variables
-                // (
-                //     symbols::CTX_IS_STATIC,
-                //     &self.call_frame.ctx_is_static as *const bool as *const _,
-                // ),
+                (
+                    symbols::CTX_IS_STATIC,
+                    &self.call_frame.ctx_is_static as *const bool as *const _,
+                ),
                 (
                     symbols::DEBUG_PRINT,
                     RuntimeContext::debug_print as *const _,

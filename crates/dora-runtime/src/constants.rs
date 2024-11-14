@@ -6,6 +6,7 @@ pub const MAX_STACK_SIZE: usize = 1024;
 pub const GAS_COUNTER_GLOBAL: &str = "dora_gas_counter";
 pub const CODE_PTR_GLOBAL: &str = "dora_code_ptr";
 pub const STACK_PTR_GLOBAL: &str = "dora_stack_ptr";
+pub const STACK_SIZE_GLOBAL: &str = "dora_stack_length";
 pub const MEMORY_PTR_GLOBAL: &str = "dora_memory_ptr";
 pub const MEMORY_SIZE_GLOBAL: &str = "dora_memory_size";
 pub const CALLDATA_PTR_GLOBAL: &str = "dora_calldata_ptr";

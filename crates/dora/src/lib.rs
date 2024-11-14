@@ -19,10 +19,7 @@ use dora_runtime::journal::Journal;
 use dora_runtime::result::ResultAndState;
 use dora_runtime::{context::CallFrame, env::Env};
 use dora_runtime::{context::RuntimeContext, host::DummyHost};
-use std::{
-    hint::black_box,
-    sync::{Arc, RwLock},
-};
+use std::sync::{Arc, RwLock};
 
 /// Run the EVM environment with the given state database and return the execution result and final state.
 ///
@@ -208,6 +205,6 @@ pub fn run_evm_program(
         Arc::new(RwLock::new(DummyHost::new(env))),
     );
     let executor = Executor::new(module.module(), &context, Default::default());
-    black_box(executor.execute(black_box(&mut context), black_box(initial_gas)));
+    executor.execute(&mut context, initial_gas);
     context.get_result().map_err(|e| anyhow::anyhow!(e))
 }
