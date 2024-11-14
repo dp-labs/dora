@@ -218,7 +218,7 @@ fn execute_test(path: &Path) -> Result<(), TestError> {
         kind: e.into(),
     })?;
 
-    for (suite_name, suite) in suite.0 {
+    for (_, suite) in suite.0 {
         // NOTE: currently we only support Cancun spec
         let Some(tests) = suite.post.get(&SpecName::Cancun) else {
             continue;
@@ -240,7 +240,7 @@ fn execute_test(path: &Path) -> Result<(), TestError> {
                 .unwrap()
                 .clone()
                 .0;
-            info!("testing {:?} suite {:?}", name, suite_name);
+            info!("testing {:?} index {:?}", name, test_case.indexes);
             // Mapping access list
             let access_list = suite
                 .transaction

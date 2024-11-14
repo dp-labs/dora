@@ -8,6 +8,7 @@ use crate::{
     result::{EVMError, ExecutionResult, HaltReason, Output, ResultAndState, SuccessReason},
 };
 use crate::{symbols, ExitStatusCode};
+use anyhow::bail;
 use bytes::Bytes;
 use dora_primitives::db::Database;
 use dora_primitives::transaction::Transaction;
@@ -91,6 +92,7 @@ pub struct InnerContext {
 #[derive(Debug, Default)]
 pub struct CallFrame {
     pub caller: Address,
+    ctx_is_static: bool,
     last_call_return_data: Vec<u8>,
 }
 
@@ -98,6 +100,7 @@ impl CallFrame {
     pub fn new(caller: Address) -> Self {
         Self {
             caller,
+            ctx_is_static: false,
             last_call_return_data: Vec::new(),
         }
     }
@@ -301,7 +304,7 @@ impl RuntimeContext {
                 gas_refunded,
                 output: Output::Call(return_values.into()),
             },
-            ExitStatusCode::Stop => ExecutionResult::Success {
+            ExitStatusCode::Stop | ExitStatusCode::Default => ExecutionResult::Success {
                 reason: SuccessReason::Stop,
                 gas_used,
                 gas_refunded,
@@ -311,7 +314,7 @@ impl RuntimeContext {
                 output: return_values.into(),
                 gas_used,
             },
-            ExitStatusCode::Error | ExitStatusCode::Default => ExecutionResult::Halt {
+            ExitStatusCode::Error => ExecutionResult::Halt {
                 reason: HaltReason::OpcodeNotFound,
                 gas_used,
             },
@@ -495,7 +498,12 @@ impl RuntimeContext {
                 drop(host_ref);
 
                 let journal = self.journal.eject_base();
-                let call_frame = CallFrame::new(new_frame_caller);
+                let is_static = self.call_frame.ctx_is_static || call_type == CallType::StaticCall;
+                let call_frame = CallFrame {
+                    caller: new_frame_caller,
+                    ctx_is_static: is_static,
+                    ..Default::default()
+                };
                 let mut ctx = Self::new(journal, call_frame, self.transaction.clone(), host);
                 let result = self.transaction.run(&mut ctx, gas_to_send).unwrap().result;
                 let unused_gas = gas_to_send - result.gas_used();
@@ -918,14 +926,18 @@ impl RuntimeContext {
         remaining_gas: &mut u64,
         value: U256,
         salt: Option<&Bytes32>,
-    ) -> Option<Address> {
+    ) -> anyhow::Result<Address> {
         let host = self.host.read().unwrap();
         let size = bytecode.len();
         let minimum_word_size = ((size + 31) / 32) as u64;
         let sender_address = host.env().tx.get_address();
         let caller = host.env().tx.caller;
-        let db = &mut self.journal.db;
-        let sender_account = db.basic(sender_address).unwrap().unwrap_or_default();
+        let sender_account = self
+            .journal
+            .db
+            .basic(sender_address)
+            .unwrap()
+            .unwrap_or_default();
 
         let (dest_addr, hash_cost) = match salt {
             Some(s) => (
@@ -938,8 +950,8 @@ impl RuntimeContext {
             ),
         };
         // Check if there is already a contract stored in dest_address
-        if let Ok(Some(_)) = db.basic(dest_addr) {
-            return None;
+        if let Ok(Some(_)) = self.journal.db.basic(dest_addr) {
+            bail!("account {} already exists", dest_addr);
         }
         drop(host);
         // Create sub context for the initialization code
@@ -952,14 +964,12 @@ impl RuntimeContext {
         new_env.tx.caller = caller;
         drop(host_ref);
         let code = bytecode.to_vec();
-        let journal = Journal::new(db.clone().with_contract(dest_addr, code.into()));
-        let call_frame = CallFrame::new(sender_address);
-        let mut ctx = Self::new(journal, call_frame, self.transaction.clone(), host);
-        let result = self
-            .transaction
-            .run(&mut ctx, *remaining_gas)
-            .unwrap()
-            .result;
+        self.journal
+            .db
+            .insert_contract(dest_addr, code.into(), U256::ZERO);
+        self.call_frame = CallFrame::new(sender_address);
+        let tx = self.transaction.clone();
+        let result = tx.run(self, *remaining_gas).unwrap().result;
         let _output = result.output().cloned().unwrap_or_default();
         // Set the gas cost
         let init_code_cost = minimum_word_size * gas_cost::INIT_WORD_COST as u64;
@@ -969,17 +979,21 @@ impl RuntimeContext {
         *remaining_gas = gas_cost;
 
         // Check if balance is enough
-        let sender_balance = sender_account.balance.checked_sub(value)?;
+        let sender_balance = match sender_account.balance.checked_sub(value) {
+            Some(balance) => balance,
+            None => {
+                return Ok(Address::zero());
+            }
+        };
         // Create new contract and update sender account
-        db.insert_contract(dest_addr, bytecode.to_vec().into(), value);
-        db.set_account(
+        self.journal.db.set_account(
             sender_address,
             sender_account.nonce + 1,
             sender_balance,
             Default::default(),
         );
         // TODO: add dest_addr as warm in the access list
-        Some(dest_addr)
+        Ok(dest_addr)
     }
 
     fn create_aux(
@@ -995,11 +1009,11 @@ impl RuntimeContext {
         let bytecode = self.inner_context.memory[offset..offset + size].to_vec();
         let value_u256 = value.to_u256();
         match self.create_contract(&bytecode, remaining_gas, value_u256, salt) {
-            Some(addr) => {
+            Ok(addr) => {
                 value.copy_from(&addr);
                 0
             }
-            None => 1,
+            Err(_) => 1,
         }
     }
 
@@ -1148,6 +1162,11 @@ impl RuntimeContext {
         unsafe {
             // Global variables and syscalls with corresponding function signatures
             let symbols_and_signatures: &[SymbolSignature] = &[
+                // Global variables
+                // (
+                //     symbols::CTX_IS_STATIC,
+                //     &self.call_frame.ctx_is_static as *const bool as *const _,
+                // ),
                 (
                     symbols::DEBUG_PRINT,
                     RuntimeContext::debug_print as *const _,
