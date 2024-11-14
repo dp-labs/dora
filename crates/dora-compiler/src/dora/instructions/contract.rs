@@ -88,6 +88,14 @@ impl<'c> ConversionPass<'c> {
             result,
             location,
         ))?;
+        // Deferred rewriter is need to be the op generation scope.
+        rewriter.make(llvm::load(
+            context,
+            value_ptr,
+            uint256,
+            location,
+            LoadStoreOptions::default(),
+        ))?;
 
         if let Some(block) = op.block() {
             if let Some(region) = block.parent_region() {
@@ -105,13 +113,6 @@ impl<'c> ConversionPass<'c> {
                                 &[],
                                 location,
                             ));
-                            rewriter.make(llvm::load(
-                                context,
-                                value_ptr,
-                                uint256,
-                                location,
-                                LoadStoreOptions::default(),
-                            ))?;
                         }
                     }
                 }

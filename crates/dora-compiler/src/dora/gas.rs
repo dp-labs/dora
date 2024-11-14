@@ -1090,7 +1090,7 @@ pub mod cost {
             "dora.log3" => gas_cost::LOG3,
             "dora.log4" => gas_cost::LOG4,
             "dora.create" => gas_cost::CREATE,
-            "dora.create_2" => gas_cost::CREATE2,
+            "dora.create2" => gas_cost::CREATE2,
             "dora.call" => gas_cost::CALL,
             "dora.return" => gas_cost::RETURN,
             "dora.staticcall" => gas_cost::STATICCALL,

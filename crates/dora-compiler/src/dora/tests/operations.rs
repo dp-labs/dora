@@ -704,6 +704,41 @@ fn push_extcodesize_nonexistent() {
 }
 
 #[test]
+fn test_create_extcodesize() {
+    assert_snapshot!(vec![
+        Operation::Push((
+            32_u8,
+            BigUint::from_bytes_be(&[
+                0x7F, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF,
+                0xFF, 0xFF,
+            ]),
+        )),
+        Operation::Push((1_u8, BigUint::from(0_u8))),
+        Operation::Mstore,
+        Operation::Push((
+            32_u8,
+            BigUint::from_bytes_be(&[
+                0x7F, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF,
+                0xFF, 0xFF,
+            ]),
+        )),
+        Operation::Push((1_u8, BigUint::from(32_u8))),
+        Operation::Mstore,
+        Operation::Push((1_u8, BigUint::from(41_u8))),
+        Operation::Push((1_u8, BigUint::from(0_u8))),
+        Operation::Push((1_u8, BigUint::from(0_u8))),
+        Operation::Create,
+        Operation::ExtcodeSize,
+        // Return result
+        Operation::Push0,
+        Operation::Mstore,
+        Operation::Push((1, 32_u8.into())),
+        Operation::Push0,
+        Operation::Return,
+    ]);
+}
+
+#[test]
 fn push_mstore_create_extcodecopy() {
     assert_snapshot!(vec![
         Operation::Push((

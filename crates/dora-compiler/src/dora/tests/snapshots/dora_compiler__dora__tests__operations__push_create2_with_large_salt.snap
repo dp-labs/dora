@@ -1,7 +1,6 @@
 ---
 source: crates/dora-compiler/src/dora/tests/operations.rs
 expression: op
-snapshot_kind: text
 ---
 module {
   llvm.mlir.global internal @dora_stack_ptr() {addr_space = 0 : i32} : !llvm.ptr
@@ -69,7 +68,7 @@ module {
     %7 = llvm.mlir.addressof @dora_gas_counter : !llvm.ptr
     llvm.store %arg1, %7 : i64, !llvm.ptr
     cf.br ^bb3
-  ^bb1:  // pred: ^bb2
+  ^bb1:  // 2 preds: ^bb2, ^bb7
     %c0_i32_0 = arith.constant 0 : i32
     %c0_i64 = arith.constant 0 : i64
     %c3_i8 = arith.constant 3 : i8
@@ -132,17 +131,51 @@ module {
     %35 = llvm.getelementptr %34[-1] : (!llvm.ptr) -> !llvm.ptr, i256
     %36 = llvm.load %35 : !llvm.ptr -> i256
     llvm.store %35, %33 : !llvm.ptr, !llvm.ptr
-    %37 = "evm.create2"(%24, %28, %32, %36) : (i256, i256, i256, i256) -> i256
-    %38 = llvm.mlir.addressof @dora_stack_ptr : !llvm.ptr
-    %39 = llvm.load %38 : !llvm.ptr -> !llvm.ptr
-    llvm.store %37, %39 : i256, !llvm.ptr
-    %40 = llvm.getelementptr %39[1] : (!llvm.ptr) -> !llvm.ptr, i256
-    llvm.store %40, %38 : !llvm.ptr, !llvm.ptr
-    cf.br ^bb8
+    %37 = arith.trunci %28 : i256 to i32
+    %38 = arith.trunci %32 : i256 to i32
+    %39 = arith.addi %37, %38 : i32
+    %40 = llvm.mlir.addressof @dora_memory_size : !llvm.ptr
+    %41 = llvm.load %40 : !llvm.ptr -> i32
+    %c31_i32 = arith.constant 31 : i32
+    %c32_i32 = arith.constant 32 : i32
+    %42 = arith.addi %39, %c31_i32 : i32
+    %43 = arith.divui %42, %c32_i32 : i32
+    %44 = arith.muli %43, %c32_i32 : i32
+    %45 = arith.cmpi ult, %41, %44 : i32
+    scf.if %45 {
+      %57 = func.call @dora_extend_memory(%arg0, %44) : (!llvm.ptr, i32) -> !llvm.ptr
+      llvm.store %44, %40 : i32, !llvm.ptr
+      %58 = llvm.mlir.addressof @dora_memory_ptr : !llvm.ptr
+      llvm.store %57, %58 : !llvm.ptr, !llvm.ptr
+    } else {
+    }
+    %c1_i256 = arith.constant 1 : i256
+    %46 = llvm.alloca %c1_i256 x i256 : (i256) -> !llvm.ptr
+    llvm.store %24, %46 {alignment = 1 : i64} : i256, !llvm.ptr
+    %47 = llvm.mlir.addressof @dora_gas_counter : !llvm.ptr
+    %48 = llvm.load %47 : !llvm.ptr -> i64
+    %c1_i64 = arith.constant 1 : i64
+    %49 = llvm.alloca %c1_i64 x i64 : (i64) -> !llvm.ptr
+    llvm.store %48, %49 {alignment = 1 : i64} : i64, !llvm.ptr
+    %c1_i256_1 = arith.constant 1 : i256
+    %50 = llvm.alloca %c1_i256_1 x i256 : (i256) -> !llvm.ptr
+    llvm.store %36, %50 {alignment = 1 : i64} : i256, !llvm.ptr
+    %51 = call @dora_create2(%arg0, %38, %37, %46, %49, %50) : (!llvm.ptr, i32, i32, !llvm.ptr, !llvm.ptr, !llvm.ptr) -> i8
+    %c0_i8 = arith.constant 0 : i8
+    %52 = arith.cmpi eq, %c0_i8, %51 : i8
+    %53 = llvm.load %46 : !llvm.ptr -> i256
+    cf.cond_br %52, ^bb8, ^bb1
   ^bb8:  // pred: ^bb7
-    %c0_i32_1 = arith.constant 0 : i32
+    %54 = llvm.mlir.addressof @dora_stack_ptr : !llvm.ptr
+    %55 = llvm.load %54 : !llvm.ptr -> !llvm.ptr
+    llvm.store %53, %55 : i256, !llvm.ptr
+    %56 = llvm.getelementptr %55[1] : (!llvm.ptr) -> !llvm.ptr, i256
+    llvm.store %56, %54 : !llvm.ptr, !llvm.ptr
+    cf.br ^bb9
+  ^bb9:  // pred: ^bb8
+    %c0_i32_2 = arith.constant 0 : i32
     %c1_i8 = arith.constant 1 : i8
-    call @dora_write_result(%arg0, %c0_i32_1, %c0_i32_1, %arg1, %c1_i8) : (!llvm.ptr, i32, i32, i64, i8) -> ()
+    call @dora_write_result(%arg0, %c0_i32_2, %c0_i32_2, %arg1, %c1_i8) : (!llvm.ptr, i32, i32, i64, i8) -> ()
     return %c1_i8 : i8
   }
 }

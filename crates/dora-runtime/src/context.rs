@@ -497,9 +497,7 @@ impl RuntimeContext {
                 let journal = self.journal.eject_base();
                 let call_frame = CallFrame::new(new_frame_caller);
                 let mut ctx = Self::new(journal, call_frame, self.transaction.clone(), host);
-
                 let result = self.transaction.run(&mut ctx, gas_to_send).unwrap().result;
-
                 let unused_gas = gas_to_send - result.gas_used();
                 *consumed_gas -= unused_gas;
                 *consumed_gas -= result.gas_refunded();
@@ -889,16 +887,15 @@ impl RuntimeContext {
         let code_size = code.len();
         let code_offset = code_offset as usize;
         let dest_offset = dest_offset as usize;
-
+        // Note the IOB error
+        let code_offset = code_offset.min(code_size);
         // Determine the amount of code to copy and perform the copy
         let code_to_copy_size = code_size.saturating_sub(code_offset);
         let code_slice = &code[code_offset..code_offset + code_to_copy_size];
         self.inner_context.memory[dest_offset..dest_offset + code_to_copy_size]
             .copy_from_slice(code_slice);
-
         // Zero-fill the remaining space
-        let padding_size = size as usize - code_to_copy_size;
-        if padding_size > 0 {
+        if size as usize > code_to_copy_size {
             self.inner_context.memory[dest_offset + code_to_copy_size..dest_offset + size as usize]
                 .fill(0);
         }
@@ -946,7 +943,7 @@ impl RuntimeContext {
         }
         drop(host);
         // Create sub context for the initialization code
-        // TODO: Add call depth check
+        // TODO: Add call depth 1024 check
         let host = self.host.clone();
         let mut host_ref = host.write().unwrap();
         let new_env = host_ref.env_mut();
@@ -963,7 +960,7 @@ impl RuntimeContext {
             .run(&mut ctx, *remaining_gas)
             .unwrap()
             .result;
-        let bytecode = result.output().cloned().unwrap_or_default();
+        let _output = result.output().cloned().unwrap_or_default();
         // Set the gas cost
         let init_code_cost = minimum_word_size * gas_cost::INIT_WORD_COST as u64;
         let code_deposit_cost = (bytecode.len() as u64) * gas_cost::BYTE_DEPOSIT_COST as u64;
@@ -973,16 +970,14 @@ impl RuntimeContext {
 
         // Check if balance is enough
         let sender_balance = sender_account.balance.checked_sub(value)?;
-
         // Create new contract and update sender account
-        db.insert_contract(dest_addr, bytecode, value);
+        db.insert_contract(dest_addr, bytecode.to_vec().into(), value);
         db.set_account(
             sender_address,
             sender_account.nonce + 1,
             sender_balance,
             Default::default(),
         );
-
         // TODO: add dest_addr as warm in the access list
         Some(dest_addr)
     }

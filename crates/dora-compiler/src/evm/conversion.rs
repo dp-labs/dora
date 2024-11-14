@@ -1,6 +1,7 @@
 use crate::conversion::rewriter::{self, Rewriter};
-use crate::conversion::walker::{self, WalkFn};
+use crate::conversion::walker::walk_operation;
 use crate::errors::Result;
+use crate::value::IntoContextOperation;
 use dora_ir;
 use melior::{
     dialect::DialectHandle,
@@ -63,9 +64,21 @@ impl<'c> ConversionPass<'c> {
     /// This function returns an error if there are issues in retrieving operands or replacing
     /// the operation with the new Dora operations.
     pub(crate) fn run(&mut self, operation: OperationRef<'_, '_>) -> Result<()> {
-        let walk_fn: WalkFn = Box::new(|op: OperationRef<'_, '_>| {
-            let rewriter = Rewriter::new(self.ctx);
+        let mut evm_ops = vec![];
+        walk_operation(
+            operation,
+            Box::new(|op| {
+                let name = op.name().as_string_ref().as_str().unwrap().to_string();
+                if name.starts_with("evm") {
+                    evm_ops.push(op.to_ctx_operation_ref());
+                }
+                Ok(())
+            }),
+        )?;
+        let rewriter = Rewriter::new(self.ctx);
+        for op in evm_ops {
             let name = op.name().as_string_ref().as_str().unwrap().to_string();
+
             if name == "evm.add" {
                 rewriter::replace_op(
                     op,
@@ -769,7 +782,7 @@ impl<'c> ConversionPass<'c> {
                     )
                     .into(),
                 );
-            } else if name == "evm.create_2" {
+            } else if name == "evm.create2" {
                 rewriter::replace_op(
                     op,
                     dora_ir::dora::create_2(
@@ -787,6 +800,23 @@ impl<'c> ConversionPass<'c> {
                 rewriter::replace_op(
                     op,
                     dora_ir::dora::call(
+                        self.ctx,
+                        rewriter.intrinsics.i256_ty,
+                        op.operand(0)?,
+                        op.operand(1)?,
+                        op.operand(2)?,
+                        op.operand(3)?,
+                        op.operand(4)?,
+                        op.operand(5)?,
+                        op.operand(6)?,
+                        op.location(),
+                    )
+                    .into(),
+                );
+            } else if name == "evm.callcode" {
+                rewriter::replace_op(
+                    op,
+                    dora_ir::dora::callcode(
                         self.ctx,
                         rewriter.intrinsics.i256_ty,
                         op.operand(0)?,
@@ -859,9 +889,8 @@ impl<'c> ConversionPass<'c> {
                     dora_ir::dora::selfdestruct(self.ctx, op.operand(0)?, op.location()).into(),
                 );
             }
-            Ok(())
-        });
-        walker::walk_operation(operation, walk_fn)
+        }
+        Ok(())
     }
 }
 
