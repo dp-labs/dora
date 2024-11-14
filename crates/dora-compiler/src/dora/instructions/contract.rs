@@ -144,6 +144,9 @@ impl<'c> ConversionPass<'c> {
                 location
             ))?,
         };
+
+        // TODO: If the context is static, the transfer value must be zero for CALL and CALLCODE opcodes.
+
         let (args_offset, args_size, ret_offset, ret_size) = (
             op.operand(o_index)?,
             op.operand(o_index + 1)?,

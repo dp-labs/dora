@@ -2663,7 +2663,7 @@ fn create_2() {
         Operation::Return,
     ];
     let (env, db) = default_env_and_db_setup(operations);
-    run_program_assert_halt(env, db);
+    run_program_assert_num_result(env, db, 0_u8.into());
 }
 
 #[test]
@@ -2758,7 +2758,7 @@ fn create2_with_large_salt() {
         Operation::Return,
     ];
     let (env, db) = default_env_and_db_setup(operations);
-    run_program_assert_halt(env, db);
+    run_program_assert_num_result(env, db, 0_u8.into());
 }
 
 #[test]

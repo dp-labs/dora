@@ -1,5 +1,7 @@
 // Debug functions
 pub const DEBUG_PRINT: &str = "dora_debug_print";
+// Global variables
+pub const CTX_IS_STATIC: &str = "dora_ctx_is_static";
 // System functions
 pub const WRITE_RESULT: &str = "dora_write_result";
 pub const EXTEND_MEMORY: &str = "dora_extend_memory";
