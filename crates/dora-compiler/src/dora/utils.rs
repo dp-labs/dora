@@ -2,7 +2,7 @@ use crate::conversion::rewriter::Rewriter;
 use crate::errors::Result;
 use melior::{
     dialect::arith::{self},
-    ir::{attribute::IntegerAttribute, r#type::IntegerType, *},
+    ir::{attribute::IntegerAttribute, Location, Value},
     Context,
 };
 
@@ -12,12 +12,12 @@ pub(crate) fn round_up_32<'c>(
     rewriter: &'c Rewriter,
     location: Location<'c>,
 ) -> Result<Value<'c, 'c>> {
-    let uint32 = IntegerType::new(context, 32).into();
+    let uint64 = rewriter.intrinsics.i64_ty;
 
     let constant_31 = rewriter
         .create(arith::constant(
             context,
-            IntegerAttribute::new(uint32, 31).into(),
+            IntegerAttribute::new(uint64, 31).into(),
             location,
         ))
         .result(0)?
@@ -26,7 +26,7 @@ pub(crate) fn round_up_32<'c>(
     let constant_32 = rewriter
         .create(arith::constant(
             context,
-            IntegerAttribute::new(uint32, 32).into(),
+            IntegerAttribute::new(uint64, 32).into(),
             location,
         ))
         .result(0)?

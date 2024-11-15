@@ -360,6 +360,7 @@ pub enum HaltReason {
     CallNotAllowedInsideStatic,
     OutOfFunds,
     CallTooDeep,
+    RuntimeError,
 }
 
 /// Represents out-of-gas errors during EVM execution.

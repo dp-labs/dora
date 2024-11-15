@@ -90,7 +90,7 @@ pub(crate) fn resize_memory_with_gas_cost<'c>(
     let context = rewriter.context();
     let location = rewriter.get_insert_location();
     let ptr_type = rewriter.ptr_ty();
-    let uint32 = rewriter.intrinsics.i32_ty;
+    let uint64 = rewriter.intrinsics.i64_ty;
 
     // Load memory size
     let memory_size_ptr =
@@ -98,7 +98,7 @@ pub(crate) fn resize_memory_with_gas_cost<'c>(
     let memory_size = rewriter.make(llvm::load(
         context,
         memory_size_ptr,
-        uint32,
+        uint64,
         location,
         LoadStoreOptions::default(),
     ))?;
@@ -153,7 +153,7 @@ pub(crate) fn resize_memory<'c>(
     location: Location<'c>,
 ) -> Result<()> {
     let ptr_type = rewriter.ptr_ty();
-    let uint32 = rewriter.intrinsics.i32_ty;
+    let uint64 = rewriter.intrinsics.i64_ty;
 
     // Load memory size
     let memory_size_ptr =
@@ -161,7 +161,7 @@ pub(crate) fn resize_memory<'c>(
     let memory_size = rewriter.make(llvm::load(
         context,
         memory_size_ptr,
-        uint32,
+        uint64,
         location,
         LoadStoreOptions::default(),
     ))?;
@@ -233,8 +233,6 @@ pub(crate) fn memory_gas_cost<'c>(
     memory_byte_size: Value<'c, 'c>,
 ) -> Result<Value<'c, 'c>> {
     let location = rewriter.get_insert_location();
-    let uint64 = rewriter.intrinsics.i64_ty;
-
     // Helper function to create constants
     let make_constant =
         |val: i64| -> Result<Value<'c, 'c>> { rewriter.make(rewriter.iconst_64(val)) };
@@ -246,9 +244,8 @@ pub(crate) fn memory_gas_cost<'c>(
     let constant_512 = make_constant(512)?;
 
     // Memory calculations
-    let memory_size_extended = rewriter.make(arith::extui(memory_byte_size, uint64, location))?;
     let memory_byte_size_plus_31 =
-        rewriter.make(arith::addi(memory_size_extended, constant_31, location))?;
+        rewriter.make(arith::addi(memory_byte_size, constant_31, location))?;
     let memory_size_word = rewriter.make(arith::divui(
         memory_byte_size_plus_31,
         constant_32,

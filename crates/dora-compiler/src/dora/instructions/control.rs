@@ -25,8 +25,8 @@ impl<'c> ConversionPass<'c> {
         syscall_ctx!(op, syscall_ctx);
         rewrite_ctx!(context, op, rewriter, location);
 
-        let offset = rewriter.make(arith::trunci(offset, rewriter.intrinsics.i32_ty, location))?;
-        let size = rewriter.make(arith::trunci(size, rewriter.intrinsics.i32_ty, location))?;
+        let offset = rewriter.make(arith::trunci(offset, rewriter.intrinsics.i64_ty, location))?;
+        let size = rewriter.make(arith::trunci(size, rewriter.intrinsics.i64_ty, location))?;
 
         // required_size = offset + size
         let required_memory_size = rewriter.make(arith::addi(offset, size, location))?;

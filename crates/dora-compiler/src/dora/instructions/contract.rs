@@ -38,10 +38,10 @@ impl<'c> ConversionPass<'c> {
         rewrite_ctx!(context, op, rewriter, location);
 
         let uint8 = rewriter.intrinsics.i8_ty;
-        let uint32 = rewriter.intrinsics.i32_ty;
+        let uint64 = rewriter.intrinsics.i64_ty;
         let uint256 = rewriter.intrinsics.i256_ty;
-        let offset = rewriter.make(arith::trunci(offset, uint32, location))?;
-        let size = rewriter.make(arith::trunci(size, uint32, location))?;
+        let offset = rewriter.make(arith::trunci(offset, uint64, location))?;
+        let size = rewriter.make(arith::trunci(size, uint64, location))?;
 
         // required_size = offset + size
         let required_memory_size = rewriter.make(arith::addi(offset, size, location))?;
@@ -204,22 +204,22 @@ impl<'c> ConversionPass<'c> {
         let gas = rewriter.make(arith::trunci(gas, rewriter.intrinsics.i64_ty, location))?;
         let args_offset = rewriter.make(arith::trunci(
             args_offset,
-            rewriter.intrinsics.i32_ty,
+            rewriter.intrinsics.i64_ty,
             location,
         ))?;
         let args_size = rewriter.make(arith::trunci(
             args_size,
-            rewriter.intrinsics.i32_ty,
+            rewriter.intrinsics.i64_ty,
             location,
         ))?;
         let ret_offset = rewriter.make(arith::trunci(
             ret_offset,
-            rewriter.intrinsics.i32_ty,
+            rewriter.intrinsics.i64_ty,
             location,
         ))?;
         let ret_size = rewriter.make(arith::trunci(
             ret_size,
-            rewriter.intrinsics.i32_ty,
+            rewriter.intrinsics.i64_ty,
             location,
         ))?;
         let req_arg_mem_size = rewriter.make(arith::addi(args_offset, args_size, location))?;
@@ -283,8 +283,8 @@ impl<'c> ConversionPass<'c> {
         syscall_ctx!(op, syscall_ctx);
         rewrite_ctx!(context, op, rewriter, location);
 
-        let offset = rewriter.make(arith::trunci(offset, rewriter.intrinsics.i32_ty, location))?;
-        let size = rewriter.make(arith::trunci(size, rewriter.intrinsics.i32_ty, location))?;
+        let offset = rewriter.make(arith::trunci(offset, rewriter.intrinsics.i64_ty, location))?;
+        let size = rewriter.make(arith::trunci(size, rewriter.intrinsics.i64_ty, location))?;
         let required_size = rewriter.make(arith::addi(size, offset, location))?;
         let gas_counter = gas::get_gas_counter(&rewriter)?;
         memory::resize_memory(required_size, context, &rewriter, syscall_ctx, location)?;

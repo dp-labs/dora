@@ -31,16 +31,16 @@ pub(crate) fn declare_symbols(context: &MLIRContext, module: &MLIRModule) {
         (symbols::DEBUG_PRINT, &[uint32], &[]),
         (
             symbols::WRITE_RESULT,
-            &[ptr_type, uint32, uint32, uint64, uint8],
+            &[ptr_type, uint64, uint64, uint64, uint8],
             &[],
         ),
         (
             symbols::KECCAK256_HASHER,
-            &[ptr_type, uint32, uint32, ptr_type],
+            &[ptr_type, uint64, uint64, ptr_type],
             &[],
         ),
         (symbols::GET_CALLDATA_PTR, &[ptr_type], &[ptr_type]),
-        (symbols::GET_CALLDATA_SIZE, &[ptr_type], &[uint32]),
+        (symbols::GET_CALLDATA_SIZE, &[ptr_type], &[uint64]),
         (symbols::GET_CHAINID, &[ptr_type], &[uint64]),
         (symbols::STORE_IN_CALLVALUE_PTR, &[ptr_type, ptr_type], &[]),
         (symbols::STORE_IN_CALLER_PTR, &[ptr_type, ptr_type], &[]),
@@ -56,10 +56,10 @@ pub(crate) fn declare_symbols(context: &MLIRContext, module: &MLIRModule) {
             &[],
         ),
         (symbols::GET_GASLIMIT, &[ptr_type], &[uint64]),
-        (symbols::EXTEND_MEMORY, &[ptr_type, uint32], &[ptr_type]),
+        (symbols::EXTEND_MEMORY, &[ptr_type, uint64], &[ptr_type]),
         (
             symbols::COPY_CODE_TO_MEMORY,
-            &[ptr_type, uint32, uint32, uint32],
+            &[ptr_type, uint64, uint64, uint64],
             &[],
         ),
         (symbols::STORAGE_READ, &[ptr_type, ptr_type, ptr_type], &[]),
@@ -68,26 +68,26 @@ pub(crate) fn declare_symbols(context: &MLIRContext, module: &MLIRModule) {
             &[ptr_type, ptr_type, ptr_type],
             &[uint64],
         ),
-        (symbols::APPEND_LOG, &[ptr_type, uint32, uint32], &[]),
+        (symbols::APPEND_LOG, &[ptr_type, uint64, uint64], &[]),
         (
             symbols::APPEND_LOG_ONE_TOPIC,
-            &[ptr_type, uint32, uint32, ptr_type],
+            &[ptr_type, uint64, uint64, ptr_type],
             &[],
         ),
         (
             symbols::APPEND_LOG_TWO_TOPICS,
-            &[ptr_type, uint32, uint32, ptr_type, ptr_type],
+            &[ptr_type, uint64, uint64, ptr_type, ptr_type],
             &[],
         ),
         (
             symbols::APPEND_LOG_THREE_TOPICS,
-            &[ptr_type, uint32, uint32, ptr_type, ptr_type, ptr_type],
+            &[ptr_type, uint64, uint64, ptr_type, ptr_type, ptr_type],
             &[],
         ),
         (
             symbols::APPEND_LOG_FOUR_TOPICS,
             &[
-                ptr_type, uint32, uint32, ptr_type, ptr_type, ptr_type, ptr_type,
+                ptr_type, uint64, uint64, ptr_type, ptr_type, ptr_type, ptr_type,
             ],
             &[],
         ),
@@ -106,7 +106,7 @@ pub(crate) fn declare_symbols(context: &MLIRContext, module: &MLIRModule) {
         (
             symbols::CALL,
             &[
-                ptr_type, uint64, ptr_type, ptr_type, uint32, uint32, uint32, uint32, uint64,
+                ptr_type, uint64, ptr_type, ptr_type, uint64, uint64, uint64, uint64, uint64,
                 ptr_type, uint8,
             ],
             &[uint8],
@@ -118,7 +118,7 @@ pub(crate) fn declare_symbols(context: &MLIRContext, module: &MLIRModule) {
         ),
         (
             symbols::COPY_EXT_CODE_TO_MEMORY,
-            &[ptr_type, ptr_type, uint32, uint32, uint32],
+            &[ptr_type, ptr_type, uint64, uint64, uint64],
             &[],
         ),
         (
@@ -130,18 +130,18 @@ pub(crate) fn declare_symbols(context: &MLIRContext, module: &MLIRModule) {
         (symbols::GET_CODE_HASH, &[ptr_type, ptr_type], &[]),
         (
             symbols::CREATE,
-            &[ptr_type, uint32, uint32, ptr_type, ptr_type],
+            &[ptr_type, uint64, uint64, ptr_type, ptr_type],
             &[uint8],
         ),
         (
             symbols::CREATE2,
-            &[ptr_type, uint32, uint32, ptr_type, ptr_type, ptr_type],
+            &[ptr_type, uint64, uint64, ptr_type, ptr_type, ptr_type],
             &[uint8],
         ),
-        (symbols::GET_RETURN_DATA_SIZE, &[ptr_type], &[uint32]),
+        (symbols::GET_RETURN_DATA_SIZE, &[ptr_type], &[uint64]),
         (
             symbols::COPY_RETURN_DATA_INTO_MEMORY,
-            &[ptr_type, uint32, uint32, uint32],
+            &[ptr_type, uint64, uint64, uint64],
             &[],
         ),
         (symbols::SELFDESTRUCT, &[ptr_type, ptr_type], &[uint64]),

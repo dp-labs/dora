@@ -108,10 +108,10 @@ impl<'c> ConversionPass<'c> {
         syscall_ctx!(op, syscall_ctx);
         rewrite_ctx!(context, op, rewriter, location);
 
-        let uint32 = rewriter.intrinsics.i32_ty;
-        let offset = rewriter.make(arith::trunci(offset, uint32, location))?;
-        let size = rewriter.make(arith::trunci(size, uint32, location))?;
-        let dest_offset = rewriter.make(arith::trunci(dest_offset, uint32, location))?;
+        let uint64 = rewriter.intrinsics.i64_ty;
+        let offset = rewriter.make(arith::trunci(offset, uint64, location))?;
+        let size = rewriter.make(arith::trunci(size, uint64, location))?;
+        let dest_offset = rewriter.make(arith::trunci(dest_offset, uint64, location))?;
 
         let address_ptr =
             memory::allocate_u256_and_assign_value(context, &rewriter, address, location)?;
@@ -247,9 +247,9 @@ impl<'c> ConversionPass<'c> {
         operands!(op, offset, size);
         syscall_ctx!(op, syscall_ctx);
         rewrite_ctx!(context, op, rewriter, location);
-        let uint32 = rewriter.intrinsics.i32_ty;
-        let offset = rewriter.make(arith::trunci(offset, uint32, location))?;
-        let size = rewriter.make(arith::trunci(size, uint32, location))?;
+        let uint64 = rewriter.intrinsics.i64_ty;
+        let offset = rewriter.make(arith::trunci(offset, uint64, location))?;
+        let size = rewriter.make(arith::trunci(size, uint64, location))?;
 
         // dynamic gas computation
 
