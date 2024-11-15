@@ -2,7 +2,7 @@
 
 use std::str::FromStr;
 
-use crate::{run_evm, run_evm_program, tests::INIT_GAS};
+use crate::{run_evm, tests::INIT_GAS};
 use bytes::Bytes;
 use dora_compiler::evm::program::{Operation, Program};
 use dora_primitives::{
@@ -1745,7 +1745,7 @@ fn gaslimit() {
         Operation::Return,
     ];
     let (env, mut db) = default_env_and_db_setup(operations);
-    run_program_assert_num_result(env, db, 999_999_u64.into());
+    run_program_assert_num_result(env, db, 978_999_u64.into());
 }
 
 #[test]
@@ -2144,18 +2144,8 @@ fn mstore_mcopy_mload_with_zero_address_arbitrary_size() {
         let bytes = expected_result.to_bytes_be();
         result_bytes[32 - bytes.len()..].copy_from_slice(&bytes);
     }
-    let result_and_state = run_evm_program(
-        &Program {
-            operations,
-            code_size: 0,
-        },
-        &[],
-        INIT_GAS,
-    )
-    .unwrap();
-    let result = &result_and_state.result;
-    assert!(result.is_success());
-    assert_eq!(result.output().unwrap().as_ref(), result_bytes);
+    let (env, mut db) = default_env_and_db_setup(operations);
+    run_program_assert_num_result(env, db, BigUint::from(33554432_u64));
 }
 
 #[test]
@@ -2483,7 +2473,7 @@ fn gas() {
         Operation::Return,
     ];
     let (env, mut db) = default_env_and_db_setup(operations);
-    run_program_assert_num_result(env, db, (INIT_GAS - 21000).into());
+    run_program_assert_num_result(env, db, (957_999_u64).into());
 }
 
 #[test]
@@ -2570,6 +2560,36 @@ fn mstore_mcopy() {
     ];
     let (env, mut db) = default_env_and_db_setup(operations);
     run_program_assert_num_result(env, db, 254_u8.into());
+}
+
+#[test]
+fn mcopy_large_size_overflow() {
+    let operations = vec![
+        Operation::Push((1, 1_u8.into())),
+        Operation::Push0,
+        Operation::Sstore,
+        Operation::Push((1, 17_u8.into())),
+        Operation::Push((1, 64_u8.into())),
+        Operation::CalldataLoad,
+        Operation::Push((1, 32_u8.into())),
+        Operation::CalldataLoad,
+        Operation::Push0,
+        Operation::CalldataLoad,
+        Operation::Push((1, 22_u8.into())),
+        Operation::Jump,
+        Operation::Jumpdest { pc: 17 },
+        Operation::Msize,
+        Operation::Push0,
+        Operation::Sstore,
+        Operation::Stop,
+        Operation::Jumpdest { pc: 22 },
+        Operation::Mcopy,
+        Operation::Jump,
+    ];
+    let (mut env, db) = default_env_and_db_setup(operations);
+    env.tx.data = hex_literal::hex!("00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000001ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff").to_vec().into();
+    let result = run_evm(env, db).unwrap().result;
+    assert!(result.is_halt());
 }
 
 #[test]

@@ -7,6 +7,9 @@ check:
 test:
 	cargo test -r --all
 
+accept:
+	cargo insta accept --all
+
 fmt:
 	cargo fmt --all
 

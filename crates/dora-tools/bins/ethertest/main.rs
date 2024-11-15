@@ -187,6 +187,11 @@ pub enum TestErrorKind {
         expected_output: Option<Bytes>,
         got_output: Option<Bytes>,
     },
+    #[error("unexpected exception: got {got_exception:?}, expected {expected_exception:?}")]
+    UnexpectedException {
+        expected_exception: Option<String>,
+        got_exception: Option<String>,
+    },
 }
 
 fn find_all_json_tests(path: &Path) -> Vec<PathBuf> {
@@ -279,10 +284,14 @@ fn execute_test(path: &Path) -> Result<(), TestError> {
             let res = run_evm(env.clone(), db);
             match res {
                 Ok(res) => {
-                    if test_case.expect_exception.is_some() {
-                        assert!(!res.result.is_success());
-                        // NOTE: the expect_exception string is an error description, we don't check the expected error
-                        continue;
+                    if test_case.expect_exception.is_some() && res.result.is_success() {
+                        return Err(TestError {
+                            name: name.to_string(),
+                            kind: TestErrorKind::UnexpectedException {
+                                expected_exception: test_case.expect_exception.clone(),
+                                got_exception: None,
+                            },
+                        });
                     }
                     // Check output
                     if let Some((expected_output, output)) =
@@ -299,9 +308,16 @@ fn execute_test(path: &Path) -> Result<(), TestError> {
                         }
                     }
                 }
-                Err(e) => {
-                    error!("Execution failed: {}", e);
-                    std::process::exit(1);
+                Err(_) => {
+                    if test_case.expect_exception.is_none() {
+                        return Err(TestError {
+                            name: name.to_string(),
+                            kind: TestErrorKind::UnexpectedException {
+                                expected_exception: test_case.expect_exception.clone(),
+                                got_exception: None,
+                            },
+                        });
+                    }
                 }
             }
         }

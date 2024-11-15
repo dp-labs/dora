@@ -82,7 +82,7 @@ impl Env {
     /// ```no_check
     /// env.validate_transaction()?;
     /// ```
-    pub fn validate_transaction(&mut self) -> Result<(), InvalidTransaction> {
+    pub fn validate_transaction(&self) -> Result<(), InvalidTransaction> {
         let is_create = self.tx.transact_to.is_zero();
 
         if is_create && self.tx.data.len() > 2 * MAX_CODE_SIZE {
@@ -90,7 +90,7 @@ impl Env {
         }
 
         if let Some(max_fee) = self.tx.max_fee_per_blob_gas {
-            let price = self.block.blob_gasprice.unwrap();
+            let price = self.block.blob_gasprice.unwrap_or_default();
             if U256::from(price) > max_fee {
                 return Err(InvalidTransaction::BlobGasPriceGreaterThanMax);
             }
