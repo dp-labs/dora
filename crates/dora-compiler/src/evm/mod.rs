@@ -292,13 +292,13 @@ impl<'c> EVMCompiler<'c> {
         let main_region = main_func.region(0)?;
 
         let setup_block = main_region.append_block(Block::new(&[]));
-        let is_eof = true;
+        let is_eof = false;
         let mut ctx = CtxType::new(self.ctx, module, &main_region, &setup_block, program)?;
         let mut last_block = setup_block;
         let builder = OpBuilder::new_with_block(context, last_block);
         let stack_size_ptr =
             builder.make(builder.addressof(STACK_SIZE_GLOBAL, builder.ptr_ty()))?;
-        let stack_max_size = builder.make(builder.iconst_32(MAX_STACK_SIZE as i32))?;
+        let stack_max_size = builder.make(builder.iconst_64(MAX_STACK_SIZE as i64))?;
         // Generate code for the program
         for op in &ctx.program.operations {
             let (block_start, block_end) =
@@ -306,18 +306,18 @@ impl<'c> EVMCompiler<'c> {
             // If the opcode is non-eof format, check the stack overflow/underflow
             if !is_eof && self.stack_bound_checks {
                 let (i, o) = stack_io(op);
-                let diff = o as i32 - i as i32;
+                let diff = o as i64 - i as i64;
                 let builder = OpBuilder::new_with_block(context, last_block);
                 // Check underflow
                 let size_before =
-                    builder.make(builder.load(stack_size_ptr, builder.intrinsics.i32_ty))?;
-                let i = builder.make(builder.iconst_32(i as i32))?;
+                    builder.make(builder.load(stack_size_ptr, builder.intrinsics.i64_ty))?;
+                let i = builder.make(builder.iconst_64(i as i64))?;
                 let underflow =
                     builder.make(builder.icmp(IntCC::UnsignedLessThan, size_before, i))?;
                 // Check overflow
                 let size_after = builder.make(arith::addi(
                     size_before,
-                    builder.make(builder.iconst_32(diff))?,
+                    builder.make(builder.iconst_64(diff))?,
                     location,
                 ))?;
                 let overflow = builder.make(builder.icmp(
@@ -358,7 +358,7 @@ impl<'c> EVMCompiler<'c> {
         code: ExitStatusCode,
     ) -> Result<()> {
         let builder = OpBuilder::new_with_block(ctx.context, block);
-        let zero = builder.create(builder.iconst_32(0)).result(0)?.into();
+        let zero = builder.create(builder.iconst_64(0)).result(0)?.into();
         let reason = builder
             .create(builder.iconst(builder.intrinsics.i8_ty, code.to_u8() as i64))
             .result(0)?
@@ -650,11 +650,7 @@ pub fn revert_block<'c>(
     let builder = OpBuilder::new(context);
     let location = builder.unknown_loc();
 
-    let zero_u32 = block
-        .append_operation(builder.iconst_32(0))
-        .result(0)?
-        .into();
-    let zero_u64 = block
+    let zero = block
         .append_operation(builder.iconst_64(0))
         .result(0)?
         .into();
@@ -668,7 +664,7 @@ pub fn revert_block<'c>(
     block.append_operation(func::call(
         context,
         FlatSymbolRefAttribute::new(context, symbols::WRITE_RESULT),
-        &[syscall_ctx, zero_u32, zero_u32, zero_u64, reason],
+        &[syscall_ctx, zero, zero, zero, reason],
         &[],
         location,
     ));
@@ -762,7 +758,7 @@ impl<'c> SetupBuilder<'c> {
         let ptr_type = self.builder.intrinsics.ptr_ty;
         self.declare_globals(&[STACK_PTR_GLOBAL], ptr_type)?
             .allocate_stack()?;
-        self.declare_globals(&[STACK_SIZE_GLOBAL], self.builder.intrinsics.i32_ty)?;
+        self.declare_globals(&[STACK_SIZE_GLOBAL], self.builder.intrinsics.i64_ty)?;
         let zero = self.constant(0)?;
         self.initialize_global(STACK_SIZE_GLOBAL, ptr_type, zero)?;
 
@@ -780,9 +776,9 @@ impl<'c> SetupBuilder<'c> {
     /// Returns an error if global declarations or initialization fails.
     pub fn memory(&self) -> Result<&Self> {
         let ptr_type = self.builder.intrinsics.ptr_ty;
-        let uint32 = self.builder.intrinsics.i32_ty;
+        let uint64 = self.builder.intrinsics.i64_ty;
         self.declare_globals(&[MEMORY_PTR_GLOBAL], ptr_type)?;
-        self.declare_globals(&[MEMORY_SIZE_GLOBAL], uint32)?;
+        self.declare_globals(&[MEMORY_SIZE_GLOBAL], uint64)?;
         let zero = self.constant(0)?;
         self.initialize_global(MEMORY_SIZE_GLOBAL, ptr_type, zero)?;
 
@@ -804,9 +800,9 @@ impl<'c> SetupBuilder<'c> {
     /// Returns an error if global declarations or data retrieval fails.
     pub fn calldata(&self, syscall_ctx: Value<'c, 'c>) -> Result<&Self> {
         let ptr_type = self.builder.intrinsics.ptr_ty;
-        let uint32 = self.builder.intrinsics.i32_ty;
+        let uint64 = self.builder.intrinsics.i64_ty;
         self.declare_globals(&[CALLDATA_PTR_GLOBAL], ptr_type)?;
-        self.declare_globals(&[CALLDATA_SIZE_GLOBAL], uint32)?;
+        self.declare_globals(&[CALLDATA_SIZE_GLOBAL], uint64)?;
 
         let calldata_ptr = self
             .block
@@ -827,7 +823,7 @@ impl<'c> SetupBuilder<'c> {
                 self.context,
                 FlatSymbolRefAttribute::new(self.context, symbols::GET_CALLDATA_SIZE),
                 &[syscall_ctx],
-                &[uint32],
+                &[uint64],
                 self.location,
             ))
             .result(0)?
@@ -873,12 +869,12 @@ impl<'c> SetupBuilder<'c> {
     }
 
     fn constant(&self, integer: i64) -> Result<Value> {
-        let uint32 = self.builder.intrinsics.i32_ty;
+        let uint64 = self.builder.intrinsics.i64_ty;
         let constant = self
             .block
             .append_operation(arith::constant(
                 self.context,
-                IntegerAttribute::new(uint32, integer).into(),
+                IntegerAttribute::new(uint64, integer).into(),
                 self.location,
             ))
             .result(0)?

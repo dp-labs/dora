@@ -33,9 +33,9 @@ impl<'c> ConversionPass<'c> {
         syscall_ctx!(op, syscall_ctx);
         rewrite_ctx!(context, op, rewriter, location);
 
-        let uint32 = rewriter.intrinsics.i32_ty;
-        let offset = rewriter.make(arith::trunci(offset, uint32, location))?;
-        let size = rewriter.make(arith::trunci(size, uint32, location))?;
+        let uint64 = rewriter.intrinsics.i64_ty;
+        let offset = rewriter.make(arith::trunci(offset, uint64, location))?;
+        let size = rewriter.make(arith::trunci(size, uint64, location))?;
         let required_memory_size = rewriter.make(arith::addi(offset, size, location))?;
 
         // dynamic_gas_cost = 3 * (size + 31) / 32 gas
@@ -135,16 +135,16 @@ impl<'c> ConversionPass<'c> {
 
         let uint1 = rewriter.intrinsics.i1_ty;
         let uint8 = rewriter.intrinsics.i8_ty;
-        let uint32 = rewriter.intrinsics.i32_ty;
+        let uint64 = rewriter.intrinsics.i64_ty;
         let uint256 = rewriter.intrinsics.i256_ty;
         let ptr_type = rewriter.intrinsics.ptr_ty;
 
         let calldata_ptr =
             load_by_addr!(rewriter, constants::CALLDATA_PTR_GLOBAL, rewriter.ptr_ty());
         // Define the maximum slice width (32 bytes)
-        let max_slice_width = rewriter.make(rewriter.iconst_256(BigUint::from(32_u8))?)?;
-        let calldata_size = load_by_addr!(rewriter, constants::CALLDATA_SIZE_GLOBAL, uint32);
-        // convert calldata_size from u32 to u256
+        let max_slice_width = rewriter.make(rewriter.iconst_256_from_u64(32)?)?;
+        let calldata_size = load_by_addr!(rewriter, constants::CALLDATA_SIZE_GLOBAL, uint64);
+        // convert calldata_size from u64 to u256
         let calldata_size = rewriter.make(arith::extui(calldata_size, uint256, location))?;
         // Compare offset with calldata size
         let offset_cmpi = rewriter.make(arith::cmpi(
@@ -222,13 +222,13 @@ impl<'c> ConversionPass<'c> {
         syscall_ctx!(op, syscall_ctx);
         rewrite_ctx!(context, op, rewriter, location);
 
-        let uint32 = rewriter.intrinsics.i32_ty;
+        let uint64 = rewriter.intrinsics.i64_ty;
         let uint256 = rewriter.intrinsics.i256_ty;
         let call_data_size = rewriter.make(func::call(
             context,
             FlatSymbolRefAttribute::new(context, symbols::GET_CALLDATA_SIZE),
             &[syscall_ctx.into()],
-            &[uint32],
+            &[uint64],
             location,
         ))?;
         rewriter.make(arith::extui(call_data_size, uint256, location))?;
@@ -240,10 +240,10 @@ impl<'c> ConversionPass<'c> {
         syscall_ctx!(op, syscall_ctx);
         rewrite_ctx!(context, op, rewriter, location);
 
-        let uint32 = rewriter.intrinsics.i32_ty;
-        let call_data_offset = rewriter.make(arith::trunci(call_data_offset, uint32, location))?;
-        let dest_offset = rewriter.make(arith::trunci(dest_offset, uint32, location))?;
-        let length = rewriter.make(arith::trunci(length, uint32, location))?;
+        let uint64 = rewriter.intrinsics.i64_ty;
+        let call_data_offset = rewriter.make(arith::trunci(call_data_offset, uint64, location))?;
+        let dest_offset = rewriter.make(arith::trunci(dest_offset, uint64, location))?;
+        let length = rewriter.make(arith::trunci(length, uint64, location))?;
 
         // required size = dest_offset + size
         let required_memory_size = rewriter.make(arith::addi(dest_offset, length, location))?;
@@ -283,7 +283,7 @@ impl<'c> ConversionPass<'c> {
             context,
             FlatSymbolRefAttribute::new(context, symbols::GET_CALLDATA_SIZE),
             &[syscall_ctx.into()],
-            &[uint32],
+            &[uint64],
             location,
         ))?;
         let flag = rewriter.make(arith::cmpi(
@@ -360,10 +360,10 @@ impl<'c> ConversionPass<'c> {
         syscall_ctx!(op, syscall_ctx);
         rewrite_ctx!(context, op, rewriter, location);
 
-        let uint32 = rewriter.intrinsics.i32_ty;
-        let offset = rewriter.make(arith::trunci(offset, uint32, location))?;
-        let dest_offset = rewriter.make(arith::trunci(dest_offset, uint32, location))?;
-        let length = rewriter.make(arith::trunci(length, uint32, location))?;
+        let uint64 = rewriter.intrinsics.i64_ty;
+        let offset = rewriter.make(arith::trunci(offset, uint64, location))?;
+        let dest_offset = rewriter.make(arith::trunci(dest_offset, uint64, location))?;
+        let length = rewriter.make(arith::trunci(length, uint64, location))?;
 
         // required size = dest_offset + size
         let required_memory_size = rewriter.make(arith::addi(dest_offset, length, location))?;
@@ -392,13 +392,13 @@ impl<'c> ConversionPass<'c> {
         syscall_ctx!(op, syscall_ctx);
         rewrite_ctx!(context, op, rewriter, location);
 
-        let uint32 = rewriter.intrinsics.i32_ty;
+        let uint64 = rewriter.intrinsics.i64_ty;
         let uint256 = rewriter.intrinsics.i256_ty;
         let data_size = rewriter.make(func::call(
             context,
             FlatSymbolRefAttribute::new(context, symbols::GET_RETURN_DATA_SIZE),
             &[syscall_ctx.into()],
-            &[uint32],
+            &[uint64],
             location,
         ))?;
         rewriter.create(arith::extui(data_size, uint256, location));
@@ -412,11 +412,11 @@ impl<'c> ConversionPass<'c> {
 
         let dest_offset = rewriter.make(arith::trunci(
             dest_offset,
-            rewriter.intrinsics.i32_ty,
+            rewriter.intrinsics.i64_ty,
             location,
         ))?;
-        let offset = rewriter.make(arith::trunci(offset, rewriter.intrinsics.i32_ty, location))?;
-        let size = rewriter.make(arith::trunci(size, rewriter.intrinsics.i32_ty, location))?;
+        let offset = rewriter.make(arith::trunci(offset, rewriter.intrinsics.i64_ty, location))?;
+        let size = rewriter.make(arith::trunci(size, rewriter.intrinsics.i64_ty, location))?;
         // Extend memory to required size
         let req_mem_size: Value = rewriter.make(arith::addi(dest_offset, size, location))?;
         memory::resize_memory(req_mem_size, context, &rewriter, syscall_ctx, location)?;

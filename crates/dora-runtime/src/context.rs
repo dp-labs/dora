@@ -315,7 +315,7 @@ impl RuntimeContext {
                 gas_used,
             },
             ExitStatusCode::Error => ExecutionResult::Halt {
-                reason: HaltReason::OpcodeNotFound,
+                reason: HaltReason::RuntimeError,
                 gas_used,
             },
         };
@@ -337,8 +337,8 @@ impl RuntimeContext {
 impl RuntimeContext {
     pub extern "C" fn write_result(
         &mut self,
-        offset: u32,
-        bytes_len: u32,
+        offset: u64,
+        bytes_len: u64,
         remaining_gas: u64,
         execution_result: u8,
     ) {
@@ -347,15 +347,15 @@ impl RuntimeContext {
         self.inner_context.exit_status = Some(ExitStatusCode::from_u8(execution_result));
     }
 
-    pub extern "C" fn get_return_data_size(&mut self) -> u32 {
+    pub extern "C" fn get_return_data_size(&mut self) -> u64 {
         self.call_frame.last_call_return_data.len() as _
     }
 
     pub extern "C" fn copy_return_data_into_memory(
         &mut self,
-        dest_offset: u32,
-        offset: u32,
-        size: u32,
+        dest_offset: u64,
+        offset: u64,
+        size: u64,
     ) {
         Self::copy_exact(
             &mut self.inner_context.memory,
@@ -371,10 +371,10 @@ impl RuntimeContext {
         mut gas_to_send: u64,
         call_to_address: &Bytes32,
         value_to_transfer: &Bytes32,
-        args_offset: u32,
-        args_size: u32,
-        ret_offset: u32,
-        ret_size: u32,
+        args_offset: u64,
+        args_size: u64,
+        ret_offset: u64,
+        ret_size: u64,
         available_gas: u64,
         consumed_gas: &mut u64,
         call_type: u8,
@@ -541,9 +541,9 @@ impl RuntimeContext {
     fn copy_exact(
         target: &mut [u8],
         source: &[u8],
-        target_offset: u32,
-        source_offset: u32,
-        size: u32,
+        target_offset: u64,
+        source_offset: u64,
+        size: u64,
     ) {
         let target_offset = target_offset as usize;
         let source_offset = source_offset as usize;
@@ -579,7 +579,7 @@ impl RuntimeContext {
         *balance = Bytes32::from_u256(account.balance);
     }
 
-    pub extern "C" fn keccak256_hasher(&mut self, offset: u32, size: u32, hash_ptr: &mut Bytes32) {
+    pub extern "C" fn keccak256_hasher(&mut self, offset: u64, size: u64, hash_ptr: &mut Bytes32) {
         let data = &self.inner_context.memory[offset as usize..offset as usize + size as usize];
         let mut hasher = Keccak256::new();
         hasher.update(data);
@@ -621,9 +621,9 @@ impl RuntimeContext {
         host.env().tx.data.as_ptr()
     }
 
-    pub extern "C" fn get_calldata_size_syscall(&self) -> u32 {
+    pub extern "C" fn get_calldata_size(&self) -> u64 {
         let host = self.host.read().unwrap();
-        host.env().tx.data.len() as u32
+        host.env().tx.data.len() as u64
     }
 
     pub extern "C" fn get_origin(&self, address: &mut Bytes32) {
@@ -631,12 +631,12 @@ impl RuntimeContext {
         address.copy_from(&host.env().tx.caller);
     }
 
-    pub extern "C" fn extend_memory(&mut self, new_size: u32) -> *mut u8 {
+    pub extern "C" fn extend_memory(&mut self, new_size: u64) -> *mut u8 {
+        // Note the overflow on the 32-bit machine.
         let new_size = new_size as usize;
         if new_size <= self.inner_context.memory.len() {
             return self.inner_context.memory.as_mut_ptr();
         }
-
         match self
             .inner_context
             .memory
@@ -655,9 +655,9 @@ impl RuntimeContext {
 
     pub extern "C" fn copy_code_to_memory(
         &mut self,
-        code_offset: u32,
-        size: u32,
-        dest_offset: u32,
+        code_offset: u64,
+        size: u64,
+        dest_offset: u64,
     ) {
         let code_size = self.inner_context.program.len();
         let code_offset = code_offset as usize;
@@ -729,14 +729,14 @@ impl RuntimeContext {
         gas_cost
     }
 
-    pub extern "C" fn append_log(&mut self, offset: u32, size: u32) {
+    pub extern "C" fn append_log(&mut self, offset: u64, size: u64) {
         self.create_log(offset, size, vec![]);
     }
 
     pub extern "C" fn append_log_with_one_topic(
         &mut self,
-        offset: u32,
-        size: u32,
+        offset: u64,
+        size: u64,
         topic: &Bytes32,
     ) {
         self.create_log(offset, size, vec![topic.to_u256()]);
@@ -744,8 +744,8 @@ impl RuntimeContext {
 
     pub extern "C" fn append_log_with_two_topics(
         &mut self,
-        offset: u32,
-        size: u32,
+        offset: u64,
+        size: u64,
         topic1: &Bytes32,
         topic2: &Bytes32,
     ) {
@@ -754,8 +754,8 @@ impl RuntimeContext {
 
     pub extern "C" fn append_log_with_three_topics(
         &mut self,
-        offset: u32,
-        size: u32,
+        offset: u64,
+        size: u64,
         topic1: &Bytes32,
         topic2: &Bytes32,
         topic3: &Bytes32,
@@ -769,8 +769,8 @@ impl RuntimeContext {
 
     pub extern "C" fn append_log_with_four_topics(
         &mut self,
-        offset: u32,
-        size: u32,
+        offset: u64,
+        size: u64,
         topic1: &Bytes32,
         topic2: &Bytes32,
         topic3: &Bytes32,
@@ -806,7 +806,7 @@ impl RuntimeContext {
         *number = Bytes32::from_be_bytes(hash.to_fixed_bytes());
     }
 
-    fn create_log(&mut self, offset: u32, size: u32, topics: Vec<U256>) {
+    fn create_log(&mut self, offset: u64, size: u64, topics: Vec<U256>) {
         let offset = offset as usize;
         let size = size as usize;
         let data: Vec<u8> = self.inner_context.memory[offset..offset + size].into();
@@ -886,9 +886,9 @@ impl RuntimeContext {
     pub extern "C" fn copy_ext_code_to_memory(
         &mut self,
         address_value: &Bytes32,
-        code_offset: u32,
-        size: u32,
-        dest_offset: u32,
+        code_offset: u64,
+        size: u64,
+        dest_offset: u64,
     ) {
         let address = Address::from(address_value);
         let code = self.journal.code_by_address(&address);
@@ -998,15 +998,21 @@ impl RuntimeContext {
 
     fn create_aux(
         &mut self,
-        size: u32,
-        offset: u32,
+        size: u64,
+        offset: u64,
         value: &mut Bytes32,
         remaining_gas: &mut u64,
         salt: Option<&Bytes32>,
     ) -> u8 {
         let offset = offset as usize;
         let size = size as usize;
-        let bytecode = self.inner_context.memory[offset..offset + size].to_vec();
+        let memory_len = self.inner_context.memory.len();
+        if offset > memory_len {
+            return 1;
+        }
+        let available_size = memory_len - offset;
+        let actual_size = size.min(available_size);
+        let bytecode = self.inner_context.memory[offset..offset + actual_size].to_vec();
         let value_u256 = value.to_u256();
         match self.create_contract(&bytecode, remaining_gas, value_u256, salt) {
             Ok(addr) => {
@@ -1019,8 +1025,8 @@ impl RuntimeContext {
 
     pub extern "C" fn create(
         &mut self,
-        size: u32,
-        offset: u32,
+        size: u64,
+        offset: u64,
         value: &mut Bytes32,
         remaining_gas: &mut u64,
     ) -> u8 {
@@ -1029,8 +1035,8 @@ impl RuntimeContext {
 
     pub extern "C" fn create2(
         &mut self,
-        size: u32,
-        offset: u32,
+        size: u64,
+        offset: u64,
         value: &mut Bytes32,
         remaining_gas: &mut u64,
         salt: &Bytes32,
@@ -1167,10 +1173,10 @@ impl RuntimeContext {
                     symbols::CTX_IS_STATIC,
                     &self.call_frame.ctx_is_static as *const bool as *const _,
                 ),
-                (
-                    symbols::DEBUG_PRINT,
-                    RuntimeContext::debug_print as *const _,
-                ),
+                // (
+                //     symbols::DEBUG_PRINT,
+                //     RuntimeContext::debug_print as *const _,
+                // ),
                 // Syscalls
                 (
                     symbols::WRITE_RESULT,
@@ -1216,7 +1222,7 @@ impl RuntimeContext {
                 ),
                 (
                     symbols::GET_CALLDATA_SIZE,
-                    RuntimeContext::get_calldata_size_syscall as *const _,
+                    RuntimeContext::get_calldata_size as *const _,
                 ),
                 (
                     symbols::COPY_CODE_TO_MEMORY,

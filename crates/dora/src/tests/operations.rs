@@ -281,7 +281,6 @@ fn sdiv_positive() {
         Operation::Push((1_u8, b.clone())),
         Operation::Push((1_u8, a.clone())),
         Operation::Sdiv,
-        Operation::Mod,
         // Return result
         Operation::Push0,
         Operation::Mstore,
@@ -1027,6 +1026,7 @@ fn address() {
 #[test]
 fn balance() {
     let operations = vec![
+        Operation::Push0,
         Operation::Balance,
         // Return result
         Operation::Push0,
@@ -1638,7 +1638,7 @@ fn extcodehash_empty_address() {
 #[test]
 fn blockhash_invalid_block_number() {
     let operations = vec![
-        Operation::Push((32_u8, BigUint::from(599423545_u32))),
+        Operation::Push((32_u8, BigUint::from(59942354_u32))),
         Operation::BlockHash,
         // Return result
         Operation::Push0,
@@ -1651,9 +1651,8 @@ fn blockhash_invalid_block_number() {
     run_program_assert_num_result(env, db, 0_u8.into());
 }
 
-// #[test]
-// TODO: fix it in CI
-fn _blockhash_previous_block() {
+#[test]
+fn blockhash_previous_block() {
     let block_number = 1_u8;
     let block_hash = 209433;
     let current_block_number = 3_u8;
@@ -2715,7 +2714,7 @@ fn create_with_value() {
 #[test]
 fn create2_with_salt() {
     let operations = vec![
-        Operation::Push((1_u8, BigUint::from(0x1234_u16))),
+        Operation::Push((32_u8, BigUint::from(0x1234_u16))),
         Operation::Push((1_u8, BigUint::from(0_u8))),
         Operation::Push((1_u8, BigUint::from(20_u8))),
         Operation::Push((1_u8, BigUint::from(10_u8))),
@@ -2731,7 +2730,7 @@ fn create2_with_salt() {
     run_program_assert_num_result(
         env,
         db,
-        BigUint::from_str("1360874012957008445308945769568407652762850697122").unwrap(),
+        BigUint::from_str("603501459724177619068228368451474163543628990102").unwrap(),
     );
 }
 
@@ -2949,8 +2948,8 @@ fn call_2() {
 #[test]
 fn callcode() {
     let operations = vec![
-        Operation::Push((1_u8, BigUint::from(5000_u32))),
-        Operation::Push((1_u8, BigUint::from(0x2000_u32))),
+        Operation::Push((32_u8, BigUint::from(5000_u32))),
+        Operation::Push((32_u8, BigUint::from(0x2000_u32))),
         Operation::Push((1_u8, BigUint::from(0_u32))),
         Operation::Push((1_u8, BigUint::from(32_u32))),
         Operation::Push((1_u8, BigUint::from(32_u32))),
@@ -3269,7 +3268,7 @@ pub(crate) fn default_env_and_db_setup(operations: Vec<Operation>) -> (Env, Memo
 
 fn run_program_assert_num_result(env: Env, db: MemoryDb, expected_result: BigUint) {
     let result = run_evm(env, db).unwrap().result;
-    assert!(result.is_success());
+    assert!(result.is_success(), "{:?}", result);
     let result_data = BigUint::from_bytes_be(result.output().unwrap_or(&Bytes::new()));
     assert_eq!(result_data, expected_result);
 }

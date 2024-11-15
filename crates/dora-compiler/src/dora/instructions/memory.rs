@@ -11,7 +11,7 @@ use melior::{
         llvm::{self, LoadStoreOptions},
         ods,
     },
-    ir::{attribute::IntegerAttribute, operation::OperationRef, r#type::IntegerType, Type},
+    ir::{attribute::IntegerAttribute, operation::OperationRef, r#type::IntegerType},
     Context,
 };
 
@@ -23,10 +23,10 @@ impl<'c> ConversionPass<'c> {
 
         let uint8 = IntegerType::new(context, 8);
         let uint256 = rewriter.intrinsics.i256_ty;
-        let offset = rewriter.make(arith::trunci(offset, rewriter.intrinsics.i32_ty, location))?;
+        let offset = rewriter.make(arith::trunci(offset, rewriter.intrinsics.i64_ty, location))?;
         let value_size = rewriter.make(arith::constant(
             context,
-            IntegerAttribute::new(rewriter.intrinsics.i32_ty, 32).into(),
+            IntegerAttribute::new(rewriter.intrinsics.i64_ty, 32).into(),
             location,
         ))?;
         let required_size = rewriter.make(arith::addi(offset, value_size, location))?;
@@ -68,17 +68,17 @@ impl<'c> ConversionPass<'c> {
         syscall_ctx!(op, syscall_ctx);
         rewrite_ctx!(context, op, rewriter, location);
 
-        let uint8: Type<'_> = rewriter.intrinsics.i8_ty;
-        let uint32 = rewriter.intrinsics.i32_ty;
+        let uint8 = rewriter.intrinsics.i8_ty;
+        let uint64 = rewriter.intrinsics.i64_ty;
         // If byte_size is 1 (mstore8), truncate value to 1 byte
         let value = if byte_size == 1 {
             rewriter.make(arith::trunci(value, rewriter.intrinsics.i8_ty, location))?
         } else {
             value
         };
-        let offset = rewriter.make(arith::trunci(offset, uint32, location))?;
+        let offset = rewriter.make(arith::trunci(offset, uint64, location))?;
         // Calculate value size (1 byte for mstore8, 32 bytes for mstore)
-        let value_size = rewriter.make(rewriter.iconst_32(byte_size as i32))?;
+        let value_size = rewriter.make(rewriter.iconst_64(byte_size as i64))?;
         let required_size = rewriter.make(arith::addi(offset, value_size, location))?;
 
         memory::resize_memory(required_size, context, &rewriter, syscall_ctx, location)?;
@@ -119,9 +119,9 @@ impl<'c> ConversionPass<'c> {
     pub(crate) fn msize(context: &Context, op: &OperationRef<'_, '_>) -> Result<()> {
         rewrite_ctx!(context, op, rewriter, location);
 
-        let uint32 = rewriter.intrinsics.i32_ty;
+        let uint64 = rewriter.intrinsics.i64_ty;
         let uint256 = rewriter.intrinsics.i256_ty;
-        let memory_size = load_by_addr!(rewriter, constants::MEMORY_SIZE_GLOBAL, uint32);
+        let memory_size = load_by_addr!(rewriter, constants::MEMORY_SIZE_GLOBAL, uint64);
         rewriter.make(arith::extui(memory_size, uint256, location))?;
         Ok(())
     }
@@ -132,10 +132,10 @@ impl<'c> ConversionPass<'c> {
         rewrite_ctx!(context, op, rewriter, location);
 
         let uint8 = rewriter.intrinsics.i8_ty;
-        let uint32 = rewriter.intrinsics.i32_ty;
-        let dest_offset = rewriter.make(arith::trunci(dest_offset, uint32, location))?;
-        let offset = rewriter.make(arith::trunci(offset, uint32, location))?;
-        let size = rewriter.make(arith::trunci(size, uint32, location))?;
+        let uint64 = rewriter.intrinsics.i64_ty;
+        let dest_offset = rewriter.make(arith::trunci(dest_offset, uint64, location))?;
+        let offset = rewriter.make(arith::trunci(offset, uint64, location))?;
+        let size = rewriter.make(arith::trunci(size, uint64, location))?;
         // required size = dest_offset + size
         let src_required_size = rewriter.make(arith::addi(offset, size, location))?;
         // dest_required_size = dest_offset + size

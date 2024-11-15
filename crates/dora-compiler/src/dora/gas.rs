@@ -229,7 +229,7 @@ impl<'c> GasPass<'c> {
                                                 let location = rewriter.get_insert_location();
                                                 let size = rewriter.make(arith::trunci(
                                                     size,
-                                                    rewriter.intrinsics.i32_ty,
+                                                    rewriter.intrinsics.i64_ty,
                                                     location,
                                                 ))?;
                                                 let dynamic_gas_cost =
@@ -255,13 +255,13 @@ impl<'c> GasPass<'c> {
                                                 let dest_offset = op.operand(0)?;
                                                 let dest_offset = rewriter.make(arith::trunci(
                                                     dest_offset,
-                                                    rewriter.intrinsics.i32_ty,
+                                                    rewriter.intrinsics.i64_ty,
                                                     location,
                                                 ))?;
                                                 let size = op.operand(2)?;
                                                 let size = rewriter.make(arith::trunci(
                                                     size,
-                                                    rewriter.intrinsics.i32_ty,
+                                                    rewriter.intrinsics.i64_ty,
                                                     location,
                                                 ))?;
                                                 let required_size = rewriter.make(arith::addi(
@@ -289,13 +289,13 @@ impl<'c> GasPass<'c> {
                                                 let dest_offset = op.operand(0)?;
                                                 let dest_offset = rewriter.make(arith::trunci(
                                                     dest_offset,
-                                                    rewriter.intrinsics.i32_ty,
+                                                    rewriter.intrinsics.i64_ty,
                                                     location,
                                                 ))?;
                                                 let size = op.operand(2)?;
                                                 let size = rewriter.make(arith::trunci(
                                                     size,
-                                                    rewriter.intrinsics.i32_ty,
+                                                    rewriter.intrinsics.i64_ty,
                                                     location,
                                                 ))?;
                                                 let required_size = rewriter.make(arith::addi(
@@ -339,13 +339,13 @@ impl<'c> GasPass<'c> {
                                                 let dest_offset = op.operand(1)?;
                                                 let dest_offset = rewriter.make(arith::trunci(
                                                     dest_offset,
-                                                    rewriter.intrinsics.i32_ty,
+                                                    rewriter.intrinsics.i64_ty,
                                                     location,
                                                 ))?;
                                                 let size = op.operand(3)?;
                                                 let size = rewriter.make(arith::trunci(
                                                     size,
-                                                    rewriter.intrinsics.i32_ty,
+                                                    rewriter.intrinsics.i64_ty,
                                                     location,
                                                 ))?;
                                                 let required_size = rewriter.make(arith::addi(
@@ -380,7 +380,7 @@ impl<'c> GasPass<'c> {
                                                 let size = op.operand(3)?;
                                                 let size = rewriter.make(arith::trunci(
                                                     size,
-                                                    rewriter.intrinsics.i32_ty,
+                                                    rewriter.intrinsics.i64_ty,
                                                     location,
                                                 ))?;
                                                 let dynamic_gas_cost =
@@ -403,7 +403,7 @@ impl<'c> GasPass<'c> {
                                                 let dest_offset = op.operand(0)?;
                                                 let dest_offset = rewriter.make(arith::trunci(
                                                     dest_offset,
-                                                    rewriter.intrinsics.i32_ty,
+                                                    rewriter.intrinsics.i64_ty,
                                                     location,
                                                 ))?;
                                                 let size = rewriter.make(rewriter.iconst_32(32))?;
@@ -432,7 +432,7 @@ impl<'c> GasPass<'c> {
                                                 let dest_offset = op.operand(0)?;
                                                 let dest_offset = rewriter.make(arith::trunci(
                                                     dest_offset,
-                                                    rewriter.intrinsics.i32_ty,
+                                                    rewriter.intrinsics.i64_ty,
                                                     location,
                                                 ))?;
                                                 let size = rewriter.make(rewriter.iconst_32(32))?;
@@ -461,7 +461,7 @@ impl<'c> GasPass<'c> {
                                                 let dest_offset = op.operand(0)?;
                                                 let dest_offset = rewriter.make(arith::trunci(
                                                     dest_offset,
-                                                    rewriter.intrinsics.i32_ty,
+                                                    rewriter.intrinsics.i64_ty,
                                                     location,
                                                 ))?;
                                                 let size = rewriter.make(rewriter.iconst_32(8))?;
@@ -502,19 +502,19 @@ impl<'c> GasPass<'c> {
                                                 let dest_offset = op.operand(0)?;
                                                 let dest_offset = rewriter.make(arith::trunci(
                                                     dest_offset,
-                                                    rewriter.intrinsics.i32_ty,
+                                                    rewriter.intrinsics.i64_ty,
                                                     location,
                                                 ))?;
                                                 let offset = op.operand(1)?;
                                                 let offset = rewriter.make(arith::trunci(
                                                     offset,
-                                                    rewriter.intrinsics.i32_ty,
+                                                    rewriter.intrinsics.i64_ty,
                                                     location,
                                                 ))?;
                                                 let size = op.operand(2)?;
                                                 let size = rewriter.make(arith::trunci(
                                                     size,
-                                                    rewriter.intrinsics.i32_ty,
+                                                    rewriter.intrinsics.i64_ty,
                                                     location,
                                                 ))?;
                                                 // required_size = offset + size
@@ -556,13 +556,13 @@ impl<'c> GasPass<'c> {
                                                 let dest_offset = op.operand(0)?;
                                                 let dest_offset = rewriter.make(arith::trunci(
                                                     dest_offset,
-                                                    rewriter.intrinsics.i32_ty,
+                                                    rewriter.intrinsics.i64_ty,
                                                     location,
                                                 ))?;
                                                 let size = op.operand(1)?;
                                                 let size = rewriter.make(arith::trunci(
                                                     size,
-                                                    rewriter.intrinsics.i32_ty,
+                                                    rewriter.intrinsics.i64_ty,
                                                     location,
                                                 ))?;
                                                 let required_size = rewriter.make(arith::addi(
@@ -597,13 +597,13 @@ impl<'c> GasPass<'c> {
                                                 let dest_offset = op.operand(0)?;
                                                 let dest_offset = rewriter.make(arith::trunci(
                                                     dest_offset,
-                                                    rewriter.intrinsics.i32_ty,
+                                                    rewriter.intrinsics.i64_ty,
                                                     location,
                                                 ))?;
                                                 let size = op.operand(1)?;
                                                 let size = rewriter.make(arith::trunci(
                                                     size,
-                                                    rewriter.intrinsics.i32_ty,
+                                                    rewriter.intrinsics.i64_ty,
                                                     location,
                                                 ))?;
                                                 let required_size = rewriter.make(arith::addi(
@@ -638,13 +638,13 @@ impl<'c> GasPass<'c> {
                                                 let dest_offset = op.operand(0)?;
                                                 let dest_offset = rewriter.make(arith::trunci(
                                                     dest_offset,
-                                                    rewriter.intrinsics.i32_ty,
+                                                    rewriter.intrinsics.i64_ty,
                                                     location,
                                                 ))?;
                                                 let size = op.operand(1)?;
                                                 let size = rewriter.make(arith::trunci(
                                                     size,
-                                                    rewriter.intrinsics.i32_ty,
+                                                    rewriter.intrinsics.i64_ty,
                                                     location,
                                                 ))?;
                                                 let required_size = rewriter.make(arith::addi(
@@ -679,13 +679,13 @@ impl<'c> GasPass<'c> {
                                                 let dest_offset = op.operand(0)?;
                                                 let dest_offset = rewriter.make(arith::trunci(
                                                     dest_offset,
-                                                    rewriter.intrinsics.i32_ty,
+                                                    rewriter.intrinsics.i64_ty,
                                                     location,
                                                 ))?;
                                                 let size = op.operand(1)?;
                                                 let size = rewriter.make(arith::trunci(
                                                     size,
-                                                    rewriter.intrinsics.i32_ty,
+                                                    rewriter.intrinsics.i64_ty,
                                                     location,
                                                 ))?;
                                                 let required_size = rewriter.make(arith::addi(
@@ -720,13 +720,13 @@ impl<'c> GasPass<'c> {
                                                 let dest_offset = op.operand(0)?;
                                                 let dest_offset = rewriter.make(arith::trunci(
                                                     dest_offset,
-                                                    rewriter.intrinsics.i32_ty,
+                                                    rewriter.intrinsics.i64_ty,
                                                     location,
                                                 ))?;
                                                 let size = op.operand(1)?;
                                                 let size = rewriter.make(arith::trunci(
                                                     size,
-                                                    rewriter.intrinsics.i32_ty,
+                                                    rewriter.intrinsics.i64_ty,
                                                     location,
                                                 ))?;
                                                 let required_size = rewriter.make(arith::addi(
@@ -761,13 +761,13 @@ impl<'c> GasPass<'c> {
                                                 let dest_offset = op.operand(1)?;
                                                 let dest_offset = rewriter.make(arith::trunci(
                                                     dest_offset,
-                                                    rewriter.intrinsics.i32_ty,
+                                                    rewriter.intrinsics.i64_ty,
                                                     location,
                                                 ))?;
                                                 let size = op.operand(2)?;
                                                 let size = rewriter.make(arith::trunci(
                                                     size,
-                                                    rewriter.intrinsics.i32_ty,
+                                                    rewriter.intrinsics.i64_ty,
                                                     location,
                                                 ))?;
                                                 let required_size = rewriter.make(arith::addi(
@@ -796,13 +796,13 @@ impl<'c> GasPass<'c> {
                                                 let dest_offset = op.operand(1)?;
                                                 let dest_offset = rewriter.make(arith::trunci(
                                                     dest_offset,
-                                                    rewriter.intrinsics.i32_ty,
+                                                    rewriter.intrinsics.i64_ty,
                                                     location,
                                                 ))?;
                                                 let size = op.operand(2)?;
                                                 let size = rewriter.make(arith::trunci(
                                                     size,
-                                                    rewriter.intrinsics.i32_ty,
+                                                    rewriter.intrinsics.i64_ty,
                                                     location,
                                                 ))?;
                                                 let required_size = rewriter.make(arith::addi(
@@ -834,26 +834,26 @@ impl<'c> GasPass<'c> {
                                                 let args_offset = op.operand(1)?;
                                                 let args_offset = rewriter.make(arith::trunci(
                                                     args_offset,
-                                                    rewriter.intrinsics.i32_ty,
+                                                    rewriter.intrinsics.i64_ty,
                                                     location,
                                                 ))?;
                                                 let args_size = op.operand(2)?;
                                                 let args_size = rewriter.make(arith::trunci(
                                                     args_size,
-                                                    rewriter.intrinsics.i32_ty,
+                                                    rewriter.intrinsics.i64_ty,
                                                     location,
                                                 ))?;
 
                                                 let ret_offset = op.operand(3)?;
                                                 let ret_offset = rewriter.make(arith::trunci(
                                                     ret_offset,
-                                                    rewriter.intrinsics.i32_ty,
+                                                    rewriter.intrinsics.i64_ty,
                                                     location,
                                                 ))?;
                                                 let ret_size = op.operand(4)?;
                                                 let ret_size = rewriter.make(arith::trunci(
                                                     ret_size,
-                                                    rewriter.intrinsics.i32_ty,
+                                                    rewriter.intrinsics.i64_ty,
                                                     location,
                                                 ))?;
                                                 let req_arg_mem_size = rewriter.make(

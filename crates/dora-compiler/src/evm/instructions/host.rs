@@ -74,7 +74,8 @@ impl<'c> EVMCompiler<'c> {
         let start_block = region.append_block(Block::new(&[]));
         let mut builder = Self::make_builder(ctx, start_block);
         let block_number = builder.stack_pop()?;
-        builder.blockhash(block_number)?;
+        let block_hash = builder.blockhash(block_number)?;
+        builder.stack_push(block_hash)?;
         Ok((start_block, start_block))
     }
 

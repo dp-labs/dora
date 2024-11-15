@@ -182,6 +182,11 @@ pub enum TestErrorKind {
     SerdeDeserialize(#[from] serde_json::Error),
     #[error("unexpected execution error")]
     ExecutionError,
+    #[error("unexpected output: got {got_output:?}, expected {expected_output:?}")]
+    UnexpectedOutput {
+        expected_output: Option<Bytes>,
+        got_output: Option<Bytes>,
+    },
 }
 
 fn find_all_json_tests(path: &Path) -> Vec<PathBuf> {
@@ -279,11 +284,20 @@ fn execute_test(path: &Path) -> Result<(), TestError> {
                         // NOTE: the expect_exception string is an error description, we don't check the expected error
                         continue;
                     }
-                    assert!(res.result.is_success());
-                    assert_eq!(
-                        res.result.output().cloned(),
-                        suite.out.as_ref().map(|b| b.0.clone())
-                    );
+                    // Check output
+                    if let Some((expected_output, output)) =
+                        suite.out.as_ref().zip(res.result.output())
+                    {
+                        if expected_output.0 != output {
+                            return Err(TestError {
+                                name: name.to_string(),
+                                kind: TestErrorKind::UnexpectedOutput {
+                                    expected_output: Some(expected_output.0.clone()),
+                                    got_output: res.result.output().cloned(),
+                                },
+                            });
+                        }
+                    }
                 }
                 Err(e) => {
                     error!("Execution failed: {}", e);

@@ -5,18 +5,18 @@ snapshot_kind: text
 ---
 module {
   llvm.mlir.global internal @dora_stack_ptr() {addr_space = 0 : i32} : !llvm.ptr
-  llvm.mlir.global internal @dora_stack_length() {addr_space = 0 : i32} : i32
+  llvm.mlir.global internal @dora_stack_length() {addr_space = 0 : i32} : i64
   llvm.mlir.global internal @dora_memory_ptr() {addr_space = 0 : i32} : !llvm.ptr
-  llvm.mlir.global internal @dora_memory_size() {addr_space = 0 : i32} : i32
+  llvm.mlir.global internal @dora_memory_size() {addr_space = 0 : i32} : i64
   llvm.mlir.global internal @dora_calldata_ptr() {addr_space = 0 : i32} : !llvm.ptr
-  llvm.mlir.global internal @dora_calldata_size() {addr_space = 0 : i32} : i32
+  llvm.mlir.global internal @dora_calldata_size() {addr_space = 0 : i32} : i64
   llvm.mlir.global internal @dora_gas_counter() {addr_space = 0 : i32} : i64
   llvm.mlir.global external @dora_ctx_is_static() {addr_space = 0 : i32} : !llvm.ptr
   func.func private @dora_debug_print(i32)
-  func.func private @dora_write_result(!llvm.ptr, i32, i32, i64, i8)
-  func.func private @dora_keccak256_hasher(!llvm.ptr, i32, i32, !llvm.ptr)
+  func.func private @dora_write_result(!llvm.ptr, i64, i64, i64, i8)
+  func.func private @dora_keccak256_hasher(!llvm.ptr, i64, i64, !llvm.ptr)
   func.func private @dora_get_calldata_ptr(!llvm.ptr) -> !llvm.ptr
-  func.func private @dora_get_calldata_size(!llvm.ptr) -> i32
+  func.func private @dora_get_calldata_size(!llvm.ptr) -> i64
   func.func private @dora_get_chainid(!llvm.ptr) -> i64
   func.func private @dora_store_in_callvalue_ptr(!llvm.ptr, !llvm.ptr)
   func.func private @dora_store_in_caller_ptr(!llvm.ptr, !llvm.ptr)
@@ -24,15 +24,15 @@ module {
   func.func private @dora_store_in_selfbalance_ptr(!llvm.ptr, !llvm.ptr)
   func.func private @dora_store_in_blobbasefee_ptr(!llvm.ptr, !llvm.ptr)
   func.func private @dora_get_gaslimit(!llvm.ptr) -> i64
-  func.func private @dora_extend_memory(!llvm.ptr, i32) -> !llvm.ptr
-  func.func private @dora_copy_code_to_memory(!llvm.ptr, i32, i32, i32)
+  func.func private @dora_extend_memory(!llvm.ptr, i64) -> !llvm.ptr
+  func.func private @dora_copy_code_to_memory(!llvm.ptr, i64, i64, i64)
   func.func private @dora_read_storage(!llvm.ptr, !llvm.ptr, !llvm.ptr)
   func.func private @dora_write_storage(!llvm.ptr, !llvm.ptr, !llvm.ptr) -> i64
-  func.func private @dora_append_log(!llvm.ptr, i32, i32)
-  func.func private @dora_append_log_with_one_topic(!llvm.ptr, i32, i32, !llvm.ptr)
-  func.func private @dora_append_log_with_two_topics(!llvm.ptr, i32, i32, !llvm.ptr, !llvm.ptr)
-  func.func private @dora_append_log_with_three_topics(!llvm.ptr, i32, i32, !llvm.ptr, !llvm.ptr, !llvm.ptr)
-  func.func private @dora_append_log_with_four_topics(!llvm.ptr, i32, i32, !llvm.ptr, !llvm.ptr, !llvm.ptr, !llvm.ptr)
+  func.func private @dora_append_log(!llvm.ptr, i64, i64)
+  func.func private @dora_append_log_with_one_topic(!llvm.ptr, i64, i64, !llvm.ptr)
+  func.func private @dora_append_log_with_two_topics(!llvm.ptr, i64, i64, !llvm.ptr, !llvm.ptr)
+  func.func private @dora_append_log_with_three_topics(!llvm.ptr, i64, i64, !llvm.ptr, !llvm.ptr, !llvm.ptr)
+  func.func private @dora_append_log_with_four_topics(!llvm.ptr, i64, i64, !llvm.ptr, !llvm.ptr, !llvm.ptr, !llvm.ptr)
   func.func private @dora_get_origin(!llvm.ptr, !llvm.ptr)
   func.func private @dora_get_coinbase_ptr(!llvm.ptr) -> !llvm.ptr
   func.func private @dora_get_block_number(!llvm.ptr, !llvm.ptr)
@@ -41,16 +41,16 @@ module {
   func.func private @dora_get_prevrandao(!llvm.ptr, !llvm.ptr)
   func.func private @dora_store_in_timestamp_ptr(!llvm.ptr, !llvm.ptr)
   func.func private @dora_store_in_basefee_ptr(!llvm.ptr, !llvm.ptr)
-  func.func private @dora_call(!llvm.ptr, i64, !llvm.ptr, !llvm.ptr, i32, i32, i32, i32, i64, !llvm.ptr, i8) -> i8
+  func.func private @dora_call(!llvm.ptr, i64, !llvm.ptr, !llvm.ptr, i64, i64, i64, i64, i64, !llvm.ptr, i8) -> i8
   func.func private @dora_store_in_balance(!llvm.ptr, !llvm.ptr, !llvm.ptr)
-  func.func private @dora_copy_ext_code_to_memory(!llvm.ptr, !llvm.ptr, i32, i32, i32)
+  func.func private @dora_copy_ext_code_to_memory(!llvm.ptr, !llvm.ptr, i64, i64, i64)
   func.func private @dora_get_blob_hash_at_index(!llvm.ptr, !llvm.ptr, !llvm.ptr)
   func.func private @dora_get_block_hash(!llvm.ptr, !llvm.ptr)
   func.func private @dora_get_code_hash(!llvm.ptr, !llvm.ptr)
-  func.func private @dora_create(!llvm.ptr, i32, i32, !llvm.ptr, !llvm.ptr) -> i8
-  func.func private @dora_create2(!llvm.ptr, i32, i32, !llvm.ptr, !llvm.ptr, !llvm.ptr) -> i8
-  func.func private @dora_get_return_data_size(!llvm.ptr) -> i32
-  func.func private @dora_copy_return_data_into_memory(!llvm.ptr, i32, i32, i32)
+  func.func private @dora_create(!llvm.ptr, i64, i64, !llvm.ptr, !llvm.ptr) -> i8
+  func.func private @dora_create2(!llvm.ptr, i64, i64, !llvm.ptr, !llvm.ptr, !llvm.ptr) -> i8
+  func.func private @dora_get_return_data_size(!llvm.ptr) -> i64
+  func.func private @dora_copy_return_data_into_memory(!llvm.ptr, i64, i64, i64)
   func.func private @dora_selfdestruct(!llvm.ptr, !llvm.ptr) -> i64
   func.func private @dora_transient_storage_read(!llvm.ptr, !llvm.ptr, !llvm.ptr)
   func.func private @dora_transient_storage_write(!llvm.ptr, !llvm.ptr, !llvm.ptr)
@@ -59,28 +59,27 @@ module {
     %0 = llvm.alloca %c1024_i256 x i256 : (i256) -> !llvm.ptr
     %1 = llvm.mlir.addressof @dora_stack_ptr : !llvm.ptr
     llvm.store %0, %1 : !llvm.ptr, !llvm.ptr
-    %c0_i32 = arith.constant 0 : i32
+    %c0_i64 = arith.constant 0 : i64
     %2 = llvm.mlir.addressof @dora_stack_length : !llvm.ptr
-    llvm.store %c0_i32, %2 : i32, !llvm.ptr
-    %c0_i32_0 = arith.constant 0 : i32
+    llvm.store %c0_i64, %2 : i64, !llvm.ptr
+    %c0_i64_0 = arith.constant 0 : i64
     %3 = llvm.mlir.addressof @dora_memory_size : !llvm.ptr
-    llvm.store %c0_i32_0, %3 : i32, !llvm.ptr
+    llvm.store %c0_i64_0, %3 : i64, !llvm.ptr
     %4 = call @dora_get_calldata_ptr(%arg0) : (!llvm.ptr) -> !llvm.ptr
     %5 = llvm.mlir.addressof @dora_calldata_ptr : !llvm.ptr
     llvm.store %4, %5 : !llvm.ptr, !llvm.ptr
-    %6 = call @dora_get_calldata_size(%arg0) : (!llvm.ptr) -> i32
+    %6 = call @dora_get_calldata_size(%arg0) : (!llvm.ptr) -> i64
     %7 = llvm.mlir.addressof @dora_calldata_size : !llvm.ptr
-    llvm.store %6, %7 : i32, !llvm.ptr
+    llvm.store %6, %7 : i64, !llvm.ptr
     %8 = llvm.mlir.addressof @dora_gas_counter : !llvm.ptr
     llvm.store %arg1, %8 : i64, !llvm.ptr
     %9 = llvm.mlir.addressof @dora_stack_length : !llvm.ptr
-    %c1024_i32 = arith.constant 1024 : i32
+    %c1024_i64 = arith.constant 1024 : i64
     cf.br ^bb3
   ^bb1:  // pred: ^bb2
-    %c0_i32_1 = arith.constant 0 : i32
-    %c0_i64 = arith.constant 0 : i64
+    %c0_i64_1 = arith.constant 0 : i64
     %c3_i8 = arith.constant 3 : i8
-    call @dora_write_result(%arg0, %c0_i32_1, %c0_i32_1, %c0_i64, %c3_i8) : (!llvm.ptr, i32, i32, i64, i8) -> ()
+    call @dora_write_result(%arg0, %c0_i64_1, %c0_i64_1, %c0_i64_1, %c3_i8) : (!llvm.ptr, i64, i64, i64, i8) -> ()
     return %c3_i8 : i8
   ^bb2(%10: i256):  // no predecessors
     cf.switch %10 : i256, [
@@ -113,27 +112,27 @@ module {
     %23 = llvm.getelementptr %22[-1] : (!llvm.ptr) -> !llvm.ptr, i256
     %24 = llvm.load %23 : !llvm.ptr -> i256
     llvm.store %23, %21 : !llvm.ptr, !llvm.ptr
-    %25 = arith.trunci %20 : i256 to i32
-    %c32_i32 = arith.constant 32 : i32
-    %26 = arith.addi %25, %c32_i32 : i32
+    %25 = arith.trunci %20 : i256 to i64
+    %c32_i64 = arith.constant 32 : i64
+    %26 = arith.addi %25, %c32_i64 : i64
     %27 = llvm.mlir.addressof @dora_memory_size : !llvm.ptr
-    %28 = llvm.load %27 : !llvm.ptr -> i32
-    %c31_i32 = arith.constant 31 : i32
-    %c32_i32_3 = arith.constant 32 : i32
-    %29 = arith.addi %26, %c31_i32 : i32
-    %30 = arith.divui %29, %c32_i32_3 : i32
-    %31 = arith.muli %30, %c32_i32_3 : i32
-    %32 = arith.cmpi ult, %28, %31 : i32
+    %28 = llvm.load %27 : !llvm.ptr -> i64
+    %c31_i64 = arith.constant 31 : i64
+    %c32_i64_3 = arith.constant 32 : i64
+    %29 = arith.addi %26, %c31_i64 : i64
+    %30 = arith.divui %29, %c32_i64_3 : i64
+    %31 = arith.muli %30, %c32_i64_3 : i64
+    %32 = arith.cmpi ult, %28, %31 : i64
     scf.if %32 {
-      %60 = func.call @dora_extend_memory(%arg0, %31) : (!llvm.ptr, i32) -> !llvm.ptr
-      llvm.store %31, %27 : i32, !llvm.ptr
+      %60 = func.call @dora_extend_memory(%arg0, %31) : (!llvm.ptr, i64) -> !llvm.ptr
+      llvm.store %31, %27 : i64, !llvm.ptr
       %61 = llvm.mlir.addressof @dora_memory_ptr : !llvm.ptr
       llvm.store %60, %61 : !llvm.ptr, !llvm.ptr
     } else {
     }
     %33 = llvm.mlir.addressof @dora_memory_ptr : !llvm.ptr
     %34 = llvm.load %33 : !llvm.ptr -> !llvm.ptr
-    %35 = llvm.getelementptr %34[%25] : (!llvm.ptr, i32) -> !llvm.ptr, i8
+    %35 = llvm.getelementptr %34[%25] : (!llvm.ptr, i64) -> !llvm.ptr, i8
     %36 = llvm.intr.bswap(%24)  : (i256) -> i256
     llvm.store %36, %35 {alignment = 1 : i64} : i256, !llvm.ptr
     cf.br ^bb6
@@ -151,27 +150,27 @@ module {
     %42 = llvm.getelementptr %41[-1] : (!llvm.ptr) -> !llvm.ptr, i256
     %43 = llvm.load %42 : !llvm.ptr -> i256
     llvm.store %42, %40 : !llvm.ptr, !llvm.ptr
-    %44 = arith.trunci %43 : i256 to i32
-    %c32_i32_5 = arith.constant 32 : i32
-    %45 = arith.addi %44, %c32_i32_5 : i32
+    %44 = arith.trunci %43 : i256 to i64
+    %c32_i64_5 = arith.constant 32 : i64
+    %45 = arith.addi %44, %c32_i64_5 : i64
     %46 = llvm.mlir.addressof @dora_memory_size : !llvm.ptr
-    %47 = llvm.load %46 : !llvm.ptr -> i32
-    %c31_i32_6 = arith.constant 31 : i32
-    %c32_i32_7 = arith.constant 32 : i32
-    %48 = arith.addi %45, %c31_i32_6 : i32
-    %49 = arith.divui %48, %c32_i32_7 : i32
-    %50 = arith.muli %49, %c32_i32_7 : i32
-    %51 = arith.cmpi ult, %47, %50 : i32
+    %47 = llvm.load %46 : !llvm.ptr -> i64
+    %c31_i64_6 = arith.constant 31 : i64
+    %c32_i64_7 = arith.constant 32 : i64
+    %48 = arith.addi %45, %c31_i64_6 : i64
+    %49 = arith.divui %48, %c32_i64_7 : i64
+    %50 = arith.muli %49, %c32_i64_7 : i64
+    %51 = arith.cmpi ult, %47, %50 : i64
     scf.if %51 {
-      %60 = func.call @dora_extend_memory(%arg0, %50) : (!llvm.ptr, i32) -> !llvm.ptr
-      llvm.store %50, %46 : i32, !llvm.ptr
+      %60 = func.call @dora_extend_memory(%arg0, %50) : (!llvm.ptr, i64) -> !llvm.ptr
+      llvm.store %50, %46 : i64, !llvm.ptr
       %61 = llvm.mlir.addressof @dora_memory_ptr : !llvm.ptr
       llvm.store %60, %61 : !llvm.ptr, !llvm.ptr
     } else {
     }
     %52 = llvm.mlir.addressof @dora_memory_ptr : !llvm.ptr
     %53 = llvm.load %52 : !llvm.ptr -> !llvm.ptr
-    %54 = llvm.getelementptr %53[%44] : (!llvm.ptr, i32) -> !llvm.ptr, i8
+    %54 = llvm.getelementptr %53[%44] : (!llvm.ptr, i64) -> !llvm.ptr, i8
     %55 = llvm.load %54 {alignment = 1 : i64} : !llvm.ptr -> i256
     %56 = llvm.intr.bswap(%55)  : (i256) -> i256
     %57 = llvm.mlir.addressof @dora_stack_ptr : !llvm.ptr
@@ -181,9 +180,9 @@ module {
     llvm.store %59, %57 : !llvm.ptr, !llvm.ptr
     cf.br ^bb8
   ^bb8:  // pred: ^bb7
-    %c0_i32_8 = arith.constant 0 : i32
+    %c0_i64_8 = arith.constant 0 : i64
     %c1_i8 = arith.constant 1 : i8
-    call @dora_write_result(%arg0, %c0_i32_8, %c0_i32_8, %arg1, %c1_i8) : (!llvm.ptr, i32, i32, i64, i8) -> ()
+    call @dora_write_result(%arg0, %c0_i64_8, %c0_i64_8, %arg1, %c1_i8) : (!llvm.ptr, i64, i64, i64, i8) -> ()
     return %c1_i8 : i8
   }
 }
