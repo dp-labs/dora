@@ -1,5 +1,6 @@
 use std::collections::BTreeMap;
 
+use dora_runtime::constants::STACK_SIZE_GLOBAL;
 use dora_runtime::{constants::STACK_PTR_GLOBAL, ExitStatusCode};
 use dora_runtime::{
     constants::{
@@ -22,7 +23,9 @@ use melior::{
     Context as MLIRContext,
 };
 use num_bigint::BigUint;
+use program::stack_io;
 
+use crate::backend::IntCC;
 use crate::conversion::builder::OpBuilder;
 use crate::evm::program::Operation;
 use crate::Compiler;
@@ -93,6 +96,10 @@ pub struct EVMCompiler<'c> {
     /// The intrinsic types specific to the EVM execution model, such as integer and floating-point types.
     /// These are used to translate EVM operations into the corresponding MLIR types during compilation.
     pub intrinsics: Intrinsics<'c>,
+
+    /// Check for stack overflow or underflow errors. Note that there is no need to check for EOF Bytecode,
+    /// as stack operations are statically determined at compile time.
+    pub stack_bound_checks: bool,
 }
 
 impl<'c> Compiler for EVMCompiler<'c> {
@@ -143,6 +150,7 @@ impl<'c> EVMCompiler<'c> {
         Self {
             intrinsics: Intrinsics::declare(ctx),
             ctx,
+            stack_bound_checks: false,
         }
     }
 
@@ -283,16 +291,56 @@ impl<'c> EVMCompiler<'c> {
 
         let main_region = main_func.region(0)?;
 
-        // TODO: remove stack-related code and use unified memory management ctx between EVM and WASM.
         let setup_block = main_region.append_block(Block::new(&[]));
-
+        let is_eof = true;
         let mut ctx = CtxType::new(self.ctx, module, &main_region, &setup_block, program)?;
         let mut last_block = setup_block;
+        let builder = OpBuilder::new_with_block(context, last_block);
+        let stack_size_ptr =
+            builder.make(builder.addressof(STACK_SIZE_GLOBAL, builder.ptr_ty()))?;
+        let stack_max_size = builder.make(builder.iconst_32(MAX_STACK_SIZE as i32))?;
         // Generate code for the program
         for op in &ctx.program.operations {
             let (block_start, block_end) =
                 EVMCompiler::generate_code_for_op(&mut ctx, &main_region, op.clone())?;
-            last_block.append_operation(cf::br(&block_start, &[], location));
+            // If the opcode is non-eof format, check the stack overflow/underflow
+            if !is_eof && self.stack_bound_checks {
+                let (i, o) = stack_io(op);
+                let diff = o as i32 - i as i32;
+                let builder = OpBuilder::new_with_block(context, last_block);
+                // Check underflow
+                let size_before =
+                    builder.make(builder.load(stack_size_ptr, builder.intrinsics.i32_ty))?;
+                let i = builder.make(builder.iconst_32(i as i32))?;
+                let underflow =
+                    builder.make(builder.icmp(IntCC::UnsignedLessThan, size_before, i))?;
+                // Check overflow
+                let size_after = builder.make(arith::addi(
+                    size_before,
+                    builder.make(builder.iconst_32(diff))?,
+                    location,
+                ))?;
+                let overflow = builder.make(builder.icmp(
+                    IntCC::UnsignedLessThan,
+                    stack_max_size,
+                    size_after,
+                ))?;
+                // Update the stack length for this operation.
+                builder.create(builder.store(size_after, stack_size_ptr));
+                // Whether revert
+                let revert = builder.make(arith::xori(underflow, overflow, location))?;
+                builder.create(cf::cond_br(
+                    context,
+                    revert,
+                    &ctx.revert_block,
+                    &block_start,
+                    &[],
+                    &[],
+                    location,
+                ));
+            } else {
+                last_block.append_operation(cf::br(&block_start, &[], location));
+            }
             last_block = block_end;
         }
         // Deal jump operations
@@ -714,6 +762,9 @@ impl<'c> SetupBuilder<'c> {
         let ptr_type = self.builder.intrinsics.ptr_ty;
         self.declare_globals(&[STACK_PTR_GLOBAL], ptr_type)?
             .allocate_stack()?;
+        self.declare_globals(&[STACK_SIZE_GLOBAL], self.builder.intrinsics.i32_ty)?;
+        let zero = self.constant(0)?;
+        self.initialize_global(STACK_SIZE_GLOBAL, ptr_type, zero)?;
 
         Ok(self)
     }

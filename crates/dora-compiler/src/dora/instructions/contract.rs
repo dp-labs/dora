@@ -1,12 +1,17 @@
 use crate::{
     arith_constant,
-    conversion::{builder::OpBuilder, rewriter::DeferredRewriter},
+    backend::IntCC,
+    conversion::{
+        builder::OpBuilder,
+        rewriter::{DeferredRewriter, Replacer, Rewriter},
+    },
     dora::{conversion::ConversionPass, gas, memory},
     errors::Result,
     operands, rewrite_ctx, syscall_ctx,
 };
 use dora_runtime::constants::CallType;
 use dora_runtime::symbols;
+use dora_runtime::symbols::CTX_IS_STATIC;
 use dora_runtime::ExitStatusCode;
 use melior::{
     dialect::{
@@ -126,27 +131,69 @@ impl<'c> ConversionPass<'c> {
         op: &OperationRef<'_, '_>,
         call_type: CallType,
     ) -> Result<()> {
+        let rewriter = Rewriter::new_with_op(context, *op);
+        let location = rewriter.get_insert_location();
+        let block = op.block().unwrap();
+        match call_type {
+            CallType::Call | CallType::CallCode => {
+                // Static call value is zero check
+                if let Some(region) = block.parent_region() {
+                    if let Some(setup_block) = region.first_block() {
+                        if let Some(revert_block) = setup_block.next_in_region() {
+                            if let Some(insert_point) = rewriter.get_insert_point() {
+                                let next_block = rewriter.split_block(block, Some(insert_point))?;
+                                let builder = OpBuilder::new_with_block(context, block);
+                                let ctx_is_static_ptr = builder
+                                    .make(builder.addressof(CTX_IS_STATIC, builder.ptr_ty()))?;
+                                let ctx_is_static = builder.make(
+                                    builder.load(ctx_is_static_ptr, builder.intrinsics.i1_ty),
+                                )?;
+                                let zero = builder.make(builder.iconst_256_from_u64(0)?)?;
+                                let value = op.operand(2)?;
+                                let value_is_not_zero =
+                                    builder.make(builder.icmp(IntCC::NotEqual, value, zero))?;
+                                let revert_flag = builder.make(arith::andi(
+                                    ctx_is_static,
+                                    value_is_not_zero,
+                                    location,
+                                ))?;
+                                builder.create(cf::cond_br(
+                                    context,
+                                    revert_flag,
+                                    &revert_block,
+                                    &next_block,
+                                    &[],
+                                    &[],
+                                    location,
+                                ));
+                                Self::intern_call(context, op, value, 3)?;
+                            }
+                        }
+                    }
+                }
+            }
+            CallType::StaticCall | CallType::DelegateCall => {
+                Self::intern_call(
+                    context,
+                    op,
+                    rewriter.make(rewriter.iconst_256_from_u64(0)?)?,
+                    2,
+                )?;
+            }
+        };
+        Ok(())
+    }
+
+    fn intern_call(
+        context: &Context,
+        op: &OperationRef<'_, '_>,
+        value: Value<'_, '_>,
+        o_index: usize,
+    ) -> Result<()> {
         operands!(op, gas, address);
         syscall_ctx!(op, syscall_ctx);
-        rewrite_ctx!(context, op, rewriter, location);
-
-        let mut o_index = 2;
-        let value = match call_type {
-            CallType::Call | CallType::CallCode => {
-                o_index += 1;
-                op.operand(2)?
-            }
-            CallType::StaticCall | CallType::DelegateCall => rewriter.make(arith_constant!(
-                rewriter,
-                context,
-                rewriter.intrinsics.i256_ty,
-                0,
-                location
-            ))?,
-        };
-
-        // TODO: If the context is static, the transfer value must be zero for CALL and CALLCODE opcodes.
-
+        let rewriter = Rewriter::new_with_op(context, *op);
+        let location = rewriter.get_insert_location();
         let (args_offset, args_size, ret_offset, ret_size) = (
             op.operand(o_index)?,
             op.operand(o_index + 1)?,
@@ -223,7 +270,11 @@ impl<'c> ConversionPass<'c> {
             location,
             LoadStoreOptions::default(),
         ));
-        rewriter.make(arith::extui(result, rewriter.intrinsics.i256_ty, location))?;
+        rewriter.replace_op(
+            *op,
+            arith::extui(result, rewriter.intrinsics.i256_ty, location),
+        )?;
+
         Ok(())
     }
 
