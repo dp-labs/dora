@@ -255,9 +255,9 @@ module {
     llvm.store %95, %96 {alignment = 1 : i64} : i64, !llvm.ptr
     %97 = call @dora_create(%arg0, %85, %84, %93, %96) : (!llvm.ptr, i64, i64, !llvm.ptr, !llvm.ptr) -> i8
     %c0_i8 = arith.constant 0 : i8
-    %98 = arith.cmpi eq, %c0_i8, %97 : i8
+    %98 = arith.cmpi ne, %c0_i8, %97 : i8
     %99 = llvm.load %93 : !llvm.ptr -> i256
-    cf.cond_br %98, ^bb13, ^bb1
+    cf.cond_br %98, ^bb1, ^bb13
   ^bb13:  // pred: ^bb12
     %100 = llvm.mlir.addressof @dora_stack_ptr : !llvm.ptr
     %101 = llvm.load %100 : !llvm.ptr -> !llvm.ptr

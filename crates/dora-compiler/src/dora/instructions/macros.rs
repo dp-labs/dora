@@ -194,3 +194,29 @@ macro_rules! store_var {
         llvm::store($context, $value, $addr, $location, $extra_options)
     }};
 }
+
+#[macro_export]
+macro_rules! maybe_revert_here {
+    ($op:expr, $rewriter:expr, $cond:expr) => {
+        if let Some(block) = $op.block() {
+            if let Some(region) = block.parent_region() {
+                if let Some(setup_block) = region.first_block() {
+                    if let Some(revert_block) = setup_block.next_in_region() {
+                        if let Some(insert_point) = $rewriter.get_insert_point() {
+                            let next_block = $rewriter.split_block(block, Some(insert_point))?;
+                            block.append_operation(cf::cond_br(
+                                $rewriter.context(),
+                                $cond,
+                                &revert_block,
+                                &next_block,
+                                &[],
+                                &[],
+                                $rewriter.get_insert_location(),
+                            ));
+                        }
+                    }
+                }
+            }
+        }
+    };
+}

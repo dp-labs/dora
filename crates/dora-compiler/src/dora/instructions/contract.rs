@@ -1,13 +1,10 @@
 use crate::{
     arith_constant,
     backend::IntCC,
-    conversion::{
-        builder::OpBuilder,
-        rewriter::{DeferredRewriter, Replacer, Rewriter},
-    },
+    conversion::rewriter::{DeferredRewriter, Replacer, Rewriter},
     dora::{conversion::ConversionPass, gas, memory},
     errors::Result,
-    operands, rewrite_ctx, syscall_ctx,
+    maybe_revert_here, operands, rewrite_ctx, syscall_ctx,
 };
 use dora_runtime::constants::CallType;
 use dora_runtime::symbols;
@@ -86,9 +83,9 @@ impl<'c> ConversionPass<'c> {
         };
 
         let zero = rewriter.make(rewriter.iconst_8(0))?;
-        let flag = rewriter.make(arith::cmpi(
+        let revert_flag = rewriter.make(arith::cmpi(
             context,
-            CmpiPredicate::Eq,
+            CmpiPredicate::Ne,
             zero,
             result,
             location,
@@ -102,27 +99,8 @@ impl<'c> ConversionPass<'c> {
             LoadStoreOptions::default(),
         ))?;
 
-        if let Some(block) = op.block() {
-            if let Some(region) = block.parent_region() {
-                if let Some(setup_block) = region.first_block() {
-                    if let Some(revert_block) = setup_block.next_in_region() {
-                        if let Some(insert_point) = rewriter.get_insert_point() {
-                            let next_block = rewriter.split_block(block, Some(insert_point))?;
-                            let builder = OpBuilder::new_with_block(context, block);
-                            builder.create(cf::cond_br(
-                                context,
-                                flag,
-                                &next_block,
-                                &revert_block,
-                                &[],
-                                &[],
-                                location,
-                            ));
-                        }
-                    }
-                }
-            }
-        }
+        maybe_revert_here!(op, rewriter, revert_flag);
+
         Ok(())
     }
 
@@ -133,44 +111,22 @@ impl<'c> ConversionPass<'c> {
     ) -> Result<()> {
         let rewriter = Rewriter::new_with_op(context, *op);
         let location = rewriter.get_insert_location();
-        let block = op.block().unwrap();
         match call_type {
             CallType::Call | CallType::CallCode => {
                 // Static call value is zero check
-                if let Some(region) = block.parent_region() {
-                    if let Some(setup_block) = region.first_block() {
-                        if let Some(revert_block) = setup_block.next_in_region() {
-                            if let Some(insert_point) = rewriter.get_insert_point() {
-                                let next_block = rewriter.split_block(block, Some(insert_point))?;
-                                let builder = OpBuilder::new_with_block(context, block);
-                                let ctx_is_static_ptr = builder
-                                    .make(builder.addressof(CTX_IS_STATIC, builder.ptr_ty()))?;
-                                let ctx_is_static = builder.make(
-                                    builder.load(ctx_is_static_ptr, builder.intrinsics.i1_ty),
-                                )?;
-                                let zero = builder.make(builder.iconst_256_from_u64(0)?)?;
-                                let value = op.operand(2)?;
-                                let value_is_not_zero =
-                                    builder.make(builder.icmp(IntCC::NotEqual, value, zero))?;
-                                let revert_flag = builder.make(arith::andi(
-                                    ctx_is_static,
-                                    value_is_not_zero,
-                                    location,
-                                ))?;
-                                builder.create(cf::cond_br(
-                                    context,
-                                    revert_flag,
-                                    &revert_block,
-                                    &next_block,
-                                    &[],
-                                    &[],
-                                    location,
-                                ));
-                                Self::intern_call(context, op, value, 3)?;
-                            }
-                        }
-                    }
-                }
+                let ctx_is_static_ptr =
+                    rewriter.make(rewriter.addressof(CTX_IS_STATIC, rewriter.ptr_ty()))?;
+                let ctx_is_static =
+                    rewriter.make(rewriter.load(ctx_is_static_ptr, rewriter.intrinsics.i1_ty))?;
+                let zero = rewriter.make(rewriter.iconst_256_from_u64(0)?)?;
+                let value = op.operand(2)?;
+                let value_is_not_zero =
+                    rewriter.make(rewriter.icmp(IntCC::NotEqual, value, zero))?;
+                let revert_flag =
+                    rewriter.make(arith::andi(ctx_is_static, value_is_not_zero, location))?;
+
+                maybe_revert_here!(op, rewriter, revert_flag);
+                Self::intern_call(context, op, value, 3)?;
             }
             CallType::StaticCall | CallType::DelegateCall => {
                 Self::intern_call(

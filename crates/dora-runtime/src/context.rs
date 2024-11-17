@@ -258,7 +258,7 @@ impl RuntimeContext {
     /// let logs = context.logs();
     /// ```
     pub fn logs(&self) -> Vec<Log> {
-        let host = self.host.write().unwrap();
+        let host = self.host.read().unwrap();
         self.inner_context
             .logs
             .iter()
@@ -267,6 +267,12 @@ impl RuntimeContext {
                 data: logdata.clone(),
             })
             .collect()
+    }
+
+    /// Retrieves the tx calldata.
+    pub fn calldata(&self) -> Vec<u8> {
+        let host = self.host.read().unwrap();
+        host.env().tx.data.to_vec()
     }
 
     /// Retrieves the result of the execution, including gas usage, return values, and the resulting state changes.
@@ -325,15 +331,7 @@ impl RuntimeContext {
     }
 }
 
-// Debug functions
-impl RuntimeContext {
-    pub extern "C" fn debug_print(val: i32) {
-        println!("dora debug value: {val}");
-    }
-}
-
 // System call functions
-
 impl RuntimeContext {
     pub extern "C" fn write_result(
         &mut self,
@@ -632,7 +630,7 @@ impl RuntimeContext {
     }
 
     pub extern "C" fn extend_memory(&mut self, new_size: u64) -> *mut u8 {
-        // Note the overflow on the 32-bit machine.
+        // Note the overflow on the 32-bit machine for the max memory e.g., 4GB
         let new_size = new_size as usize;
         if new_size <= self.inner_context.memory.len() {
             return self.inner_context.memory.as_mut_ptr();

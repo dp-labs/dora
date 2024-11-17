@@ -15,7 +15,10 @@ pub const MAIN_ENTRYPOINT: &str = "main";
 
 // Versioning and blob constants
 pub const VERSIONED_HASH_VERSION_KZG: u8 = 0x01;
-pub const MAX_BLOB_NUMBER_PER_BLOCK: u8 = 0x01;
+/// Target number of the blob per block.
+pub const TARGET_BLOB_NUMBER_PER_BLOCK: u64 = 3;
+/// Max number of blobs per block
+pub const MAX_BLOB_NUMBER_PER_BLOCK: u64 = 2 * TARGET_BLOB_NUMBER_PER_BLOCK;
 
 pub mod gas_cost {
     // Gas costs for various operations

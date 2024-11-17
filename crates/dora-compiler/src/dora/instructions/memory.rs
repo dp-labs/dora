@@ -1,13 +1,15 @@
 use crate::{
-    conversion::rewriter::DeferredRewriter,
+    backend::IntCC,
+    conversion::rewriter::{DeferredRewriter, Rewriter},
     dora::{conversion::ConversionPass, memory},
     errors::Result,
-    load_by_addr, operands, rewrite_ctx, syscall_ctx,
+    load_by_addr, maybe_revert_here, operands, rewrite_ctx, syscall_ctx,
 };
 use dora_runtime::constants;
 use melior::{
     dialect::{
         arith::{self},
+        cf,
         llvm::{self, LoadStoreOptions},
         ods,
     },
@@ -129,8 +131,8 @@ impl<'c> ConversionPass<'c> {
     pub(crate) fn mcopy(context: &Context, op: &OperationRef<'_, '_>) -> Result<()> {
         operands!(op, dest_offset, offset, size);
         syscall_ctx!(op, syscall_ctx);
-        rewrite_ctx!(context, op, rewriter, location);
-
+        let rewriter = Rewriter::new_with_op(context, *op);
+        let location = rewriter.get_insert_location();
         let uint8 = rewriter.intrinsics.i8_ty;
         let uint64 = rewriter.intrinsics.i64_ty;
         let dest_offset = rewriter.make(arith::trunci(dest_offset, uint64, location))?;
@@ -145,7 +147,12 @@ impl<'c> ConversionPass<'c> {
             dest_required_size,
             location,
         ))?;
-
+        let zero = rewriter.make(rewriter.iconst_64(0))?;
+        // Check the memory offset halt error
+        let overflow =
+            rewriter.make(rewriter.icmp(IntCC::SignedLessThan, required_memory_size, zero))?;
+        maybe_revert_here!(op, rewriter, overflow);
+        rewrite_ctx!(context, op, rewriter, location);
         memory::resize_memory(
             required_memory_size,
             context,
@@ -153,7 +160,6 @@ impl<'c> ConversionPass<'c> {
             syscall_ctx,
             location,
         )?;
-
         let memory_ptr = load_by_addr!(rewriter, constants::MEMORY_PTR_GLOBAL, rewriter.ptr_ty());
         // memory_destination = memory_ptr + offset
         let source = rewriter.make(llvm::get_element_ptr_dynamic(
