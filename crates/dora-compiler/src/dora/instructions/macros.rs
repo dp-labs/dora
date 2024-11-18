@@ -220,3 +220,14 @@ macro_rules! maybe_revert_here {
         }
     };
 }
+
+#[macro_export]
+macro_rules! check_resize_memory {
+    ($op:expr, $rewriter:expr, $required_memory_size:expr) => {
+        // Check the memory offset halt error
+        let zero = $rewriter.make($rewriter.iconst_64(0))?;
+        let overflow =
+            $rewriter.make($rewriter.icmp(IntCC::SignedLessThan, $required_memory_size, zero))?;
+        maybe_revert_here!($op, $rewriter, overflow);
+    };
+}
