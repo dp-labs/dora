@@ -8,13 +8,9 @@ use dora_compiler::{
     evm::{self, program::Program, EVMCompiler},
     pass, Compiler,
 };
-use dora_primitives::transaction::Transaction;
-use dora_primitives::{
-    db::{Database, MemoryDb},
-    Address, Bytecode,
-};
+use dora_primitives::{db::Database, transaction::Transaction};
+use dora_primitives::{db::MemoryDB, Address, Bytecode};
 use dora_runtime::executor::Executor;
-use dora_runtime::journal::Journal;
 use dora_runtime::result::ResultAndState;
 use dora_runtime::{context::CallFrame, env::Env};
 use dora_runtime::{context::RuntimeContext, host::DummyHost};
@@ -25,7 +21,7 @@ use std::sync::{Arc, RwLock};
 /// # Arguments
 ///
 /// * `env` - The environment configuration for the execution (e.g., gas limit, transaction data, etc.).
-/// * `db` - A mutable reference to the `MemoryDb` that simulates the contract storage and state database.
+/// * `db` - A mutable reference to the `MemoryDB` that simulates the contract storage and state database.
 ///
 /// # Returns
 ///
@@ -34,21 +30,23 @@ use std::sync::{Arc, RwLock};
 /// # Errors
 ///
 /// Returns an error if the program fails to execute or if the bytecode or address is invalid.
-pub fn run_evm(mut env: Env, db: MemoryDb) -> Result<ResultAndState> {
+pub fn run_evm<DB: Database + 'static>(mut env: Env, db: DB) -> Result<ResultAndState> {
     env.validate_transaction().map_err(|e| anyhow::anyhow!(e))?;
     env.consume_intrinsic_cost()
         .map_err(|e| anyhow::anyhow!(e))?;
     let mut runtime_context = RuntimeContext::new(
-        Journal::new(db),
+        Arc::new(RwLock::new(db)),
         CallFrame::new(env.tx.caller),
-        Arc::new(EVMTransaction),
+        Arc::new(EVMTransaction::<DB>::new()),
         Arc::new(RwLock::new(DummyHost::new(env))),
     );
     run_with_context(&mut runtime_context)
 }
 
 /// Run transaction with the runtime context.
-fn run_with_context(runtime_context: &mut RuntimeContext) -> Result<ResultAndState> {
+fn run_with_context<DB: Database>(
+    runtime_context: &mut RuntimeContext<DB>,
+) -> Result<ResultAndState> {
     let host = runtime_context.host.read().unwrap();
     let env = host.env();
     let code_address = env.tx.get_address();
@@ -59,9 +57,13 @@ fn run_with_context(runtime_context: &mut RuntimeContext) -> Result<ResultAndSta
         drop(host);
         runtime_context.create_contract(&data, &mut remaining_gas, value, None)?;
     } else {
-        drop(host);
-        let opcodes = runtime_context.journal.db.code_by_address(code_address)?;
+        let opcodes = {
+            let db = runtime_context.db.read().unwrap();
+            db.code_by_address(code_address)
+                .map_err(|e| anyhow::anyhow!(format!("{e:?}")))?
+        };
         let program = Program::from_opcode(&opcodes);
+        drop(host);
         let context = Context::new();
         let compiler = EVMCompiler::new(&context);
         let mut module = compiler.compile(&program, &())?;
@@ -98,16 +100,29 @@ fn run_with_context(runtime_context: &mut RuntimeContext) -> Result<ResultAndSta
 /// let evm_tx = EVMTransaction::default();
 /// let result = evm_tx.run(&mut ctx, 21_000);
 /// ```
-#[derive(Debug, Default)]
-pub struct EVMTransaction;
+#[derive(Debug)]
+pub struct EVMTransaction<DB: Database>(std::marker::PhantomData<DB>);
 
-impl Transaction for EVMTransaction {
-    type Context = RuntimeContext;
+impl<DB: Database> EVMTransaction<DB> {
+    #[inline]
+    pub fn new() -> Self {
+        Self(std::marker::PhantomData)
+    }
+}
+
+impl<DB: Database> Default for EVMTransaction<DB> {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+impl<DB: Database> Transaction for EVMTransaction<DB> {
+    type Context = RuntimeContext<DB>;
     type Result = Result<ResultAndState>;
 
     #[inline]
     fn run(&self, ctx: &mut Self::Context, _initial_gas: u64) -> Self::Result {
-        run_with_context(ctx)
+        run_with_context::<DB>(ctx)
     }
 }
 
@@ -139,6 +154,6 @@ pub fn run_evm_bytecode_with_calldata(
     env.tx.gas_limit = initial_gas;
     env.tx.data = Bytecode::from(calldata);
     env.tx.caller = Address::from_low_u64_le(10000);
-    let db = MemoryDb::new().with_contract(address, Bytecode::from(opcodes));
+    let db = MemoryDB::new().with_contract(address, Bytecode::from(opcodes));
     run_evm(env, db)
 }

@@ -1,7 +1,7 @@
 use anyhow::{Context, Result};
 use bytes::Bytes;
 use clap::{Args, Parser, Subcommand};
-use dora_primitives::db::MemoryDb;
+use dora_primitives::db::MemoryDB;
 use dora_primitives::{Address, Bytecode};
 use dora_runtime::env::Env;
 use ruint::aliases::U256;
@@ -92,7 +92,7 @@ fn main() -> Result<()> {
             env.block.number = U256::from(run_args.block_number);
             env.block.timestamp = U256::from(run_args.timestamp);
             // Set DB
-            let db = MemoryDb::new().with_contract(address, Bytecode::from(bytecode));
+            let db = MemoryDB::new().with_contract(address, Bytecode::from(bytecode));
             // Run the contract
             match dora::run_evm(env, db) {
                 Ok(result) => {

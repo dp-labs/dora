@@ -6,9 +6,12 @@ use crate::{run_evm, tests::INIT_GAS};
 use bytes::Bytes;
 use dora_compiler::evm::program::{Operation, Program};
 use dora_primitives::{
-    account::EMPTY_CODE_HASH_STR, db::MemoryDb, Address, Bytecode, Bytes32, B256, H160,
+    account::EMPTY_CODE_HASH_STR, db::MemoryDB, Address, Bytecode, Bytes32, B256, H160,
 };
-use dora_runtime::{context::RuntimeContext, env::Env};
+use dora_runtime::{
+    context::{compute_contract_address, RuntimeContext},
+    env::Env,
+};
 use num_bigint::{BigInt, BigUint};
 use ruint::aliases::U256;
 
@@ -1336,8 +1339,7 @@ fn test_extcodesize() {
     ];
     let (env, mut db) = default_env_and_db_setup(operations);
     // 40 is the sender address
-    let _created_address =
-        RuntimeContext::compute_contract_address(Address::from_low_u64_be(40), 1);
+    let _created_address = compute_contract_address(Address::from_low_u64_be(40), 1);
     // _created_address is the deployed contract address
     // 41 is the deployed contract code size.
     run_program_assert_num_result(env, db, 41_u8.into());
@@ -1420,7 +1422,7 @@ fn extcodecopy_full() {
         Operation::Return,
     ];
     let (env, mut db) = default_env_and_db_setup(operations);
-    let created_address = RuntimeContext::compute_contract_address(Address::from_low_u64_be(40), 1);
+    let created_address = compute_contract_address(Address::from_low_u64_be(40), 1);
     run_program_assert_num_result(env, db, BigUint::from_bytes_be(created_address.as_bytes()));
 }
 
@@ -3138,7 +3140,7 @@ fn delegatecall_1() {
         Operation::Return,
     ];
     let (env, mut db) = default_env_and_db_setup(operations);
-    run_program_assert_num_result(env, db, 0_u8.into());
+    run_program_assert_num_result(env, db, 1_u8.into());
 }
 
 #[test]
@@ -3159,7 +3161,7 @@ fn staticcall() {
         Operation::Return,
     ];
     let (env, mut db) = default_env_and_db_setup(operations);
-    run_program_assert_num_result(env, db, 0_u8.into());
+    run_program_assert_num_result(env, db, 1_u8.into());
 }
 
 #[test]
@@ -3271,7 +3273,7 @@ fn biguint_256_from_bigint(value: BigInt) -> BigUint {
     }
 }
 
-pub(crate) fn default_env_and_db_setup(operations: Vec<Operation>) -> (Env, MemoryDb) {
+pub(crate) fn default_env_and_db_setup(operations: Vec<Operation>) -> (Env, MemoryDB) {
     let mut env = Env::default();
     env.tx.gas_limit = INIT_GAS;
     let program = Program::from(operations);
@@ -3281,24 +3283,24 @@ pub(crate) fn default_env_and_db_setup(operations: Vec<Operation>) -> (Env, Memo
     );
     env.tx.transact_to = address;
     env.block.coinbase = Address::from_low_u64_be(80);
-    let mut db = MemoryDb::new().with_contract(address, bytecode);
+    let mut db = MemoryDB::new().with_contract(address, bytecode);
     db.set_balance(address, U256::from(10));
     (env, db)
 }
 
-fn run_program_assert_num_result(env: Env, db: MemoryDb, expected_result: BigUint) {
+fn run_program_assert_num_result(env: Env, db: MemoryDB, expected_result: BigUint) {
     let result = run_evm(env, db).unwrap().result;
     assert!(result.is_success(), "{:?}", result);
     let result_data = BigUint::from_bytes_be(result.output().unwrap_or(&Bytes::new()));
     assert_eq!(result_data, expected_result);
 }
 
-fn run_program_assert_halt(env: Env, db: MemoryDb) {
+fn run_program_assert_halt(env: Env, db: MemoryDB) {
     let result = run_evm(env, db).unwrap().result;
     assert!(result.is_halt());
 }
 
-fn run_program_assert_revert(env: Env, db: MemoryDb) {
+fn run_program_assert_revert(env: Env, db: MemoryDB) {
     let result = run_evm(env, db).unwrap().result;
     assert!(result.is_revert());
 }

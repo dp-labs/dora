@@ -1,7 +1,10 @@
 use std::collections::HashMap;
 use std::str::FromStr;
 
-use crate::{db::StorageSlot, Bytecode, B256, U256};
+use crate::{
+    db::{DbAccount, StorageSlot},
+    Bytecode, B256, U256,
+};
 use bitflags::bitflags;
 
 /// Keccak256 hash of an empty bytecode.
@@ -49,6 +52,11 @@ pub struct AccountInfo {
 }
 
 impl AccountInfo {
+    /// Construct an empty account info.
+    pub fn empty() -> AccountInfo {
+        DbAccount::empty().into()
+    }
+
     /// Determines if the account is empty, based on its balance, nonce, and code hash.
     ///
     /// # Returns:
