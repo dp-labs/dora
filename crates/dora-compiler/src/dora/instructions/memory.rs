@@ -1,5 +1,6 @@
 use crate::{
     backend::IntCC,
+    check_resize_memory,
     conversion::rewriter::{DeferredRewriter, Rewriter},
     dora::{conversion::ConversionPass, memory},
     errors::Result,
@@ -21,7 +22,8 @@ impl<'c> ConversionPass<'c> {
     pub(crate) fn mload(context: &Context, op: &OperationRef<'_, '_>) -> Result<()> {
         operands!(op, offset);
         syscall_ctx!(op, syscall_ctx);
-        rewrite_ctx!(context, op, rewriter, location);
+        let rewriter = Rewriter::new_with_op(context, *op);
+        let location = rewriter.get_insert_location();
 
         let uint8 = IntegerType::new(context, 8);
         let uint256 = rewriter.intrinsics.i256_ty;
@@ -33,6 +35,8 @@ impl<'c> ConversionPass<'c> {
         ))?;
         let required_size = rewriter.make(arith::addi(offset, value_size, location))?;
 
+        check_resize_memory!(op, rewriter, required_size);
+        rewrite_ctx!(context, op, rewriter, location);
         memory::resize_memory(required_size, context, &rewriter, syscall_ctx, location)?;
 
         let memory_ptr = load_by_addr!(rewriter, constants::MEMORY_PTR_GLOBAL, rewriter.ptr_ty());
@@ -68,7 +72,8 @@ impl<'c> ConversionPass<'c> {
     ) -> Result<()> {
         operands!(op, offset, value);
         syscall_ctx!(op, syscall_ctx);
-        rewrite_ctx!(context, op, rewriter, location);
+        let rewriter = Rewriter::new_with_op(context, *op);
+        let location = rewriter.get_insert_location();
 
         let uint8 = rewriter.intrinsics.i8_ty;
         let uint64 = rewriter.intrinsics.i64_ty;
@@ -83,6 +88,8 @@ impl<'c> ConversionPass<'c> {
         let value_size = rewriter.make(rewriter.iconst_64(byte_size as i64))?;
         let required_size = rewriter.make(arith::addi(offset, value_size, location))?;
 
+        check_resize_memory!(op, rewriter, required_size);
+        rewrite_ctx!(context, op, rewriter, location);
         memory::resize_memory(required_size, context, &rewriter, syscall_ctx, location)?;
 
         let memory_ptr = load_by_addr!(rewriter, constants::MEMORY_PTR_GLOBAL, rewriter.ptr_ty());

@@ -1,17 +1,15 @@
+use crate::backend::IntCC;
 use crate::{
-    arith_constant,
+    arith_constant, check_resize_memory,
     conversion::rewriter::{DeferredRewriter, Rewriter},
     dora::{conversion::ConversionPass, memory},
     errors::Result,
-    load_by_addr, operands, rewrite_ctx, syscall_ctx,
+    load_by_addr, maybe_revert_here, operands, rewrite_ctx, syscall_ctx,
 };
 use dora_runtime::ExitStatusCode;
 use dora_runtime::{constants, symbols};
 use melior::{
-    dialect::{
-        arith::{self},
-        func,
-    },
+    dialect::{arith, cf, func},
     ir::{
         attribute::{FlatSymbolRefAttribute, IntegerAttribute},
         operation::OperationRef,
@@ -23,13 +21,16 @@ impl<'c> ConversionPass<'c> {
     pub(crate) fn revert(context: &Context, op: &OperationRef<'_, '_>) -> Result<()> {
         operands!(op, offset, size);
         syscall_ctx!(op, syscall_ctx);
-        rewrite_ctx!(context, op, rewriter, location);
+        let rewriter = Rewriter::new_with_op(context, *op);
+        let location = rewriter.get_insert_location();
 
         let offset = rewriter.make(arith::trunci(offset, rewriter.intrinsics.i64_ty, location))?;
         let size = rewriter.make(arith::trunci(size, rewriter.intrinsics.i64_ty, location))?;
 
         // required_size = offset + size
         let required_memory_size = rewriter.make(arith::addi(offset, size, location))?;
+        check_resize_memory!(op, rewriter, required_memory_size);
+        rewrite_ctx!(context, op, rewriter, location);
         memory::resize_memory(
             required_memory_size,
             context,

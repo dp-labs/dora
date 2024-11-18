@@ -1,16 +1,17 @@
+use crate::backend::IntCC;
 use crate::{
-    arith_constant,
-    conversion::rewriter::DeferredRewriter,
+    arith_constant, check_resize_memory,
+    conversion::rewriter::{DeferredRewriter, Rewriter},
     create_var,
     dora::{conversion::ConversionPass, memory},
     errors::{CompileError, Result},
-    load_var, operands, rewrite_ctx, syscall_ctx,
+    load_var, maybe_revert_here, operands, rewrite_ctx, syscall_ctx,
 };
 use dora_runtime::symbols;
 use melior::{
     dialect::{
         arith::{self},
-        func,
+        cf, func,
         llvm::{self, AllocaOptions, LoadStoreOptions},
     },
     ir::{
@@ -106,7 +107,8 @@ impl<'c> ConversionPass<'c> {
     pub(crate) fn extcodecopy(context: &Context, op: &OperationRef<'_, '_>) -> Result<()> {
         operands!(op, address, dest_offset, offset, size);
         syscall_ctx!(op, syscall_ctx);
-        rewrite_ctx!(context, op, rewriter, location);
+        let rewriter = Rewriter::new_with_op(context, *op);
+        let location = rewriter.get_insert_location();
 
         let uint64 = rewriter.intrinsics.i64_ty;
         let offset = rewriter.make(arith::trunci(offset, uint64, location))?;
@@ -122,6 +124,8 @@ impl<'c> ConversionPass<'c> {
         // consume 3 * (size + 31) / 32 gas
         // dynamic gas computation
 
+        check_resize_memory!(op, rewriter, required_memory_size);
+        rewrite_ctx!(context, op, rewriter, location);
         memory::resize_memory(
             required_memory_size,
             context,
@@ -246,7 +250,8 @@ impl<'c> ConversionPass<'c> {
     ) -> Result<()> {
         operands!(op, offset, size);
         syscall_ctx!(op, syscall_ctx);
-        rewrite_ctx!(context, op, rewriter, location);
+        let rewriter = Rewriter::new_with_op(context, *op);
+        let location = rewriter.get_insert_location();
         let uint64 = rewriter.intrinsics.i64_ty;
         let offset = rewriter.make(arith::trunci(offset, uint64, location))?;
         let size = rewriter.make(arith::trunci(size, uint64, location))?;
@@ -255,6 +260,8 @@ impl<'c> ConversionPass<'c> {
 
         // required_size = offset + size
         let required_memory_size = rewriter.make(arith::addi(offset, size, location))?;
+        check_resize_memory!(op, rewriter, required_memory_size);
+        rewrite_ctx!(context, op, rewriter, location);
         memory::resize_memory(
             required_memory_size,
             context,
