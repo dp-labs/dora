@@ -10,7 +10,7 @@
 use anyhow::Result;
 use clap::{Args, Parser, Subcommand};
 use dora::run_evm;
-use dora_primitives::db::MemoryDb;
+use dora_primitives::db::{Database, MemoryDB};
 use dora_primitives::spec::SpecName;
 use dora_primitives::Bytes;
 use dora_primitives::{Address, B256, U256};
@@ -270,14 +270,14 @@ fn execute_test(path: &Path) -> Result<(), TestError> {
                 ));
             }
             // Mapping account into
-            let mut db = MemoryDb::new();
+            let mut db = MemoryDB::new();
             for (address, account_info) in suite.pre.iter() {
                 db = db.with_contract(address.to_owned(), account_info.code.0.clone());
                 db.set_account(
                     address.to_owned(),
                     account_info.nonce,
                     account_info.balance,
-                    account_info.storage.clone(),
+                    account_info.storage.iter().map(|(k, v)| (*k, *v)).collect(),
                 );
             }
             // Run EVM and get the state result.

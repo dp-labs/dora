@@ -8,11 +8,10 @@ use dora_bench::benches::{get_benches, Bench};
 use dora_compiler::evm::Program;
 use dora_compiler::{dora, evm, pass, Compiler, Context, EVMCompiler};
 use dora_primitives::Bytes;
-use dora_primitives::{db::MemoryDb, Address, Bytecode};
+use dora_primitives::{db::MemoryDB, Address, Bytecode};
 use dora_runtime::context::RuntimeContext;
 use dora_runtime::executor::Executor;
 use dora_runtime::host::DummyHost;
-use dora_runtime::journal::Journal;
 use dora_runtime::{context::CallFrame, env::Env};
 use std::hint::black_box;
 use std::sync::{Arc, RwLock};
@@ -59,11 +58,12 @@ fn run_bench(c: &mut Criterion, bench: &Bench) {
     env.tx.gas_limit = 999_999;
     env.tx.data = Bytes::from(calldata.to_vec());
     env.tx.transact_to = address;
-    let journal = Journal::new(MemoryDb::default().with_contract(address, bytecode));
     let mut context = RuntimeContext::new(
-        journal,
+        Arc::new(RwLock::new(
+            MemoryDB::default().with_contract(address, bytecode),
+        )),
         CallFrame::new(Address::from_low_u64_le(10000)),
-        Arc::new(EVMTransaction),
+        Arc::new(EVMTransaction::<MemoryDB>::new()),
         Arc::new(RwLock::new(DummyHost::new(env))),
     );
     let executor = Executor::new(module.module(), &context, Default::default());

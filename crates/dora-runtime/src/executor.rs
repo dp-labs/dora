@@ -1,6 +1,7 @@
 use crate::constants::MAIN_ENTRYPOINT;
 use crate::context::{MainFunc, RuntimeContext};
 use dora_primitives::config::OptimizationLevel;
+use dora_primitives::db::Database;
 use melior::ir::Module;
 use melior::ExecutionEngine;
 
@@ -41,9 +42,9 @@ impl Executor {
     /// ```no_check
     /// let executor = Executor::new(&module, &runtime_ctx, OptimizationLevel::Aggressive);
     /// ```
-    pub fn new(
+    pub fn new<DB: Database>(
         module: &Module,
-        runtime_ctx: &RuntimeContext,
+        runtime_ctx: &RuntimeContext<DB>,
         opt_level: OptimizationLevel,
     ) -> Self {
         let engine = ExecutionEngine::new(module, opt_level as usize, &[], false);
@@ -68,7 +69,7 @@ impl Executor {
     /// ```no_check
     /// let result_code = executor.execute(&mut runtime_ctx, initial_gas);
     /// ```
-    pub fn execute(&self, context: &mut RuntimeContext, initial_gas: u64) -> u8 {
+    pub fn execute<DB: Database>(&self, context: &mut RuntimeContext<DB>, initial_gas: u64) -> u8 {
         let main_fn = self.get_main_entrypoint();
         main_fn(context, initial_gas)
     }
@@ -89,7 +90,7 @@ impl Executor {
     /// ```no_check
     /// let main_fn = executor.get_main_entrypoint();
     /// ```
-    pub fn get_main_entrypoint(&self) -> MainFunc {
+    pub fn get_main_entrypoint<DB: Database>(&self) -> MainFunc<DB> {
         let function_name = format!("_mlir_ciface_{MAIN_ENTRYPOINT}");
         let fptr = self.engine.lookup(&function_name);
         // SAFETY: We're assuming the function pointer is valid and matches the MainFunc signature.

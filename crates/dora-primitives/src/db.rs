@@ -2,16 +2,17 @@ use crate::{
     account::{Account, AccountInfo, AccountStatus, EMPTY_CODE_HASH_STR},
     Address, Bytecode, B256, U256,
 };
+use rustc_hash::FxHashMap;
 use sha3::{Digest, Keccak256};
-use std::{collections::HashMap, convert::Infallible, str::FromStr};
+use std::{convert::Infallible, fmt::Debug, str::FromStr};
 use thiserror::Error;
 
 /// The `Database` trait provides an interface for interacting with various on-chain data sources
 /// related to accounts, storage, and blocks. It defines methods to retrieve basic account information,
 /// contract code, storage values, and block hashes.
-pub trait Database {
+pub trait Database: Clone + Debug {
     /// The type representing an error that may occur when interacting with the database.
-    type Error;
+    type Error: Debug + Sync + Send;
 
     /// Retrieves basic account information for a given address.
     ///
@@ -74,6 +75,24 @@ pub trait Database {
             .unwrap_or_default();
         Ok(code)
     }
+
+    /// Inserts a contract into the specified address with the provided bytecode and balance.
+    fn insert_contract(&mut self, address: Address, bytecode: Bytecode, balance: U256);
+
+    /// Sets or updates an account in the database with the specified address, nonce, balance, and storage.
+    ///
+    /// If the account already exists, its nonce, balance, and storage are updated. If the account
+    /// does not exist, it is created and initialized with the given values.
+    fn set_account(
+        &mut self,
+        address: Address,
+        nonce: u64,
+        balance: U256,
+        storage: FxHashMap<U256, U256>,
+    );
+
+    /// Converts the current state of the database into a collection of `Account` objects.
+    fn into_state(self) -> FxHashMap<Address, Account>;
 }
 
 /// An error that occurs during database access operations.
@@ -144,7 +163,7 @@ impl From<U256> for StorageSlot {
 
 /// An in-memory database for storing account information, contract bytecodes, and block hashes.
 ///
-/// The `MemoryDb` struct is a simple, non-persistent database that holds blockchain data in memory,
+/// The `MemoryDB` struct is a simple, non-persistent database that holds blockchain data in memory,
 /// including accounts, contracts, and block hashes. It is typically used for testing, simulations,
 /// or lightweight applications where persistence isn't necessary.
 ///
@@ -155,25 +174,25 @@ impl From<U256> for StorageSlot {
 ///
 /// # Example Usage:
 /// ```no_check
-/// let mut db = MemoryDb::new();
+/// let mut db = MemoryDB::new();
 /// db.insert_block_hash(U256::from(1), B256::from_slice(&[0; 32]));
 /// ```
 #[derive(Clone, Debug, Default)]
-pub struct MemoryDb {
-    accounts: HashMap<Address, DbAccount>,
-    contracts: HashMap<B256, Bytecode>,
-    block_hashes: HashMap<U256, B256>,
+pub struct MemoryDB {
+    accounts: FxHashMap<Address, DbAccount>,
+    contracts: FxHashMap<B256, Bytecode>,
+    block_hashes: FxHashMap<U256, B256>,
 }
 
-impl MemoryDb {
-    /// Creates a new `MemoryDb` instance.
+impl MemoryDB {
+    /// Creates a new `MemoryDB` instance.
     ///
     /// This function returns an empty in-memory database for accounts, contracts,
     /// and block hashes.
     ///
     /// # Example:
     /// ```no_check
-    /// let db = MemoryDb::new();
+    /// let db = MemoryDB::new();
     /// ```
     pub fn new() -> Self {
         Self::default()
@@ -186,41 +205,11 @@ impl MemoryDb {
     ///
     /// # Example:
     /// ```no_check
-    /// let mut db = MemoryDb::new();
+    /// let mut db = MemoryDB::new();
     /// db.insert_block_hash(U256::from(1), B256::from_slice(&[0x12; 32]));
     /// ```
     pub fn insert_block_hash(&mut self, number: U256, hash: B256) {
         self.block_hashes.insert(number, hash);
-    }
-
-    /// Sets or updates an account in the database with the specified address, nonce, balance, and storage.
-    ///
-    /// If the account already exists, its nonce, balance, and storage are updated. If the account
-    /// does not exist, it is created and initialized with the given values.
-    ///
-    /// # Parameters
-    ///
-    /// - `address`: The address of the account to set or update.
-    /// - `nonce`: The nonce value for the account.
-    /// - `balance`: The balance of the account, specified as a `U256` value.
-    /// - `storage`: A `HashMap` containing the account's storage, with keys and values both of type `U256`.
-    ///
-    /// # Example
-    ///
-    /// ```no_check
-    /// db.set_account(address, nonce, balance, storage);
-    /// ```
-    pub fn set_account(
-        &mut self,
-        address: Address,
-        nonce: u64,
-        balance: U256,
-        storage: HashMap<U256, U256>,
-    ) {
-        let account = self.accounts.entry(address).or_insert(DbAccount::empty());
-        account.nonce = nonce;
-        account.balance = balance;
-        account.storage = storage;
     }
 
     /// Sets the balance of an account at the specified address.
@@ -313,7 +302,7 @@ impl MemoryDb {
     ///
     /// # Returns
     ///
-    /// - `Self`: The modified instance of the `MemoryDb`.
+    /// - `Self`: The modified instance of the `MemoryDB`.
     ///
     /// # Example
     ///
@@ -323,36 +312,6 @@ impl MemoryDb {
     pub fn with_contract(mut self, address: Address, bytecode: Bytecode) -> Self {
         self.insert_contract(address, bytecode, U256::ZERO);
         self
-    }
-
-    /// Inserts a contract into the specified address with the provided bytecode and balance.
-    ///
-    /// The contract is assigned a bytecode hash based on the keccak256 digest of the bytecode.
-    /// If the account does not exist, it is created with the status `Created`.
-    ///
-    /// # Parameters
-    ///
-    /// - `address`: The address of the account to store the contract in.
-    /// - `bytecode`: The bytecode of the contract.
-    /// - `balance`: The balance for the contract account.
-    ///
-    /// # Example
-    ///
-    /// ```no_check
-    /// db.insert_contract(address, bytecode, U256::from(1000));
-    /// ```
-    pub fn insert_contract(&mut self, address: Address, bytecode: Bytecode, balance: U256) {
-        let hash = B256::from_slice(&Keccak256::digest(&bytecode));
-        let account = DbAccount {
-            bytecode_hash: hash,
-            balance,
-            nonce: 1,
-            status: AccountStatus::Created,
-            ..Default::default()
-        };
-
-        self.accounts.insert(address, account);
-        self.contracts.insert(hash, bytecode);
     }
 
     /// Writes a storage value to the account at the specified address and key.
@@ -398,40 +357,6 @@ impl MemoryDb {
             .unwrap_or_default()
     }
 
-    /// Converts the current in-memory state of the database into a collection of `Account` objects.
-    ///
-    /// This method maps each address and its corresponding `DbAccount` to an `Account` object
-    /// that contains account information, storage slots, and status.
-    ///
-    /// # Returns
-    ///
-    /// - `HashMap<Address, Account>`: A map of addresses to account states.
-    ///
-    /// # Example
-    ///
-    /// ```no_check
-    /// let state = db.into_state();
-    /// ```
-    pub fn into_state(self) -> HashMap<Address, Account> {
-        self.accounts
-            .into_iter()
-            .map(|(address, db_account)| {
-                (
-                    address,
-                    Account {
-                        info: AccountInfo::from(db_account.clone()),
-                        storage: db_account
-                            .storage
-                            .into_iter()
-                            .map(|(k, v)| (k, StorageSlot::from(v)))
-                            .collect(),
-                        status: db_account.status,
-                    },
-                )
-            })
-            .collect()
-    }
-
     /// Commits a set of changes to the in-memory database.
     ///
     /// The changes consist of a map of addresses and their corresponding `Account` objects.
@@ -447,7 +372,7 @@ impl MemoryDb {
     /// ```no_check
     /// db.commit(changes);
     /// ```
-    pub fn commit(&mut self, changes: HashMap<Address, Account>) {
+    pub fn commit(&mut self, changes: FxHashMap<Address, Account>) {
         for (address, account) in changes {
             if account.is_created() && account.is_selfdestructed() || !account.is_touched() {
                 continue;
@@ -483,7 +408,7 @@ impl MemoryDb {
     }
 }
 
-impl Database for MemoryDb {
+impl Database for MemoryDB {
     type Error = Infallible;
 
     fn basic(&self, address: Address) -> Result<Option<AccountInfo>, Self::Error> {
@@ -500,6 +425,53 @@ impl Database for MemoryDb {
 
     fn block_hash(&self, number: U256) -> Result<B256, Self::Error> {
         Ok(self.block_hashes.get(&number).cloned().unwrap_or_default())
+    }
+
+    fn insert_contract(&mut self, address: Address, bytecode: Bytecode, balance: U256) {
+        let hash = B256::from_slice(&Keccak256::digest(&bytecode));
+        let account = DbAccount {
+            bytecode_hash: hash,
+            balance,
+            nonce: 1,
+            status: AccountStatus::Created,
+            ..Default::default()
+        };
+
+        self.accounts.insert(address, account);
+        self.contracts.insert(hash, bytecode);
+    }
+
+    fn set_account(
+        &mut self,
+        address: Address,
+        nonce: u64,
+        balance: U256,
+        storage: FxHashMap<U256, U256>,
+    ) {
+        let account = self.accounts.entry(address).or_insert(DbAccount::empty());
+        account.nonce = nonce;
+        account.balance = balance;
+        account.storage = storage;
+    }
+
+    fn into_state(self) -> FxHashMap<Address, Account> {
+        self.accounts
+            .into_iter()
+            .map(|(address, db_account)| {
+                (
+                    address,
+                    Account {
+                        info: AccountInfo::from(db_account.clone()),
+                        storage: db_account
+                            .storage
+                            .into_iter()
+                            .map(|(k, v)| (k, StorageSlot::from(v)))
+                            .collect(),
+                        status: db_account.status,
+                    },
+                )
+            })
+            .collect()
     }
 }
 
@@ -521,7 +493,7 @@ impl Database for MemoryDb {
 /// let account = DbAccount {
 ///     nonce: 1,
 ///     balance: U256::from(1000),
-///     storage: HashMap::new(),
+///     storage: FxHashMap::new(),
 ///     bytecode_hash: B256::zero(),
 ///     status: AccountStatus::default(),
 /// };
@@ -530,7 +502,7 @@ impl Database for MemoryDb {
 pub struct DbAccount {
     pub nonce: u64,
     pub balance: U256,
-    pub storage: HashMap<U256, U256>,
+    pub storage: FxHashMap<U256, U256>,
     pub bytecode_hash: B256,
     pub status: AccountStatus,
 }
@@ -548,7 +520,7 @@ impl DbAccount {
         DbAccount {
             nonce: 0,
             balance: U256::ZERO,
-            storage: HashMap::new(),
+            storage: FxHashMap::default(),
             bytecode_hash: B256::from_str(EMPTY_CODE_HASH_STR).unwrap(),
             status: AccountStatus::Created,
         }

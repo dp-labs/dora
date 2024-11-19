@@ -21,6 +21,9 @@ pub trait Host: Debug {
     /// Sets the storage value for a given account and storage key.
     fn set_storage(&mut self, addr: Address, key: Bytes32, value: Bytes32) -> SetStorageResult;
 
+    /// Access all storage in the journal
+    fn access_storage(&self) -> FxHashMap<Bytes32, Bytes32>;
+
     /// Retrieves the balance of a specified account.
     fn get_balance(&mut self, addr: &Address) -> Bytes32;
 
@@ -169,5 +172,10 @@ impl Host for DummyHost {
     #[inline]
     fn emit_log(&mut self, log: Log) {
         self.logs.push(log)
+    }
+
+    #[inline]
+    fn access_storage(&self) -> FxHashMap<Bytes32, Bytes32> {
+        self.storage.clone()
     }
 }
