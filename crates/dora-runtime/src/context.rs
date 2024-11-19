@@ -1,6 +1,7 @@
 use std::sync::{Arc, RwLock};
 
-use crate::constants::{call_opcode, gas_cost, precompiles, CallType};
+use crate::constants::gas_cost::MAX_CODE_SIZE;
+use crate::constants::{call_opcode, gas_cost, precompiles, CallType, CALL_STACK_LIMIT};
 use crate::host::Host;
 use crate::precompiles::{blake2f, ecrecover, identity, modexp, ripemd_160, sha2_256};
 use crate::result::{EVMError, ExecutionResult, HaltReason, Output, ResultAndState, SuccessReason};
@@ -64,6 +65,8 @@ pub struct InnerContext {
     /// and off-chain data analysis. Logs are essential for notifying external observers about
     /// significant events that occurred during contract execution.
     logs: Vec<LogData>,
+    /// Depth in the call stack.
+    pub depth: usize,
     /// Whether the context is static.
     pub is_static: bool,
     /// Whether the context is EOF init.
@@ -428,6 +431,13 @@ impl<DB: Database> RuntimeContext<DB> {
             _ => {
                 let call_type = CallType::try_from(call_type)
                     .expect("Error while parsing CallType on call syscall");
+
+                // Check the call depth
+                if self.inner_context.depth > CALL_STACK_LIMIT {
+                    *consumed_gas = 0;
+                    return call_opcode::REVERT_RETURN_CODE;
+                }
+
                 let mut db = self.db.write().unwrap();
                 // Retrieve or create the callee account in journal
                 let callee_account = match db.basic(callee_address) {
@@ -442,10 +452,7 @@ impl<DB: Database> RuntimeContext<DB> {
                 };
                 let host = self.host.read().unwrap();
                 let caller_address = host.env().tx.get_address();
-                let caller_account = db
-                    .basic(caller_address)
-                    .unwrap() //We are sure it exists
-                    .unwrap_or_default();
+                let caller_account = db.basic(caller_address).unwrap().unwrap_or_default();
 
                 let mut stipend = 0;
                 if !value.is_zero() {
@@ -524,10 +531,12 @@ impl<DB: Database> RuntimeContext<DB> {
 
                 let mut ctx =
                     Self::new(self.db.clone(), call_frame, self.transaction.clone(), host);
+                ctx.inner_context.depth = self.inner_context.depth + 1;
                 let result = self.transaction.run(&mut ctx, gas_to_send).unwrap().result;
                 let unused_gas = gas_to_send - result.gas_used();
                 *consumed_gas -= unused_gas;
                 *consumed_gas -= result.gas_refunded();
+                self.inner_context.depth = ctx.inner_context.depth - 1;
 
                 let return_code = if result.is_success() {
                     call_opcode::SUCCESS_RETURN_CODE
@@ -967,8 +976,25 @@ impl<DB: Database> RuntimeContext<DB> {
         value: U256,
         salt: Option<&Bytes32>,
     ) -> anyhow::Result<Address> {
+        // Check the call depth
+        if self.inner_context.depth > CALL_STACK_LIMIT {
+            bail!(
+                "call depth {} is too deep and exceed the limit {CALL_STACK_LIMIT}",
+                self.inner_context.depth
+            );
+        }
+
         let host = self.host.read().unwrap();
         let size = bytecode.len();
+
+        // Check the create init code size limit
+        if size > 2 * MAX_CODE_SIZE {
+            bail!(
+                "create init code size {size} exceed the limit {}",
+                2 * MAX_CODE_SIZE
+            )
+        }
+
         let minimum_word_size = ((size + 31) / 32) as u64;
         let sender_address = host.env().tx.get_address();
         let caller = host.env().tx.caller;
@@ -991,7 +1017,6 @@ impl<DB: Database> RuntimeContext<DB> {
         }
         drop(host);
         // Create sub context for the initialization code
-        // TODO: Add call depth 1024 check
         let host = self.host.clone();
         let mut host_ref = host.write().unwrap();
         let new_env = host_ref.env_mut();
@@ -1003,6 +1028,7 @@ impl<DB: Database> RuntimeContext<DB> {
         db.insert_contract(dest_addr, code.into(), U256::ZERO);
         drop(db);
         self.call_frame = CallFrame::new(sender_address);
+        self.inner_context.depth -= 1;
         let tx = self.transaction.clone();
         let result = tx.run(self, *remaining_gas).unwrap().result;
         let _output = result.output().cloned().unwrap_or_default();
@@ -1012,6 +1038,7 @@ impl<DB: Database> RuntimeContext<DB> {
         let gas_cost = init_code_cost + code_deposit_cost + hash_cost + result.gas_used()
             - result.gas_refunded();
         *remaining_gas = gas_cost;
+        self.inner_context.depth -= 1;
 
         // Check if balance is enough
         let sender_balance = match sender_account.balance.checked_sub(value) {

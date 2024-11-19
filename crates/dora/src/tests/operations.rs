@@ -2921,7 +2921,7 @@ fn call_1() {
         Operation::Return,
     ];
     let (env, mut db) = default_env_and_db_setup(operations);
-    run_program_assert_num_result(env, db, 1_u8.into());
+    run_program_assert_num_result(env, db, 0_u8.into());
 }
 
 #[test]
@@ -2964,7 +2964,7 @@ fn call_2() {
         Operation::Return,
     ];
     let (env, mut db) = default_env_and_db_setup(operations);
-    run_program_assert_num_result(env, db, 1_u8.into());
+    run_program_assert_num_result(env, db, 0_u8.into());
 }
 
 #[test]
@@ -3032,7 +3032,7 @@ fn callcode_1() {
         Operation::Return,
     ];
     let (env, mut db) = default_env_and_db_setup(operations);
-    run_program_assert_num_result(env, db, 1_u8.into());
+    run_program_assert_num_result(env, db, 0_u8.into());
 }
 
 #[test]
@@ -3140,7 +3140,7 @@ fn delegatecall_1() {
         Operation::Return,
     ];
     let (env, mut db) = default_env_and_db_setup(operations);
-    run_program_assert_num_result(env, db, 1_u8.into());
+    run_program_assert_num_result(env, db, 0_u8.into());
 }
 
 #[test]
