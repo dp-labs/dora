@@ -1,5 +1,5 @@
 use num_bigint::BigUint;
-pub use revmc::OpcodeInfo as OpcodeInfo;
+pub use revmc::OpcodeInfo;
 use std::fmt;
 use thiserror::Error;
 
