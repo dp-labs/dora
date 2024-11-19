@@ -692,25 +692,20 @@ impl<DB: Database> RuntimeContext<DB> {
         size: u64,
         dest_offset: u64,
     ) {
-        let code_size = self.inner_context.program.len();
+        let code = &self.inner_context.program;
+        let code_size = code.len();
         let code_offset = code_offset as usize;
-        let size = size as usize;
         let dest_offset = dest_offset as usize;
-
-        let size = size.min(code_size.saturating_sub(code_offset));
-        let code_slice = match self
-            .inner_context
-            .program
-            .get(code_offset..code_offset + size)
-        {
-            Some(slice) => slice,
-            None => {
-                eprintln!("Error on copy_code_to_memory");
-                return;
-            }
-        };
-
-        self.inner_context.memory[dest_offset..dest_offset + size].copy_from_slice(code_slice);
+        let size = size as usize;
+        let code_offset = code_offset.min(code_size);
+        let code_end = core::cmp::min(code_offset + size, code_size);
+        let code_len = code_end - code_offset;
+        let code_slice = &code[code_offset..code_end];
+        self.inner_context.memory[dest_offset..dest_offset + code_len].copy_from_slice(code_slice);
+        // Zero-fill the remaining space
+        if size > code_len {
+            self.inner_context.memory[dest_offset + code_len..dest_offset + size].fill(0);
+        }
     }
 
     pub extern "C" fn read_storage(&mut self, stg_key: &Bytes32, stg_value: &mut Bytes32) {
