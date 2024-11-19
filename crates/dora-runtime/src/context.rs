@@ -942,17 +942,15 @@ impl<DB: Database> RuntimeContext<DB> {
         let code_size = code.len();
         let code_offset = code_offset as usize;
         let dest_offset = dest_offset as usize;
-        // Note the IOB error
+        let size = size as usize;
         let code_offset = code_offset.min(code_size);
-        // Determine the amount of code to copy and perform the copy
-        let code_to_copy_size = code_size.saturating_sub(code_offset);
-        let code_slice = &code[code_offset..code_offset + code_to_copy_size];
-        self.inner_context.memory[dest_offset..dest_offset + code_to_copy_size]
-            .copy_from_slice(code_slice);
+        let code_end = core::cmp::min(code_offset + size, code_size);
+        let code_len = code_end - code_offset;
+        let code_slice = &code[code_offset..code_end];
+        self.inner_context.memory[dest_offset..dest_offset + code_len].copy_from_slice(code_slice);
         // Zero-fill the remaining space
-        if size as usize > code_to_copy_size {
-            self.inner_context.memory[dest_offset + code_to_copy_size..dest_offset + size as usize]
-                .fill(0);
+        if size > code_len {
+            self.inner_context.memory[dest_offset + code_len..dest_offset + size].fill(0);
         }
     }
 
