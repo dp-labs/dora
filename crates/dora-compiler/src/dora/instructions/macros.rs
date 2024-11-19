@@ -231,3 +231,18 @@ macro_rules! check_resize_memory {
         maybe_revert_here!($op, $rewriter, overflow);
     };
 }
+
+#[macro_export]
+macro_rules! check_u256_to_u64_overflow {
+    ($op:expr, $rewriter:expr, $required_memory_size:expr) => {
+        // Check the memory offset halt error
+        let max_u64 =
+            $rewriter.make($rewriter.iconst_256(BigUint::from(18446744073709551615_u128))?)?;
+        let overflow = $rewriter.make($rewriter.icmp(
+            IntCC::UnsignedGreaterThan,
+            $required_memory_size,
+            max_u64,
+        ))?;
+        maybe_revert_here!($op, $rewriter, overflow);
+    };
+}

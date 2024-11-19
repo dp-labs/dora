@@ -699,7 +699,7 @@ impl<DB: Database> RuntimeContext<DB> {
         let size = size as usize;
         let code_offset = code_offset.min(code_size);
         let code_end = core::cmp::min(code_offset + size, code_size);
-        let code_len = code_end - code_offset;
+        let code_len: usize = code_end - code_offset;
         let code_slice = &code[code_offset..code_end];
         self.inner_context.memory[dest_offset..dest_offset + code_len].copy_from_slice(code_slice);
         // Zero-fill the remaining space

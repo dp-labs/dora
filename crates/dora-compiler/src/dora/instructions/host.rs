@@ -1,4 +1,5 @@
 use crate::backend::IntCC;
+use crate::check_u256_to_u64_overflow;
 use crate::{
     arith_constant, check_resize_memory,
     conversion::rewriter::{DeferredRewriter, Rewriter},
@@ -21,6 +22,7 @@ use melior::{
     },
     Context,
 };
+use num_bigint::BigUint;
 
 impl<'c> ConversionPass<'c> {
     pub(crate) fn balance(context: &Context, op: &OperationRef<'_, '_>) -> Result<()> {
@@ -118,7 +120,7 @@ impl<'c> ConversionPass<'c> {
         let address_ptr =
             memory::allocate_u256_and_assign_value(context, &rewriter, address, location)?;
 
-        //required size = dest_offset + size
+        // required size = dest_offset + size
         let required_memory_size = rewriter.make(arith::addi(dest_offset, size, location))?;
 
         // consume 3 * (size + 31) / 32 gas
@@ -253,10 +255,17 @@ impl<'c> ConversionPass<'c> {
         let rewriter = Rewriter::new_with_op(context, *op);
         let location = rewriter.get_insert_location();
         let uint64 = rewriter.intrinsics.i64_ty;
+
+        // Check the log mem offset and size overflow error
+        check_u256_to_u64_overflow!(op, rewriter, size);
+        let rewriter = Rewriter::new_with_op(context, *op);
+        check_u256_to_u64_overflow!(op, rewriter, offset);
+        let rewriter = Rewriter::new_with_op(context, *op);
+
         let offset = rewriter.make(arith::trunci(offset, uint64, location))?;
         let size = rewriter.make(arith::trunci(size, uint64, location))?;
 
-        // dynamic gas computation
+        // dynamic gas computation in the gas pass
 
         // required_size = offset + size
         let required_memory_size = rewriter.make(arith::addi(offset, size, location))?;
