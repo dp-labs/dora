@@ -22,7 +22,8 @@ use melior::{
     },
     Context,
 };
-use revmc::{op_info_map, primitives::SpecId, OpcodeInfo};
+use dora_primitives::spec::SpecId;
+use revmc::{op_info_map,  OpcodeInfo};
 
 /// Represents a pass that processes gas metering and tracks Dora IR operations in a program.
 /// The `GasPass` is used to ensure that gas calculations are correctly handled for specific

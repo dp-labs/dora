@@ -25,7 +25,7 @@ macro_rules! assert_snapshot {
             )
             .expect("failed to compile program");
         crate::evm::pass::run(&context.mlir_context, &mut module.mlir_module).unwrap();
-        crate::dora::pass::run_gas_pass(&context.mlir_context, &mut module.mlir_module).unwrap();
+        crate::dora::pass::run_gas_pass(&context.mlir_context, &mut module.mlir_module, SpecId::CANCUN).unwrap();
         let op = module.module().as_operation();
         assert!(op.verify());
         insta::assert_snapshot!(op);
