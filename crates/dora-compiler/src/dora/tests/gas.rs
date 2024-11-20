@@ -1,8 +1,10 @@
 use crate::context::Context;
+use crate::evm::program::CompileOptions;
 use crate::evm::program::Operation;
 use crate::evm::program::Program;
 use crate::evm::EVMCompiler;
 use crate::Compiler;
+use dora_primitives::spec::SpecId;
 use num_bigint::BigUint;
 
 macro_rules! assert_snapshot {
@@ -14,7 +16,13 @@ macro_rules! assert_snapshot {
         let context = Context::new();
         let compiler = EVMCompiler::new(&context);
         let mut module = compiler
-            .compile(&program, &())
+            .compile(
+                &program,
+                &(),
+                &CompileOptions {
+                    spec_id: SpecId::CANCUN,
+                },
+            )
             .expect("failed to compile program");
         crate::evm::pass::run(&context.mlir_context, &mut module.mlir_module).unwrap();
         crate::dora::pass::run_gas_pass(&context.mlir_context, &mut module.mlir_module).unwrap();
