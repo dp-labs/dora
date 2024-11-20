@@ -11,6 +11,7 @@ use anyhow::Result;
 use clap::{Args, Parser, Subcommand};
 use dora::run_evm;
 use dora_primitives::db::{Database, MemoryDB};
+use dora_primitives::spec::SpecId;
 use dora_primitives::spec::SpecName;
 use dora_primitives::Bytes;
 use dora_primitives::{Address, B256, U256};
@@ -281,7 +282,7 @@ fn execute_test(path: &Path) -> Result<(), TestError> {
                 );
             }
             // Run EVM and get the state result.
-            let res = run_evm(env.clone(), db);
+            let res = run_evm(env.clone(), db, SpecId::CANCUN);
             match res {
                 Ok(res) => {
                     if test_case.expect_exception.is_some() && res.result.is_success() {

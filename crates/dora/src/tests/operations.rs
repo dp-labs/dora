@@ -5,6 +5,7 @@ use std::str::FromStr;
 use crate::{run_evm, tests::INIT_GAS};
 use bytes::Bytes;
 use dora_compiler::evm::program::{Operation, Program};
+use dora_primitives::spec::SpecId;
 use dora_primitives::{
     account::EMPTY_CODE_HASH_STR, db::MemoryDB, Address, Bytecode, Bytes32, B256, H160,
 };
@@ -2590,7 +2591,7 @@ fn mcopy_large_size_overflow() {
     ];
     let (mut env, db) = default_env_and_db_setup(operations);
     env.tx.data = hex_literal::hex!("00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000001ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff").to_vec().into();
-    let result = run_evm(env, db).unwrap().result;
+    let result = run_evm(env, db, SpecId::CANCUN).unwrap().result;
     assert!(result.is_halt());
 }
 
@@ -3289,18 +3290,18 @@ pub(crate) fn default_env_and_db_setup(operations: Vec<Operation>) -> (Env, Memo
 }
 
 fn run_program_assert_num_result(env: Env, db: MemoryDB, expected_result: BigUint) {
-    let result = run_evm(env, db).unwrap().result;
+    let result = run_evm(env, db, SpecId::CANCUN).unwrap().result;
     assert!(result.is_success(), "{:?}", result);
     let result_data = BigUint::from_bytes_be(result.output().unwrap_or(&Bytes::new()));
     assert_eq!(result_data, expected_result);
 }
 
 fn run_program_assert_halt(env: Env, db: MemoryDB) {
-    let result = run_evm(env, db).unwrap().result;
+    let result = run_evm(env, db, SpecId::CANCUN).unwrap().result;
     assert!(result.is_halt());
 }
 
 fn run_program_assert_revert(env: Env, db: MemoryDB) {
-    let result = run_evm(env, db).unwrap().result;
+    let result = run_evm(env, db, SpecId::CANCUN).unwrap().result;
     assert!(result.is_revert());
 }

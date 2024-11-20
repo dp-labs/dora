@@ -10,6 +10,7 @@ use anyhow::bail;
 use bytes::Bytes;
 use dora_primitives::account::AccountInfo;
 use dora_primitives::db::{Database, StorageSlot};
+use dora_primitives::spec::SpecId;
 use dora_primitives::transaction::Transaction;
 use dora_primitives::{Bytes32, EVMAddress as Address, B256, H160, U256};
 use melior::ExecutionEngine;
@@ -71,6 +72,8 @@ pub struct InnerContext {
     pub is_static: bool,
     /// Whether the context is EOF init.
     pub is_eof_init: bool,
+    /// VM spec id
+    pub spec_id: SpecId,
 }
 
 /// A frame of execution representing a single call within a smart contract execution context.
@@ -213,11 +216,15 @@ impl<DB: Database> RuntimeContext<DB> {
         call_frame: CallFrame,
         transaction: RuntimeTransaction<DB>,
         host: RuntimeHost,
+        spec_id: SpecId,
     ) -> Self {
         Self {
             db,
             call_frame,
-            inner_context: Default::default(),
+            inner_context: InnerContext {
+                spec_id,
+                ..Default::default()
+            },
             transaction,
             host,
         }
@@ -529,8 +536,13 @@ impl<DB: Database> RuntimeContext<DB> {
                     ..Default::default()
                 };
 
-                let mut ctx =
-                    Self::new(self.db.clone(), call_frame, self.transaction.clone(), host);
+                let mut ctx = Self::new(
+                    self.db.clone(),
+                    call_frame,
+                    self.transaction.clone(),
+                    host,
+                    self.inner_context.spec_id,
+                );
                 ctx.inner_context.depth = self.inner_context.depth + 1;
                 let result = self.transaction.run(&mut ctx, gas_to_send).unwrap().result;
                 let unused_gas = gas_to_send - result.gas_used();
