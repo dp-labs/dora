@@ -1,6 +1,6 @@
 use dora_primitives::spec::SpecId;
 use num_bigint::BigUint;
-pub use revmc::OpcodeInfo;
+pub use revmc::{op_info_map, OpcodeInfo};
 use std::fmt;
 use thiserror::Error;
 
