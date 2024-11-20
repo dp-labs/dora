@@ -1,4 +1,6 @@
 use crate::run_evm_bytecode_with_calldata;
+use dora_primitives::spec::SpecId;
+
 mod operations;
 
 const COUNTER_BYTECODE: &str = "6080806040526004361015610012575f80fd5b5f3560e01c9081633fb5c1cb146101035781638381f58a146100cc575063d09de08a1461003d575f80fd5b346100c8575f7ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffc3601126100c8575f547fffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff811461009b576001015f55005b7f4e487b71000000000000000000000000000000000000000000000000000000005f52601160045260245ffd5b5f80fd5b346100c8575f7ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffc3601126100c8576020905f548152f35b346100c85760207ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffc3601126100c8576004355f5500fea264697066735822122019105920c33dab502c8d24693bd24f1b4b0fbb562ad3a475173a15b7aa3574f064736f6c63430008190033";
@@ -8,7 +10,8 @@ const INIT_GAS: u64 = 999_999;
 
 #[test]
 fn test_counter() {
-    let result = run_evm_bytecode_with_calldata(COUNTER_BYTECODE, "d09de08a", INIT_GAS);
+    let result =
+        run_evm_bytecode_with_calldata(COUNTER_BYTECODE, "d09de08a", INIT_GAS, SpecId::CANCUN);
     let result = result.as_ref().unwrap();
     assert!(result.result.is_success(), "{:?}", result);
 }
@@ -41,7 +44,12 @@ fn test_counter() {
 /// ```
 #[test]
 fn test_erc20_transfer() {
-    let result = run_evm_bytecode_with_calldata(ERC20_TRANSFER_BYTECODE, "30627b7c", INIT_GAS);
+    let result = run_evm_bytecode_with_calldata(
+        ERC20_TRANSFER_BYTECODE,
+        "30627b7c",
+        INIT_GAS,
+        SpecId::CANCUN,
+    );
     let result = result.as_ref().unwrap();
     assert!(result.result.is_success(), "{:?}", result);
 }

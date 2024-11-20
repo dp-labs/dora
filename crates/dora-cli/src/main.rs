@@ -2,6 +2,7 @@ use anyhow::{Context, Result};
 use bytes::Bytes;
 use clap::{Args, Parser, Subcommand};
 use dora_primitives::db::MemoryDB;
+use dora_primitives::spec::SpecId;
 use dora_primitives::{Address, Bytecode};
 use dora_runtime::env::Env;
 use ruint::aliases::U256;
@@ -54,6 +55,10 @@ struct RunArgs {
     /// Block timestamp
     #[arg(long, default_value = "1")]
     timestamp: u64,
+
+    /// VM Spec id
+    #[arg(long, default_value = "CANCUN")]
+    spec_id: SpecId,
 }
 
 fn main() -> Result<()> {
@@ -94,7 +99,7 @@ fn main() -> Result<()> {
             // Set DB
             let db = MemoryDB::new().with_contract(address, Bytecode::from(bytecode));
             // Run the contract
-            match dora::run_evm(env, db) {
+            match dora::run_evm(env, db, run_args.spec_id) {
                 Ok(result) => {
                     info!("Execution result: {:#?}", result);
                 }

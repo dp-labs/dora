@@ -5,10 +5,11 @@ use criterion::{
     criterion_group, criterion_main, measurement::WallTime, BenchmarkGroup, Criterion,
 };
 use dora_bench::benches::{get_benches, Bench};
+use dora_compiler::evm::program::CompileOptions;
 use dora_compiler::evm::Program;
 use dora_compiler::{dora, evm, pass, Compiler, Context, EVMCompiler};
-use dora_primitives::Bytes;
 use dora_primitives::{db::MemoryDB, Address, Bytecode};
+use dora_primitives::{spec::SpecId, Bytes};
 use dora_runtime::context::RuntimeContext;
 use dora_runtime::executor::Executor;
 use dora_runtime::host::DummyHost;
@@ -36,7 +37,15 @@ fn run_bench(c: &mut Criterion, bench: &Bench) {
     let context = Context::new();
     let compiler = EVMCompiler::new(&context);
     let program = Program::from_opcode(bytecode);
-    let mut module = compiler.compile(&program, &()).unwrap();
+    let mut module = compiler
+        .compile(
+            &program,
+            &(),
+            &CompileOptions {
+                spec_id: SpecId::CANCUN,
+            },
+        )
+        .unwrap();
     // Lowering the EVM dialect to MLIR builtin dialects.
     evm::pass::run(&context.mlir_context, &mut module.mlir_module).unwrap();
     dora::pass::run(
@@ -65,6 +74,7 @@ fn run_bench(c: &mut Criterion, bench: &Bench) {
         CallFrame::new(Address::from_low_u64_le(10000)),
         Arc::new(EVMTransaction::<MemoryDB>::new()),
         Arc::new(RwLock::new(DummyHost::new(env))),
+        SpecId::CANCUN,
     );
     let executor = Executor::new(module.module(), &context, Default::default());
     let func = executor.get_main_entrypoint();

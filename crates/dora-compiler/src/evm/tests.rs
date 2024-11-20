@@ -1,7 +1,8 @@
 use crate::context::Context;
-use crate::evm::program::{Operation, Program};
+use crate::evm::program::{CompileOptions, Operation, Program};
 use crate::evm::EVMCompiler;
 use crate::Compiler;
+use dora_primitives::spec::SpecId;
 use num_bigint::BigUint;
 
 macro_rules! assert_snapshot {
@@ -14,7 +15,13 @@ macro_rules! assert_snapshot {
         let compiler = EVMCompiler::new(&context);
         // Compile EVM Bytecode to MLIR EVM Dialect
         let module = compiler
-            .compile(&program, &())
+            .compile(
+                &program,
+                &(),
+                &CompileOptions {
+                    spec_id: SpecId::CANCUN,
+                },
+            )
             .expect("failed to compile program");
         insta::assert_snapshot!(module.module().as_operation());
     };

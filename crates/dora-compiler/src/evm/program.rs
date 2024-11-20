@@ -1,3 +1,4 @@
+use dora_primitives::spec::SpecId;
 use num_bigint::BigUint;
 pub use revmc::OpcodeInfo;
 use std::fmt;
@@ -401,6 +402,10 @@ operations!(
     (Invalid, INVALID),
     (SelfDestruct, SELFDESTRUCT),
 );
+
+pub struct CompileOptions {
+    pub spec_id: SpecId,
+}
 
 /// Represents a program that has been parsed and is ready for execution. The `Program` struct
 /// holds a list of operations and the total code size of the bytecode it represents.

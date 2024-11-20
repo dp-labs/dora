@@ -5,10 +5,14 @@ use anyhow::Result;
 use dora_compiler::{
     context::Context,
     dora,
-    evm::{self, program::Program, EVMCompiler},
+    evm::{
+        self,
+        program::{CompileOptions, Program},
+        EVMCompiler,
+    },
     pass, Compiler,
 };
-use dora_primitives::{db::Database, transaction::Transaction};
+use dora_primitives::{db::Database, spec::SpecId, transaction::Transaction};
 use dora_primitives::{db::MemoryDB, Address, Bytecode};
 use dora_runtime::executor::Executor;
 use dora_runtime::result::ResultAndState;
@@ -30,7 +34,11 @@ use std::sync::{Arc, RwLock};
 /// # Errors
 ///
 /// Returns an error if the program fails to execute or if the bytecode or address is invalid.
-pub fn run_evm<DB: Database + 'static>(mut env: Env, db: DB) -> Result<ResultAndState> {
+pub fn run_evm<DB: Database + 'static>(
+    mut env: Env,
+    db: DB,
+    spec_id: SpecId,
+) -> Result<ResultAndState> {
     env.validate_transaction().map_err(|e| anyhow::anyhow!(e))?;
     env.consume_intrinsic_cost()
         .map_err(|e| anyhow::anyhow!(e))?;
@@ -39,6 +47,7 @@ pub fn run_evm<DB: Database + 'static>(mut env: Env, db: DB) -> Result<ResultAnd
         CallFrame::new(env.tx.caller),
         Arc::new(EVMTransaction::<DB>::new()),
         Arc::new(RwLock::new(DummyHost::new(env))),
+        spec_id,
     );
     run_with_context(&mut runtime_context)
 }
@@ -66,7 +75,13 @@ fn run_with_context<DB: Database>(
         drop(host);
         let context = Context::new();
         let compiler = EVMCompiler::new(&context);
-        let mut module = compiler.compile(&program, &())?;
+        let mut module = compiler.compile(
+            &program,
+            &(),
+            &CompileOptions {
+                spec_id: runtime_context.inner_context.spec_id,
+            },
+        )?;
         // Lowering the EVM dialect to MLIR builtin dialects.
         evm::pass::run(&context.mlir_context, &mut module.mlir_module)?;
         dora::pass::run(
@@ -145,6 +160,7 @@ pub fn run_evm_bytecode_with_calldata(
     program: &str,
     calldata: &str,
     initial_gas: u64,
+    spec_id: SpecId,
 ) -> Result<ResultAndState> {
     let opcodes = hex::decode(program)?;
     let calldata = hex::decode(calldata)?;
@@ -155,5 +171,5 @@ pub fn run_evm_bytecode_with_calldata(
     env.tx.data = Bytecode::from(calldata);
     env.tx.caller = Address::from_low_u64_le(10000);
     let db = MemoryDB::new().with_contract(address, Bytecode::from(opcodes));
-    run_evm(env, db)
+    run_evm(env, db, spec_id)
 }

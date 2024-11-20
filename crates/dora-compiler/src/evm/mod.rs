@@ -23,7 +23,7 @@ use melior::{
     Context as MLIRContext,
 };
 use num_bigint::BigUint;
-use program::stack_io;
+use program::{stack_io, CompileOptions};
 
 use crate::backend::IntCC;
 use crate::conversion::builder::OpBuilder;
@@ -105,6 +105,7 @@ pub struct EVMCompiler<'c> {
 impl<'c> Compiler for EVMCompiler<'c> {
     type Module = Program;
     type Target = ();
+    type Options = CompileOptions;
     type Compilation = MLIRModule<'c>;
     type CompileError = CompileError;
 
@@ -116,6 +117,7 @@ impl<'c> Compiler for EVMCompiler<'c> {
         &self,
         module: &Self::Module,
         _target: &Self::Target,
+        _options: &Self::Options,
     ) -> std::result::Result<Self::Compilation, Self::CompileError> {
         let context = &self.ctx.mlir_context;
 
@@ -132,7 +134,7 @@ impl<'c> Compiler for EVMCompiler<'c> {
 
         let mlir_module = Module::from_operation(op).expect("module failed to create");
 
-        self.compile_module(&mlir_module, module)?;
+        self.compile_module(&mlir_module, module, _options)?;
 
         Ok(MLIRModule::new(mlir_module))
     }
@@ -260,7 +262,12 @@ impl<'c> EVMCompiler<'c> {
         }
     }
 
-    fn compile_module(&self, module: &Module, program: &Program) -> Result<()> {
+    fn compile_module(
+        &self,
+        module: &Module,
+        program: &Program,
+        _options: &<EVMCompiler<'c> as Compiler>::Options,
+    ) -> Result<()> {
         let context = &self.ctx.mlir_context;
         let location = self.intrinsics.unknown_loc;
         // Build the main function

@@ -28,6 +28,9 @@ pub trait Compiler {
     /// The type representing the target environment or architecture for the compilation.
     type Target;
 
+    /// The options representing the compilation options.
+    type Options;
+
     /// The type representing the result of the compilation process.
     type Compilation;
 
@@ -52,6 +55,7 @@ pub trait Compiler {
         &self,
         module: &Self::Module,
         target: &Self::Target,
+        options: &Self::Options,
     ) -> Result<Self::Compilation, Self::CompileError>;
 }
 
