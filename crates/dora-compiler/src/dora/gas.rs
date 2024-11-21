@@ -8,6 +8,7 @@ use crate::{
     value::IntoContextOperation,
 };
 use cost::get_static_cost_from_op;
+use dora_primitives::spec::SpecId;
 use dora_runtime::constants::{self, gas_cost};
 use melior::{
     dialect::{
@@ -22,8 +23,7 @@ use melior::{
     },
     Context,
 };
-use dora_primitives::spec::SpecId;
-use revmc::{op_info_map,  OpcodeInfo};
+use revmc::{op_info_map, OpcodeInfo};
 
 /// Represents a pass that processes gas metering and tracks Dora IR operations in a program.
 /// The `GasPass` is used to ensure that gas calculations are correctly handled for specific

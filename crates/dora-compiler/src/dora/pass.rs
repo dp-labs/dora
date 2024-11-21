@@ -1,7 +1,7 @@
 use super::{conversion, gas, storage};
 use crate::errors::Result;
-use melior::{ir::Module as MLIRModule, Context};
 use dora_primitives::spec::SpecId;
+use melior::{ir::Module as MLIRModule, Context};
 
 /// Options for configuring a pass, including program-related settings.
 ///
