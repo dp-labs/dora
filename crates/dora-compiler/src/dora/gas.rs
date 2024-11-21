@@ -112,7 +112,7 @@ impl<'c> GasPass<'c> {
                                                     let exponent = op.operand(1)?;
                                                     let location = rewriter.get_insert_location();
                                                     let zero =
-                                                        rewriter.make(rewriter.iconst_64(0))?;
+                                                    rewriter.make(rewriter.iconst_256_from_u64(0)?)?;
                                                     let is_exponent_zero =
                                                         rewriter.make(arith::cmpi(
                                                             rewriter.context(),
@@ -136,7 +136,7 @@ impl<'c> GasPass<'c> {
                                                                         block,
                                                                     );
                                                                 rewriter.create(scf::r#yield(
-                                                                    &[zero],
+                                                                    &[rewriter.make(rewriter.iconst_64(0))?],
                                                                     location,
                                                                 ));
                                                                 region
@@ -933,17 +933,17 @@ impl<'c> GasPass<'c> {
                                         }
                                         _ => todo!(),
                                     }
+                                } else {
+                                    // Static gas computation.
+                                    let gas_cost = get_static_cost_from_op(&name);
+                                    debug_assert!(gas_cost > 0);
+                                    self.insert_gas_check_block_before_op_block(
+                                        op,
+                                        block,
+                                        revert_block,
+                                        gas_cost as i64,
+                                    )?;
                                 }
-                            } else {
-                                // Static gas computation.
-                                let gas_cost = get_static_cost_from_op(&name);
-                                debug_assert!(gas_cost > 0);
-                                self.insert_gas_check_block_before_op_block(
-                                    op,
-                                    block,
-                                    revert_block,
-                                    gas_cost as i64,
-                                )?;
                             }
                         }
                     }
