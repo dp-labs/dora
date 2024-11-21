@@ -1,7 +1,7 @@
 ---
 source: crates/dora-compiler/src/dora/tests/gas.rs
+assertion_line: 59
 expression: op
-snapshot_kind: text
 ---
 module {
   llvm.mlir.global internal @dora_stack_ptr() {addr_space = 0 : i32} : !llvm.ptr
@@ -114,29 +114,37 @@ module {
     llvm.store %23, %21 : !llvm.ptr, !llvm.ptr
     %25 = llvm.mlir.addressof @dora_gas_counter : !llvm.ptr
     %26 = llvm.load %25 : !llvm.ptr -> i64
-    %27 = "llvm.intr.ctlz"(%24) <{is_zero_poison = false}> : (i256) -> i256
-    %c256_i256 = arith.constant 256 : i256
-    %28 = arith.subi %c256_i256, %27 : i256
-    %c7_i256 = arith.constant 7 : i256
-    %29 = arith.addi %28, %c7_i256 : i256
-    %c8_i256 = arith.constant 8 : i256
-    %30 = arith.divui %29, %c8_i256 : i256
-    %c50_i256 = arith.constant 50 : i256
-    %31 = arith.muli %30, %c50_i256 : i256
-    %c10_i256 = arith.constant 10 : i256
-    %32 = arith.addi %c10_i256, %31 : i256
-    %33 = arith.trunci %32 : i256 to i64
-    %34 = arith.cmpi sge, %26, %33 : i64
-    %35 = arith.subi %26, %33 : i64
-    llvm.store %35, %25 : i64, !llvm.ptr
-    cf.cond_br %34, ^bb6, ^bb1
+    %c0_i256 = arith.constant 0 : i256
+    %27 = arith.cmpi eq, %24, %c0_i256 : i256
+    %28 = scf.if %27 -> (i64) {
+      %c0_i64_3 = arith.constant 0 : i64
+      scf.yield %c0_i64_3 : i64
+    } else {
+      %35 = "llvm.intr.ctlz"(%24) <{is_zero_poison = false}> : (i256) -> i256
+      %c256_i256 = arith.constant 256 : i256
+      %36 = arith.subi %c256_i256, %35 : i256
+      %c7_i256 = arith.constant 7 : i256
+      %37 = arith.addi %36, %c7_i256 : i256
+      %c8_i256 = arith.constant 8 : i256
+      %38 = arith.divui %37, %c8_i256 : i256
+      %c50_i256 = arith.constant 50 : i256
+      %39 = arith.muli %38, %c50_i256 : i256
+      %c10_i256 = arith.constant 10 : i256
+      %40 = arith.addi %c10_i256, %39 : i256
+      %41 = arith.trunci %40 : i256 to i64
+      scf.yield %41 : i64
+    }
+    %29 = arith.cmpi sge, %26, %28 : i64
+    %30 = arith.subi %26, %28 : i64
+    llvm.store %30, %25 : i64, !llvm.ptr
+    cf.cond_br %29, ^bb6, ^bb1
   ^bb6:  // pred: ^bb5
-    %36 = "dora.exp"(%20, %24) : (i256, i256) -> i256
-    %37 = llvm.mlir.addressof @dora_stack_ptr : !llvm.ptr
-    %38 = llvm.load %37 : !llvm.ptr -> !llvm.ptr
-    llvm.store %36, %38 : i256, !llvm.ptr
-    %39 = llvm.getelementptr %38[1] : (!llvm.ptr) -> !llvm.ptr, i256
-    llvm.store %39, %37 : !llvm.ptr, !llvm.ptr
+    %31 = "dora.exp"(%20, %24) : (i256, i256) -> i256
+    %32 = llvm.mlir.addressof @dora_stack_ptr : !llvm.ptr
+    %33 = llvm.load %32 : !llvm.ptr -> !llvm.ptr
+    llvm.store %31, %33 : i256, !llvm.ptr
+    %34 = llvm.getelementptr %33[1] : (!llvm.ptr) -> !llvm.ptr, i256
+    llvm.store %34, %32 : !llvm.ptr, !llvm.ptr
     cf.br ^bb7
   ^bb7:  // pred: ^bb6
     %c0_i64_2 = arith.constant 0 : i64
