@@ -1,9 +1,9 @@
 use anyhow::{Context, Result};
 use bytes::Bytes;
 use clap::{Args, Parser, Subcommand};
-use dora_primitives::db::MemoryDB;
 use dora_primitives::spec::SpecId;
 use dora_primitives::{Address, Bytecode};
+use dora_runtime::db::MemoryDB;
 use dora_runtime::env::Env;
 use ruint::aliases::U256;
 use std::str::FromStr;

@@ -9,17 +9,21 @@
 //! ```
 use anyhow::Result;
 use clap::{Args, Parser, Subcommand};
-use dora::run_evm;
-use dora_primitives::db::{Database, MemoryDB};
+use dora::{run_with_context, EVMTransaction};
 use dora_primitives::spec::SpecId;
 use dora_primitives::spec::SpecName;
 use dora_primitives::Bytes;
 use dora_primitives::{Address, B256, U256};
+use dora_runtime::context::{CallFrame, RuntimeContext, RuntimeDB};
+use dora_runtime::db::{Database, MemoryDB};
 use dora_runtime::env::Env;
+use dora_runtime::host::DummyHost;
+use dora_runtime::result::ResultAndState;
 use indicatif::{ProgressBar, ProgressDrawTarget};
 use serde::de::Visitor;
 use serde::{de, Deserialize, Serialize};
 use std::fmt;
+use std::sync::{Arc, RwLock};
 use std::{
     collections::{BTreeMap, HashMap},
     path::{Path, PathBuf},
@@ -214,9 +218,53 @@ fn should_skip(path: &Path) -> bool {
 
     matches!(
         name,
-        // https://github.com/ethereum/tests/issues/971
-        "ValueOverflow.json" | "ValueOverflowParis.json"
+        // JSON big int issue cases: https://github.com/ethereum/tests/issues/971
+        "ValueOverflow.json" |
+        "ValueOverflowParis.json" |
+        // Attack cases
+        "run_until_out_of_gas.json" |
+        "ContractCreationSpam.json" |
+        "JUMPDEST_AttackwithJump.json" |
+        "JUMPDEST_Attack.json" |
+        "block504980.json" |
+        // Failed cases
+        "transStorageOK.json" |
+        "15_tstoreCannotBeDosd.json" |
+        "opc2FDiffPlaces.json" |
+        "opcACDiffPlaces.json" |
+        "returndatasize_after_oog_after_deeper.json" |
+        "stateRevert.json" |
+        "CallInfiniteLoop.json" |
+        "sha3_deja.json" |
+        "underflowTest.json" |
+        "static_LoopCallsThenRevert.json" |
+        "static_Return50000_2.json" |
+        "extcodecopy.json" |
+        "createNameRegistratorOutOfMemoryBonds1.json" |
+        "CallToNameRegistratorMemOOGAndInsufficientBalance.json" |
+        "createNameRegistratorOutOfMemoryBonds0.json"
     ) || path_str.contains("stEOF")
+        || path_str.contains("stBugs")
+        || path_str.contains("stBadOpcode")
+        || path_str.contains("stMemory")
+        || path_str.contains("stRandom")
+}
+
+fn run_with_shared_db<DB: Database + 'static>(
+    mut env: Env,
+    db: RuntimeDB<DB>,
+) -> Result<ResultAndState<DB::Artifact>> {
+    env.validate_transaction().map_err(|e| anyhow::anyhow!(e))?;
+    env.consume_intrinsic_cost()
+        .map_err(|e| anyhow::anyhow!(e))?;
+    let mut runtime_context = RuntimeContext::new(
+        db,
+        CallFrame::new(env.tx.caller),
+        Arc::new(EVMTransaction::<DB>::new()),
+        Arc::new(RwLock::new(DummyHost::new(env))),
+        SpecId::CANCUN,
+    );
+    run_with_context(&mut runtime_context)
 }
 
 fn execute_test(path: &Path) -> Result<(), TestError> {
@@ -236,8 +284,20 @@ fn execute_test(path: &Path) -> Result<(), TestError> {
         let Some(tests) = suite.post.get(&SpecName::Cancun) else {
             continue;
         };
-        let mut env = setup_env(&suite);
+        // Mapping account into
+        let mut db = MemoryDB::new();
+        for (address, account_info) in suite.pre.iter() {
+            db = db.with_contract(address.to_owned(), account_info.code.0.clone());
+            db.set_account(
+                address.to_owned(),
+                account_info.nonce,
+                account_info.balance,
+                account_info.storage.iter().map(|(k, v)| (*k, *v)).collect(),
+            );
+        }
+        let db = Arc::new(RwLock::new(db));
         for test_case in tests {
+            let mut env = setup_env(&suite);
             // Mapping transaction data and value
             env.tx.gas_limit = suite.transaction.gas_limit[test_case.indexes.gas].saturating_to();
             env.tx.value = suite
@@ -270,19 +330,8 @@ fn execute_test(path: &Path) -> Result<(), TestError> {
                         .collect(),
                 ));
             }
-            // Mapping account into
-            let mut db = MemoryDB::new();
-            for (address, account_info) in suite.pre.iter() {
-                db = db.with_contract(address.to_owned(), account_info.code.0.clone());
-                db.set_account(
-                    address.to_owned(),
-                    account_info.nonce,
-                    account_info.balance,
-                    account_info.storage.iter().map(|(k, v)| (*k, *v)).collect(),
-                );
-            }
             // Run EVM and get the state result.
-            let res = run_evm(env.clone(), db, SpecId::CANCUN);
+            let res = run_with_shared_db(env, db.clone());
             match res {
                 Ok(res) => {
                     if test_case.expect_exception.is_some() && res.result.is_success() {

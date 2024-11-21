@@ -1,9 +1,15 @@
 use crate::constants::MAIN_ENTRYPOINT;
 use crate::context::{MainFunc, RuntimeContext};
+use crate::db::Database;
 use dora_primitives::config::OptimizationLevel;
-use dora_primitives::db::Database;
 use melior::ir::Module;
-use melior::ExecutionEngine;
+use melior::StringRef;
+use mlir_sys::{
+    mlirExecutionEngineCreate, mlirExecutionEngineDestroy, mlirExecutionEngineLookup,
+    mlirExecutionEngineRegisterSymbol, MlirExecutionEngine,
+};
+use std::fmt::Debug;
+use std::rc::Rc;
 
 /// A struct that wraps around the MLIR-based execution engine for executing compiled EVM code.
 ///
@@ -19,6 +25,7 @@ use melior::ExecutionEngine;
 /// let executor = Executor::new(&module, &runtime_ctx, OptimizationLevel::Default);
 /// let result = executor.execute(&mut runtime_ctx, initial_gas);
 /// ```
+#[derive(Default, Debug, Clone)]
 pub struct Executor {
     engine: ExecutionEngine,
 }
@@ -91,9 +98,90 @@ impl Executor {
     /// let main_fn = executor.get_main_entrypoint();
     /// ```
     pub fn get_main_entrypoint<DB: Database>(&self) -> MainFunc<DB> {
-        let function_name = format!("_mlir_ciface_{MAIN_ENTRYPOINT}");
-        let fptr = self.engine.lookup(&function_name);
+        let fptr = self.get_main_entrypoint_ptr();
         // SAFETY: We're assuming the function pointer is valid and matches the MainFunc signature.
         unsafe { std::mem::transmute(fptr) }
+    }
+
+    /// Retrieves the main entry point function pointer from the execution engine.
+    pub fn get_main_entrypoint_ptr(&self) -> *mut () {
+        let function_name = format!("_mlir_ciface_{MAIN_ENTRYPOINT}");
+        self.engine.lookup(&function_name)
+    }
+}
+
+/// A shared reference execution engine for the artifact cache.
+#[derive(Debug)]
+pub struct ExecutionEngine {
+    raw: Rc<MlirExecutionEngine>,
+}
+
+impl Clone for ExecutionEngine {
+    fn clone(&self) -> Self {
+        ExecutionEngine {
+            raw: Rc::clone(&self.raw),
+        }
+    }
+}
+
+impl Default for ExecutionEngine {
+    fn default() -> Self {
+        Self {
+            raw: Rc::new(MlirExecutionEngine {
+                ptr: std::ptr::null_mut(),
+            }),
+        }
+    }
+}
+
+impl ExecutionEngine {
+    /// Creates an execution engine.
+    pub fn new(
+        module: &Module,
+        optimization_level: usize,
+        shared_library_paths: &[&str],
+        enable_object_dump: bool,
+    ) -> Self {
+        Self {
+            raw: unsafe {
+                Rc::new(mlirExecutionEngineCreate(
+                    module.to_raw(),
+                    optimization_level as i32,
+                    shared_library_paths.len() as i32,
+                    shared_library_paths
+                        .iter()
+                        .map(|&string| StringRef::new(string).to_raw())
+                        .collect::<Vec<_>>()
+                        .as_ptr(),
+                    enable_object_dump,
+                ))
+            },
+        }
+    }
+
+    /// Searches a symbol in a module and returns a pointer to it.
+    #[inline]
+    pub fn lookup(&self, name: &str) -> *mut () {
+        unsafe { mlirExecutionEngineLookup(*self.raw, StringRef::new(name).to_raw()) as *mut () }
+    }
+
+    /// Register a symbol. This symbol will be accessible to the JIT'd codes.
+    ///
+    /// # Safety
+    ///
+    /// This function makes a pointer accessible to the execution engine. If a
+    /// given pointer is invalid or misaligned, calling this function might
+    /// result in undefined behavior.
+    #[inline]
+    pub unsafe fn register_symbol(&self, name: &str, ptr: *mut ()) {
+        mlirExecutionEngineRegisterSymbol(*self.raw, StringRef::new(name).to_raw(), ptr as _);
+    }
+}
+
+impl Drop for ExecutionEngine {
+    fn drop(&mut self) {
+        if Rc::strong_count(&self.raw) == 1 {
+            unsafe { mlirExecutionEngineDestroy(*self.raw) }
+        }
     }
 }

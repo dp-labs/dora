@@ -1,7 +1,8 @@
-use dora_primitives::{account::EMPTY_CODE_HASH_STR, Address, Bytes32, B256};
+use dora_primitives::{Address, Bytes32, B256};
 use rustc_hash::FxHashMap;
 use std::{collections::hash_map::Entry, fmt::Debug, str::FromStr};
 
+use crate::account::EMPTY_CODE_HASH_STR;
 use crate::{context::Log, env::Env};
 
 /// The `Host` trait defines the interface for interacting with the Dora runtime environment.
