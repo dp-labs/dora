@@ -139,7 +139,6 @@ impl<DB: Database> Default for EVMTransaction<DB> {
 
 impl<DB: Database> Transaction for EVMTransaction<DB> {
     type Context = RuntimeContext<DB>;
-    //
     type Result = Result<ResultAndState<DB::Artifact>>;
 
     #[inline]
