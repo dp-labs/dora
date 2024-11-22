@@ -115,6 +115,14 @@ impl<'c> GasPass<'c> {
 
                                 if info.is_dynamic() {
                                     match dora_op {
+                                        dora_ir::Operation::Balance => {
+                                            self.insert_dynamic_gas_check_block_before_op_block(
+                                                &op.next_in_block().unwrap(),
+                                                block,
+                                                revert_block,
+                                                |_rewriter| Ok(op.result(0)?.into()),
+                                            )?;
+                                        }
                                         dora_ir::Operation::Exp => {
                                             self.insert_dynamic_gas_check_block_before_op_block(
                                                 op,

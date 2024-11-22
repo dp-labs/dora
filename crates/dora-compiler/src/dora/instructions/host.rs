@@ -39,6 +39,7 @@ impl<'c> ConversionPass<'c> {
             syscall_ctx,
             symbols::STORE_IN_BALANCE,
             &[address_ptr, balance_ptr],
+            [rewriter.intrinsics.i64_ty],
             balance_ptr,
             rewriter.intrinsics.i256_ty,
             location

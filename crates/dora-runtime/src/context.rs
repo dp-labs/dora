@@ -1,7 +1,7 @@
 use std::sync::{Arc, RwLock};
 
 use crate::account::AccountInfo;
-use crate::constants::gas_cost::MAX_CODE_SIZE;
+use crate::constants::gas_cost::{COLD_ACCOUNT_ACCESS_COST, MAX_CODE_SIZE, WARM_STORAGE_READ_COST};
 use crate::constants::{call_opcode, gas_cost, precompiles, CallType, CALL_STACK_LIMIT};
 use crate::db::{Database, StorageSlot};
 use crate::executor::ExecutionEngine;
@@ -896,17 +896,33 @@ impl<DB: Database> RuntimeContext<DB> {
         *basefee = Bytes32::from(&host.env().block.basefee);
     }
 
-    pub extern "C" fn store_in_balance(&mut self, address: &Bytes32, balance: &mut Bytes32) {
+    pub extern "C" fn store_in_balance(&mut self, address: &Bytes32, balance: &mut Bytes32) -> u64 {
         if !address.is_valid_eth_address() {
             *balance = Bytes32::ZERO;
-            return;
+            return 0;
         }
 
+        let is_cold = false; // todo: support is_cold in host API
         let addr = Address::from(address);
         if let Some(a) = self.db.read().unwrap().basic(addr).unwrap() {
             *balance = Bytes32::from_u256(a.balance);
         } else {
             *balance = Bytes32::ZERO;
+        };
+
+        if self.inner_context.spec_id.is_enabled_in(SpecId::BERLIN) {
+            if is_cold {
+                COLD_ACCOUNT_ACCESS_COST
+            } else {
+                WARM_STORAGE_READ_COST
+            }
+        } else if self.inner_context.spec_id.is_enabled_in(SpecId::ISTANBUL) {
+            // EIP-1884: Repricing for trie-size-dependent opcodes
+            700
+        } else if self.inner_context.spec_id.is_enabled_in(SpecId::TANGERINE) {
+            400
+        } else {
+            20
         }
     }
 
