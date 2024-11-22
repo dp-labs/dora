@@ -110,7 +110,7 @@ pub fn run_with_context<DB: Database>(
                 .db
                 .write()
                 .unwrap()
-                .set_account_artifact(code_address, DB::Artifact::from_executor(executor));
+                .set_account_artifact(code_address, DB::Artifact::new(executor));
         }
     }
     runtime_context.get_result().map_err(|e| anyhow::anyhow!(e))
@@ -139,6 +139,7 @@ impl<DB: Database> Default for EVMTransaction<DB> {
 
 impl<DB: Database> Transaction for EVMTransaction<DB> {
     type Context = RuntimeContext<DB>;
+    // 
     type Result = Result<ResultAndState<DB::Artifact>>;
 
     #[inline]
