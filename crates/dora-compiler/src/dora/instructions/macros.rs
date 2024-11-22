@@ -139,7 +139,7 @@ macro_rules! load_var {
             $context,
             FlatSymbolRefAttribute::new($context, $symbol),
             &args,
-            &rtn_types,
+            &$rtn_types,
             $location,
         ));
         $rewriter.make(llvm::load(
