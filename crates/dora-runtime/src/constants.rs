@@ -147,6 +147,9 @@ pub mod gas_cost {
     pub const MAX_CODE_SIZE: usize = 0x6000;
     pub const MAX_INITCODE_SIZE: usize = 2 * MAX_CODE_SIZE;
 
+    pub const COLD_ACCOUNT_ACCESS_COST: u64 = 2600;
+    pub const WARM_STORAGE_READ_COST: u64 = 100;
+
     /// Calculates the gas cost for initializing a contract based on the length of the initialization code.
     ///
     /// The cost is computed by multiplying the length of the code, divided into 32-byte words, by a fixed word cost.
