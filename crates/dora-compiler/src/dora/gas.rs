@@ -790,13 +790,18 @@ impl<'c> GasPass<'c> {
                                             )?;
                                         }
                                         dora_ir::Operation::Create => {
+                                            let _max_initcode_size = self
+                                                .options
+                                                .limit_contract_code_size
+                                                .map(|limit| limit.saturating_mul(2))
+                                                .unwrap_or(MAX_INITCODE_SIZE);
+
                                             self.insert_dynamic_gas_check_block_before_op_block(
                                                 op,
                                                 block,
                                                 revert_block,
                                                 |rewriter| {
                                                     let location = rewriter.get_insert_location();
-                                                    let dest_offset = op.operand(1)?;
                                                     let size = op.operand(2)?;
                                                     let size = rewriter.make(arith::trunci(
                                                         size,
@@ -849,16 +854,6 @@ impl<'c> GasPass<'c> {
                                                                 let gas_cost = if spec_id
                                                                     .is_enabled_in(SpecId::SHANGHAI)
                                                                 {
-                                                                    let max_initcode_size = self
-                                                                        .options
-                                                                        .limit_contract_code_size
-                                                                        .map(|limit| {
-                                                                            limit.saturating_mul(2)
-                                                                        })
-                                                                        .unwrap_or(
-                                                                            MAX_INITCODE_SIZE,
-                                                                        );
-
                                                                     // todo: check size with max_initcode_size
 
                                                                     let rounded_size =
@@ -868,19 +863,15 @@ impl<'c> GasPass<'c> {
                                                                             &rewriter,
                                                                             location,
                                                                         )?;
-                                                                    let gas_cost =
-                                                                        rewriter
-                                                                            .make(arith::muli(
-                                                                            rounded_size,
-                                                                            rewriter.make(
-                                                                                rewriter.iconst_64(
-                                                                                    INIT_WORD_COST,
-                                                                                ),
-                                                                            )?,
-                                                                            location,
-                                                                        ))?;
-
-                                                                    gas_cost
+                                                                    rewriter.make(arith::muli(
+                                                                        rounded_size,
+                                                                        rewriter.make(
+                                                                            rewriter.iconst_64(
+                                                                                INIT_WORD_COST,
+                                                                            ),
+                                                                        )?,
+                                                                        location,
+                                                                    ))?
                                                                 } else {
                                                                     rewriter.make(
                                                                         rewriter.iconst_64(0),
@@ -960,7 +951,7 @@ impl<'c> GasPass<'c> {
                                                                         rewriter.intrinsics.i64_ty,
                                                                         location,
                                                                     ))?;
-            
+
                                                                 let required_size = rewriter.make(
                                                                     arith::addi(dest_offset, size, location),
                                                                 )?;
@@ -982,29 +973,24 @@ impl<'c> GasPass<'c> {
                                                     Ok(total_gas_cost)
                                                 },
                                             )?;
-                                            self.insert_dynamic_gas_check_block_before_op_block(
-                                                op,
-                                                block,
-                                                revert_block,
-                                                |rewriter| {
-                                                    let location = rewriter.get_insert_location();
-                                                    let dest_offset = op.operand(1)?;
-                                                    let size = op.operand(2)?;
-                                                    let size = rewriter.make(arith::trunci(
-                                                        size,
-                                                        rewriter.intrinsics.i64_ty,
-                                                        location,
-                                                    ))?;
-
-                                                    let available_gas =
-                                                        self::get_gas_counter(&rewriter)?;
-                                                    if spec_id.is_enabled_in(SpecId::TANGERINE) {
-                                                        available_gas -= available_gas / 64;
-                                                    }
-
-                                                    Ok(available_gas)
-                                                },
-                                            )?;
+                                            if spec_id.is_enabled_in(SpecId::TANGERINE) {
+                                                self.insert_dynamic_gas_check_block_before_op_block(
+                                                    op,
+                                                    block,
+                                                    revert_block,
+                                                    |rewriter| {
+                                                        let location = rewriter.get_insert_location();
+                                                        let remaining_gas =
+                                                            self::get_gas_counter(rewriter)?;
+                                                        rewriter.make(arith::divui(
+                                                            remaining_gas,
+                                                            rewriter
+                                                                .make(rewriter.iconst_64(64))?,
+                                                            location,
+                                                        ))
+                                                    },
+                                                )?;
+                                            }
                                             // TODO: calculate dynamic gas cost from the system call
                                         }
                                         dora_ir::Operation::Create2 => {

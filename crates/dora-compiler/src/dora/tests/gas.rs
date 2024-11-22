@@ -1,5 +1,5 @@
-use self::gas::GasOptions;
 use crate::context::Context;
+use crate::dora::gas::GasOptions;
 use crate::evm::program::CompileOptions;
 use crate::evm::program::Operation;
 use crate::evm::program::Program;
