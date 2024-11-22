@@ -130,6 +130,7 @@ pub mod gas_cost {
     pub const BLOB_GASPRICE_UPDATE_FRACTION: u64 = 3_338_477;
 
     pub const BYTE_DEPOSIT_COST: i64 = 200;
+    /// EIP-3860 : Limit and meter initcode
     pub const INIT_WORD_COST: i64 = 2;
     pub const HASH_WORD_COST: i64 = 6;
 
@@ -141,7 +142,10 @@ pub mod gas_cost {
     pub const TX_ACCESS_LIST_ADDRESS_COST: u64 = 2_400;
     pub const TX_ACCESS_LIST_STORAGE_KEY_COST: u64 = 1_900;
 
+    /// EIP-170: Contract code size limit
+    /// By default the limit is `0x6000` (~25kb)
     pub const MAX_CODE_SIZE: usize = 0x6000;
+    pub const MAX_INITCODE_SIZE: usize = 2 * MAX_CODE_SIZE;
 
     /// Calculates the gas cost for initializing a contract based on the length of the initialization code.
     ///

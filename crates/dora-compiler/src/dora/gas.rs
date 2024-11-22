@@ -3,13 +3,17 @@ use crate::{
     arith_constant,
     conversion::{rewriter::Rewriter, walker::walk_operation},
     create_var,
+    dora::utils,
     errors::Result,
     load_by_addr,
     value::IntoContextOperation,
 };
 use cost::get_static_cost_from_op;
 use dora_primitives::spec::SpecId;
-use dora_runtime::constants::{self, gas_cost};
+use dora_runtime::constants::{
+    self,
+    gas_cost::{self, INIT_WORD_COST, MAX_INITCODE_SIZE},
+};
 use melior::{
     dialect::{
         arith::{self, CmpiPredicate},
@@ -48,6 +52,13 @@ use revmc::{op_info_map, OpcodeInfo};
 pub struct GasPass<'c> {
     /// A reference to the MLIR context, which manages global state and resources required for MLIR operations.
     pub ctx: &'c Context,
+    pub options: GasOptions,
+}
+
+#[derive(Clone, Debug)]
+pub struct GasOptions {
+    pub spec_id: SpecId,
+    pub limit_contract_code_size: Option<usize>,
 }
 
 impl<'c> GasPass<'c> {
@@ -69,7 +80,7 @@ impl<'c> GasPass<'c> {
     /// - This method walks through the operations in the program, identifies Dora IR operations that
     ///   require gas metering (e.g., arithmetic operations like `dora.add`, `dora.sub`, and `dora.mul`),
     ///   and integrates logic to track gas consumption.
-    pub fn run(&mut self, operation: OperationRef<'_, '_>, spec_id: SpecId) -> Result<()> {
+    pub fn run(&mut self, operation: OperationRef<'_, '_>) -> Result<()> {
         let mut dora_ops = vec![];
         walk_operation(
             operation,
@@ -87,6 +98,7 @@ impl<'c> GasPass<'c> {
         // - revert_block
         // - dora operation blocks
 
+        let spec_id = self.options.spec_id;
         let op_infos = op_info_map(spec_id);
         for op in &dora_ops {
             if let Some(block) = op.block() {
@@ -785,28 +797,212 @@ impl<'c> GasPass<'c> {
                                                 |rewriter| {
                                                     let location = rewriter.get_insert_location();
                                                     let dest_offset = op.operand(1)?;
-                                                    let dest_offset =
-                                                        rewriter.make(arith::trunci(
-                                                            dest_offset,
-                                                            rewriter.intrinsics.i64_ty,
-                                                            location,
-                                                        ))?;
                                                     let size = op.operand(2)?;
                                                     let size = rewriter.make(arith::trunci(
                                                         size,
                                                         rewriter.intrinsics.i64_ty,
                                                         location,
                                                     ))?;
-                                                    let required_size = rewriter.make(
-                                                        arith::addi(dest_offset, size, location),
-                                                    )?;
+
+                                                    let zero = rewriter
+                                                        .make(rewriter.iconst_256_from_u64(0)?)?;
+                                                    let is_size_zero =
+                                                        rewriter.make(arith::cmpi(
+                                                            rewriter.context(),
+                                                            CmpiPredicate::Eq,
+                                                            size,
+                                                            zero,
+                                                            location,
+                                                        ))?;
+
                                                     let total_gas_cost =
-                                                        memory::resize_memory_with_gas_cost(
-                                                            rewriter,
-                                                            required_size,
-                                                            gas_cost::CREATE,
-                                                        )?;
+                                                        rewriter.make(scf::r#if(
+                                                            is_size_zero,
+                                                            &[rewriter.intrinsics.i64_ty],
+                                                            {
+                                                                let region = Region::new();
+                                                                let block = region
+                                                                    .append_block(Block::new(&[]));
+                                                                let rewriter =
+                                                                    Rewriter::new_with_block(
+                                                                        rewriter.context(),
+                                                                        block,
+                                                                    );
+                                                                rewriter.create(scf::r#yield(
+                                                                    &[rewriter.make(
+                                                                        rewriter.iconst_64(0),
+                                                                    )?],
+                                                                    location,
+                                                                ));
+                                                                region
+                                                            },
+                                                            {
+                                                                let region = Region::new();
+                                                                let block = region
+                                                                    .append_block(Block::new(&[]));
+                                                                let rewriter =
+                                                                    Rewriter::new_with_block(
+                                                                        rewriter.context(),
+                                                                        block,
+                                                                    );
+
+                                                                let gas_cost = if spec_id
+                                                                    .is_enabled_in(SpecId::SHANGHAI)
+                                                                {
+                                                                    let max_initcode_size = self
+                                                                        .options
+                                                                        .limit_contract_code_size
+                                                                        .map(|limit| {
+                                                                            limit.saturating_mul(2)
+                                                                        })
+                                                                        .unwrap_or(
+                                                                            MAX_INITCODE_SIZE,
+                                                                        );
+
+                                                                    // todo: check size with max_initcode_size
+
+                                                                    let rounded_size =
+                                                                        utils::round_up_32(
+                                                                            size,
+                                                                            rewriter.context(),
+                                                                            &rewriter,
+                                                                            location,
+                                                                        )?;
+                                                                    let gas_cost =
+                                                                        rewriter
+                                                                            .make(arith::muli(
+                                                                            rounded_size,
+                                                                            rewriter.make(
+                                                                                rewriter.iconst_64(
+                                                                                    INIT_WORD_COST,
+                                                                                ),
+                                                                            )?,
+                                                                            location,
+                                                                        ))?;
+
+                                                                    gas_cost
+                                                                } else {
+                                                                    rewriter.make(
+                                                                        rewriter.iconst_64(0),
+                                                                    )?
+                                                                };
+
+                                                                rewriter.create(scf::r#yield(
+                                                                    &[gas_cost],
+                                                                    location,
+                                                                ));
+                                                                region
+                                                            },
+                                                            location,
+                                                        ))?;
                                                     Ok(total_gas_cost)
+                                                },
+                                            )?;
+                                            self.insert_dynamic_gas_check_block_before_op_block(
+                                                op,
+                                                block,
+                                                revert_block,
+                                                |rewriter| {
+                                                    let location = rewriter.get_insert_location();
+                                                    let dest_offset = op.operand(1)?;
+                                                    let size = op.operand(2)?;
+                                                    let size = rewriter.make(arith::trunci(
+                                                        size,
+                                                        rewriter.intrinsics.i64_ty,
+                                                        location,
+                                                    ))?;
+
+                                                    let zero = rewriter
+                                                        .make(rewriter.iconst_256_from_u64(0)?)?;
+                                                    let is_size_zero =
+                                                        rewriter.make(arith::cmpi(
+                                                            rewriter.context(),
+                                                            CmpiPredicate::Eq,
+                                                            size,
+                                                            zero,
+                                                            location,
+                                                        ))?;
+
+                                                    let total_gas_cost =
+                                                        rewriter.make(scf::r#if(
+                                                            is_size_zero,
+                                                            &[rewriter.intrinsics.i64_ty],
+                                                            {
+                                                                let region = Region::new();
+                                                                let block = region
+                                                                    .append_block(Block::new(&[]));
+                                                                let rewriter =
+                                                                    Rewriter::new_with_block(
+                                                                        rewriter.context(),
+                                                                        block,
+                                                                    );
+                                                                rewriter.create(scf::r#yield(
+                                                                    &[rewriter.make(
+                                                                        rewriter.iconst_64(0),
+                                                                    )?],
+                                                                    location,
+                                                                ));
+                                                                region
+                                                            },
+                                                            {
+                                                                let region = Region::new();
+                                                                let block = region
+                                                                    .append_block(Block::new(&[]));
+                                                                let rewriter =
+                                                                    Rewriter::new_with_block(
+                                                                        rewriter.context(),
+                                                                        block,
+                                                                    );
+
+                                                                    let dest_offset =
+                                                                    rewriter.make(arith::trunci(
+                                                                        dest_offset,
+                                                                        rewriter.intrinsics.i64_ty,
+                                                                        location,
+                                                                    ))?;
+            
+                                                                let required_size = rewriter.make(
+                                                                    arith::addi(dest_offset, size, location),
+                                                                )?;
+                                                                let gas_cost =
+                                                                    memory::resize_memory_with_gas_cost(
+                                                                        &rewriter,
+                                                                        required_size,
+                                                                        gas_cost::CREATE,
+                                                                    )?;
+
+                                                                rewriter.create(scf::r#yield(
+                                                                    &[gas_cost],
+                                                                    location,
+                                                                ));
+                                                                region
+                                                            },
+                                                            location,
+                                                        ))?;
+                                                    Ok(total_gas_cost)
+                                                },
+                                            )?;
+                                            self.insert_dynamic_gas_check_block_before_op_block(
+                                                op,
+                                                block,
+                                                revert_block,
+                                                |rewriter| {
+                                                    let location = rewriter.get_insert_location();
+                                                    let dest_offset = op.operand(1)?;
+                                                    let size = op.operand(2)?;
+                                                    let size = rewriter.make(arith::trunci(
+                                                        size,
+                                                        rewriter.intrinsics.i64_ty,
+                                                        location,
+                                                    ))?;
+
+                                                    let available_gas =
+                                                        self::get_gas_counter(&rewriter)?;
+                                                    if spec_id.is_enabled_in(SpecId::TANGERINE) {
+                                                        available_gas -= available_gas / 64;
+                                                    }
+
+                                                    Ok(available_gas)
                                                 },
                                             )?;
                                             // TODO: calculate dynamic gas cost from the system call
