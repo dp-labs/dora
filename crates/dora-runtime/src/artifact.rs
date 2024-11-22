@@ -26,7 +26,7 @@ pub trait Artifact: Default + Debug + Clone {
     ///
     /// # Returns
     /// A new instance of the Artifact implementation.
-    fn from_executor(executor: Executor) -> Self;
+    fn new(executor: Executor) -> Self;
     /// Executes the artifact with the given runtime context and initial gas.
     /// This method runs the compiled code represented by the artifact.
     ///
@@ -68,7 +68,7 @@ impl Artifact for SymbolArtifact {
     /// # Returns
     /// A new SymbolArtifact instance.
     #[inline]
-    fn from_executor(executor: Executor) -> Self {
+    fn new(executor: Executor) -> Self {
         Self {
             entry_ptr: executor.get_main_entrypoint_ptr() as usize,
             _executor: executor,
