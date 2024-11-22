@@ -1,4 +1,5 @@
 use crate::context::Context;
+use crate::dora::gas::GasOptions;
 use crate::evm::program::CompileOptions;
 use crate::evm::program::Operation;
 use crate::evm::program::Program;
@@ -24,11 +25,15 @@ macro_rules! assert_snapshot {
                 },
             )
             .expect("failed to compile program");
+
         crate::evm::pass::run(&context.mlir_context, &mut module.mlir_module).unwrap();
         crate::dora::pass::run_gas_pass(
             &context.mlir_context,
             &mut module.mlir_module,
-            SpecId::CANCUN,
+            GasOptions {
+                spec_id: SpecId::CANCUN,
+                limit_contract_code_size: None,
+            },
         )
         .unwrap();
         let op = module.module().as_operation();

@@ -1,6 +1,6 @@
+use self::gas::GasOptions;
 use super::{conversion, gas, storage};
 use crate::errors::Result;
-use dora_primitives::spec::SpecId;
 use melior::{ir::Module as MLIRModule, Context};
 
 /// Options for configuring a pass, including program-related settings.
@@ -68,9 +68,9 @@ pub fn run(ctx: &Context, module: &mut MLIRModule, opts: &PassOptions) -> Result
 /// ```no_check
 /// run_gas_pass(&context, &mut mlir_module)?;
 /// ```
-pub fn run_gas_pass(ctx: &Context, module: &mut MLIRModule, spec_id: SpecId) -> Result<()> {
-    let mut gas_pass = gas::GasPass { ctx };
-    gas_pass.run(module.as_operation(), spec_id)
+pub fn run_gas_pass(ctx: &Context, module: &mut MLIRModule, options: GasOptions) -> Result<()> {
+    let mut gas_pass = gas::GasPass { ctx, options };
+    gas_pass.run(module.as_operation())
 }
 
 /// Run the storage optimization pass on the given MLIR module
