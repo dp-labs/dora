@@ -1,7 +1,8 @@
 use crate::{
     account::{Account, AccountInfo, AccountStatus, EMPTY_CODE_HASH_STR},
-    Address, Bytecode, B256, U256,
+    artifact::{Artifact, SymbolArtifact},
 };
+use dora_primitives::{Address, Bytecode, B256, U256};
 use rustc_hash::FxHashMap;
 use sha3::{Digest, Keccak256};
 use std::{convert::Infallible, fmt::Debug, str::FromStr};
@@ -13,6 +14,7 @@ use thiserror::Error;
 pub trait Database: Clone + Debug {
     /// The type representing an error that may occur when interacting with the database.
     type Error: Debug + Sync + Send;
+    type Artifact: Artifact;
 
     /// Retrieves basic account information for a given address.
     ///
@@ -22,7 +24,7 @@ pub trait Database: Clone + Debug {
     /// # Returns:
     /// - `Result<Option<AccountInfo>, Self::Error>`: A `Result` containing either an `Option` with the `AccountInfo`
     ///   or an error if the query fails. The `Option` will be `None` if the account does not exist.
-    fn basic(&self, address: Address) -> Result<Option<AccountInfo>, Self::Error>;
+    fn basic(&self, address: Address) -> Result<Option<AccountInfo<Self::Artifact>>, Self::Error>;
 
     /// Retrieves the contract bytecode for a given code hash.
     ///
@@ -76,6 +78,13 @@ pub trait Database: Clone + Debug {
         Ok(code)
     }
 
+    /// Retrieves the contract bytecode artifact for a given address by first fetching the account information
+    /// and then querying the code hash or fetching the code directly.
+    #[inline]
+    fn artifact_by_address(&self, address: Address) -> Result<Option<Self::Artifact>, Self::Error> {
+        Ok(self.basic(address)?.and_then(|acc| acc.artifact))
+    }
+
     /// Inserts a contract into the specified address with the provided bytecode and balance.
     fn insert_contract(&mut self, address: Address, bytecode: Bytecode, balance: U256);
 
@@ -91,8 +100,11 @@ pub trait Database: Clone + Debug {
         storage: FxHashMap<U256, U256>,
     );
 
+    /// Sets or updates an account in the database with the specified address and the contract artifact.
+    fn set_account_artifact(&mut self, address: Address, artifact: Self::Artifact);
+
     /// Converts the current state of the database into a collection of `Account` objects.
-    fn into_state(self) -> FxHashMap<Address, Account>;
+    fn into_state(self) -> FxHashMap<Address, Account<Self::Artifact>>;
 }
 
 /// An error that occurs during database access operations.
@@ -179,10 +191,13 @@ impl From<U256> for StorageSlot {
 /// ```
 #[derive(Clone, Debug, Default)]
 pub struct MemoryDB {
-    accounts: FxHashMap<Address, DbAccount>,
+    accounts: FxHashMap<Address, DbAccount<SymbolArtifact>>,
     contracts: FxHashMap<B256, Bytecode>,
     block_hashes: FxHashMap<U256, B256>,
 }
+
+unsafe impl Send for MemoryDB {}
+unsafe impl Sync for MemoryDB {}
 
 impl MemoryDB {
     /// Creates a new `MemoryDB` instance.
@@ -372,7 +387,7 @@ impl MemoryDB {
     /// ```no_check
     /// db.commit(changes);
     /// ```
-    pub fn commit(&mut self, changes: FxHashMap<Address, Account>) {
+    pub fn commit(&mut self, changes: FxHashMap<Address, Account<SymbolArtifact>>) {
         for (address, account) in changes {
             if account.is_created() && account.is_selfdestructed() || !account.is_touched() {
                 continue;
@@ -385,7 +400,7 @@ impl MemoryDB {
             let db_account = self
                 .accounts
                 .entry(address)
-                .or_insert_with(DbAccount::empty);
+                .or_insert_with(DbAccount::<SymbolArtifact>::empty);
             db_account.nonce = account.info.nonce;
             db_account.balance = account.info.balance;
             db_account.status = AccountStatus::Cold;
@@ -399,7 +414,7 @@ impl MemoryDB {
         }
     }
 
-    fn store_contract(&mut self, account: &AccountInfo) {
+    fn store_contract(&mut self, account: &AccountInfo<SymbolArtifact>) {
         if let Some(code) = account.code.as_ref() {
             self.contracts
                 .entry(account.code_hash)
@@ -410,8 +425,9 @@ impl MemoryDB {
 
 impl Database for MemoryDB {
     type Error = Infallible;
+    type Artifact = SymbolArtifact;
 
-    fn basic(&self, address: Address) -> Result<Option<AccountInfo>, Self::Error> {
+    fn basic(&self, address: Address) -> Result<Option<AccountInfo<Self::Artifact>>, Self::Error> {
         Ok(self.accounts.get(&address).cloned().map(AccountInfo::from))
     }
 
@@ -448,13 +464,24 @@ impl Database for MemoryDB {
         balance: U256,
         storage: FxHashMap<U256, U256>,
     ) {
-        let account = self.accounts.entry(address).or_insert(DbAccount::empty());
+        let account = self
+            .accounts
+            .entry(address)
+            .or_insert(DbAccount::<Self::Artifact>::empty());
         account.nonce = nonce;
         account.balance = balance;
         account.storage = storage;
     }
 
-    fn into_state(self) -> FxHashMap<Address, Account> {
+    fn set_account_artifact(&mut self, address: Address, artifact: Self::Artifact) {
+        let account = self
+            .accounts
+            .entry(address)
+            .or_insert(DbAccount::<Self::Artifact>::empty());
+        account.bytecode_artifact = Some(artifact);
+    }
+
+    fn into_state(self) -> FxHashMap<Address, Account<SymbolArtifact>> {
         self.accounts
             .into_iter()
             .map(|(address, db_account)| {
@@ -499,15 +526,16 @@ impl Database for MemoryDB {
 /// };
 /// ```
 #[derive(Clone, Default, Debug, PartialEq)]
-pub struct DbAccount {
+pub struct DbAccount<A: Artifact> {
     pub nonce: u64,
     pub balance: U256,
     pub storage: FxHashMap<U256, U256>,
     pub bytecode_hash: B256,
+    pub bytecode_artifact: Option<A>,
     pub status: AccountStatus,
 }
 
-impl DbAccount {
+impl<A: Artifact> DbAccount<A> {
     /// Creates an empty account with a zero balance, nonce, and empty storage.
     ///
     /// This is useful for initializing new accounts or resetting existing ones.
@@ -522,6 +550,7 @@ impl DbAccount {
             balance: U256::ZERO,
             storage: FxHashMap::default(),
             bytecode_hash: B256::from_str(EMPTY_CODE_HASH_STR).unwrap(),
+            bytecode_artifact: None,
             status: AccountStatus::Created,
         }
     }
@@ -538,12 +567,13 @@ impl DbAccount {
 /// let db_account = DbAccount::empty();
 /// let account_info: AccountInfo = db_account.into();
 /// ```
-impl From<DbAccount> for AccountInfo {
-    fn from(db_account: DbAccount) -> Self {
+impl<A: Artifact> From<DbAccount<A>> for AccountInfo<A> {
+    fn from(db_account: DbAccount<A>) -> Self {
         Self {
             balance: db_account.balance,
             nonce: db_account.nonce,
             code_hash: db_account.bytecode_hash,
+            artifact: db_account.bytecode_artifact,
             code: None,
         }
     }

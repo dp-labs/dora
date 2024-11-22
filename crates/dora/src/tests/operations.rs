@@ -6,11 +6,11 @@ use crate::{run_evm, tests::INIT_GAS};
 use bytes::Bytes;
 use dora_compiler::evm::program::{Operation, Program};
 use dora_primitives::spec::SpecId;
-use dora_primitives::{
-    account::EMPTY_CODE_HASH_STR, db::MemoryDB, Address, Bytecode, Bytes32, B256, H160,
-};
+use dora_primitives::{Address, Bytecode, Bytes32, B256, H160};
 use dora_runtime::{
+    account::EMPTY_CODE_HASH_STR,
     context::{compute_contract_address, RuntimeContext},
+    db::MemoryDB,
     env::Env,
 };
 use num_bigint::{BigInt, BigUint};

@@ -1,8 +1,9 @@
+use crate::{account::Account, artifact::Artifact, db::DatabaseError};
 use core::fmt;
-use dora_primitives::{account::Account, db::DatabaseError, Bytes, EVMAddress as Address};
+use dora_primitives::{Bytes, EVMAddress as Address};
 use ruint::aliases::U256;
 use rustc_hash::FxHashMap;
-use std::{boxed::Box, string::String};
+use std::{boxed::Box, fmt::Debug, string::String};
 
 /// Represents the result of an EVM execution along with the updated account state.
 ///
@@ -10,11 +11,11 @@ use std::{boxed::Box, string::String};
 /// - `result`: The `ExecutionResult` indicating the status of the transaction.
 /// - `state`: A `HashMap` representing the updated account state after execution.
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub struct ResultAndState {
+pub struct ResultAndState<A: Artifact> {
     /// Status of execution, containing details of success, revert, or halt.
     pub result: ExecutionResult,
     /// Updated state of accounts after execution.
-    pub state: FxHashMap<Address, Account>,
+    pub state: FxHashMap<Address, Account<A>>,
 }
 
 /// Represents the result of executing a transaction in the EVM.

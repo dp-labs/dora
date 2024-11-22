@@ -12,12 +12,16 @@ use dora_compiler::{
     },
     pass, Compiler,
 };
-use dora_primitives::{db::Database, spec::SpecId, transaction::Transaction};
-use dora_primitives::{db::MemoryDB, Address, Bytecode};
+use dora_primitives::{spec::SpecId, Address, Bytecode};
+use dora_runtime::artifact::Artifact;
 use dora_runtime::executor::Executor;
-use dora_runtime::result::ResultAndState;
-use dora_runtime::{context::CallFrame, env::Env};
+use dora_runtime::{artifact::SymbolArtifact, context::CallFrame, env::Env};
 use dora_runtime::{context::RuntimeContext, host::DummyHost};
+use dora_runtime::{
+    db::{Database, MemoryDB},
+    result::ResultAndState,
+    transaction::Transaction,
+};
 use std::sync::{Arc, RwLock};
 
 /// Run the EVM environment with the given state database and return the execution result and final state.
@@ -38,7 +42,7 @@ pub fn run_evm<DB: Database + 'static>(
     mut env: Env,
     db: DB,
     spec_id: SpecId,
-) -> Result<ResultAndState> {
+) -> Result<ResultAndState<DB::Artifact>> {
     env.validate_transaction().map_err(|e| anyhow::anyhow!(e))?;
     env.consume_intrinsic_cost()
         .map_err(|e| anyhow::anyhow!(e))?;
@@ -53,9 +57,9 @@ pub fn run_evm<DB: Database + 'static>(
 }
 
 /// Run transaction with the runtime context.
-fn run_with_context<DB: Database>(
+pub fn run_with_context<DB: Database>(
     runtime_context: &mut RuntimeContext<DB>,
-) -> Result<ResultAndState> {
+) -> Result<ResultAndState<DB::Artifact>> {
     let host = runtime_context.host.read().unwrap();
     let env = host.env();
     let code_address = env.tx.get_address();
@@ -66,35 +70,48 @@ fn run_with_context<DB: Database>(
         drop(host);
         runtime_context.create_contract(&data, &mut remaining_gas, value, None)?;
     } else {
-        let opcodes = {
-            let db = runtime_context.db.read().unwrap();
-            db.code_by_address(code_address)
-                .map_err(|e| anyhow::anyhow!(format!("{e:?}")))?
-        };
-        let program = Program::from_opcode(&opcodes);
+        // Fetch the bytecode artifact if exists
+        let db = runtime_context.db.read().unwrap();
+        let artifact = db.artifact_by_address(code_address);
         drop(host);
-        let context = Context::new();
-        let compiler = EVMCompiler::new(&context);
-        let mut module = compiler.compile(
-            &program,
-            &(),
-            &CompileOptions {
-                spec_id: runtime_context.inner_context.spec_id,
-            },
-        )?;
-        // Lowering the EVM dialect to MLIR builtin dialects.
-        evm::pass::run(&context.mlir_context, &mut module.mlir_module)?;
-        dora::pass::run(
-            &context.mlir_context,
-            &mut module.mlir_module,
-            &dora::pass::PassOptions {
-                program_code_size: program.code_size,
-            },
-        )?;
-        pass::run(&context.mlir_context, &mut module.mlir_module)?;
-        debug_assert!(module.mlir_module.as_operation().verify());
-        let executor = Executor::new(module.module(), runtime_context, Default::default());
-        executor.execute(runtime_context, remaining_gas);
+        if let Ok(Some(artifact)) = artifact {
+            drop(db);
+            artifact.execute(runtime_context, remaining_gas);
+        } else {
+            let opcodes = db
+                .code_by_address(code_address)
+                .map_err(|e| anyhow::anyhow!(format!("{e:?}")))?;
+            drop(db);
+            // Compile the contract code
+            let program = Program::from_opcode(&opcodes);
+            let context = Context::new();
+            let compiler = EVMCompiler::new(&context);
+            let mut module = compiler.compile(
+                &program,
+                &(),
+                &CompileOptions {
+                    spec_id: runtime_context.inner_context.spec_id,
+                },
+            )?;
+            // Lowering the EVM dialect to MLIR builtin dialects.
+            evm::pass::run(&context.mlir_context, &mut module.mlir_module)?;
+            dora::pass::run(
+                &context.mlir_context,
+                &mut module.mlir_module,
+                &dora::pass::PassOptions {
+                    program_code_size: program.code_size,
+                },
+            )?;
+            pass::run(&context.mlir_context, &mut module.mlir_module)?;
+            debug_assert!(module.mlir_module.as_operation().verify());
+            let executor = Executor::new(module.module(), runtime_context, Default::default());
+            executor.execute(runtime_context, remaining_gas);
+            runtime_context
+                .db
+                .write()
+                .unwrap()
+                .set_account_artifact(code_address, DB::Artifact::new(executor));
+        }
     }
     runtime_context.get_result().map_err(|e| anyhow::anyhow!(e))
 }
@@ -104,17 +121,6 @@ fn run_with_context<DB: Database>(
 /// `EVMTransaction` uses `RuntimeContext` for its execution context and returns a `Result` containing
 /// `ResultAndState` after execution. This struct is designed to handle Ethereum-style transaction processing
 /// by setting the initial gas limit and cloning the database state before running the EVM.
-///
-/// # Example
-/// ```no_check
-/// use dora_primitives::transaction::Transaction;
-/// use dora_runtime::context::RuntimeContext;
-/// use dora::EVMTransaction;
-///
-/// let mut ctx = RuntimeContext::new();
-/// let evm_tx = EVMTransaction::default();
-/// let result = evm_tx.run(&mut ctx, 21_000);
-/// ```
 #[derive(Debug)]
 pub struct EVMTransaction<DB: Database>(std::marker::PhantomData<DB>);
 
@@ -133,7 +139,7 @@ impl<DB: Database> Default for EVMTransaction<DB> {
 
 impl<DB: Database> Transaction for EVMTransaction<DB> {
     type Context = RuntimeContext<DB>;
-    type Result = Result<ResultAndState>;
+    type Result = Result<ResultAndState<DB::Artifact>>;
 
     #[inline]
     fn run(&self, ctx: &mut Self::Context, _initial_gas: u64) -> Self::Result {
@@ -161,7 +167,7 @@ pub fn run_evm_bytecode_with_calldata(
     calldata: &str,
     initial_gas: u64,
     spec_id: SpecId,
-) -> Result<ResultAndState> {
+) -> Result<ResultAndState<SymbolArtifact>> {
     let opcodes = hex::decode(program)?;
     let calldata = hex::decode(calldata)?;
     let address = Address::from_low_u64_be(40);

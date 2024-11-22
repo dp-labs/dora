@@ -1,19 +1,19 @@
 use std::sync::{Arc, RwLock};
 
+use crate::account::AccountInfo;
 use crate::constants::gas_cost::MAX_CODE_SIZE;
 use crate::constants::{call_opcode, gas_cost, precompiles, CallType, CALL_STACK_LIMIT};
+use crate::db::{Database, StorageSlot};
+use crate::executor::ExecutionEngine;
 use crate::host::Host;
 use crate::precompiles::{blake2f, ecrecover, identity, modexp, ripemd_160, sha2_256};
 use crate::result::{EVMError, ExecutionResult, HaltReason, Output, ResultAndState, SuccessReason};
+use crate::transaction::Transaction;
 use crate::{symbols, ExitStatusCode};
 use anyhow::bail;
 use bytes::Bytes;
-use dora_primitives::account::AccountInfo;
-use dora_primitives::db::{Database, StorageSlot};
 use dora_primitives::spec::SpecId;
-use dora_primitives::transaction::Transaction;
 use dora_primitives::{Bytes32, EVMAddress as Address, B256, H160, U256};
-use melior::ExecutionEngine;
 use sha3::{Digest, Keccak256};
 
 /// Function type for the main entrypoint of the generated code.
@@ -110,8 +110,12 @@ impl CallFrame {
     }
 }
 
-pub type RuntimeTransaction<DB> =
-    Arc<dyn Transaction<Context = RuntimeContext<DB>, Result = anyhow::Result<ResultAndState>>>;
+pub type RuntimeTransaction<DB> = Arc<
+    dyn Transaction<
+        Context = RuntimeContext<DB>,
+        Result = anyhow::Result<ResultAndState<<DB as Database>::Artifact>>,
+    >,
+>;
 pub type RuntimeHost = Arc<RwLock<dyn Host>>;
 pub type RuntimeDB<DB> = Arc<RwLock<DB>>;
 
@@ -127,17 +131,6 @@ pub type RuntimeDB<DB> = Arc<RwLock<DB>>;
 /// - `call_frame`: The current call frame representing the contract call stack.
 /// - `inner_context`: The inner execution context that holds memory, gas, logs, and other runtime-specific data.
 /// - `transient_storage`: A temporary storage map used during execution, mapping addresses and keys to values.
-///
-/// # Example Usage:
-/// ```no_check
-/// let context = RuntimeContext {
-///     env: Env::default(),
-///     journal: Journal::new(),
-///     call_frame: CallFrame::default(),
-///     inner_context: InnerContext::default(),
-///     transient_storage: FxHashMap::default(),
-/// };
-/// ```
 pub struct RuntimeContext<DB: Database> {
     pub call_frame: CallFrame,
     pub inner_context: InnerContext,
@@ -282,6 +275,12 @@ impl<DB: Database> RuntimeContext<DB> {
         host.env().tx.data.to_vec()
     }
 
+    /// Retrieves the gas limit.
+    pub fn gas_limit(&self) -> u64 {
+        let host = self.host.read().unwrap();
+        host.env().tx.gas_limit
+    }
+
     /// Retrieves the result of the execution, including gas usage, return values, and the resulting state changes.
     ///
     /// The result depends on the exit status of the execution, which can be a success, revert, or error.
@@ -296,7 +295,7 @@ impl<DB: Database> RuntimeContext<DB> {
     /// ```no_check
     /// let result = context.get_result();
     /// ```
-    pub fn get_result(&self) -> Result<ResultAndState, EVMError> {
+    pub fn get_result(&self) -> Result<ResultAndState<DB::Artifact>, EVMError> {
         let host = self.host.read().unwrap();
         let gas_remaining = self.inner_context.gas_remaining.unwrap_or(0);
         let gas_initial = host.env().tx.gas_limit;
@@ -612,7 +611,7 @@ impl<DB: Database> RuntimeContext<DB> {
         let host = self.host.read().unwrap();
         let addr = host.env().tx.transact_to;
         let account = if addr.is_zero() {
-            AccountInfo::default()
+            AccountInfo::<DB::Artifact>::default()
         } else {
             self.db
                 .read()
@@ -682,6 +681,7 @@ impl<DB: Database> RuntimeContext<DB> {
         if new_size <= self.inner_context.memory.len() {
             return self.inner_context.memory.as_mut_ptr();
         }
+        // Check the memory usage bound
         match self
             .inner_context
             .memory
