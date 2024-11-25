@@ -1,13 +1,16 @@
 use std::sync::{Arc, RwLock};
 
 use crate::account::AccountInfo;
-use crate::constants::gas_cost::{COLD_ACCOUNT_ACCESS_COST, MAX_CODE_SIZE, WARM_STORAGE_READ_COST};
+use crate::constants::gas_cost::MAX_CODE_SIZE;
 use crate::constants::{call_opcode, gas_cost, precompiles, CallType, CALL_STACK_LIMIT};
 use crate::db::{Database, StorageSlot};
 use crate::executor::ExecutionEngine;
 use crate::host::Host;
 use crate::precompiles::{blake2f, ecrecover, identity, modexp, ripemd_160, sha2_256};
-use crate::result::{EVMError, ExecutionResult, HaltReason, Output, ResultAndState, SuccessReason};
+use crate::result::{
+    EVMError, ExecutionResult, HaltReason, InternalResult, OutOfGasError, Output, ResultAndState,
+    SuccessReason,
+};
 use crate::transaction::Transaction;
 use crate::{symbols, ExitStatusCode};
 use anyhow::bail;
@@ -307,7 +310,7 @@ impl<DB: Database> RuntimeContext<DB> {
             .inner_context
             .exit_status
             .clone()
-            .unwrap_or(ExitStatusCode::Default);
+            .unwrap_or(ExitStatusCode::Stop);
 
         let result = match exit_status {
             ExitStatusCode::Return => ExecutionResult::Success {
@@ -316,18 +319,133 @@ impl<DB: Database> RuntimeContext<DB> {
                 gas_refunded,
                 output: Output::Call(return_values.into()),
             },
-            ExitStatusCode::Stop | ExitStatusCode::Default => ExecutionResult::Success {
+            ExitStatusCode::Stop => ExecutionResult::Success {
                 reason: SuccessReason::Stop,
                 gas_used,
                 gas_refunded,
                 output: Output::Call(return_values.into()),
             },
-            ExitStatusCode::Revert => ExecutionResult::Revert {
+            ExitStatusCode::Revert
+            | ExitStatusCode::CreateInitCodeStartingEF00
+            | ExitStatusCode::InvalidEOFInitCode => ExecutionResult::Revert {
                 output: return_values.into(),
                 gas_used,
             },
-            ExitStatusCode::Error => ExecutionResult::Halt {
-                reason: HaltReason::RuntimeError,
+            ExitStatusCode::CallTooDeep => ExecutionResult::Halt {
+                reason: HaltReason::CallTooDeep,
+                gas_used,
+            },
+            ExitStatusCode::OutOfFunds => ExecutionResult::Halt {
+                reason: HaltReason::OutOfFunds,
+                gas_used,
+            },
+            ExitStatusCode::OutOfGas => ExecutionResult::Halt {
+                reason: HaltReason::OutOfGas(OutOfGasError::Basic),
+                gas_used,
+            },
+            ExitStatusCode::MemoryOOG => ExecutionResult::Halt {
+                reason: HaltReason::OutOfGas(OutOfGasError::Memory),
+                gas_used,
+            },
+            ExitStatusCode::MemoryLimitOOG => ExecutionResult::Halt {
+                reason: HaltReason::OutOfGas(OutOfGasError::MemoryLimit),
+                gas_used,
+            },
+            ExitStatusCode::PrecompileOOG => ExecutionResult::Halt {
+                reason: HaltReason::OutOfGas(OutOfGasError::Precompile),
+                gas_used,
+            },
+            ExitStatusCode::InvalidOperandOOG => ExecutionResult::Halt {
+                reason: HaltReason::OutOfGas(OutOfGasError::InvalidOperand),
+                gas_used,
+            },
+            ExitStatusCode::OpcodeNotFound => ExecutionResult::Halt {
+                reason: HaltReason::OpcodeNotFound,
+                gas_used,
+            },
+            ExitStatusCode::CallNotAllowedInsideStatic => ExecutionResult::Halt {
+                reason: HaltReason::CallNotAllowedInsideStatic,
+                gas_used,
+            },
+            ExitStatusCode::StateChangeDuringStaticCall => ExecutionResult::Halt {
+                reason: HaltReason::StateChangeDuringStaticCall,
+                gas_used,
+            },
+            ExitStatusCode::InvalidFEOpcode => ExecutionResult::Halt {
+                reason: HaltReason::InvalidFEOpcode,
+                gas_used,
+            },
+            ExitStatusCode::InvalidJump => ExecutionResult::Halt {
+                reason: HaltReason::InvalidJump,
+                gas_used,
+            },
+            ExitStatusCode::NotActivated => ExecutionResult::Halt {
+                reason: HaltReason::NotActivated,
+                gas_used,
+            },
+            ExitStatusCode::StackUnderflow => ExecutionResult::Halt {
+                reason: HaltReason::StackUnderflow,
+                gas_used,
+            },
+            ExitStatusCode::StackOverflow => ExecutionResult::Halt {
+                reason: HaltReason::StackOverflow,
+                gas_used,
+            },
+            ExitStatusCode::OutOfOffset => ExecutionResult::Halt {
+                reason: HaltReason::OutOfOffset,
+                gas_used,
+            },
+            ExitStatusCode::CreateCollision => ExecutionResult::Halt {
+                reason: HaltReason::CreateCollision,
+                gas_used,
+            },
+            ExitStatusCode::OverflowPayment => ExecutionResult::Halt {
+                reason: HaltReason::OverflowPayment,
+                gas_used,
+            },
+            ExitStatusCode::PrecompileError => ExecutionResult::Halt {
+                reason: HaltReason::PrecompileError,
+                gas_used,
+            },
+            ExitStatusCode::NonceOverflow => ExecutionResult::Halt {
+                reason: HaltReason::NonceOverflow,
+                gas_used,
+            },
+            ExitStatusCode::CreateContractSizeLimit => ExecutionResult::Halt {
+                reason: HaltReason::CreateContractSizeLimit,
+                gas_used,
+            },
+            ExitStatusCode::CreateContractStartingWithEF => ExecutionResult::Halt {
+                reason: HaltReason::CreateContractStartingWithEF,
+                gas_used,
+            },
+            ExitStatusCode::CreateInitCodeSizeLimit => ExecutionResult::Halt {
+                reason: HaltReason::CreateInitCodeSizeLimit,
+                gas_used,
+            },
+            ExitStatusCode::EOFOpcodeDisabledInLegacy
+            | ExitStatusCode::ReturnContractInNotInitEOF => ExecutionResult::Halt {
+                reason: HaltReason::OpcodeNotFound,
+                gas_used,
+            },
+            ExitStatusCode::EOFFunctionStackOverflow => ExecutionResult::Halt {
+                reason: HaltReason::EOFFunctionStackOverflow,
+                gas_used,
+            },
+            ExitStatusCode::EofAuxDataOverflow => ExecutionResult::Halt {
+                reason: HaltReason::EofAuxDataOverflow,
+                gas_used,
+            },
+            ExitStatusCode::EofAuxDataTooSmall => ExecutionResult::Halt {
+                reason: HaltReason::EofAuxDataTooSmall,
+                gas_used,
+            },
+            ExitStatusCode::InvalidExtCallTarget => ExecutionResult::Halt {
+                reason: HaltReason::InvalidExtCallTarget,
+                gas_used,
+            },
+            ExitStatusCode::InvalidExtDelegateCallTarget => ExecutionResult::Internal {
+                result: InternalResult::InvalidExtDelegateCallTarget,
                 gas_used,
             },
         };
@@ -896,33 +1014,17 @@ impl<DB: Database> RuntimeContext<DB> {
         *basefee = Bytes32::from(&host.env().block.basefee);
     }
 
-    pub extern "C" fn store_in_balance(&mut self, address: &Bytes32, balance: &mut Bytes32) -> u64 {
+    pub extern "C" fn store_in_balance(&mut self, address: &Bytes32, balance: &mut Bytes32) {
         if !address.is_valid_eth_address() {
             *balance = Bytes32::ZERO;
-            return 0;
+            return;
         }
 
-        let is_cold = false; // todo: support is_cold in host API
         let addr = Address::from(address);
         if let Some(a) = self.db.read().unwrap().basic(addr).unwrap() {
             *balance = Bytes32::from_u256(a.balance);
         } else {
             *balance = Bytes32::ZERO;
-        };
-
-        if self.inner_context.spec_id.is_enabled_in(SpecId::BERLIN) {
-            if is_cold {
-                COLD_ACCOUNT_ACCESS_COST
-            } else {
-                WARM_STORAGE_READ_COST
-            }
-        } else if self.inner_context.spec_id.is_enabled_in(SpecId::ISTANBUL) {
-            // EIP-1884: Repricing for trie-size-dependent opcodes
-            700
-        } else if self.inner_context.spec_id.is_enabled_in(SpecId::TANGERINE) {
-            400
-        } else {
-            20
         }
     }
 

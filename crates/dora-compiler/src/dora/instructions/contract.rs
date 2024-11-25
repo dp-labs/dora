@@ -2,6 +2,7 @@ use crate::{
     arith_constant,
     backend::IntCC,
     check_resize_memory,
+    conversion::builder::OpBuilder,
     conversion::rewriter::{DeferredRewriter, Rewriter},
     dora::{conversion::ConversionPass, gas, memory},
     errors::Result,
@@ -45,7 +46,8 @@ impl<'c> ConversionPass<'c> {
         let required_memory_size = rewriter.make(arith::addi(offset, size, location))?;
         // Check the memory offset halt error
         check_resize_memory!(op, rewriter, required_memory_size);
-        rewrite_ctx!(context, op, rewriter, location);
+        let rewriter = Rewriter::new_with_op(context, *op);
+        let location = rewriter.get_insert_location();
         memory::resize_memory(
             required_memory_size,
             context,
@@ -94,6 +96,8 @@ impl<'c> ConversionPass<'c> {
             result,
             location,
         ))?;
+        maybe_revert_here!(op, rewriter, revert_flag, ExitStatusCode::CreateCollision);
+        rewrite_ctx!(context, op, rewriter, location);
         // Deferred rewriter is need to be the op generation scope.
         rewriter.make(llvm::load(
             context,
@@ -102,8 +106,6 @@ impl<'c> ConversionPass<'c> {
             location,
             LoadStoreOptions::default(),
         ))?;
-
-        maybe_revert_here!(op, rewriter, revert_flag);
 
         Ok(())
     }
@@ -129,7 +131,12 @@ impl<'c> ConversionPass<'c> {
                 let revert_flag =
                     rewriter.make(arith::andi(ctx_is_static, value_is_not_zero, location))?;
 
-                maybe_revert_here!(op, rewriter, revert_flag);
+                maybe_revert_here!(
+                    op,
+                    rewriter,
+                    revert_flag,
+                    ExitStatusCode::CallNotAllowedInsideStatic
+                );
                 Self::intern_call(context, op, value, 3)?;
             }
             CallType::StaticCall | CallType::DelegateCall => {

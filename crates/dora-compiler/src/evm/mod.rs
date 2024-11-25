@@ -336,13 +336,15 @@ impl<'c> EVMCompiler<'c> {
                 builder.create(builder.store(size_after, stack_size_ptr));
                 // Whether revert
                 let revert = builder.make(arith::xori(underflow, overflow, location))?;
+                let code =
+                    builder.make(builder.iconst_8(ExitStatusCode::StackOverflow.to_u8() as i8))?;
                 builder.create(cf::cond_br(
                     context,
                     revert,
                     &ctx.revert_block,
                     &block_start,
                     &[],
-                    &[],
+                    &[code],
                     location,
                 ));
             } else {
@@ -557,6 +559,7 @@ impl<'c> CtxType<'c> {
 
         let location = Location::unknown(context);
         let uint256 = IntegerType::new(context, 256);
+        let uint8 = IntegerType::new(context, 8);
 
         let jumpdest_pcs: Vec<i64> = program
             .operations
@@ -578,12 +581,21 @@ impl<'c> CtxType<'c> {
             })
             .collect();
 
+        let code = block
+            .append_operation(arith::constant(
+                context,
+                IntegerAttribute::new(uint8.into(), ExitStatusCode::InvalidJump.to_u8() as i64)
+                    .into(),
+                location,
+            ))
+            .result(0)?;
+
         let op = block.append_operation(cf::switch(
             context,
             &jumpdest_pcs,
             arg.into(),
             uint256.into(),
-            (&self.revert_block, &[]),
+            (&self.revert_block, &[code.into()]),
             &case_destinations,
             location,
         )?);
@@ -653,18 +665,15 @@ pub fn revert_block<'c>(
     syscall_ctx: Value<'c, 'c>,
     _remaining_gas: Value<'c, 'c>,
 ) -> Result<Block<'c>> {
-    let block = Block::new(&[]);
     let builder = OpBuilder::new(context);
+    let block = Block::new(&[(builder.intrinsics.i8_ty, builder.unknown_loc())]);
     let location = builder.unknown_loc();
 
     let zero = block
         .append_operation(builder.iconst_64(0))
         .result(0)?
         .into();
-    let reason = block
-        .append_operation(builder.iconst_8(ExitStatusCode::Error.to_u8() as i8))
-        .result(0)?
-        .into();
+    let reason = block.argument(0)?.into();
 
     // TODO: check remaining gas.
 

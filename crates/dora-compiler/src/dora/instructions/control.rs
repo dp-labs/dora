@@ -1,6 +1,7 @@
 use crate::backend::IntCC;
 use crate::{
     arith_constant, check_resize_memory,
+    conversion::builder::OpBuilder,
     conversion::rewriter::{DeferredRewriter, Rewriter},
     dora::{conversion::ConversionPass, memory},
     errors::Result,
