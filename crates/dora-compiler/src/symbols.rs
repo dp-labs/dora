@@ -39,9 +39,9 @@ pub(crate) fn declare_symbols(context: &MLIRContext, module: &MLIRModule) {
             &[ptr_type, uint64, uint64, ptr_type],
             &[ptr_type],
         ),
-        (symbols::CALLDATA, &[ptr_type], &[uint8, uint64, ptr_type]),
+        (symbols::CALLDATA, &[ptr_type], &[ptr_type]),
         (symbols::CALLDATA_SIZE, &[ptr_type], &[ptr_type]),
-        (symbols::CHAINID, &[ptr_type], &[uint8, uint64, ptr_type]),
+        (symbols::CHAINID, &[ptr_type], &[ptr_type]),
         (symbols::CALLVALUE, &[ptr_type, ptr_type], &[ptr_type]),
         (symbols::CALLER, &[ptr_type, ptr_type], &[ptr_type]),
         (
@@ -59,7 +59,7 @@ pub(crate) fn declare_symbols(context: &MLIRContext, module: &MLIRModule) {
             &[ptr_type, ptr_type],
             &[ptr_type],
         ),
-        (symbols::GASLIMIT, &[ptr_type], &[uint8, uint64, ptr_type]),
+        (symbols::GASLIMIT, &[ptr_type], &[ptr_type]),
         (symbols::EXTEND_MEMORY, &[ptr_type, uint64], &[ptr_type]),
         (
             symbols::CODE_COPY,
@@ -76,7 +76,11 @@ pub(crate) fn declare_symbols(context: &MLIRContext, module: &MLIRModule) {
             &[ptr_type, ptr_type, ptr_type],
             &[ptr_type],
         ),
-        (symbols::APPEND_LOG, &[ptr_type, uint64, uint64], &[]),
+        (
+            symbols::APPEND_LOG,
+            &[ptr_type, uint64, uint64],
+            &[ptr_type],
+        ),
         (
             symbols::APPEND_LOG_ONE_TOPIC,
             &[ptr_type, uint64, uint64, ptr_type],
@@ -102,7 +106,7 @@ pub(crate) fn declare_symbols(context: &MLIRContext, module: &MLIRModule) {
         (symbols::ORIGIN, &[ptr_type, ptr_type], &[ptr_type]),
         (symbols::COINBASE, &[ptr_type], &[ptr_type]),
         (symbols::BLOCK_NUMBER, &[ptr_type, ptr_type], &[ptr_type]),
-        (symbols::EXT_CODE_SIZE, &[ptr_type, ptr_type], &[uint64]),
+        (symbols::EXT_CODE_SIZE, &[ptr_type, ptr_type], &[ptr_type]),
         (symbols::ADDRESS, &[ptr_type], &[ptr_type]),
         (symbols::PREVRANDAO, &[ptr_type, ptr_type], &[ptr_type]),
         (
