@@ -1094,9 +1094,7 @@ impl<DB: Database> RuntimeContext<DB> {
     pub extern "C" fn address(&mut self) -> *mut Result {
         let host = self.host.read().unwrap();
         let address = host.env().tx.transact_to.clone();
-        Box::into_raw(Box::new(Result::success(
-            address.as_ptr() as *mut i64 as *mut c_void
-        )))
+        Box::into_raw(Box::new(Result::success(address.as_ptr() as *mut c_void)))
     }
 
     pub extern "C" fn prevrandao(&self, prevrandao: &mut Bytes32) -> *mut Result {

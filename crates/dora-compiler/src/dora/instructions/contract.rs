@@ -79,7 +79,7 @@ impl<'c> ConversionPass<'c> {
                 location,
             ))?;
             // todo: syscall error handling
-            rewriter.get_field_value(result_ptr, 16, uint64)?
+            rewriter.get_field_value(result_ptr, 16, ptr_type)?
         } else {
             let result_ptr = rewriter.make(func::call(
                 context,
@@ -89,7 +89,7 @@ impl<'c> ConversionPass<'c> {
                 location,
             ))?;
             // todo: syscall error handling
-            rewriter.get_field_value(result_ptr, 16, uint64)?
+            rewriter.get_field_value(result_ptr, 16, ptr_type)?
         };
 
         let zero = rewriter.make(rewriter.iconst_8(0))?;

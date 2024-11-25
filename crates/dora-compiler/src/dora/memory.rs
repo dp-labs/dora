@@ -190,7 +190,7 @@ pub(crate) fn resize_memory<'c>(
                 location,
             ))?;
             // todo: syscall error handling
-            let new_memory_ptr = rewriter.get_field_value(result_ptr, 16, uint64)?;
+            let new_memory_ptr = rewriter.get_field_value(result_ptr, 16, ptr_type)?;
 
             let store_new_mem_size_op = rewriter.create(llvm::store(
                 context,

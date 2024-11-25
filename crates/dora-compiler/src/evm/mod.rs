@@ -839,7 +839,7 @@ impl<'c> SetupBuilder<'c> {
                 self.context,
                 FlatSymbolRefAttribute::new(self.context, symbols::CALLDATA_SIZE),
                 &[syscall_ctx],
-                &[uint64],
+                &[ptr_type],
                 self.location,
             ))
             .result(0)?

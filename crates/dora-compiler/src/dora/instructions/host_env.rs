@@ -26,9 +26,7 @@ impl<'c> ConversionPass<'c> {
         syscall_ctx!(op, syscall_ctx);
         rewrite_ctx!(context, op, rewriter, location);
 
-        let uint64 = rewriter.intrinsics.i64_ty;
         let ptr_type = rewriter.ptr_ty();
-
         let result_ptr = rewriter.make(func::call(
             context,
             FlatSymbolRefAttribute::new(context, symbols::CHAINID),
@@ -37,7 +35,7 @@ impl<'c> ConversionPass<'c> {
             location,
         ))?;
         // todo: syscall error handling
-        let chainid = rewriter.get_field_value(result_ptr, 16, uint64)?;
+        let chainid = rewriter.get_field_value(result_ptr, 16, ptr_type)?;
         rewriter.make(arith::extui(chainid, rewriter.intrinsics.i256_ty, location))?;
         Ok(())
     }
@@ -47,9 +45,7 @@ impl<'c> ConversionPass<'c> {
         rewrite_ctx!(context, op, rewriter, location);
         let uint160 = IntegerType::new(context, 160);
 
-        let uint64 = rewriter.intrinsics.i64_ty;
         let ptr_type = rewriter.ptr_ty();
-
         let result_ptr = rewriter.make(func::call(
             context,
             FlatSymbolRefAttribute::new(context, symbols::COINBASE),
@@ -58,7 +54,7 @@ impl<'c> ConversionPass<'c> {
             location,
         ))?;
         // todo: syscall error handling
-        let coinbase_ptr = rewriter.get_field_value(result_ptr, 16, uint64)?;
+        let coinbase_ptr = rewriter.get_field_value(result_ptr, 16, ptr_type)?;
         let coinbase = rewriter.make(llvm::load(
             context,
             coinbase_ptr,
@@ -136,9 +132,7 @@ impl<'c> ConversionPass<'c> {
         syscall_ctx!(op, syscall_ctx);
         rewrite_ctx!(context, op, rewriter, location);
 
-        let uint64 = rewriter.intrinsics.i64_ty;
         let ptr_type = rewriter.ptr_ty();
-
         let result_ptr = rewriter.make(func::call(
             context,
             FlatSymbolRefAttribute::new(context, symbols::GASLIMIT),
@@ -147,7 +141,7 @@ impl<'c> ConversionPass<'c> {
             location,
         ))?;
         // todo: syscall error handling
-        let gaslimit = rewriter.get_field_value(result_ptr, 16, uint64)?;
+        let gaslimit = rewriter.get_field_value(result_ptr, 16, ptr_type)?;
         rewriter.make(arith::extui(
             gaslimit,
             rewriter.intrinsics.i256_ty,

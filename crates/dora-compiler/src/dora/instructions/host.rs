@@ -72,9 +72,7 @@ impl<'c> ConversionPass<'c> {
         syscall_ctx!(op, syscall_ctx);
         rewrite_ctx!(context, op, rewriter, location);
 
-        let uint64 = rewriter.intrinsics.i64_ty;
         let ptr_type = rewriter.ptr_ty();
-
         let codesize_ptr =
             memory::allocate_u256_and_assign_value(context, &rewriter, address, location)?;
         let result_ptr = rewriter.make(func::call(
@@ -85,7 +83,7 @@ impl<'c> ConversionPass<'c> {
             location,
         ))?;
         // todo: syscall error handling
-        let codesize = rewriter.get_field_value(result_ptr, 16, uint64)?;
+        let codesize = rewriter.get_field_value(result_ptr, 16, ptr_type)?;
 
         rewriter.make(arith::extui(
             codesize,
