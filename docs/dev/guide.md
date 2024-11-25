@@ -1,6 +1,6 @@
 # Quick Start
 
-This documentation is *NOT* intended to be comprehensive; it is meant to be a quick guide for the most useful things.
+This documentation is _NOT_ intended to be comprehensive; it is meant to be a quick guide for the most useful things.
 
 ## Cloning and Building `dora`
 
@@ -17,33 +17,33 @@ The following hardware is recommended.
 #### macOS and OS X
 
 - `git`
-- `Rust 1.79+`
-- `LLVM 18`
+- `Rust 1.82+`
+- `LLVM 19`
 
-You'll need LLVM installed and `llvm-config` in your `PATH`. Just download `llvm@18` using `brew`.
+You'll need LLVM installed and `llvm-config` in your `PATH`. Just download `llvm@19` using `brew`.
 
 ```shell
-brew install llvm@18
+brew install llvm@19
 ```
 
-Setup a environment variable called `MLIR_SYS_181_PREFIX`, `LLVM_SYS_181_PREFIX` and `TABLEGEN_180_PREFIX` pointing to the llvm directory:
+Setup a environment variable called `MLIR_SYS_190_PREFIX`, `LLVM_SYS_190_PREFIX` and `TABLEGEN_190_PREFIX` pointing to the llvm directory:
 
 ```bash
-export LLVM_SYS_181_PREFIX="$(brew --prefix llvm@18)"
-export MLIR_SYS_180_PREFIX="$(brew --prefix llvm@18)"
-export TABLEGEN_180_PREFIX="$(brew --prefix llvm@18)"
+export LLVM_SYS_190_PREFIX="$(brew --prefix llvm@19)"
+export MLIR_SYS_190_PREFIX="$(brew --prefix llvm@19)"
+export TABLEGEN_190_PREFIX="$(brew --prefix llvm@19)"
 ```
 
 #### Linux
 
 - `git`
-- `Rust 1.79+`
-- `LLVM 18`
+- `Rust 1.82+`
+- `LLVM 19`
 
 If you are on Debian/Ubuntu, check out the repository [https://apt.llvm.org/](https://apt.llvm.org/) Then you can install with:
 
 ```bash
-sudo apt-get install llvm-18 llvm-18-dev llvm-18-runtime clang-18 clang-tools-18 lld-18 libpolly-18-dev libmlir-18-dev mlir-18-tools
+sudo apt-get install llvm-19 llvm-19-dev llvm-19-runtime clang-19 clang-tools-19 lld-19 libpolly-19-dev libmlir-19-dev mlir-19-tools
 ```
 
 If you want to build from source, here are some indications:
@@ -51,10 +51,10 @@ If you want to build from source, here are some indications:
 <details><summary>Install LLVM from source instructions</summary>
 
 ```bash
-wget https://github.com/llvm/llvm-project/releases/download/llvmorg-18.1.4/llvm-project-18.1.4.src.tar.xz
-tar xf llvm-project-18.1.4.src.tar.xz
+wget https://github.com/llvm/llvm-project/releases/download/llvmorg-19.1.4/llvm-project-19.1.4.src.tar.xz
+tar xf llvm-project-19.1.4.src.tar.xz
 
-cd llvm-project-18.1.4.src
+cd llvm-project-19.1.4.src
 mkdir build
 cd build
 
@@ -75,13 +75,13 @@ ninja install
 
 </details>
 
-Setup a environment variable called `MLIR_SYS_180_PREFIX`, `LLVM_SYS_181_PREFIX` and `TABLEGEN_180_PREFIX` pointing to the llvm directory:
+Setup a environment variable called `MLIR_SYS_190_PREFIX`, `LLVM_SYS_190_PREFIX` and `TABLEGEN_190_PREFIX` pointing to the llvm directory:
 
 ```bash
-export LLVM_SYS_181_PREFIX=/usr/lib/llvm-18
-export MLIR_SYS_180_PREFIX=/usr/lib/llvm-18
-export TABLEGEN_180_PREFIX=/usr/lib/llvm-18
-export PATH=$PATH:/usr/lib/llvm-18/bin
+export LLVM_SYS_190_PREFIX=/usr/lib/llvm-19
+export MLIR_SYS_190_PREFIX=/usr/lib/llvm-19
+export TABLEGEN_190_PREFIX=/usr/lib/llvm-19
+export PATH=$PATH:/usr/lib/llvm-19/bin
 ```
 
 Install other dependencies needed by this project.

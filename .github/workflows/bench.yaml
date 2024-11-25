@@ -4,11 +4,11 @@ on:
   push:
     branches: [main]
   pull_request:
-    branches: ['**']
+    branches: ["**"]
 
 env:
-  LLVM_VERSION: "18"
-  RUST_VERSION: 1.79.0
+  LLVM_VERSION: "19"
+  RUST_VERSION: 1.82.0
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -21,24 +21,24 @@ jobs:
     steps:
       - name: Checkout sources
         uses: actions/checkout@v4
-  
+
       - name: Install Rust toolchain
         uses: actions-rs/toolchain@v1
         with:
           toolchain: ${{ env.RUST_VERSION }}
           override: true
           components: clippy, rustfmt
-  
+
       - name: Add LLVM deb repository
         uses: myci-actions/add-deb-repo@11
         with:
-          repo: deb http://apt.llvm.org/jammy/ llvm-toolchain-jammy-18 main
+          repo: deb http://apt.llvm.org/jammy/ llvm-toolchain-jammy-19 main
           repo-name: llvm-repo
           keys-asc: https://apt.llvm.org/llvm-snapshot.gpg.key
       - name: Install LLVM
         run: |
           v=${{ env.LLVM_VERSION }}
-          sudo apt-get install llvm-18 llvm-18-dev llvm-18-runtime clang-18 clang-tools-18 lld-18 libpolly-18-dev libmlir-18-dev mlir-18-tools
+          sudo apt-get install llvm-${v} llvm-${v}-dev llvm-${v}-runtime clang-${v} clang-tools-${v} lld-${v} libpolly-${v}-dev libmlir-${v}-dev mlir-${v}-tools
           echo "LLVM_SYS_${v}0_PREFIX=/usr/lib/llvm-${v}/" >> $GITHUB_ENV
           echo "MLIR_SYS_${v}0_PREFIX=/usr/lib/llvm-${v}/" >> $GITHUB_ENV
           echo "TABLEGEN_${v}0_PREFIX=/usr/lib/llvm-${v}/" >> $GITHUB_ENV
