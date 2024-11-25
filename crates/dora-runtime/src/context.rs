@@ -1107,7 +1107,7 @@ impl<DB: Database> RuntimeContext<DB> {
     pub extern "C" fn coinbase(&self) -> *mut Result {
         let host = self.host.read().unwrap();
         Box::into_raw(Box::new(Result::success(
-            host.env().block.coinbase.as_ptr() as *mut i64 as *mut c_void,
+            host.env().block.coinbase.as_ptr() as *mut c_void,
         )))
     }
 
