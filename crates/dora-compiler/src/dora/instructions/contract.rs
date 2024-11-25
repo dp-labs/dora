@@ -225,14 +225,7 @@ impl<'c> ConversionPass<'c> {
             location,
         ))?;
         // todo: syscall error handling
-        let rtn_ptr_ptr = rewriter.get_field_value(result_ptr, 16, uint64)?;
-        let rtn_ptr = rewriter.make(llvm::load(
-            context,
-            rtn_ptr_ptr,
-            ptr_type,
-            location,
-            LoadStoreOptions::default(),
-        ))?;
+        let rtn_ptr = rewriter.get_field_value(result_ptr, 16, uint64)?;
         let result = rewriter.make(llvm::load(
             context,
             rtn_ptr,

@@ -239,7 +239,9 @@ impl<'c> ConversionPass<'c> {
             location,
         ))?;
         // todo: syscall error handling
-        let call_data_size = rewriter.get_field_value(result_ptr, 16, ptr_type)?;
+        let call_data_size_ptr = rewriter.get_field_value(result_ptr, 16, ptr_type)?;
+        let call_data_size =
+            rewriter.make(rewriter.load(call_data_size_ptr, rewriter.intrinsics.i64_ty))?;
         rewriter.make(arith::extui(call_data_size, uint256, location))?;
         Ok(())
     }
@@ -299,7 +301,9 @@ impl<'c> ConversionPass<'c> {
             location,
         ))?;
         // todo: syscall error handling
-        let call_data_size = rewriter.get_field_value(result_ptr, 16, ptr_type)?;
+        let call_data_size_ptr = rewriter.get_field_value(result_ptr, 16, ptr_type)?;
+        let call_data_size =
+            rewriter.make(rewriter.load(call_data_size_ptr, rewriter.intrinsics.i64_ty))?;
         let flag = rewriter.make(arith::cmpi(
             context,
             CmpiPredicate::Ugt,
@@ -422,7 +426,8 @@ impl<'c> ConversionPass<'c> {
             location,
         ))?;
         // todo: syscall error handling
-        let data_size = rewriter.get_field_value(result_ptr, 16, ptr_type)?;
+        let data_size_ptr = rewriter.get_field_value(result_ptr, 16, ptr_type)?;
+        let data_size = rewriter.make(rewriter.load(data_size_ptr, rewriter.intrinsics.i64_ty))?;
         rewriter.create(arith::extui(data_size, uint256, location));
         Ok(())
     }

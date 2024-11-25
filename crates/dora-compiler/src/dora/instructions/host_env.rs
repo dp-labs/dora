@@ -35,7 +35,8 @@ impl<'c> ConversionPass<'c> {
             location,
         ))?;
         // todo: syscall error handling
-        let chainid = rewriter.get_field_value(result_ptr, 16, ptr_type)?;
+        let chainid_ptr = rewriter.get_field_value(result_ptr, 16, ptr_type)?;
+        let chainid = rewriter.make(rewriter.load(chainid_ptr, rewriter.intrinsics.i64_ty))?;
         rewriter.make(arith::extui(chainid, rewriter.intrinsics.i256_ty, location))?;
         Ok(())
     }
@@ -141,7 +142,8 @@ impl<'c> ConversionPass<'c> {
             location,
         ))?;
         // todo: syscall error handling
-        let gaslimit = rewriter.get_field_value(result_ptr, 16, ptr_type)?;
+        let gaslimit_ptr = rewriter.get_field_value(result_ptr, 16, ptr_type)?;
+        let gaslimit = rewriter.make(rewriter.load(gaslimit_ptr, rewriter.intrinsics.i64_ty))?;
         rewriter.make(arith::extui(
             gaslimit,
             rewriter.intrinsics.i256_ty,

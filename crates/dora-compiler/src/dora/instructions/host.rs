@@ -41,7 +41,7 @@ impl<'c> ConversionPass<'c> {
             syscall_ctx,
             symbols::STORE_IN_BALANCE,
             &[address_ptr, balance_ptr],
-            [rewriter.intrinsics.i64_ty],
+            [rewriter.intrinsics.ptr_ty],
             balance_ptr,
             rewriter.intrinsics.i256_ty,
             location
@@ -83,7 +83,8 @@ impl<'c> ConversionPass<'c> {
             location,
         ))?;
         // todo: syscall error handling
-        let codesize = rewriter.get_field_value(result_ptr, 16, ptr_type)?;
+        let codesize_ptr = rewriter.get_field_value(result_ptr, 16, ptr_type)?;
+        let codesize = rewriter.make(rewriter.load(codesize_ptr, rewriter.intrinsics.i64_ty))?;
 
         rewriter.make(arith::extui(
             codesize,

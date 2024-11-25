@@ -599,7 +599,7 @@ impl<'c, 'a> OpBuilder<'c, 'a> {
     /// Returns a `Result::Err` if any step in the pointer computation, memory load, or value casting fails.
     ///
     /// # Example
-    /// ```rust
+    /// ```no_check
     /// let value = context.get_field_value(base_ptr, 8, field_type)?;
     /// ```
     pub fn get_field_value(
