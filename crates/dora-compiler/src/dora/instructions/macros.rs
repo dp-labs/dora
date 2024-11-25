@@ -197,20 +197,21 @@ macro_rules! store_var {
 
 #[macro_export]
 macro_rules! maybe_revert_here {
-    ($op:expr, $rewriter:expr, $cond:expr) => {
+    ($op:expr, $rewriter:expr, $cond:expr, $code:expr) => {
         if let Some(block) = $op.block() {
             if let Some(region) = block.parent_region() {
                 if let Some(setup_block) = region.first_block() {
                     if let Some(revert_block) = setup_block.next_in_region() {
                         if let Some(insert_point) = $rewriter.get_insert_point() {
                             let next_block = $rewriter.split_block(block, Some(insert_point))?;
-                            block.append_operation(cf::cond_br(
+                            let builder = OpBuilder::new_with_block($rewriter.context(), block);
+                            builder.create(cf::cond_br(
                                 $rewriter.context(),
                                 $cond,
                                 &revert_block,
                                 &next_block,
                                 &[],
-                                &[],
+                                &[builder.make($rewriter.iconst_8($code.to_u8() as i8))?],
                                 $rewriter.get_insert_location(),
                             ));
                         }
@@ -228,7 +229,7 @@ macro_rules! check_resize_memory {
         let zero = $rewriter.make($rewriter.iconst_64(0))?;
         let overflow =
             $rewriter.make($rewriter.icmp(IntCC::SignedLessThan, $required_memory_size, zero))?;
-        maybe_revert_here!($op, $rewriter, overflow);
+        maybe_revert_here!($op, $rewriter, overflow, ExitStatusCode::InvalidOperandOOG);
     };
 }
 
@@ -243,6 +244,6 @@ macro_rules! check_u256_to_u64_overflow {
             $required_memory_size,
             max_u64,
         ))?;
-        maybe_revert_here!($op, $rewriter, overflow);
+        maybe_revert_here!($op, $rewriter, overflow, ExitStatusCode::InvalidOperandOOG);
     };
 }

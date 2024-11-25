@@ -98,7 +98,11 @@ impl<'c> EVMCompiler<'c> {
         let empty_block = region.append_block(Block::new(&[]));
         let mut builder = Self::make_builder(ctx, start_block);
         builder.invalid();
-        start_block.append_operation(cf::br(&builder.ctx.revert_block, &[], builder.location()));
+        start_block.append_operation(cf::br(
+            &builder.ctx.revert_block,
+            &[builder.make(builder.iconst_8(ExitStatusCode::InvalidFEOpcode as i8))?],
+            builder.location(),
+        ));
         Ok((start_block, empty_block))
     }
 }

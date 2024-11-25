@@ -48,6 +48,11 @@ pub enum ExecutionResult {
     /// - `reason`: Reason for the halt (e.g., `OutOfGas`, `OpcodeNotFound`).
     /// - `gas_used`: Total gas consumed during execution.
     Halt { reason: HaltReason, gas_used: u64 },
+    /// Internal error result.
+    Internal {
+        result: InternalResult,
+        gas_used: u64,
+    },
 }
 
 impl ExecutionResult {
@@ -56,6 +61,7 @@ impl ExecutionResult {
     /// # Returns
     /// - `true`: If the execution resulted in `Success`.
     /// - `false`: Otherwise.
+    #[inline]
     pub fn is_success(&self) -> bool {
         matches!(self, Self::Success { .. })
     }
@@ -65,6 +71,7 @@ impl ExecutionResult {
     /// # Returns
     /// - `true`: If the execution resulted in `Revert`.
     /// - `false`: Otherwise.
+    #[inline]
     pub fn is_revert(&self) -> bool {
         matches!(self, Self::Revert { .. })
     }
@@ -74,6 +81,7 @@ impl ExecutionResult {
     /// # Returns
     /// - `true`: If the execution resulted in `Halt`.
     /// - `false`: Otherwise.
+    #[inline]
     pub fn is_halt(&self) -> bool {
         matches!(self, Self::Halt { .. })
     }
@@ -86,6 +94,7 @@ impl ExecutionResult {
     /// # Returns
     /// - `Some(&Bytes)`: If output data exists and is non-empty.
     /// - `None`: If no output data or the data is empty.
+    #[inline]
     pub fn output(&self) -> Option<&Bytes> {
         match self {
             Self::Success { output, .. } => Some(output.data()),
@@ -103,6 +112,7 @@ impl ExecutionResult {
     /// # Returns
     /// - `Some(Bytes)`: If output data exists.
     /// - `None`: If there is no output data.
+    #[inline]
     pub fn into_output(self) -> Option<Bytes> {
         match self {
             Self::Success { output, .. } => Some(output.into_data()),
@@ -117,11 +127,13 @@ impl ExecutionResult {
     ///
     /// # Returns
     /// - `u64`: The amount of gas used.
+    #[inline]
     pub fn gas_used(&self) -> u64 {
         match self {
             Self::Success { gas_used, .. }
             | Self::Revert { gas_used, .. }
-            | Self::Halt { gas_used, .. } => *gas_used,
+            | Self::Halt { gas_used, .. }
+            | Self::Internal { gas_used, .. } => *gas_used,
         }
     }
 
@@ -131,6 +143,7 @@ impl ExecutionResult {
     ///
     /// # Returns
     /// - `u64`: The amount of gas refunded, or 0 if not applicable.
+    #[inline]
     pub fn gas_refunded(&self) -> u64 {
         match self {
             Self::Success { gas_refunded, .. } => *gas_refunded,
@@ -353,15 +366,25 @@ pub enum HaltReason {
     CreateCollision,
     PrecompileError,
     NonceOverflow,
+    /// Create init code size exceeds limit (runtime).
     CreateContractSizeLimit,
+    /// Error on created contract that begins with EF
     CreateContractStartingWithEF,
+    /// EIP-3860: Limit and meter initcode. Initcode size limit exceeded.
     CreateInitCodeSizeLimit,
     OverflowPayment,
     StateChangeDuringStaticCall,
     CallNotAllowedInsideStatic,
     OutOfFunds,
     CallTooDeep,
-    RuntimeError,
+    /// Aux data overflow, new aux data is larger than u16 max size.
+    EofAuxDataOverflow,
+    /// Aud data is smaller then already present data size.
+    EofAuxDataTooSmall,
+    /// EOF Subroutine stack overflow
+    EOFFunctionStackOverflow,
+    /// Check for target address validity is only done inside subcall.
+    InvalidExtCallTarget,
 }
 
 /// Represents out-of-gas errors during EVM execution.
@@ -372,6 +395,7 @@ pub enum HaltReason {
 /// - `Memory`: Insufficient gas for memory expansion.
 /// - `Precompile`: Out-of-gas in a precompiled contract.
 /// - `Create`: Out-of-gas during contract creation.
+/// - `InvalidOperand`: Out-of-gas according to the operand such as overflow.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum OutOfGasError {
     /// Basic Out-of-Gas error during execution.
@@ -384,4 +408,20 @@ pub enum OutOfGasError {
     Precompile,
     /// Out-of-Gas during contract creation.
     Create,
+    // When performing something that takes a U256 and casts down to a u64, if its too large this would fire
+    // i.e. in `as_usize_or_fail`
+    InvalidOperand,
+}
+
+/// Internal result that are not ex
+#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
+pub enum InternalResult {
+    /// Internal instruction that signals Interpreter should continue running.
+    InternalContinue,
+    /// Internal instruction that signals call or create.
+    InternalCallOrCreate,
+    /// Internal CREATE/CREATE starts with 0xEF00
+    CreateInitCodeStartingEF00,
+    /// Internal to ExtDelegateCall
+    InvalidExtDelegateCallTarget,
 }

@@ -10,9 +10,12 @@ use crate::{
 };
 use cost::get_static_cost_from_op;
 use dora_primitives::spec::SpecId;
-use dora_runtime::constants::{
-    self,
-    gas_cost::{self, INIT_WORD_COST, MAX_INITCODE_SIZE},
+use dora_runtime::{
+    constants::{
+        self,
+        gas_cost::{self, INIT_WORD_COST, MAX_INITCODE_SIZE},
+    },
+    ExitStatusCode,
 };
 use melior::{
     dialect::{
@@ -1242,7 +1245,7 @@ impl<'c> GasPass<'c> {
             &new_block,
             &revert_block,
             &[],
-            &[],
+            &[rewriter.make(rewriter.iconst_8(ExitStatusCode::OutOfGas.to_u8() as i8))?],
             rewriter.get_insert_location(),
         ));
         Ok(())

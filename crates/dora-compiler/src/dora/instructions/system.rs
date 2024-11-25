@@ -13,6 +13,7 @@ use crate::{
 };
 use dora_runtime::constants;
 use dora_runtime::symbols;
+use dora_runtime::ExitStatusCode;
 use melior::{
     dialect::{
         arith::{self, CmpiPredicate},

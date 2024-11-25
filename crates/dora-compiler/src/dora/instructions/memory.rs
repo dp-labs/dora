@@ -1,12 +1,13 @@
 use crate::{
     backend::IntCC,
     check_resize_memory,
+    conversion::builder::OpBuilder,
     conversion::rewriter::{DeferredRewriter, Rewriter},
     dora::{conversion::ConversionPass, memory},
     errors::Result,
     load_by_addr, maybe_revert_here, operands, rewrite_ctx, syscall_ctx,
 };
-use dora_runtime::constants;
+use dora_runtime::{constants, ExitStatusCode};
 use melior::{
     dialect::{
         arith::{self},
@@ -158,7 +159,7 @@ impl<'c> ConversionPass<'c> {
         // Check the memory offset halt error
         let overflow =
             rewriter.make(rewriter.icmp(IntCC::SignedLessThan, required_memory_size, zero))?;
-        maybe_revert_here!(op, rewriter, overflow);
+        maybe_revert_here!(op, rewriter, overflow, ExitStatusCode::InvalidOperandOOG);
         rewrite_ctx!(context, op, rewriter, location);
         memory::resize_memory(
             required_memory_size,

@@ -2,6 +2,7 @@ use crate::backend::IntCC;
 use crate::check_u256_to_u64_overflow;
 use crate::{
     arith_constant, check_resize_memory,
+    conversion::builder::OpBuilder,
     conversion::rewriter::{DeferredRewriter, Rewriter},
     create_var,
     dora::{conversion::ConversionPass, memory},
@@ -9,6 +10,7 @@ use crate::{
     load_var, maybe_revert_here, operands, rewrite_ctx, syscall_ctx,
 };
 use dora_runtime::symbols;
+use dora_runtime::ExitStatusCode;
 use melior::{
     dialect::{
         arith::{self},
