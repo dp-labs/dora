@@ -4,14 +4,14 @@ pub const MAX_STACK_SIZE: usize = 1024;
 pub const CALL_STACK_LIMIT: usize = 64;
 
 // Global pointers and constants
-pub const GAS_COUNTER_GLOBAL: &str = "dora_gas_counter";
-pub const CODE_PTR_GLOBAL: &str = "dora_code_ptr";
-pub const STACK_PTR_GLOBAL: &str = "dora_stack_ptr";
-pub const STACK_SIZE_GLOBAL: &str = "dora_stack_length";
-pub const MEMORY_PTR_GLOBAL: &str = "dora_memory_ptr";
-pub const MEMORY_SIZE_GLOBAL: &str = "dora_memory_size";
-pub const CALLDATA_PTR_GLOBAL: &str = "dora_calldata_ptr";
-pub const CALLDATA_SIZE_GLOBAL: &str = "dora_calldata_size";
+pub const GAS_COUNTER_GLOBAL: &str = "dora_global_gas_counter";
+pub const CODE_PTR_GLOBAL: &str = "dora_global_code_ptr_global";
+pub const STACK_PTR_GLOBAL: &str = "dora_global_stack_ptr";
+pub const STACK_SIZE_GLOBAL: &str = "dora_global_stack_length";
+pub const MEMORY_PTR_GLOBAL: &str = "dora_global_memory_ptr";
+pub const MEMORY_SIZE_GLOBAL: &str = "dora_global_memory_size";
+pub const CALLDATA_PTR_GLOBAL: &str = "dora_global_calldata_ptr";
+pub const CALLDATA_SIZE_GLOBAL: &str = "dora_global_calldata_size";
 pub const MAIN_ENTRYPOINT: &str = "main";
 
 // Versioning and blob constants

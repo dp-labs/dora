@@ -824,7 +824,7 @@ impl<'c> SetupBuilder<'c> {
             .block
             .append_operation(func::call(
                 self.context,
-                FlatSymbolRefAttribute::new(self.context, symbols::GET_CALLDATA_PTR),
+                FlatSymbolRefAttribute::new(self.context, symbols::CALLDATA),
                 &[syscall_ctx],
                 &[ptr_type],
                 self.location,
@@ -837,7 +837,7 @@ impl<'c> SetupBuilder<'c> {
             .block
             .append_operation(func::call(
                 self.context,
-                FlatSymbolRefAttribute::new(self.context, symbols::GET_CALLDATA_SIZE),
+                FlatSymbolRefAttribute::new(self.context, symbols::CALLDATA_SIZE),
                 &[syscall_ctx],
                 &[uint64],
                 self.location,

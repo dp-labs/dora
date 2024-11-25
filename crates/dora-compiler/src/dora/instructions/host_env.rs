@@ -26,13 +26,18 @@ impl<'c> ConversionPass<'c> {
         syscall_ctx!(op, syscall_ctx);
         rewrite_ctx!(context, op, rewriter, location);
 
-        let chainid = rewriter.make(func::call(
+        let uint64 = rewriter.intrinsics.i64_ty;
+        let ptr_type = rewriter.ptr_ty();
+
+        let result_ptr = rewriter.make(func::call(
             context,
-            FlatSymbolRefAttribute::new(context, symbols::GET_CHAINID),
+            FlatSymbolRefAttribute::new(context, symbols::CHAINID),
             &[syscall_ctx.into()],
-            &[rewriter.intrinsics.i64_ty],
+            &[ptr_type],
             location,
         ))?;
+        // todo: syscall error handling
+        let chainid = rewriter.get_field_value(result_ptr, 16, uint64)?;
         rewriter.make(arith::extui(chainid, rewriter.intrinsics.i256_ty, location))?;
         Ok(())
     }
@@ -42,13 +47,18 @@ impl<'c> ConversionPass<'c> {
         rewrite_ctx!(context, op, rewriter, location);
         let uint160 = IntegerType::new(context, 160);
 
-        let coinbase_ptr = rewriter.make(func::call(
+        let uint64 = rewriter.intrinsics.i64_ty;
+        let ptr_type = rewriter.ptr_ty();
+
+        let result_ptr = rewriter.make(func::call(
             context,
-            FlatSymbolRefAttribute::new(context, symbols::GET_COINBASE_PTR),
+            FlatSymbolRefAttribute::new(context, symbols::COINBASE),
             &[syscall_ctx.into()],
-            &[rewriter.ptr_ty()],
+            &[ptr_type],
             location,
         ))?;
+        // todo: syscall error handling
+        let coinbase_ptr = rewriter.get_field_value(result_ptr, 16, uint64)?;
         let coinbase = rewriter.make(llvm::load(
             context,
             coinbase_ptr,
@@ -97,7 +107,7 @@ impl<'c> ConversionPass<'c> {
             rewriter,
             context,
             syscall_ctx,
-            symbols::GET_BLOCK_NUMBER,
+            symbols::BLOCK_NUMBER,
             &[number_ptr],
             rewriter.intrinsics.i256_ty,
             location
@@ -114,7 +124,7 @@ impl<'c> ConversionPass<'c> {
             rewriter,
             context,
             syscall_ctx,
-            symbols::GET_PREVRANDAO,
+            symbols::PREVRANDAO,
             &[prevrandao_ptr],
             rewriter.intrinsics.i256_ty,
             location
@@ -126,13 +136,18 @@ impl<'c> ConversionPass<'c> {
         syscall_ctx!(op, syscall_ctx);
         rewrite_ctx!(context, op, rewriter, location);
 
-        let gaslimit = rewriter.make(func::call(
+        let uint64 = rewriter.intrinsics.i64_ty;
+        let ptr_type = rewriter.ptr_ty();
+
+        let result_ptr = rewriter.make(func::call(
             context,
-            FlatSymbolRefAttribute::new(context, symbols::GET_GASLIMIT),
+            FlatSymbolRefAttribute::new(context, symbols::GASLIMIT),
             &[syscall_ctx.into()],
-            &[rewriter.intrinsics.i64_ty],
+            &[ptr_type],
             location,
         ))?;
+        // todo: syscall error handling
+        let gaslimit = rewriter.get_field_value(result_ptr, 16, uint64)?;
         rewriter.make(arith::extui(
             gaslimit,
             rewriter.intrinsics.i256_ty,
@@ -184,7 +199,7 @@ impl<'c> ConversionPass<'c> {
             rewriter,
             context,
             syscall_ctx,
-            symbols::GET_ORIGIN,
+            symbols::ORIGIN,
             &[origin_ptr],
             rewriter.intrinsics.i256_ty,
             location
@@ -204,7 +219,7 @@ impl<'c> ConversionPass<'c> {
             rewriter,
             context,
             syscall_ctx,
-            symbols::GET_BLOB_HASH_AT_INDEX,
+            symbols::BLOB_HASH,
             &[index_ptr, var_ptr],
             var_ptr,
             rewriter.intrinsics.i256_ty,

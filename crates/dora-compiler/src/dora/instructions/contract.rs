@@ -36,9 +36,9 @@ impl<'c> ConversionPass<'c> {
         syscall_ctx!(op, syscall_ctx);
         let rewriter = Rewriter::new_with_op(context, *op);
         let location = rewriter.get_insert_location();
-        let uint8 = rewriter.intrinsics.i8_ty;
         let uint64 = rewriter.intrinsics.i64_ty;
         let uint256 = rewriter.intrinsics.i256_ty;
+        let ptr_type = rewriter.ptr_ty();
         let offset = rewriter.make(arith::trunci(offset, uint64, location))?;
         let size = rewriter.make(arith::trunci(size, uint64, location))?;
 
@@ -64,7 +64,7 @@ impl<'c> ConversionPass<'c> {
             let salt: Value<'_, '_> = op.operand(3)?;
             let salt_ptr =
                 memory::allocate_u256_and_assign_value(context, &rewriter, salt, location)?;
-            rewriter.make(func::call(
+            let result_ptr = rewriter.make(func::call(
                 context,
                 FlatSymbolRefAttribute::new(context, symbols::CREATE2),
                 &[
@@ -75,17 +75,21 @@ impl<'c> ConversionPass<'c> {
                     gas_ptr,
                     salt_ptr,
                 ],
-                &[uint8],
+                &[ptr_type],
                 location,
-            ))?
+            ))?;
+            // todo: syscall error handling
+            rewriter.get_field_value(result_ptr, 16, uint64)?
         } else {
-            rewriter.make(func::call(
+            let result_ptr = rewriter.make(func::call(
                 context,
                 FlatSymbolRefAttribute::new(context, symbols::CREATE),
                 &[syscall_ctx.into(), size, offset, value_ptr, gas_ptr],
-                &[uint8],
+                &[ptr_type],
                 location,
-            ))?
+            ))?;
+            // todo: syscall error handling
+            rewriter.get_field_value(result_ptr, 16, uint64)?
         };
 
         let zero = rewriter.make(rewriter.iconst_8(0))?;
@@ -168,27 +172,15 @@ impl<'c> ConversionPass<'c> {
             op.operand(o_index + 3)?,
         );
 
-        let gas = rewriter.make(arith::trunci(gas, rewriter.intrinsics.i64_ty, location))?;
-        let args_offset = rewriter.make(arith::trunci(
-            args_offset,
-            rewriter.intrinsics.i64_ty,
-            location,
-        ))?;
-        let args_size = rewriter.make(arith::trunci(
-            args_size,
-            rewriter.intrinsics.i64_ty,
-            location,
-        ))?;
-        let ret_offset = rewriter.make(arith::trunci(
-            ret_offset,
-            rewriter.intrinsics.i64_ty,
-            location,
-        ))?;
-        let ret_size = rewriter.make(arith::trunci(
-            ret_size,
-            rewriter.intrinsics.i64_ty,
-            location,
-        ))?;
+        let uint8 = rewriter.intrinsics.i8_ty;
+        let uint64 = rewriter.intrinsics.i64_ty;
+        let uint256 = rewriter.intrinsics.i256_ty;
+        let ptr_type = rewriter.ptr_ty();
+        let gas = rewriter.make(arith::trunci(gas, uint64, location))?;
+        let args_offset = rewriter.make(arith::trunci(args_offset, uint64, location))?;
+        let args_size = rewriter.make(arith::trunci(args_size, uint64, location))?;
+        let ret_offset = rewriter.make(arith::trunci(ret_offset, uint64, location))?;
+        let ret_size = rewriter.make(arith::trunci(ret_size, uint64, location))?;
         let req_arg_mem_size = rewriter.make(arith::addi(args_offset, args_size, location))?;
         let req_ret_mem_size = rewriter.make(arith::addi(ret_offset, ret_size, location))?;
 
@@ -208,12 +200,12 @@ impl<'c> ConversionPass<'c> {
         let call_type_value = rewriter.make(arith_constant!(
             rewriter,
             context,
-            rewriter.intrinsics.i8_ty,
+            uint8,
             CallType::Call as u8 as i64,
             location
         ))?;
 
-        let result = rewriter.make(func::call(
+        let result_ptr = rewriter.make(func::call(
             context,
             FlatSymbolRefAttribute::new(context, symbols::CALL),
             &[
@@ -229,17 +221,34 @@ impl<'c> ConversionPass<'c> {
                 gas_ptr,
                 call_type_value,
             ],
-            &[rewriter.intrinsics.i8_ty],
+            &[ptr_type],
             location,
         ))?;
+        // todo: syscall error handling
+        let rtn_ptr_ptr = rewriter.get_field_value(result_ptr, 16, uint64)?;
+        let rtn_ptr = rewriter.make(llvm::load(
+            context,
+            rtn_ptr_ptr,
+            ptr_type,
+            location,
+            LoadStoreOptions::default(),
+        ))?;
+        let result = rewriter.make(llvm::load(
+            context,
+            rtn_ptr,
+            uint64,
+            location,
+            LoadStoreOptions::default(),
+        ))?;
+
         rewriter.create(llvm::load(
             context,
             gas_ptr,
-            rewriter.intrinsics.i64_ty,
+            uint64,
             location,
             LoadStoreOptions::default(),
         ));
-        rewriter.create(arith::extui(result, rewriter.intrinsics.i256_ty, location));
+        rewriter.create(arith::extui(result, uint256, location));
 
         Ok(())
     }
@@ -249,8 +258,12 @@ impl<'c> ConversionPass<'c> {
         syscall_ctx!(op, syscall_ctx);
         let rewriter = Rewriter::new_with_op(context, *op);
         let location = rewriter.get_insert_location();
-        let offset = rewriter.make(arith::trunci(offset, rewriter.intrinsics.i64_ty, location))?;
-        let size = rewriter.make(arith::trunci(size, rewriter.intrinsics.i64_ty, location))?;
+        let uint8 = rewriter.intrinsics.i8_ty;
+        let uint64 = rewriter.intrinsics.i64_ty;
+        let ptr_type = rewriter.ptr_ty();
+
+        let offset = rewriter.make(arith::trunci(offset, uint64, location))?;
+        let size = rewriter.make(arith::trunci(size, uint64, location))?;
         let required_size = rewriter.make(arith::addi(size, offset, location))?;
         let gas_counter = gas::get_gas_counter(&rewriter)?;
         // Check the memory offset halt error
@@ -260,7 +273,7 @@ impl<'c> ConversionPass<'c> {
         let reason = rewriter.make(arith_constant!(
             rewriter,
             context,
-            rewriter.intrinsics.i8_ty,
+            uint8,
             ExitStatusCode::Return.to_u8().into(),
             location
         ))?;
@@ -268,7 +281,7 @@ impl<'c> ConversionPass<'c> {
             context,
             FlatSymbolRefAttribute::new(context, symbols::WRITE_RESULT),
             &[syscall_ctx.into(), offset, size, gas_counter, reason],
-            &[],
+            &[ptr_type],
             location,
         ));
         rewriter.create(func::r#return(&[reason], location));

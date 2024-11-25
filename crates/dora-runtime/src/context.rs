@@ -1,5 +1,3 @@
-use std::sync::{Arc, RwLock};
-
 use crate::account::AccountInfo;
 use crate::constants::gas_cost::MAX_CODE_SIZE;
 use crate::constants::{call_opcode, gas_cost, precompiles, CallType, CALL_STACK_LIMIT};
@@ -18,6 +16,9 @@ use bytes::Bytes;
 use dora_primitives::spec::SpecId;
 use dora_primitives::{Bytes32, EVMAddress as Address, B256, H160, U256};
 use sha3::{Digest, Keccak256};
+use std::os::raw::c_void;
+use std::ptr;
+use std::sync::{Arc, RwLock};
 
 /// Function type for the main entrypoint of the generated code.
 pub type MainFunc<DB> = extern "C" fn(&mut RuntimeContext<DB>, initial_gas: u64) -> u8;
@@ -188,6 +189,72 @@ pub struct Log {
     pub data: LogData,
 }
 
+/// A generic struct to represent the result of a runtime function call.
+#[repr(C)]
+pub struct Result {
+    /// The error, if any, encountered during execution.
+    pub error: u8,
+    /// The gas consumed during the execution of the function call.
+    pub gas_used: u64,
+    /// The result value of the function call. None indicates no value returned.
+    pub value: *mut c_void,
+}
+
+impl Result {
+    /// Creates a new successful result with a value.
+    pub fn success(value: *mut c_void) -> Self {
+        Self {
+            error: 0,
+            gas_used: 0,
+            value,
+        }
+    }
+
+    /// Creates a new successful result with a value and gas used.
+    pub fn success_with_gas(value: *mut c_void, gas_used: u64) -> Self {
+        Self {
+            error: 0,
+            gas_used,
+            value,
+        }
+    }
+
+    /// Creates a new error result with an error and gas used.
+    pub fn error(error: u8) -> Self {
+        Self {
+            error,
+            gas_used: 0,
+            value: ptr::null_mut(),
+        }
+    }
+
+    /// Creates a new result indicating no return value, typically for void functions.
+    pub fn no_value() -> Self {
+        Self {
+            error: 0,
+            gas_used: 0,
+            value: ptr::null_mut(),
+        }
+    }
+
+    /// Creates a new result indicating no return value and gas used, typically for void functions.
+    pub fn no_value_with_gas(gas_used: u64) -> Self {
+        Self {
+            error: 0,
+            gas_used,
+            value: ptr::null_mut(),
+        }
+    }
+}
+
+macro_rules! uint_result_ptr {
+    ($result:expr) => {
+        Box::into_raw(Box::new(Result::success(
+            &mut ($result as i64) as *mut i64 as *mut c_void,
+        )))
+    };
+}
+
 /// Accessors for managing and retrieving execution results in a runtime context.
 impl<DB: Database> RuntimeContext<DB> {
     /// Creates a new `RuntimeContext` with the given environment, journal, and call frame.
@@ -272,18 +339,6 @@ impl<DB: Database> RuntimeContext<DB> {
             .collect()
     }
 
-    /// Retrieves the tx calldata.
-    pub fn calldata(&self) -> Vec<u8> {
-        let host = self.host.read().unwrap();
-        host.env().tx.data.to_vec()
-    }
-
-    /// Retrieves the gas limit.
-    pub fn gas_limit(&self) -> u64 {
-        let host = self.host.read().unwrap();
-        host.env().tx.gas_limit
-    }
-
     /// Retrieves the result of the execution, including gas usage, return values, and the resulting state changes.
     ///
     /// The result depends on the exit status of the execution, which can be a success, revert, or error.
@@ -298,7 +353,7 @@ impl<DB: Database> RuntimeContext<DB> {
     /// ```no_check
     /// let result = context.get_result();
     /// ```
-    pub fn get_result(&self) -> Result<ResultAndState<DB::Artifact>, EVMError> {
+    pub fn get_result(&self) -> anyhow::Result<ResultAndState<DB::Artifact>, EVMError> {
         let host = self.host.read().unwrap();
         let gas_remaining = self.inner_context.gas_remaining.unwrap_or(0);
         let gas_initial = host.env().tx.gas_limit;
@@ -472,22 +527,23 @@ impl<DB: Database> RuntimeContext<DB> {
         bytes_len: u64,
         remaining_gas: u64,
         execution_result: u8,
-    ) {
+    ) -> *mut Result {
         self.inner_context.return_data = Some((offset as usize, bytes_len as usize));
         self.inner_context.gas_remaining = Some(remaining_gas);
         self.inner_context.exit_status = Some(ExitStatusCode::from_u8(execution_result));
+        Box::into_raw(Box::new(Result::no_value()))
     }
 
-    pub extern "C" fn get_return_data_size(&mut self) -> u64 {
-        self.call_frame.last_call_return_data.len() as _
+    pub extern "C" fn return_data_size(&mut self) -> *mut Result {
+        uint_result_ptr!(self.call_frame.last_call_return_data.len())
     }
 
-    pub extern "C" fn copy_return_data_into_memory(
+    pub extern "C" fn return_data_copy(
         &mut self,
         dest_offset: u64,
         offset: u64,
         size: u64,
-    ) {
+    ) -> *mut Result {
         Self::copy_exact(
             &mut self.inner_context.memory,
             &self.call_frame.last_call_return_data,
@@ -495,6 +551,7 @@ impl<DB: Database> RuntimeContext<DB> {
             offset,
             size,
         );
+        Box::into_raw(Box::new(Result::no_value()))
     }
 
     pub extern "C" fn call(
@@ -509,7 +566,7 @@ impl<DB: Database> RuntimeContext<DB> {
         available_gas: u64,
         consumed_gas: &mut u64,
         call_type: u8,
-    ) -> u8 {
+    ) -> *mut Result {
         let callee_address = Address::from(call_to_address);
         let off = args_offset as usize;
         let size = args_size as usize;
@@ -559,7 +616,7 @@ impl<DB: Database> RuntimeContext<DB> {
                 // Check the call depth
                 if self.inner_context.depth > CALL_STACK_LIMIT {
                     *consumed_gas = 0;
-                    return call_opcode::REVERT_RETURN_CODE;
+                    return Box::into_raw(Box::new(Result::error(call_opcode::REVERT_RETURN_CODE)));
                 }
 
                 let mut db = self.db.write().unwrap();
@@ -571,7 +628,9 @@ impl<DB: Database> RuntimeContext<DB> {
                     }
                     Err(_) => {
                         *consumed_gas = 0;
-                        return call_opcode::REVERT_RETURN_CODE;
+                        return Box::into_raw(Box::new(Result::error(
+                            call_opcode::REVERT_RETURN_CODE,
+                        )));
                     }
                 };
                 let host = self.host.read().unwrap();
@@ -581,14 +640,18 @@ impl<DB: Database> RuntimeContext<DB> {
                 let mut stipend = 0;
                 if !value.is_zero() {
                     if caller_account.balance < value {
-                        return call_opcode::REVERT_RETURN_CODE;
+                        return Box::into_raw(Box::new(Result::error(
+                            call_opcode::REVERT_RETURN_CODE,
+                        )));
                     }
                     *consumed_gas += call_opcode::NOT_ZERO_VALUE_COST;
                     if callee_account.is_empty() {
                         *consumed_gas += call_opcode::EMPTY_CALLEE_COST;
                     }
                     if available_gas < *consumed_gas {
-                        return call_opcode::REVERT_RETURN_CODE;
+                        return Box::into_raw(Box::new(Result::error(
+                            call_opcode::REVERT_RETURN_CODE,
+                        )));
                     }
                     stipend = call_opcode::STIPEND_GAS_ADDITION;
 
@@ -642,7 +705,7 @@ impl<DB: Database> RuntimeContext<DB> {
                 drop(host_ref);
                 let Ok(_) = db.code_by_address(callee_address) else {
                     *consumed_gas = 0;
-                    return call_opcode::REVERT_RETURN_CODE;
+                    return Box::into_raw(Box::new(Result::error(call_opcode::REVERT_RETURN_CODE)));
                 };
                 drop(db);
 
@@ -690,7 +753,7 @@ impl<DB: Database> RuntimeContext<DB> {
             ret_size,
         );
 
-        return_code
+        uint_result_ptr!(return_code)
     }
 
     fn copy_exact(
@@ -699,20 +762,21 @@ impl<DB: Database> RuntimeContext<DB> {
         target_offset: u64,
         source_offset: u64,
         size: u64,
-    ) {
+    ) -> *mut Result {
         let target_offset = target_offset as usize;
         let source_offset = source_offset as usize;
         let size = size as usize;
 
+        // todo: fix error return
         // Check bounds
         if size + target_offset > target.len() {
             eprintln!("ERROR: Target offset and size exceed target length");
-            return;
+            return Box::into_raw(Box::new(Result::no_value()));
         }
 
         if size + source_offset > source.len() {
             eprintln!("ERROR: Source offset and size exceed source length");
-            return;
+            return Box::into_raw(Box::new(Result::no_value()));
         }
 
         // Calculate bytes to copy
@@ -723,9 +787,11 @@ impl<DB: Database> RuntimeContext<DB> {
         // Perform the copy
         target[target_offset..target_offset + bytes_to_copy]
             .copy_from_slice(&source[source_offset..source_offset + bytes_to_copy]);
+
+        Box::into_raw(Box::new(Result::no_value()))
     }
 
-    pub extern "C" fn store_in_selfbalance_ptr(&mut self, balance: &mut Bytes32) {
+    pub extern "C" fn store_in_selfbalance_ptr(&mut self, balance: &mut Bytes32) -> *mut Result {
         let host = self.host.read().unwrap();
         let addr = host.env().tx.transact_to;
         let account = if addr.is_zero() {
@@ -739,65 +805,79 @@ impl<DB: Database> RuntimeContext<DB> {
                 .unwrap_or_default()
         };
         *balance = Bytes32::from_u256(account.balance);
+        Box::into_raw(Box::new(Result::no_value()))
     }
 
-    pub extern "C" fn keccak256_hasher(&mut self, offset: u64, size: u64, hash_ptr: &mut Bytes32) {
+    pub extern "C" fn keccak256_hasher(
+        &mut self,
+        offset: u64,
+        size: u64,
+        hash_ptr: &mut Bytes32,
+    ) -> *mut Result {
         let data = &self.inner_context.memory[offset as usize..offset as usize + size as usize];
         let mut hasher = Keccak256::new();
         hasher.update(data);
         let result = hasher.finalize();
         *hash_ptr = Bytes32::from_be_bytes(result.into());
+        Box::into_raw(Box::new(Result::no_value()))
     }
 
-    pub extern "C" fn store_in_callvalue_ptr(&self, value: &mut Bytes32) {
+    pub extern "C" fn callvalue(&self, value: &mut Bytes32) -> *mut Result {
         let host = self.host.read().unwrap();
         *value = Bytes32::from_u256(host.env().tx.value);
+        Box::into_raw(Box::new(Result::no_value()))
     }
 
-    pub extern "C" fn store_in_blobbasefee_ptr(&self, value: &mut u128) {
+    pub extern "C" fn store_in_blobbasefee_ptr(&self, value: &mut u128) -> *mut Result {
         let host = self.host.read().unwrap();
         *value = host.env().block.blob_gasprice.unwrap_or_default();
+        Box::into_raw(Box::new(Result::no_value()))
     }
 
-    pub extern "C" fn get_gaslimit(&self) -> u64 {
+    pub extern "C" fn gaslimit(&self) -> *mut Result {
         let host = self.host.read().unwrap();
-        host.env().tx.gas_limit
+        uint_result_ptr!(host.env().tx.gas_limit)
     }
 
-    pub extern "C" fn store_in_caller_ptr(&self, value: &mut Bytes32) {
+    pub extern "C" fn caller(&self, value: &mut Bytes32) -> *mut Result {
         value.copy_from(&self.call_frame.caller);
+        Box::into_raw(Box::new(Result::no_value()))
     }
 
-    pub extern "C" fn store_in_gasprice_ptr(&self, value: &mut Bytes32) {
+    pub extern "C" fn store_in_gasprice_ptr(&self, value: &mut Bytes32) -> *mut Result {
         let host = self.host.read().unwrap();
         *value = Bytes32::from(&host.env().tx.gas_price);
+        Box::into_raw(Box::new(Result::no_value()))
     }
 
-    pub extern "C" fn get_chainid(&self) -> u64 {
+    pub extern "C" fn chainid(&self) -> *mut Result {
         let host = self.host.read().unwrap();
-        host.env().cfg.chain_id
+        uint_result_ptr!(host.env().cfg.chain_id)
     }
 
-    pub extern "C" fn get_calldata_ptr(&mut self) -> *const u8 {
+    pub extern "C" fn calldata(&mut self) -> *mut Result {
         let host = self.host.read().unwrap();
-        host.env().tx.data.as_ptr()
+        uint_result_ptr!(host.env().tx.data.as_ptr())
     }
 
-    pub extern "C" fn get_calldata_size(&self) -> u64 {
+    pub extern "C" fn calldata_size(&self) -> *mut Result {
         let host = self.host.read().unwrap();
-        host.env().tx.data.len() as u64
+        uint_result_ptr!(host.env().tx.data.len())
     }
 
-    pub extern "C" fn get_origin(&self, address: &mut Bytes32) {
+    pub extern "C" fn origin(&self, address: &mut Bytes32) -> *mut Result {
         let host = self.host.read().unwrap();
         address.copy_from(&host.env().tx.caller);
+        Box::into_raw(Box::new(Result::no_value()))
     }
 
-    pub extern "C" fn extend_memory(&mut self, new_size: u64) -> *mut u8 {
+    pub extern "C" fn extend_memory(&mut self, new_size: u64) -> *mut Result {
         // Note the overflow on the 32-bit machine for the max memory e.g., 4GB
         let new_size = new_size as usize;
         if new_size <= self.inner_context.memory.len() {
-            return self.inner_context.memory.as_mut_ptr();
+            return Box::into_raw(Box::new(Result::success(
+                self.inner_context.memory.as_mut_ptr() as *mut i64 as *mut c_void,
+            )));
         }
         // Check the memory usage bound
         match self
@@ -807,21 +887,23 @@ impl<DB: Database> RuntimeContext<DB> {
         {
             Ok(()) => {
                 self.inner_context.memory.resize(new_size, 0);
-                self.inner_context.memory.as_mut_ptr()
+                Box::into_raw(Box::new(Result::success(
+                    self.inner_context.memory.as_mut_ptr() as *mut i64 as *mut c_void,
+                )))
             }
             Err(err) => {
                 eprintln!("Failed to reserve memory: {err}");
-                std::ptr::null_mut()
+                Box::into_raw(Box::new(Result::error(call_opcode::REVERT_RETURN_CODE)))
             }
         }
     }
 
-    pub extern "C" fn copy_code_to_memory(
+    pub extern "C" fn code_copy(
         &mut self,
         code_offset: u64,
         size: u64,
         dest_offset: u64,
-    ) {
+    ) -> *mut Result {
         let code = &self.inner_context.program;
         let code_size = code.len();
         let code_offset = code_offset as usize;
@@ -836,16 +918,27 @@ impl<DB: Database> RuntimeContext<DB> {
         if size > code_len {
             self.inner_context.memory[dest_offset + code_len..dest_offset + size].fill(0);
         }
+
+        Box::into_raw(Box::new(Result::no_value()))
     }
 
-    pub extern "C" fn read_storage(&mut self, stg_key: &Bytes32, stg_value: &mut Bytes32) {
+    pub extern "C" fn read_storage(
+        &mut self,
+        stg_key: &Bytes32,
+        stg_value: &mut Bytes32,
+    ) -> *mut Result {
         let mut host = self.host.write().unwrap();
         let addr = host.env().tx.transact_to;
         let result = host.get_storage(&addr, stg_key);
         *stg_value = result.value;
+        Box::into_raw(Box::new(Result::no_value()))
     }
 
-    pub extern "C" fn write_storage(&mut self, stg_key: &Bytes32, stg_value: &mut Bytes32) -> i64 {
+    pub extern "C" fn write_storage(
+        &mut self,
+        stg_key: &Bytes32,
+        stg_value: &mut Bytes32,
+    ) -> *mut Result {
         let mut host = self.host.write().unwrap();
         let addr = host.env().tx.transact_to;
         let result = host.set_storage(addr, *stg_key, *stg_value);
@@ -884,11 +977,12 @@ impl<DB: Database> RuntimeContext<DB> {
             self.inner_context.gas_refund -= gas_refund.unsigned_abs();
         };
 
-        gas_cost
+        uint_result_ptr!(gas_cost)
     }
 
-    pub extern "C" fn append_log(&mut self, offset: u64, size: u64) {
+    pub extern "C" fn append_log(&mut self, offset: u64, size: u64) -> *mut Result {
         self.create_log(offset, size, vec![]);
+        Box::into_raw(Box::new(Result::no_value()))
     }
 
     pub extern "C" fn append_log_with_one_topic(
@@ -896,8 +990,9 @@ impl<DB: Database> RuntimeContext<DB> {
         offset: u64,
         size: u64,
         topic: &Bytes32,
-    ) {
+    ) -> *mut Result {
         self.create_log(offset, size, vec![topic.to_u256()]);
+        Box::into_raw(Box::new(Result::no_value()))
     }
 
     pub extern "C" fn append_log_with_two_topics(
@@ -906,8 +1001,9 @@ impl<DB: Database> RuntimeContext<DB> {
         size: u64,
         topic1: &Bytes32,
         topic2: &Bytes32,
-    ) {
+    ) -> *mut Result {
         self.create_log(offset, size, vec![topic1.to_u256(), topic2.to_u256()]);
+        Box::into_raw(Box::new(Result::no_value()))
     }
 
     pub extern "C" fn append_log_with_three_topics(
@@ -917,12 +1013,13 @@ impl<DB: Database> RuntimeContext<DB> {
         topic1: &Bytes32,
         topic2: &Bytes32,
         topic3: &Bytes32,
-    ) {
+    ) -> *mut Result {
         self.create_log(
             offset,
             size,
             vec![topic1.to_u256(), topic2.to_u256(), topic3.to_u256()],
         );
+        Box::into_raw(Box::new(Result::no_value()))
     }
 
     pub extern "C" fn append_log_with_four_topics(
@@ -933,7 +1030,7 @@ impl<DB: Database> RuntimeContext<DB> {
         topic2: &Bytes32,
         topic3: &Bytes32,
         topic4: &Bytes32,
-    ) {
+    ) -> *mut Result {
         self.create_log(
             offset,
             size,
@@ -944,14 +1041,16 @@ impl<DB: Database> RuntimeContext<DB> {
                 topic4.to_u256(),
             ],
         );
+        Box::into_raw(Box::new(Result::no_value()))
     }
 
-    pub extern "C" fn get_block_number(&self, number: &mut Bytes32) {
+    pub extern "C" fn block_number(&self, number: &mut Bytes32) -> *mut Result {
         let host = self.host.read().unwrap();
         *number = Bytes32::from(host.env().block.number);
+        Box::into_raw(Box::new(Result::no_value()))
     }
 
-    pub extern "C" fn get_block_hash(&mut self, number: &mut Bytes32) {
+    pub extern "C" fn block_hash(&mut self, number: &mut Bytes32) -> *mut Result {
         let host = self.host.read().unwrap();
         let number_as_u256 = number.to_u256();
         let hash = if number_as_u256 < host.env().block.number.saturating_sub(U256::from(256))
@@ -966,73 +1065,106 @@ impl<DB: Database> RuntimeContext<DB> {
                 .unwrap_or(B256::zero())
         };
         *number = Bytes32::from_be_bytes(hash.to_fixed_bytes());
+        Box::into_raw(Box::new(Result::no_value()))
     }
 
-    fn create_log(&mut self, offset: u64, size: u64, topics: Vec<U256>) {
+    fn create_log(&mut self, offset: u64, size: u64, topics: Vec<U256>) -> *mut Result {
         let offset = offset as usize;
         let size = size as usize;
         let data: Vec<u8> = self.inner_context.memory[offset..offset + size].into();
 
         let log = LogData { data, topics };
         self.inner_context.logs.push(log);
+        Box::into_raw(Box::new(Result::no_value()))
     }
 
-    pub extern "C" fn get_codesize_from_address(&mut self, address: &Bytes32) -> u64 {
-        self.db
+    pub extern "C" fn extcodesize(&mut self, address: &Bytes32) -> *mut Result {
+        let size = self
+            .db
             .read()
             .unwrap()
             .code_by_address(Address::from(address))
             .unwrap()
-            .len() as _
+            .len();
+        uint_result_ptr!(size)
     }
 
     #[allow(clippy::clone_on_copy)]
-    pub extern "C" fn get_address_ptr(&mut self) -> *const u8 {
+    pub extern "C" fn address(&mut self) -> *mut Result {
         let host = self.host.read().unwrap();
         let address = host.env().tx.transact_to.clone();
-        address.as_ptr()
+        Box::into_raw(Box::new(Result::success(
+            address.as_ptr() as *mut i64 as *mut c_void
+        )))
     }
 
-    pub extern "C" fn get_prevrandao(&self, prevrandao: &mut Bytes32) {
+    pub extern "C" fn prevrandao(&self, prevrandao: &mut Bytes32) -> *mut Result {
         let host = self.host.read().unwrap();
         let randao = host.env().block.prevrandao.unwrap_or_default();
         *prevrandao = Bytes32::from_be_bytes(randao.into());
+        Box::into_raw(Box::new(Result::no_value()))
     }
 
-    pub extern "C" fn get_coinbase_ptr(&self) -> *const u8 {
+    pub extern "C" fn coinbase(&self) -> *mut Result {
         let host = self.host.read().unwrap();
-        host.env().block.coinbase.as_ptr()
+        Box::into_raw(Box::new(Result::success(
+            host.env().block.coinbase.as_ptr() as *mut i64 as *mut c_void,
+        )))
     }
 
-    pub extern "C" fn store_in_timestamp_ptr(&self, value: &mut Bytes32) {
+    pub extern "C" fn store_in_timestamp_ptr(&self, value: &mut Bytes32) -> *mut Result {
         let host = self.host.read().unwrap();
         *value = Bytes32::from(&host.env().block.timestamp);
+        Box::into_raw(Box::new(Result::no_value()))
     }
 
-    pub extern "C" fn store_in_basefee_ptr(&self, basefee: &mut Bytes32) {
+    pub extern "C" fn store_in_basefee_ptr(&self, basefee: &mut Bytes32) -> *mut Result {
         let host = self.host.read().unwrap();
         *basefee = Bytes32::from(&host.env().block.basefee);
+        Box::into_raw(Box::new(Result::no_value()))
     }
 
-    pub extern "C" fn store_in_balance(&mut self, address: &Bytes32, balance: &mut Bytes32) {
+    pub extern "C" fn store_in_balance(
+        &mut self,
+        address: &Bytes32,
+        balance: &mut Bytes32,
+    ) -> *mut Result {
         if !address.is_valid_eth_address() {
             *balance = Bytes32::ZERO;
-            return;
+            return Box::into_raw(Box::new(Result::no_value_with_gas(0)));
         }
-
+        let is_cold: bool;
         let addr = Address::from(address);
         if let Some(a) = self.db.read().unwrap().basic(addr).unwrap() {
             *balance = Bytes32::from_u256(a.balance);
         } else {
             *balance = Bytes32::ZERO;
-        }
+        };
+
+        let is_cold = true;
+        let gas_cost = if self.inner_context.spec_id.is_enabled_in(SpecId::BERLIN) {
+            if is_cold {
+                COLD_ACCOUNT_ACCESS_COST
+            } else {
+                WARM_STORAGE_READ_COST
+            }
+        } else if self.inner_context.spec_id.is_enabled_in(SpecId::ISTANBUL) {
+            // EIP-1884: Repricing for trie-size-dependent opcodes
+            700
+        } else if self.inner_context.spec_id.is_enabled_in(SpecId::TANGERINE) {
+            400
+        } else {
+            20
+        };
+
+        Box::into_raw(Box::new(Result::no_value_with_gas(gas_cost)))
     }
 
-    pub extern "C" fn get_blob_hash_at_index(&mut self, index: &Bytes32, blobhash: &mut Bytes32) {
+    pub extern "C" fn blob_hash(&mut self, index: &Bytes32, blobhash: &mut Bytes32) -> *mut Result {
         // Check if the high 12 bytes are zero, indicating a valid usize-compatible index
         if index.slice()[0..12] != [0u8; 12] {
             *blobhash = Bytes32::default();
-            return;
+            return Box::into_raw(Box::new(Result::no_value()));
         }
 
         // Convert the low 20 bytes into a usize for the index
@@ -1048,6 +1180,8 @@ impl<DB: Database> RuntimeContext<DB> {
             .cloned()
             .map(|x| Bytes32::from_be_bytes(x.into()))
             .unwrap_or_default();
+
+        Box::into_raw(Box::new(Result::no_value()))
     }
 
     pub extern "C" fn copy_ext_code_to_memory(
@@ -1056,7 +1190,7 @@ impl<DB: Database> RuntimeContext<DB> {
         code_offset: u64,
         size: u64,
         dest_offset: u64,
-    ) {
+    ) -> *mut Result {
         let address = Address::from(address_value);
         let code = self
             .db
@@ -1077,9 +1211,10 @@ impl<DB: Database> RuntimeContext<DB> {
         if size > code_len {
             self.inner_context.memory[dest_offset + code_len..dest_offset + size].fill(0);
         }
+        Box::into_raw(Box::new(Result::no_value()))
     }
 
-    pub extern "C" fn get_code_hash(&mut self, address: &mut Bytes32) {
+    pub extern "C" fn code_hash(&mut self, address: &mut Bytes32) -> *mut Result {
         let hash = match self
             .db
             .read()
@@ -1090,6 +1225,7 @@ impl<DB: Database> RuntimeContext<DB> {
             _ => B256::zero(),
         };
         *address = Bytes32::from_be_bytes(hash.to_fixed_bytes());
+        Box::into_raw(Box::new(Result::no_value()))
     }
 
     pub fn create_contract(
@@ -1189,12 +1325,12 @@ impl<DB: Database> RuntimeContext<DB> {
         value: &mut Bytes32,
         remaining_gas: &mut u64,
         salt: Option<&Bytes32>,
-    ) -> u8 {
+    ) -> *mut Result {
         let offset = offset as usize;
         let size = size as usize;
         let memory_len = self.inner_context.memory.len();
         if offset > memory_len {
-            return 1;
+            return Box::into_raw(Box::new(Result::error(1)));
         }
         let available_size = memory_len - offset;
         let actual_size = size.min(available_size);
@@ -1203,9 +1339,9 @@ impl<DB: Database> RuntimeContext<DB> {
         match self.create_contract(&bytecode, remaining_gas, value_u256, salt) {
             Ok(addr) => {
                 value.copy_from(&addr);
-                0
+                uint_result_ptr!(0)
             }
-            Err(_) => 1,
+            Err(_) => Box::into_raw(Box::new(Result::error(1))),
         }
     }
 
@@ -1215,7 +1351,7 @@ impl<DB: Database> RuntimeContext<DB> {
         offset: u64,
         value: &mut Bytes32,
         remaining_gas: &mut u64,
-    ) -> u8 {
+    ) -> *mut Result {
         self.create_aux(size, offset, value, remaining_gas, None)
     }
 
@@ -1226,41 +1362,45 @@ impl<DB: Database> RuntimeContext<DB> {
         value: &mut Bytes32,
         remaining_gas: &mut u64,
         salt: &Bytes32,
-    ) -> u8 {
+    ) -> *mut Result {
         self.create_aux(size, offset, value, remaining_gas, Some(salt))
     }
 
-    pub extern "C" fn selfdestruct(&mut self, receiver_address: &Bytes32) -> u64 {
+    pub extern "C" fn selfdestruct(&mut self, receiver_address: &Bytes32) -> *mut Result {
         let mut host = self.host.write().unwrap();
         let sender_address = host.env().tx.get_address();
         let receiver_address = Address::from(receiver_address);
         let result = host.selfdestruct(&sender_address, receiver_address);
-        if result.had_value && !result.target_exists {
+
+        let gas_cost = if result.had_value && !result.target_exists {
             gas_cost::SELFDESTRUCT_DYNAMIC_GAS as u64
         } else {
             0
-        }
+        };
+        Box::into_raw(Box::new(Result::no_value_with_gas(gas_cost)))
     }
 
     pub extern "C" fn read_transient_storage(
         &mut self,
         stg_key: &Bytes32,
         stg_value: &mut Bytes32,
-    ) {
+    ) -> *mut Result {
         let mut host = self.host.write().unwrap();
         let addr = host.env().tx.transact_to;
         let result = host.get_transient_storage(&addr, stg_key);
         *stg_value = result;
+        Box::into_raw(Box::new(Result::no_value()))
     }
 
     pub extern "C" fn write_transient_storage(
         &mut self,
         stg_key: &Bytes32,
         stg_value: &mut Bytes32,
-    ) {
+    ) -> *mut Result {
         let mut host = self.host.write().unwrap();
         let addr = host.env().tx.transact_to;
         host.set_transient_storage(&addr, *stg_key, *stg_value);
+        Box::into_raw(Box::new(Result::no_value()))
     }
 }
 
@@ -1324,40 +1464,34 @@ impl<DB: Database> RuntimeContext<DB> {
                 ),
                 (symbols::CALL, RuntimeContext::<DB>::call as *const _),
                 (
-                    symbols::GET_CALLDATA_PTR,
-                    RuntimeContext::<DB>::get_calldata_ptr as *const _,
+                    symbols::CALLDATA,
+                    RuntimeContext::<DB>::calldata as *const _,
                 ),
                 (
-                    symbols::GET_CALLDATA_SIZE,
-                    RuntimeContext::<DB>::get_calldata_size as *const _,
+                    symbols::CALLDATA_SIZE,
+                    RuntimeContext::<DB>::calldata_size as *const _,
                 ),
                 (
-                    symbols::COPY_CODE_TO_MEMORY,
-                    RuntimeContext::<DB>::copy_code_to_memory as *const _,
+                    symbols::CODE_COPY,
+                    RuntimeContext::<DB>::code_copy as *const _,
                 ),
+                (symbols::ORIGIN, RuntimeContext::<DB>::origin as *const _),
+                (symbols::ADDRESS, RuntimeContext::<DB>::address as *const _),
                 (
-                    symbols::GET_ORIGIN,
-                    RuntimeContext::<DB>::get_origin as *const _,
-                ),
-                (
-                    symbols::GET_ADDRESS_PTR,
-                    RuntimeContext::<DB>::get_address_ptr as *const _,
-                ),
-                (
-                    symbols::STORE_IN_CALLVALUE_PTR,
-                    RuntimeContext::<DB>::store_in_callvalue_ptr as *const _,
+                    symbols::CALLVALUE,
+                    RuntimeContext::<DB>::callvalue as *const _,
                 ),
                 (
                     symbols::STORE_IN_BLOBBASEFEE_PTR,
                     RuntimeContext::<DB>::store_in_blobbasefee_ptr as *const _,
                 ),
                 (
-                    symbols::GET_CODESIZE_FROM_ADDRESS,
-                    RuntimeContext::<DB>::get_codesize_from_address as *const _,
+                    symbols::EXT_CODE_SIZE,
+                    RuntimeContext::<DB>::extcodesize as *const _,
                 ),
                 (
-                    symbols::GET_COINBASE_PTR,
-                    RuntimeContext::<DB>::get_coinbase_ptr as *const _,
+                    symbols::COINBASE,
+                    RuntimeContext::<DB>::coinbase as *const _,
                 ),
                 (
                     symbols::STORE_IN_TIMESTAMP_PTR,
@@ -1367,34 +1501,28 @@ impl<DB: Database> RuntimeContext<DB> {
                     symbols::STORE_IN_BASEFEE_PTR,
                     RuntimeContext::<DB>::store_in_basefee_ptr as *const _,
                 ),
+                (symbols::CALLER, RuntimeContext::<DB>::caller as *const _),
                 (
-                    symbols::STORE_IN_CALLER_PTR,
-                    RuntimeContext::<DB>::store_in_caller_ptr as *const _,
-                ),
-                (
-                    symbols::GET_GASLIMIT,
-                    RuntimeContext::<DB>::get_gaslimit as *const _,
+                    symbols::GASLIMIT,
+                    RuntimeContext::<DB>::gaslimit as *const _,
                 ),
                 (
                     symbols::STORE_IN_GASPRICE_PTR,
                     RuntimeContext::<DB>::store_in_gasprice_ptr as *const _,
                 ),
                 (
-                    symbols::GET_BLOCK_NUMBER,
-                    RuntimeContext::<DB>::get_block_number as *const _,
+                    symbols::BLOCK_NUMBER,
+                    RuntimeContext::<DB>::block_number as *const _,
                 ),
                 (
-                    symbols::GET_PREVRANDAO,
-                    RuntimeContext::<DB>::get_prevrandao as *const _,
+                    symbols::PREVRANDAO,
+                    RuntimeContext::<DB>::prevrandao as *const _,
                 ),
                 (
-                    symbols::GET_BLOB_HASH_AT_INDEX,
-                    RuntimeContext::<DB>::get_blob_hash_at_index as *const _,
+                    symbols::BLOB_HASH,
+                    RuntimeContext::<DB>::blob_hash as *const _,
                 ),
-                (
-                    symbols::GET_CHAINID,
-                    RuntimeContext::<DB>::get_chainid as *const _,
-                ),
+                (symbols::CHAINID, RuntimeContext::<DB>::chainid as *const _),
                 (
                     symbols::STORE_IN_BALANCE,
                     RuntimeContext::<DB>::store_in_balance as *const _,
@@ -1408,22 +1536,22 @@ impl<DB: Database> RuntimeContext<DB> {
                     RuntimeContext::<DB>::copy_ext_code_to_memory as *const _,
                 ),
                 (
-                    symbols::GET_BLOCK_HASH,
-                    RuntimeContext::<DB>::get_block_hash as *const _,
+                    symbols::BLOCK_HASH,
+                    RuntimeContext::<DB>::block_hash as *const _,
                 ),
                 (
-                    symbols::GET_CODE_HASH,
-                    RuntimeContext::<DB>::get_code_hash as *const _,
+                    symbols::CODE_HASH,
+                    RuntimeContext::<DB>::code_hash as *const _,
                 ),
                 (symbols::CREATE, RuntimeContext::<DB>::create as *const _),
                 (symbols::CREATE2, RuntimeContext::<DB>::create2 as *const _),
                 (
-                    symbols::GET_RETURN_DATA_SIZE,
-                    RuntimeContext::<DB>::get_return_data_size as *const _,
+                    symbols::RETURN_DATA_SIZE,
+                    RuntimeContext::<DB>::return_data_size as *const _,
                 ),
                 (
-                    symbols::COPY_RETURN_DATA_INTO_MEMORY,
-                    RuntimeContext::<DB>::copy_return_data_into_memory as *const _,
+                    symbols::RETURN_DATA_COPY,
+                    RuntimeContext::<DB>::return_data_copy as *const _,
                 ),
                 (
                     symbols::SELFDESTRUCT,

@@ -580,6 +580,61 @@ impl<'c, 'a> OpBuilder<'c, 'a> {
         )
     }
 
+    /// Retrieves the value of a field from a given pointer at a specified offset and interprets it as a specific type.
+    ///
+    /// This function calculates the address of a field within a structure or memory block by computing its offset
+    /// relative to the base pointer. It performs two memory loads:
+    /// 1. Loads a pointer to the target value from the computed offset.
+    /// 2. Loads the actual value from the pointer, interpreting it as the specified type.
+    ///
+    /// # Parameters
+    /// - `ptr`: The base pointer (`Val`) from which the field's offset is computed.
+    /// - `offset`: The byte offset of the field relative to the base pointer.
+    /// - `r#type`: The expected type of the field value to be loaded.
+    ///
+    /// # Returns
+    /// A `Val` containing the loaded field value, interpreted as the specified type.
+    ///
+    /// # Errors
+    /// Returns a `Result::Err` if any step in the pointer computation, memory load, or value casting fails.
+    ///
+    /// # Example
+    /// ```rust
+    /// let value = context.get_field_value(base_ptr, 8, field_type)?;
+    /// ```
+    pub fn get_field_value(
+        &self,
+        ptr: Val<'c, 'a>,
+        offset: usize,
+        r#type: Type<'c>,
+    ) -> Result<Val<'c, '_>> {
+        let offset = self.make(self.iconst_64(offset as i64))?;
+        let rtn_ptr_ptr = self.make(llvm::get_element_ptr_dynamic(
+            self.context(),
+            ptr,
+            &[offset],
+            self.intrinsics.i8_ty,
+            self.ptr_ty(),
+            self.get_insert_location(),
+        ))?;
+        let rtn_ptr = self.make(llvm::load(
+            self.context(),
+            rtn_ptr_ptr,
+            self.ptr_ty(),
+            self.get_insert_location(),
+            LoadStoreOptions::default(),
+        ))?;
+        Ok(self
+            .make(llvm::load(
+                self.context(),
+                rtn_ptr,
+                r#type,
+                self.get_insert_location(),
+                LoadStoreOptions::default(),
+            ))?
+            .to_ctx_value())
+    }
+
     /// Creates an operation to obtain the address of a global variable.
     ///
     /// # Parameters

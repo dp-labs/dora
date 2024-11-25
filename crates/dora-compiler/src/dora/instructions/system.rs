@@ -71,18 +71,21 @@ impl<'c> ConversionPass<'c> {
         syscall_ctx!(op, syscall_ctx);
         rewrite_ctx!(context, op, rewriter, location);
 
+        let uint64 = rewriter.intrinsics.i64_ty;
         let uint160 = IntegerType::new(context, 160);
         let uint256 = rewriter.intrinsics.i256_ty;
         let ptr_type = rewriter.intrinsics.ptr_ty;
 
         // Call to get the address pointer
-        let address_ptr = rewriter.make(func::call(
+        let result_ptr = rewriter.make(func::call(
             context,
-            FlatSymbolRefAttribute::new(context, symbols::GET_ADDRESS_PTR),
+            FlatSymbolRefAttribute::new(context, symbols::ADDRESS),
             &[syscall_ctx.into()],
             &[ptr_type],
             location,
         ))?;
+        // todo: syscall error handling
+        let address_ptr = rewriter.get_field_value(result_ptr, 16, uint64)?;
         // Load the address from the pointer
         let address = rewriter.make(llvm::load(
             context,
@@ -110,7 +113,7 @@ impl<'c> ConversionPass<'c> {
             rewriter,
             context,
             syscall_ctx,
-            symbols::STORE_IN_CALLER_PTR,
+            symbols::CALLER,
             &[caller_ptr],
             rewriter.intrinsics.i256_ty,
             location
@@ -126,7 +129,7 @@ impl<'c> ConversionPass<'c> {
             rewriter,
             context,
             syscall_ctx,
-            symbols::STORE_IN_CALLVALUE_PTR,
+            symbols::CALLVALUE,
             &[callvalue_ptr],
             rewriter.intrinsics.i256_ty,
             location
@@ -229,13 +232,15 @@ impl<'c> ConversionPass<'c> {
 
         let uint64 = rewriter.intrinsics.i64_ty;
         let uint256 = rewriter.intrinsics.i256_ty;
-        let call_data_size = rewriter.make(func::call(
+        let result_ptr = rewriter.make(func::call(
             context,
-            FlatSymbolRefAttribute::new(context, symbols::GET_CALLDATA_SIZE),
+            FlatSymbolRefAttribute::new(context, symbols::CALLDATA_SIZE),
             &[syscall_ctx.into()],
             &[uint64],
             location,
         ))?;
+        // todo: syscall error handling
+        let call_data_size = rewriter.get_field_value(result_ptr, 16, uint64)?;
         rewriter.make(arith::extui(call_data_size, uint256, location))?;
         Ok(())
     }
@@ -286,13 +291,15 @@ impl<'c> ConversionPass<'c> {
             )
             .into(),
         );
-        let call_data_size = rewriter.make(func::call(
+        let result_ptr = rewriter.make(func::call(
             context,
-            FlatSymbolRefAttribute::new(context, symbols::GET_CALLDATA_SIZE),
+            FlatSymbolRefAttribute::new(context, symbols::CALLDATA_SIZE),
             &[syscall_ctx.into()],
             &[uint64],
             location,
         ))?;
+        // todo: syscall error handling
+        let call_data_size = rewriter.get_field_value(result_ptr, 16, uint64)?;
         let flag = rewriter.make(arith::cmpi(
             context,
             CmpiPredicate::Ugt,
@@ -311,13 +318,15 @@ impl<'c> ConversionPass<'c> {
                     builder.make(arith::subi(call_data_size, call_data_offset, location))?;
                 let memcpy_len =
                     builder.make(arith::minui(remaining_calldata_size, length, location))?;
-                let calldata_ptr = builder.make(func::call(
+                let result_ptr = builder.make(func::call(
                     builder.context(),
-                    FlatSymbolRefAttribute::new(builder.context(), symbols::GET_CALLDATA_PTR),
+                    FlatSymbolRefAttribute::new(builder.context(), symbols::CALLDATA),
                     &[syscall_ctx.into()],
                     &[builder.ptr_ty()],
                     builder.get_insert_location(),
                 ))?;
+                // todo: syscall error handling
+                let calldata_ptr = rewriter.get_field_value(result_ptr, 16, uint64)?;
                 let calldata_src = builder.make(llvm::get_element_ptr_dynamic(
                     context,
                     calldata_ptr,
@@ -390,7 +399,7 @@ impl<'c> ConversionPass<'c> {
 
         rewriter.create(func::call(
             context,
-            FlatSymbolRefAttribute::new(context, symbols::COPY_CODE_TO_MEMORY),
+            FlatSymbolRefAttribute::new(context, symbols::CODE_COPY),
             &[syscall_ctx.into(), offset, length, dest_offset],
             &[],
             location,
@@ -404,13 +413,15 @@ impl<'c> ConversionPass<'c> {
 
         let uint64 = rewriter.intrinsics.i64_ty;
         let uint256 = rewriter.intrinsics.i256_ty;
-        let data_size = rewriter.make(func::call(
+        let result_ptr = rewriter.make(func::call(
             context,
-            FlatSymbolRefAttribute::new(context, symbols::GET_RETURN_DATA_SIZE),
+            FlatSymbolRefAttribute::new(context, symbols::RETURN_DATA_SIZE),
             &[syscall_ctx.into()],
             &[uint64],
             location,
         ))?;
+        // todo: syscall error handling
+        let data_size = rewriter.get_field_value(result_ptr, 16, uint64)?;
         rewriter.create(arith::extui(data_size, uint256, location));
         Ok(())
     }
@@ -436,7 +447,7 @@ impl<'c> ConversionPass<'c> {
         memory::resize_memory(req_mem_size, context, &rewriter, syscall_ctx, location)?;
         rewriter.create(func::call(
             context,
-            FlatSymbolRefAttribute::new(context, symbols::COPY_RETURN_DATA_INTO_MEMORY),
+            FlatSymbolRefAttribute::new(context, symbols::RETURN_DATA_COPY),
             &[syscall_ctx.into(), dest_offset, offset, size],
             &[],
             location,
