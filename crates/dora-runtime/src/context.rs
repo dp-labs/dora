@@ -9,6 +9,7 @@ use crate::result::{
     EVMError, ExecutionResult, HaltReason, InternalResult, OutOfGasError, Output, ResultAndState,
     SuccessReason,
 };
+use crate::context::gas_cost::{WARM_STORAGE_READ_COST, COLD_ACCOUNT_ACCESS_COST};
 use crate::transaction::Transaction;
 use crate::{symbols, ExitStatusCode};
 use anyhow::bail;
@@ -1133,7 +1134,6 @@ impl<DB: Database> RuntimeContext<DB> {
             *balance = Bytes32::ZERO;
             return Box::into_raw(Box::new(Result::no_value_with_gas(0)));
         }
-        let is_cold: bool;
         let addr = Address::from(address);
         if let Some(a) = self.db.read().unwrap().basic(addr).unwrap() {
             *balance = Bytes32::from_u256(a.balance);
