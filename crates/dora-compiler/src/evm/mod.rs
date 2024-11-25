@@ -152,7 +152,7 @@ impl<'c> EVMCompiler<'c> {
         Self {
             intrinsics: Intrinsics::declare(ctx),
             ctx,
-            stack_bound_checks: false,
+            stack_bound_checks: true,
         }
     }
 
