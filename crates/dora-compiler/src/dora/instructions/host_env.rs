@@ -20,6 +20,7 @@ use melior::{
     },
     Context,
 };
+use std::mem::offset_of;
 
 impl<'c> ConversionPass<'c> {
     pub(crate) fn chainid(context: &Context, op: &OperationRef<'_, '_>) -> Result<()> {
@@ -35,8 +36,11 @@ impl<'c> ConversionPass<'c> {
             location,
         ))?;
         // todo: syscall error handling
-        let chainid_ptr = rewriter.get_field_value(result_ptr, 16, ptr_type)?;
-        let chainid = rewriter.make(rewriter.load(chainid_ptr, rewriter.intrinsics.i64_ty))?;
+        let chainid = rewriter.get_field_value(
+            result_ptr,
+            offset_of!(dora_runtime::context::Result<u64>, value),
+            rewriter.intrinsics.i64_ty,
+        )?;
         rewriter.make(arith::extui(chainid, rewriter.intrinsics.i256_ty, location))?;
         Ok(())
     }
@@ -44,7 +48,7 @@ impl<'c> ConversionPass<'c> {
     pub(crate) fn coinbase(context: &Context, op: &OperationRef<'_, '_>) -> Result<()> {
         syscall_ctx!(op, syscall_ctx);
         rewrite_ctx!(context, op, rewriter, location);
-        let uint160 = IntegerType::new(context, 160);
+        let uint160 = IntegerType::new(context, 160).into();
 
         let ptr_type = rewriter.ptr_ty();
         let result_ptr = rewriter.make(func::call(
@@ -55,17 +59,14 @@ impl<'c> ConversionPass<'c> {
             location,
         ))?;
         // todo: syscall error handling
-        let coinbase_ptr = rewriter.get_field_value(result_ptr, 16, ptr_type)?;
-        let coinbase = rewriter.make(llvm::load(
-            context,
-            coinbase_ptr,
-            uint160.into(),
-            location,
-            LoadStoreOptions::new()
-                .align(IntegerAttribute::new(IntegerType::new(context, 64).into(), 1).into()),
-        ))?;
+        let coinbase_ptr = rewriter.get_field_value(
+            result_ptr,
+            offset_of!(dora_runtime::context::Result<*mut u8>, value),
+            ptr_type,
+        )?;
+        let coinbase = rewriter.make(rewriter.load(coinbase_ptr, uint160))?;
         let coinbase = if cfg!(target_endian = "little") {
-            rewriter.make(llvm::intr_bswap(coinbase, uint160.into(), location))?
+            rewriter.make(llvm::intr_bswap(coinbase, uint160, location))?
         } else {
             coinbase
         };
@@ -142,8 +143,11 @@ impl<'c> ConversionPass<'c> {
             location,
         ))?;
         // todo: syscall error handling
-        let gaslimit_ptr = rewriter.get_field_value(result_ptr, 16, ptr_type)?;
-        let gaslimit = rewriter.make(rewriter.load(gaslimit_ptr, rewriter.intrinsics.i64_ty))?;
+        let gaslimit = rewriter.get_field_value(
+            result_ptr,
+            offset_of!(dora_runtime::context::Result<u64>, value),
+            rewriter.intrinsics.i64_ty,
+        )?;
         rewriter.make(arith::extui(
             gaslimit,
             rewriter.intrinsics.i256_ty,

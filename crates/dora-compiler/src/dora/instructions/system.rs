@@ -29,6 +29,7 @@ use melior::{
     Context,
 };
 use num_bigint::BigUint;
+use std::mem::offset_of;
 
 impl<'c> ConversionPass<'c> {
     pub(crate) fn keccak256(context: &Context, op: &OperationRef<'_, '_>) -> Result<()> {
@@ -71,7 +72,7 @@ impl<'c> ConversionPass<'c> {
         syscall_ctx!(op, syscall_ctx);
         rewrite_ctx!(context, op, rewriter, location);
 
-        let uint160 = IntegerType::new(context, 160);
+        let uint160 = IntegerType::new(context, 160).into();
         let uint256 = rewriter.intrinsics.i256_ty;
         let ptr_type = rewriter.ptr_ty();
 
@@ -84,18 +85,15 @@ impl<'c> ConversionPass<'c> {
             location,
         ))?;
         // todo: syscall error handling
-        let address_ptr = rewriter.get_field_value(result_ptr, 16, ptr_type)?;
+        let address_ptr = rewriter.get_field_value(
+            result_ptr,
+            offset_of!(dora_runtime::context::Result<*mut u8>, value),
+            ptr_type,
+        )?;
         // Load the address from the pointer
-        let address = rewriter.make(llvm::load(
-            context,
-            address_ptr,
-            uint160.into(),
-            location,
-            LoadStoreOptions::new()
-                .align(IntegerAttribute::new(IntegerType::new(context, 64).into(), 1).into()),
-        ))?;
+        let address = rewriter.make(rewriter.load(address_ptr, uint160))?;
         let address = if cfg!(target_endian = "little") {
-            rewriter.make(llvm::intr_bswap(address, uint160.into(), location))?
+            rewriter.make(llvm::intr_bswap(address, uint160, location))?
         } else {
             address
         };
@@ -230,18 +228,13 @@ impl<'c> ConversionPass<'c> {
         rewrite_ctx!(context, op, rewriter, location);
 
         let uint256 = rewriter.intrinsics.i256_ty;
-        let ptr_type = rewriter.ptr_ty();
-        let result_ptr = rewriter.make(func::call(
+        let call_data_size = rewriter.make(func::call(
             context,
             FlatSymbolRefAttribute::new(context, symbols::CALLDATA_SIZE),
             &[syscall_ctx.into()],
-            &[ptr_type],
+            &[rewriter.intrinsics.i64_ty],
             location,
         ))?;
-        // todo: syscall error handling
-        let call_data_size_ptr = rewriter.get_field_value(result_ptr, 16, ptr_type)?;
-        let call_data_size =
-            rewriter.make(rewriter.load(call_data_size_ptr, rewriter.intrinsics.i64_ty))?;
         rewriter.make(arith::extui(call_data_size, uint256, location))?;
         Ok(())
     }
@@ -293,17 +286,13 @@ impl<'c> ConversionPass<'c> {
             )
             .into(),
         );
-        let result_ptr = rewriter.make(func::call(
+        let call_data_size = rewriter.make(func::call(
             context,
             FlatSymbolRefAttribute::new(context, symbols::CALLDATA_SIZE),
             &[syscall_ctx.into()],
-            &[ptr_type],
+            &[uint64],
             location,
         ))?;
-        // todo: syscall error handling
-        let call_data_size_ptr = rewriter.get_field_value(result_ptr, 16, ptr_type)?;
-        let call_data_size =
-            rewriter.make(rewriter.load(call_data_size_ptr, rewriter.intrinsics.i64_ty))?;
         let flag = rewriter.make(arith::cmpi(
             context,
             CmpiPredicate::Ugt,
@@ -322,15 +311,13 @@ impl<'c> ConversionPass<'c> {
                     builder.make(arith::subi(call_data_size, call_data_offset, location))?;
                 let memcpy_len =
                     builder.make(arith::minui(remaining_calldata_size, length, location))?;
-                let result_ptr = builder.make(func::call(
+                let calldata_ptr = builder.make(func::call(
                     builder.context(),
                     FlatSymbolRefAttribute::new(builder.context(), symbols::CALLDATA),
                     &[syscall_ctx.into()],
                     &[ptr_type],
                     builder.get_insert_location(),
                 ))?;
-                // todo: syscall error handling
-                let calldata_ptr = rewriter.get_field_value(result_ptr, 16, ptr_type)?;
                 let calldata_src = builder.make(llvm::get_element_ptr_dynamic(
                     context,
                     calldata_ptr,
@@ -426,8 +413,11 @@ impl<'c> ConversionPass<'c> {
             location,
         ))?;
         // todo: syscall error handling
-        let data_size_ptr = rewriter.get_field_value(result_ptr, 16, ptr_type)?;
-        let data_size = rewriter.make(rewriter.load(data_size_ptr, rewriter.intrinsics.i64_ty))?;
+        let data_size = rewriter.get_field_value(
+            result_ptr,
+            offset_of!(dora_runtime::context::Result<u64>, value),
+            rewriter.intrinsics.i64_ty,
+        )?;
         rewriter.create(arith::extui(data_size, uint256, location));
         Ok(())
     }

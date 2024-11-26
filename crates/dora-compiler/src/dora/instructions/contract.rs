@@ -25,6 +25,7 @@ use melior::{
     },
     Context,
 };
+use std::mem::offset_of;
 
 impl<'c> ConversionPass<'c> {
     pub(crate) fn create(
@@ -79,7 +80,11 @@ impl<'c> ConversionPass<'c> {
                 location,
             ))?;
             // todo: syscall error handling
-            rewriter.get_field_value(result_ptr, 16, ptr_type)?
+            rewriter.get_field_value(
+                result_ptr,
+                offset_of!(dora_runtime::context::Result<u8>, value),
+                rewriter.intrinsics.i8_ty,
+            )?
         } else {
             let result_ptr = rewriter.make(func::call(
                 context,
@@ -89,9 +94,12 @@ impl<'c> ConversionPass<'c> {
                 location,
             ))?;
             // todo: syscall error handling
-            rewriter.get_field_value(result_ptr, 16, ptr_type)?
+            rewriter.get_field_value(
+                result_ptr,
+                offset_of!(dora_runtime::context::Result<u8>, value),
+                rewriter.intrinsics.i8_ty,
+            )?
         };
-
         let zero = rewriter.make(rewriter.iconst_8(0))?;
         let revert_flag = rewriter.make(arith::cmpi(
             context,
@@ -225,15 +233,11 @@ impl<'c> ConversionPass<'c> {
             location,
         ))?;
         // todo: syscall error handling
-        let rtn_ptr = rewriter.get_field_value(result_ptr, 16, uint64)?;
-        let result = rewriter.make(llvm::load(
-            context,
-            rtn_ptr,
-            uint64,
-            location,
-            LoadStoreOptions::default(),
-        ))?;
-
+        let result = rewriter.get_field_value(
+            result_ptr,
+            offset_of!(dora_runtime::context::Result<u8>, value),
+            uint8,
+        )?;
         rewriter.create(llvm::load(
             context,
             gas_ptr,

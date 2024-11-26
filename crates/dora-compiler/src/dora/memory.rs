@@ -19,6 +19,7 @@ use melior::{
     },
     Context,
 };
+use std::mem::offset_of;
 
 /// Allocates memory for a 64-byte value, stores the value in the memory
 /// and returns a pointer to the memory
@@ -190,7 +191,11 @@ pub(crate) fn resize_memory<'c>(
                 location,
             ))?;
             // todo: syscall error handling
-            let new_memory_ptr = rewriter.get_field_value(result_ptr, 16, ptr_type)?;
+            let new_memory_ptr = rewriter.get_field_value(
+                result_ptr,
+                offset_of!(dora_runtime::context::Result<*mut u8>, value),
+                ptr_type,
+            )?;
 
             let store_new_mem_size_op = rewriter.create(llvm::store(
                 context,

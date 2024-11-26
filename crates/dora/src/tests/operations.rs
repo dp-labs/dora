@@ -2922,7 +2922,7 @@ fn call_1() {
         Operation::Return,
     ];
     let (env, mut db) = default_env_and_db_setup(operations);
-    run_program_assert_num_result(env, db, 0_u8.into());
+    run_program_assert_num_result(env, db, 1_u8.into());
 }
 
 #[test]
@@ -2956,6 +2956,49 @@ fn call_2() {
         Operation::Push((1_u8, BigUint::from(0_u8))),
         Operation::Dup(7),
         Operation::Push((2_u8, BigUint::from_bytes_be(&[0xFF, 0xFF]))),
+        Operation::Call,
+        // Return result
+        Operation::Push0,
+        Operation::Mstore,
+        Operation::Push((1, 32_u8.into())),
+        Operation::Push0,
+        Operation::Return,
+    ];
+    let (env, mut db) = default_env_and_db_setup(operations);
+    run_program_assert_num_result(env, db, 1_u8.into());
+}
+
+#[test]
+fn call_insufficient_value() {
+    let operations = vec![
+        Operation::Push((
+            17_u8,
+            BigUint::from_bytes_be(&[
+                0x67, 0x60, 0x00, 0x35, 0x60, 0x07, 0x57, 0xFE, 0x5B, 0x60, 0x00, 0x52, 0x60, 0x08,
+                0x60, 0x18, 0xF3,
+            ]),
+        )),
+        Operation::Push((1_u8, BigUint::from(0_u8))),
+        Operation::Mstore,
+        Operation::Push((1_u8, BigUint::from(17_u8))),
+        Operation::Push((1_u8, BigUint::from(15_u8))),
+        Operation::Push((1_u8, BigUint::from(0_u8))),
+        Operation::Create,
+        Operation::Push((1_u8, BigUint::from(0_u8))),
+        Operation::Push((1_u8, BigUint::from(0_u8))),
+        Operation::Push((1_u8, BigUint::from(0_u8))),
+        Operation::Push((1_u8, BigUint::from(0_u8))),
+        Operation::Push((1_u8, BigUint::from(0_u8))),
+        Operation::Dup(6),
+        Operation::Push((2_u8, BigUint::from_bytes_be(&[0xFF, 0xFF]))),
+        Operation::Call,
+        Operation::Push((1_u8, BigUint::from(0_u8))),
+        Operation::Push((1_u8, BigUint::from(0_u8))),
+        Operation::Push((1_u8, BigUint::from(32_u8))),
+        Operation::Push((1_u8, BigUint::from(0_u8))),
+        Operation::Push((1_u8, BigUint::from(200_u8))),
+        Operation::Dup(7),
+        Operation::Push((2_u8, BigUint::from_bytes_be(&[0xF0, 0x0F]))),
         Operation::Call,
         // Return result
         Operation::Push0,
@@ -3033,7 +3076,7 @@ fn callcode_1() {
         Operation::Return,
     ];
     let (env, mut db) = default_env_and_db_setup(operations);
-    run_program_assert_num_result(env, db, 0_u8.into());
+    run_program_assert_num_result(env, db, 1_u8.into());
 }
 
 #[test]
@@ -3141,7 +3184,7 @@ fn delegatecall_1() {
         Operation::Return,
     ];
     let (env, mut db) = default_env_and_db_setup(operations);
-    run_program_assert_num_result(env, db, 0_u8.into());
+    run_program_assert_num_result(env, db, 1_u8.into());
 }
 
 #[test]

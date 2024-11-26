@@ -25,6 +25,7 @@ use melior::{
     Context,
 };
 use num_bigint::BigUint;
+use std::mem::offset_of;
 
 impl<'c> ConversionPass<'c> {
     pub(crate) fn balance(context: &Context, op: &OperationRef<'_, '_>) -> Result<()> {
@@ -83,9 +84,11 @@ impl<'c> ConversionPass<'c> {
             location,
         ))?;
         // todo: syscall error handling
-        let codesize_ptr = rewriter.get_field_value(result_ptr, 16, ptr_type)?;
-        let codesize = rewriter.make(rewriter.load(codesize_ptr, rewriter.intrinsics.i64_ty))?;
-
+        let codesize = rewriter.get_field_value(
+            result_ptr,
+            offset_of!(dora_runtime::context::Result<u64>, value),
+            rewriter.intrinsics.i64_ty,
+        )?;
         rewriter.make(arith::extui(
             codesize,
             rewriter.intrinsics.i256_ty,

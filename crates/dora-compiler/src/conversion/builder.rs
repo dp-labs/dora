@@ -10,7 +10,8 @@ use melior::dialect::llvm::r#type::r#struct;
 use melior::dialect::llvm::LoadStoreOptions;
 use melior::dialect::{arith, func, llvm};
 use melior::ir::attribute::{
-    FlatSymbolRefAttribute, FloatAttribute, IntegerAttribute, StringAttribute, TypeAttribute,
+    DenseI32ArrayAttribute, FlatSymbolRefAttribute, FloatAttribute, IntegerAttribute,
+    StringAttribute, TypeAttribute,
 };
 use melior::ir::operation::{OperationBuilder, OperationRefMut};
 use melior::ir::r#type::IntegerType;
@@ -608,21 +609,13 @@ impl<'c, 'a> OpBuilder<'c, 'a> {
         offset: usize,
         r#type: Type<'c>,
     ) -> Result<Val<'c, '_>> {
-        let offset = self.make(self.iconst_64(offset as i64))?;
-        let rtn_ptr_ptr = self.make(llvm::get_element_ptr_dynamic(
+        let rtn_ptr = self.make(llvm::get_element_ptr(
             self.context(),
             ptr,
-            &[offset],
+            DenseI32ArrayAttribute::new(self.context(), &[offset as i32]),
             self.intrinsics.i8_ty,
             self.ptr_ty(),
             self.get_insert_location(),
-        ))?;
-        let rtn_ptr = self.make(llvm::load(
-            self.context(),
-            rtn_ptr_ptr,
-            self.ptr_ty(),
-            self.get_insert_location(),
-            LoadStoreOptions::default(),
         ))?;
         Ok(self
             .make(llvm::load(
