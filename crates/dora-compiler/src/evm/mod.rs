@@ -299,6 +299,7 @@ impl<'c> EVMCompiler<'c> {
         let main_region = main_func.region(0)?;
 
         let setup_block = main_region.append_block(Block::new(&[]));
+        // FIXME : alter below hardcoded line with eof checks in Program in the future
         let is_eof = false;
         let mut ctx = CtxType::new(self.ctx, module, &main_region, &setup_block, program)?;
         let mut last_block = setup_block;
@@ -310,43 +311,93 @@ impl<'c> EVMCompiler<'c> {
         for op in &ctx.program.operations {
             let (block_start, block_end) =
                 EVMCompiler::generate_code_for_op(&mut ctx, &main_region, op.clone())?;
+            let (i, o) = stack_io(op);
+            let diff = o as i64 - i as i64;
+            let may_underflow = i > 0;
+            let may_overflow = diff > 0;
+
+            // Uncomment below to see the logs printing out while compilation
+            println!("{op:?} - {i} , {diff} | {may_underflow} , {may_overflow}");
+
             // If the opcode is non-eof format, check the stack overflow/underflow
-            if !is_eof && self.stack_bound_checks {
-                let (i, o) = stack_io(op);
-                let diff = o as i64 - i as i64;
+            if !is_eof && self.stack_bound_checks && (may_underflow || may_overflow) {
                 let builder = OpBuilder::new_with_block(context, last_block);
-                // Check underflow
                 let size_before =
                     builder.make(builder.load(stack_size_ptr, builder.intrinsics.i64_ty))?;
-                let i = builder.make(builder.iconst_64(i as i64))?;
-                let underflow =
-                    builder.make(builder.icmp(IntCC::UnsignedLessThan, size_before, i))?;
-                // Check overflow
                 let size_after = builder.make(arith::addi(
                     size_before,
                     builder.make(builder.iconst_64(diff))?,
                     location,
                 ))?;
-                let overflow = builder.make(builder.icmp(
-                    IntCC::UnsignedLessThan,
-                    stack_max_size,
-                    size_after,
-                ))?;
-                // Update the stack length for this operation.
-                builder.create(builder.store(size_after, stack_size_ptr));
-                // Whether revert
-                let revert = builder.make(arith::xori(underflow, overflow, location))?;
-                let code =
-                    builder.make(builder.iconst_8(ExitStatusCode::StackOverflow.to_u8() as i8))?;
-                builder.create(cf::cond_br(
-                    context,
-                    revert,
-                    &ctx.revert_block,
-                    &block_start,
-                    &[],
-                    &[code],
-                    location,
-                ));
+
+                if may_underflow && may_overflow {
+                    // Check underflow
+                    let i = builder.make(builder.iconst_64(i as i64))?;
+                    let underflow =
+                        builder.make(builder.icmp(IntCC::UnsignedLessThan, size_before, i))?;
+                    // Check overflow
+                    let overflow = builder.make(builder.icmp(
+                        IntCC::UnsignedLessThan,
+                        stack_max_size,
+                        size_after,
+                    ))?;
+                    // Update the stack length for this operation.
+                    builder.create(builder.store(size_after, stack_size_ptr));
+                    // Whether revert
+                    let revert = builder.make(arith::xori(underflow, overflow, location))?;
+                    let code = builder
+                        .make(builder.iconst_8(ExitStatusCode::StackOverflow.to_u8() as i8))?;
+                    builder.create(cf::cond_br(
+                        context,
+                        revert,
+                        &ctx.revert_block,
+                        &block_start,
+                        &[],
+                        &[code],
+                        location,
+                    ));
+                } else if may_underflow {
+                    // Check underflow
+                    let i = builder.make(builder.iconst_64(i as i64))?;
+                    let underflow =
+                        builder.make(builder.icmp(IntCC::UnsignedLessThan, size_before, i))?;
+                    // Update the stack length for this operation.
+                    builder.create(builder.store(size_after, stack_size_ptr));
+
+                    let code = builder
+                        .make(builder.iconst_8(ExitStatusCode::StackUnderflow.to_u8() as i8))?;
+                    builder.create(cf::cond_br(
+                        context,
+                        underflow,
+                        &ctx.revert_block,
+                        &block_start,
+                        &[],
+                        &[code],
+                        location,
+                    ));
+                // This must falls into `may_overflow`
+                } else {
+                    // Check overflow
+                    let overflow = builder.make(builder.icmp(
+                        IntCC::UnsignedLessThan,
+                        stack_max_size,
+                        size_after,
+                    ))?;
+                    // Update the stack length for this operation.
+                    builder.create(builder.store(size_after, stack_size_ptr));
+
+                    let code = builder
+                        .make(builder.iconst_8(ExitStatusCode::StackOverflow.to_u8() as i8))?;
+                    builder.create(cf::cond_br(
+                        context,
+                        overflow,
+                        &ctx.revert_block,
+                        &block_start,
+                        &[],
+                        &[code],
+                        location,
+                    ));
+                }
             } else {
                 last_block.append_operation(cf::br(&block_start, &[], location));
             }
