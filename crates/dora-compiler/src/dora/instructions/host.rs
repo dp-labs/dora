@@ -25,6 +25,7 @@ use melior::{
     Context,
 };
 use num_bigint::BigUint;
+use std::mem::offset_of;
 
 impl<'c> ConversionPass<'c> {
     pub(crate) fn balance(context: &Context, op: &OperationRef<'_, '_>) -> Result<()> {
@@ -41,7 +42,7 @@ impl<'c> ConversionPass<'c> {
             syscall_ctx,
             symbols::STORE_IN_BALANCE,
             &[address_ptr, balance_ptr],
-            [rewriter.intrinsics.i64_ty],
+            [rewriter.intrinsics.ptr_ty],
             balance_ptr,
             rewriter.intrinsics.i256_ty,
             location
@@ -72,16 +73,22 @@ impl<'c> ConversionPass<'c> {
         syscall_ctx!(op, syscall_ctx);
         rewrite_ctx!(context, op, rewriter, location);
 
+        let ptr_type = rewriter.ptr_ty();
         let codesize_ptr =
             memory::allocate_u256_and_assign_value(context, &rewriter, address, location)?;
-        let codesize = rewriter.make(func::call(
+        let result_ptr = rewriter.make(func::call(
             context,
-            FlatSymbolRefAttribute::new(context, symbols::GET_CODESIZE_FROM_ADDRESS),
+            FlatSymbolRefAttribute::new(context, symbols::EXT_CODE_SIZE),
             &[syscall_ctx.into(), codesize_ptr],
-            &[rewriter.intrinsics.i64_ty],
+            &[ptr_type],
             location,
         ))?;
-
+        // todo: syscall error handling
+        let codesize = rewriter.get_field_value(
+            result_ptr,
+            offset_of!(dora_runtime::context::Result<u64>, value),
+            rewriter.intrinsics.i64_ty,
+        )?;
         rewriter.make(arith::extui(
             codesize,
             rewriter.intrinsics.i256_ty,
@@ -101,7 +108,7 @@ impl<'c> ConversionPass<'c> {
             rewriter,
             context,
             syscall_ctx,
-            symbols::GET_CODE_HASH,
+            symbols::CODE_HASH,
             &[code_hash_ptr],
             rewriter.intrinsics.i256_ty,
             location
@@ -116,6 +123,7 @@ impl<'c> ConversionPass<'c> {
         let location = rewriter.get_insert_location();
 
         let uint64 = rewriter.intrinsics.i64_ty;
+        let ptr_type = rewriter.ptr_ty();
         let offset = rewriter.make(arith::trunci(offset, uint64, location))?;
         let size = rewriter.make(arith::trunci(size, uint64, location))?;
         let dest_offset = rewriter.make(arith::trunci(dest_offset, uint64, location))?;
@@ -142,7 +150,7 @@ impl<'c> ConversionPass<'c> {
             context,
             FlatSymbolRefAttribute::new(context, symbols::COPY_EXT_CODE_TO_MEMORY),
             &[syscall_ctx.into(), address_ptr, offset, size, dest_offset],
-            &[],
+            &[ptr_type],
             location,
         ));
         Ok(())
@@ -159,7 +167,7 @@ impl<'c> ConversionPass<'c> {
             rewriter,
             context,
             syscall_ctx,
-            symbols::GET_BLOCK_HASH,
+            symbols::BLOCK_HASH,
             &[block_hash_ptr],
             rewriter.intrinsics.i256_ty,
             location
@@ -192,6 +200,7 @@ impl<'c> ConversionPass<'c> {
         syscall_ctx!(op, syscall_ctx);
         rewrite_ctx!(context, op, rewriter, location);
 
+        let ptr_type = rewriter.ptr_ty();
         // Allocate and store the key and value
         let key_ptr = memory::allocate_u256_and_assign_value(context, &rewriter, key, location)?;
         let value_ptr =
@@ -201,7 +210,7 @@ impl<'c> ConversionPass<'c> {
             context,
             FlatSymbolRefAttribute::new(context, symbols::STORAGE_WRITE),
             &[syscall_ctx.into(), key_ptr, value_ptr],
-            &[rewriter.intrinsics.i64_ty],
+            &[ptr_type],
             location,
         ))?;
 
@@ -215,16 +224,19 @@ impl<'c> ConversionPass<'c> {
         syscall_ctx!(op, syscall_ctx);
         rewrite_ctx!(context, op, rewriter, location);
 
+        let ptr_type = rewriter.ptr_ty();
         let key_ptr = memory::allocate_u256_and_assign_value(context, &rewriter, key, location)?;
         let value_ptr =
             memory::allocate_u256_and_assign_value(context, &rewriter, value, location)?;
+
         rewriter.create(func::call(
             context,
             FlatSymbolRefAttribute::new(context, symbols::TRANSIENT_STORAGE_WRITE),
             &[syscall_ctx.into(), key_ptr, value_ptr],
-            &[],
+            &[ptr_type],
             location,
         ));
+
         Ok(())
     }
 
@@ -258,6 +270,7 @@ impl<'c> ConversionPass<'c> {
         let rewriter = Rewriter::new_with_op(context, *op);
         let location = rewriter.get_insert_location();
         let uint64 = rewriter.intrinsics.i64_ty;
+        let ptr_type = rewriter.ptr_ty();
 
         // Check the log mem offset and size overflow error
         check_u256_to_u64_overflow!(op, rewriter, size);
@@ -310,7 +323,7 @@ impl<'c> ConversionPass<'c> {
             context,
             FlatSymbolRefAttribute::new(context, symbol),
             &call_args,
-            &[],
+            &[ptr_type],
             location,
         ));
 
@@ -322,13 +335,14 @@ impl<'c> ConversionPass<'c> {
         syscall_ctx!(op, syscall_ctx);
         rewrite_ctx!(context, op, rewriter, location);
 
+        let ptr_type = rewriter.ptr_ty();
         let address_ptr =
             memory::allocate_u256_and_assign_value(context, &rewriter, address, location)?;
         rewriter.make(func::call(
             context,
             FlatSymbolRefAttribute::new(context, symbols::SELFDESTRUCT),
             &[syscall_ctx.into(), address_ptr],
-            &[rewriter.intrinsics.i64_ty],
+            &[ptr_type],
             location,
         ))?;
 

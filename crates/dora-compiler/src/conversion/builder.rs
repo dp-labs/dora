@@ -10,7 +10,8 @@ use melior::dialect::llvm::r#type::r#struct;
 use melior::dialect::llvm::LoadStoreOptions;
 use melior::dialect::{arith, func, llvm};
 use melior::ir::attribute::{
-    FlatSymbolRefAttribute, FloatAttribute, IntegerAttribute, StringAttribute, TypeAttribute,
+    DenseI32ArrayAttribute, FlatSymbolRefAttribute, FloatAttribute, IntegerAttribute,
+    StringAttribute, TypeAttribute,
 };
 use melior::ir::operation::{OperationBuilder, OperationRefMut};
 use melior::ir::r#type::IntegerType;
@@ -578,6 +579,53 @@ impl<'c, 'a> OpBuilder<'c, 'a> {
             self.unknown_loc(),
             LoadStoreOptions::default(),
         )
+    }
+
+    /// Retrieves the value of a field from a given pointer at a specified offset and interprets it as a specific type.
+    ///
+    /// This function calculates the address of a field within a structure or memory block by computing its offset
+    /// relative to the base pointer. It performs two memory loads:
+    /// 1. Loads a pointer to the target value from the computed offset.
+    /// 2. Loads the actual value from the pointer, interpreting it as the specified type.
+    ///
+    /// # Parameters
+    /// - `ptr`: The base pointer (`Val`) from which the field's offset is computed.
+    /// - `offset`: The byte offset of the field relative to the base pointer.
+    /// - `r#type`: The expected type of the field value to be loaded.
+    ///
+    /// # Returns
+    /// A `Val` containing the loaded field value, interpreted as the specified type.
+    ///
+    /// # Errors
+    /// Returns a `Result::Err` if any step in the pointer computation, memory load, or value casting fails.
+    ///
+    /// # Example
+    /// ```no_check
+    /// let value = context.get_field_value(base_ptr, 8, field_type)?;
+    /// ```
+    pub fn get_field_value(
+        &self,
+        ptr: Val<'c, 'a>,
+        offset: usize,
+        r#type: Type<'c>,
+    ) -> Result<Val<'c, '_>> {
+        let rtn_ptr = self.make(llvm::get_element_ptr(
+            self.context(),
+            ptr,
+            DenseI32ArrayAttribute::new(self.context(), &[offset as i32]),
+            self.intrinsics.i8_ty,
+            self.ptr_ty(),
+            self.get_insert_location(),
+        ))?;
+        Ok(self
+            .make(llvm::load(
+                self.context(),
+                rtn_ptr,
+                r#type,
+                self.get_insert_location(),
+                LoadStoreOptions::default(),
+            ))?
+            .to_ctx_value())
     }
 
     /// Creates an operation to obtain the address of a global variable.

@@ -19,6 +19,7 @@ use melior::{
     },
     Context,
 };
+use std::mem::offset_of;
 
 /// Allocates memory for a 64-byte value, stores the value in the memory
 /// and returns a pointer to the memory
@@ -152,8 +153,8 @@ pub(crate) fn resize_memory<'c>(
     syscall_ctx: BlockArgument<'c, 'c>,
     location: Location<'c>,
 ) -> Result<()> {
-    let ptr_type = rewriter.ptr_ty();
     let uint64 = rewriter.intrinsics.i64_ty;
+    let ptr_type = rewriter.ptr_ty();
 
     // Load memory size
     let memory_size_ptr =
@@ -182,13 +183,19 @@ pub(crate) fn resize_memory<'c>(
             let block = region.append_block(Block::new(&[]));
             let rewriter = Rewriter::new_with_block(context, block);
 
-            let new_memory_ptr = rewriter.make(func::call(
+            let result_ptr = rewriter.make(func::call(
                 context,
                 FlatSymbolRefAttribute::new(context, symbols::EXTEND_MEMORY),
                 &[syscall_ctx.into(), rounded_required_size],
                 &[ptr_type],
                 location,
             ))?;
+            // todo: syscall error handling
+            let new_memory_ptr = rewriter.get_field_value(
+                result_ptr,
+                offset_of!(dora_runtime::context::Result<*mut u8>, value),
+                ptr_type,
+            )?;
 
             let store_new_mem_size_op = rewriter.create(llvm::store(
                 context,

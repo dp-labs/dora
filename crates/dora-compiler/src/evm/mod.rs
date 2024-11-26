@@ -382,7 +382,7 @@ impl<'c> EVMCompiler<'c> {
                 ctx.values.remaining_gas,
                 reason,
             ],
-            &[],
+            &[builder.ptr_ty()],
             builder.get_insert_location(),
         ));
         builder.create(func::r#return(&[reason], builder.get_insert_location()));
@@ -681,7 +681,7 @@ pub fn revert_block<'c>(
         context,
         FlatSymbolRefAttribute::new(context, symbols::WRITE_RESULT),
         &[syscall_ctx, zero, zero, zero, reason],
-        &[],
+        &[builder.ptr_ty()],
         location,
     ));
     block.append_operation(func::r#return(&[reason], location));
@@ -824,7 +824,7 @@ impl<'c> SetupBuilder<'c> {
             .block
             .append_operation(func::call(
                 self.context,
-                FlatSymbolRefAttribute::new(self.context, symbols::GET_CALLDATA_PTR),
+                FlatSymbolRefAttribute::new(self.context, symbols::CALLDATA),
                 &[syscall_ctx],
                 &[ptr_type],
                 self.location,
@@ -837,7 +837,7 @@ impl<'c> SetupBuilder<'c> {
             .block
             .append_operation(func::call(
                 self.context,
-                FlatSymbolRefAttribute::new(self.context, symbols::GET_CALLDATA_SIZE),
+                FlatSymbolRefAttribute::new(self.context, symbols::CALLDATA_SIZE),
                 &[syscall_ctx],
                 &[uint64],
                 self.location,

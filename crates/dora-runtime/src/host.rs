@@ -38,13 +38,13 @@ pub trait Host: Debug {
     fn get_code(&mut self, addr: &Address) -> Bytes32;
 
     /// Retrieves the hash of the code deployed at a specified account.
-    fn get_code_hash(&mut self, addr: &Address) -> Bytes32;
+    fn code_hash(&mut self, addr: &Address) -> Bytes32;
 
     /// Mark `address` to be deleted, with funds transferred to `target`.
     fn selfdestruct(&mut self, addr: &Address, target: Address) -> SelfDestructResult;
 
     /// Get the block hash of the given block `number`.
-    fn get_block_hash(&mut self, number: u64) -> Bytes32;
+    fn block_hash(&mut self, number: u64) -> Bytes32;
 
     /// Emit a log owned by `address` with given `LogData`.
     fn emit_log(&mut self, log: Log);
@@ -152,7 +152,7 @@ impl Host for DummyHost {
     }
 
     #[inline]
-    fn get_code_hash(&mut self, _addr: &Address) -> Bytes32 {
+    fn code_hash(&mut self, _addr: &Address) -> Bytes32 {
         Bytes32::from_be_bytes(
             *B256::from_str(EMPTY_CODE_HASH_STR)
                 .unwrap_or_default()
@@ -166,7 +166,7 @@ impl Host for DummyHost {
     }
 
     #[inline]
-    fn get_block_hash(&mut self, _number: u64) -> Bytes32 {
+    fn block_hash(&mut self, _number: u64) -> Bytes32 {
         Bytes32::ZERO
     }
 

@@ -100,12 +100,13 @@ macro_rules! load_var {
         ))?
     }};
     ($rewriter:expr, $context:expr, $syscall_ctx:expr, $symbol:expr, $args:expr, $ltype:expr, $location:expr) => {{
+        let ptr_type = $rewriter.ptr_ty();
         let args = [&[$syscall_ctx.into()][..], &$args[..]].concat();
         $rewriter.create(func::call(
             $context,
             FlatSymbolRefAttribute::new($context, $symbol),
             &args,
-            &[],
+            &[ptr_type],
             $location,
         ));
         $rewriter.make(llvm::load(
@@ -117,12 +118,13 @@ macro_rules! load_var {
         ))?
     }};
     ($rewriter:expr, $context:expr, $syscall_ctx:expr, $symbol:expr, $args:expr, $laddr:expr, $ltype:expr, $location:expr) => {{
+        let ptr_type = $rewriter.ptr_ty();
         let args = [&[$syscall_ctx.into()][..], &$args[..]].concat();
         $rewriter.create(func::call(
             $context,
             FlatSymbolRefAttribute::new($context, $symbol),
             &args,
-            &[],
+            &[ptr_type],
             $location,
         ));
         $rewriter.make(llvm::load(
