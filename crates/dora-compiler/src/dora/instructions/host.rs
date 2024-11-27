@@ -1,7 +1,7 @@
 use crate::backend::IntCC;
 use crate::check_u256_to_u64_overflow;
 use crate::{
-    arith_constant, check_resize_memory,
+    arith_constant,
     conversion::builder::OpBuilder,
     conversion::rewriter::{DeferredRewriter, Rewriter},
     create_var,
@@ -137,15 +137,8 @@ impl<'c> ConversionPass<'c> {
         // consume 3 * (size + 31) / 32 gas
         // dynamic gas computation
 
-        check_resize_memory!(op, rewriter, required_memory_size);
+        memory::resize_memory(context, op, &rewriter, syscall_ctx, required_memory_size)?;
         rewrite_ctx!(context, op, rewriter, location);
-        memory::resize_memory(
-            required_memory_size,
-            context,
-            &rewriter,
-            syscall_ctx,
-            location,
-        )?;
         rewriter.create(func::call(
             context,
             FlatSymbolRefAttribute::new(context, symbols::COPY_EXT_CODE_TO_MEMORY),
@@ -285,15 +278,8 @@ impl<'c> ConversionPass<'c> {
 
         // required_size = offset + size
         let required_memory_size = rewriter.make(arith::addi(offset, size, location))?;
-        check_resize_memory!(op, rewriter, required_memory_size);
+        memory::resize_memory(context, op, &rewriter, syscall_ctx, required_memory_size)?;
         rewrite_ctx!(context, op, rewriter, location);
-        memory::resize_memory(
-            required_memory_size,
-            context,
-            &rewriter,
-            syscall_ctx,
-            location,
-        )?;
 
         // Handle topics dynamically
         let mut topic_pointers = vec![];

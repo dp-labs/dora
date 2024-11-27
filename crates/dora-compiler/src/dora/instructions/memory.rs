@@ -1,17 +1,13 @@
 use crate::{
-    backend::IntCC,
-    check_resize_memory,
-    conversion::builder::OpBuilder,
     conversion::rewriter::{DeferredRewriter, Rewriter},
     dora::{conversion::ConversionPass, memory},
     errors::Result,
-    load_by_addr, maybe_revert_here, operands, rewrite_ctx, syscall_ctx,
+    load_by_addr, operands, rewrite_ctx, syscall_ctx,
 };
-use dora_runtime::{constants, ExitStatusCode};
+use dora_runtime::constants;
 use melior::{
     dialect::{
         arith::{self},
-        cf,
         llvm::{self, LoadStoreOptions},
         ods,
     },
@@ -36,10 +32,8 @@ impl<'c> ConversionPass<'c> {
         ))?;
         let required_size = rewriter.make(arith::addi(offset, value_size, location))?;
 
-        check_resize_memory!(op, rewriter, required_size);
+        memory::resize_memory(context, op, &rewriter, syscall_ctx, required_size)?;
         rewrite_ctx!(context, op, rewriter, location);
-        memory::resize_memory(required_size, context, &rewriter, syscall_ctx, location)?;
-
         let memory_ptr = load_by_addr!(rewriter, constants::MEMORY_PTR_GLOBAL, rewriter.ptr_ty());
         let memory_destination = rewriter.make(llvm::get_element_ptr_dynamic(
             context,
@@ -88,11 +82,8 @@ impl<'c> ConversionPass<'c> {
         // Calculate value size (1 byte for mstore8, 32 bytes for mstore)
         let value_size = rewriter.make(rewriter.iconst_64(byte_size as i64))?;
         let required_size = rewriter.make(arith::addi(offset, value_size, location))?;
-
-        check_resize_memory!(op, rewriter, required_size);
+        memory::resize_memory(context, op, &rewriter, syscall_ctx, required_size)?;
         rewrite_ctx!(context, op, rewriter, location);
-        memory::resize_memory(required_size, context, &rewriter, syscall_ctx, location)?;
-
         let memory_ptr = load_by_addr!(rewriter, constants::MEMORY_PTR_GLOBAL, rewriter.ptr_ty());
         // Memory_destination = memory_ptr + offset
         let memory_destination = rewriter.make(llvm::get_element_ptr_dynamic(
@@ -155,19 +146,8 @@ impl<'c> ConversionPass<'c> {
             dest_required_size,
             location,
         ))?;
-        let zero = rewriter.make(rewriter.iconst_64(0))?;
-        // Check the memory offset halt error
-        let overflow =
-            rewriter.make(rewriter.icmp(IntCC::SignedLessThan, required_memory_size, zero))?;
-        maybe_revert_here!(op, rewriter, overflow, ExitStatusCode::InvalidOperandOOG);
+        memory::resize_memory(context, op, &rewriter, syscall_ctx, required_memory_size)?;
         rewrite_ctx!(context, op, rewriter, location);
-        memory::resize_memory(
-            required_memory_size,
-            context,
-            &rewriter,
-            syscall_ctx,
-            location,
-        )?;
         let memory_ptr = load_by_addr!(rewriter, constants::MEMORY_PTR_GLOBAL, rewriter.ptr_ty());
         // memory_destination = memory_ptr + offset
         let source = rewriter.make(llvm::get_element_ptr_dynamic(

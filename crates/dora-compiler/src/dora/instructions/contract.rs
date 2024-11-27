@@ -1,7 +1,6 @@
 use crate::{
     arith_constant,
     backend::IntCC,
-    check_resize_memory,
     conversion::builder::OpBuilder,
     conversion::rewriter::{DeferredRewriter, Rewriter},
     dora::{conversion::ConversionPass, gas, memory},
@@ -42,21 +41,10 @@ impl<'c> ConversionPass<'c> {
         let ptr_type = rewriter.ptr_ty();
         let offset = rewriter.make(arith::trunci(offset, uint64, location))?;
         let size = rewriter.make(arith::trunci(size, uint64, location))?;
-
         // required_size = offset + size
         let required_memory_size = rewriter.make(arith::addi(offset, size, location))?;
-        // Check the memory offset halt error
-        check_resize_memory!(op, rewriter, required_memory_size);
+        memory::resize_memory(context, op, &rewriter, syscall_ctx, required_memory_size)?;
         let rewriter = Rewriter::new_with_op(context, *op);
-        let location = rewriter.get_insert_location();
-        memory::resize_memory(
-            required_memory_size,
-            context,
-            &rewriter,
-            syscall_ctx,
-            location,
-        )?;
-
         let value_ptr =
             memory::allocate_u256_and_assign_value(context, &rewriter, value, location)?;
         let gas_ptr = gas::create_var_with_gas_counter(context, &rewriter, location)?;
@@ -191,13 +179,10 @@ impl<'c> ConversionPass<'c> {
         let ret_size = rewriter.make(arith::trunci(ret_size, uint64, location))?;
         let req_arg_mem_size = rewriter.make(arith::addi(args_offset, args_size, location))?;
         let req_ret_mem_size = rewriter.make(arith::addi(ret_offset, ret_size, location))?;
-
         let req_mem_size =
             rewriter.make(arith::maxui(req_arg_mem_size, req_ret_mem_size, location))?;
-        check_resize_memory!(op, rewriter, req_mem_size);
+        memory::resize_memory(context, op, &rewriter, syscall_ctx, req_mem_size)?;
         rewrite_ctx!(context, op, rewriter, location);
-        memory::resize_memory(req_mem_size, context, &rewriter, syscall_ctx, location)?;
-
         let available_gas = gas::get_gas_counter(&rewriter)?;
         let value_ptr =
             memory::allocate_u256_and_assign_value(context, &rewriter, value, location)?;
@@ -263,10 +248,7 @@ impl<'c> ConversionPass<'c> {
         let size = rewriter.make(arith::trunci(size, uint64, location))?;
         let required_size = rewriter.make(arith::addi(size, offset, location))?;
         let gas_counter = gas::get_gas_counter(&rewriter)?;
-        // Check the memory offset halt error
-        check_resize_memory!(op, rewriter, required_size);
-        rewrite_ctx!(context, op, rewriter, location);
-        memory::resize_memory(required_size, context, &rewriter, syscall_ctx, location)?;
+        memory::resize_memory(context, op, &rewriter, syscall_ctx, required_size)?;
         let reason = rewriter.make(arith_constant!(
             rewriter,
             context,
@@ -274,6 +256,7 @@ impl<'c> ConversionPass<'c> {
             ExitStatusCode::Return.to_u8().into(),
             location
         ))?;
+        rewrite_ctx!(context, op, rewriter, location);
         rewriter.create(func::call(
             context,
             FlatSymbolRefAttribute::new(context, symbols::WRITE_RESULT),

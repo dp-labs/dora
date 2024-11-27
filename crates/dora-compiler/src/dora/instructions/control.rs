@@ -1,16 +1,14 @@
-use crate::backend::IntCC;
 use crate::{
-    arith_constant, check_resize_memory,
-    conversion::builder::OpBuilder,
+    arith_constant,
     conversion::rewriter::{DeferredRewriter, Rewriter},
     dora::{conversion::ConversionPass, memory},
     errors::Result,
-    load_by_addr, maybe_revert_here, operands, rewrite_ctx, syscall_ctx,
+    load_by_addr, operands, rewrite_ctx, syscall_ctx,
 };
 use dora_runtime::ExitStatusCode;
 use dora_runtime::{constants, symbols};
 use melior::{
-    dialect::{arith, cf, func},
+    dialect::{arith, func},
     ir::{
         attribute::{FlatSymbolRefAttribute, IntegerAttribute},
         operation::OperationRef,
@@ -33,15 +31,8 @@ impl<'c> ConversionPass<'c> {
 
         // required_size = offset + size
         let required_memory_size = rewriter.make(arith::addi(offset, size, location))?;
-        check_resize_memory!(op, rewriter, required_memory_size);
+        memory::resize_memory(context, op, &rewriter, syscall_ctx, required_memory_size)?;
         rewrite_ctx!(context, op, rewriter, location);
-        memory::resize_memory(
-            required_memory_size,
-            context,
-            &rewriter,
-            syscall_ctx,
-            location,
-        )?;
 
         let gas_counter = load_by_addr!(rewriter, constants::GAS_COUNTER_GLOBAL, uint64);
         let reason = rewriter.make(arith_constant!(

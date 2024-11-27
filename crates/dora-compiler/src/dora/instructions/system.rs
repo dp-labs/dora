@@ -1,7 +1,5 @@
 use crate::{
     arith_constant,
-    backend::IntCC,
-    check_resize_memory,
     conversion::{
         builder::OpBuilder,
         rewriter::{DeferredRewriter, Rewriter},
@@ -9,15 +7,14 @@ use crate::{
     create_var,
     dora::{conversion::ConversionPass, gas, memory},
     errors::Result,
-    load_by_addr, load_var, maybe_revert_here, operands, rewrite_ctx, syscall_ctx,
+    load_by_addr, load_var, operands, rewrite_ctx, syscall_ctx,
 };
 use dora_runtime::constants;
 use dora_runtime::symbols;
-use dora_runtime::ExitStatusCode;
 use melior::{
     dialect::{
         arith::{self, CmpiPredicate},
-        cf, func,
+        func,
         llvm::{self, AllocaOptions, LoadStoreOptions},
         ods, scf,
     },
@@ -44,15 +41,8 @@ impl<'c> ConversionPass<'c> {
 
         // dynamic_gas_cost = 3 * (size + 31) / 32 gas
 
-        check_resize_memory!(op, rewriter, required_memory_size);
+        memory::resize_memory(context, op, &rewriter, syscall_ctx, required_memory_size)?;
         rewrite_ctx!(context, op, rewriter, location);
-        memory::resize_memory(
-            required_memory_size,
-            context,
-            &rewriter,
-            syscall_ctx,
-            location,
-        )?;
 
         let hash_ptr = create_var!(rewriter, context, location);
         load_var!(
@@ -253,17 +243,8 @@ impl<'c> ConversionPass<'c> {
 
         // required size = dest_offset + size
         let required_memory_size = rewriter.make(arith::addi(dest_offset, length, location))?;
-
-        // dynamic gas cost = 3 * (size + 31) / 32
-        check_resize_memory!(op, rewriter, required_memory_size);
+        memory::resize_memory(context, op, &rewriter, syscall_ctx, required_memory_size)?;
         rewrite_ctx!(context, op, rewriter, location);
-        memory::resize_memory(
-            required_memory_size,
-            context,
-            &rewriter,
-            syscall_ctx,
-            location,
-        )?;
 
         let memory_ptr = memory::get_memory_pointer(context, &rewriter, location)?;
         let memory_dest = rewriter.make(llvm::get_element_ptr_dynamic(
@@ -376,18 +357,8 @@ impl<'c> ConversionPass<'c> {
 
         // required size = dest_offset + size
         let required_memory_size = rewriter.make(arith::addi(dest_offset, length, location))?;
-
-        // dynamic gas cost = 3 * (size + 31) / 32
-        // Check the memory offset halt error
-        check_resize_memory!(op, rewriter, required_memory_size);
+        memory::resize_memory(context, op, &rewriter, syscall_ctx, required_memory_size)?;
         rewrite_ctx!(context, op, rewriter, location);
-        memory::resize_memory(
-            required_memory_size,
-            context,
-            &rewriter,
-            syscall_ctx,
-            location,
-        )?;
 
         rewriter.create(func::call(
             context,
@@ -438,10 +409,8 @@ impl<'c> ConversionPass<'c> {
         let size = rewriter.make(arith::trunci(size, rewriter.intrinsics.i64_ty, location))?;
         // Extend memory to required size
         let req_mem_size: Value = rewriter.make(arith::addi(dest_offset, size, location))?;
-        // Check the memory offset halt error
-        check_resize_memory!(op, rewriter, req_mem_size);
+        memory::resize_memory(context, op, &rewriter, syscall_ctx, req_mem_size)?;
         rewrite_ctx!(context, op, rewriter, location);
-        memory::resize_memory(req_mem_size, context, &rewriter, syscall_ctx, location)?;
         rewriter.create(func::call(
             context,
             FlatSymbolRefAttribute::new(context, symbols::RETURN_DATA_COPY),
