@@ -199,6 +199,31 @@ macro_rules! store_var {
 
 #[macro_export]
 macro_rules! maybe_revert_here {
+    ($op:expr, $rewriter:expr, $cond:expr, ExitStatusCode::$variant:ident) => {
+        if let Some(block) = $op.block() {
+            if let Some(region) = block.parent_region() {
+                if let Some(setup_block) = region.first_block() {
+                    if let Some(revert_block) = setup_block.next_in_region() {
+                        if let Some(insert_point) = $rewriter.get_insert_point() {
+                            let next_block = $rewriter.split_block(block, Some(insert_point))?;
+                            let builder = OpBuilder::new_with_block($rewriter.context(), block);
+                            builder.create(cf::cond_br(
+                                $rewriter.context(),
+                                $cond,
+                                &revert_block,
+                                &next_block,
+                                &[],
+                                &[builder.make(
+                                    builder.iconst_8(ExitStatusCode::$variant.to_u8() as i8),
+                                )?],
+                                $rewriter.get_insert_location(),
+                            ));
+                        }
+                    }
+                }
+            }
+        }
+    };
     ($op:expr, $rewriter:expr, $cond:expr, $code:expr) => {
         if let Some(block) = $op.block() {
             if let Some(region) = block.parent_region() {
@@ -213,7 +238,7 @@ macro_rules! maybe_revert_here {
                                 &revert_block,
                                 &next_block,
                                 &[],
-                                &[builder.make($rewriter.iconst_8($code.to_u8() as i8))?],
+                                &[$code],
                                 $rewriter.get_insert_location(),
                             ));
                         }
@@ -232,6 +257,16 @@ macro_rules! check_resize_memory {
         let overflow =
             $rewriter.make($rewriter.icmp(IntCC::SignedLessThan, $required_memory_size, zero))?;
         maybe_revert_here!($op, $rewriter, overflow, ExitStatusCode::InvalidOperandOOG);
+    };
+}
+
+#[macro_export]
+macro_rules! check_runtime_error {
+    ($op:expr, $rewriter:expr, $error:expr) => {
+        // Check the runtime halt error
+        let zero = $rewriter.make($rewriter.iconst_8(0))?;
+        let has_error = $rewriter.make($rewriter.icmp(IntCC::NotEqual, $error, zero))?;
+        maybe_revert_here!($op, $rewriter, has_error, $error);
     };
 }
 

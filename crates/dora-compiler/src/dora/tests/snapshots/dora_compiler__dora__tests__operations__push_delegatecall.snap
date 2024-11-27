@@ -76,7 +76,7 @@ module {
     %9 = llvm.mlir.addressof @dora_global_stack_length : !llvm.ptr
     %c1024_i64 = arith.constant 1024 : i64
     cf.br ^bb3
-  ^bb1(%10: i8):  // 2 preds: ^bb2, ^bb9
+  ^bb1(%10: i8):  // 3 preds: ^bb2, ^bb9, ^bb10
     %c0_i64_1 = arith.constant 0 : i64
     %11 = call @dora_fn_write_result(%arg0, %c0_i64_1, %c0_i64_1, %c0_i64_1, %10) : (!llvm.ptr, i64, i64, i64, i8) -> !llvm.ptr
     return %10 : i8
@@ -178,49 +178,50 @@ module {
     %c84_i8 = arith.constant 84 : i8
     cf.cond_br %63, ^bb1(%c84_i8 : i8), ^bb10
   ^bb10:  // pred: ^bb9
-    %64 = llvm.mlir.addressof @dora_global_memory_size : !llvm.ptr
-    %65 = llvm.load %64 : !llvm.ptr -> i64
     %c31_i64 = arith.constant 31 : i64
     %c32_i64 = arith.constant 32 : i64
-    %66 = arith.addi %62, %c31_i64 : i64
-    %67 = arith.divui %66, %c32_i64 : i64
-    %68 = arith.muli %67, %c32_i64 : i64
-    %69 = arith.cmpi ult, %65, %68 : i64
-    scf.if %69 {
-      %84 = func.call @dora_fn_extend_memory(%arg0, %68) : (!llvm.ptr, i64) -> !llvm.ptr
-      %85 = llvm.getelementptr %84[16] : (!llvm.ptr) -> !llvm.ptr, i8
-      %86 = llvm.load %85 : !llvm.ptr -> !llvm.ptr
-      llvm.store %68, %64 : i64, !llvm.ptr
-      %87 = llvm.mlir.addressof @dora_global_memory_ptr : !llvm.ptr
-      llvm.store %86, %87 : !llvm.ptr, !llvm.ptr
-    } else {
-    }
-    %70 = llvm.mlir.addressof @dora_global_gas_counter : !llvm.ptr
-    %71 = llvm.load %70 : !llvm.ptr -> i64
-    %c1_i256 = arith.constant 1 : i256
-    %72 = llvm.alloca %c1_i256 x i256 : (i256) -> !llvm.ptr
-    llvm.store %c0_i256, %72 {alignment = 1 : i64} : i256, !llvm.ptr
-    %c1_i256_5 = arith.constant 1 : i256
-    %73 = llvm.alloca %c1_i256_5 x i256 : (i256) -> !llvm.ptr
-    llvm.store %38, %73 {alignment = 1 : i64} : i256, !llvm.ptr
-    %c1_i64 = arith.constant 1 : i64
-    %74 = llvm.alloca %c1_i64 x i64 : (i64) -> !llvm.ptr
+    %64 = arith.addi %62, %c31_i64 : i64
+    %65 = arith.divui %64, %c32_i64 : i64
+    %66 = arith.muli %65, %c32_i64 : i64
+    %67 = call @dora_fn_extend_memory(%arg0, %66) : (!llvm.ptr, i64) -> !llvm.ptr
+    %68 = llvm.getelementptr %67[16] : (!llvm.ptr) -> !llvm.ptr, i8
+    %69 = llvm.load %68 : !llvm.ptr -> !llvm.ptr
+    %70 = llvm.getelementptr %67[0] : (!llvm.ptr) -> !llvm.ptr, i8
+    %71 = llvm.load %70 : !llvm.ptr -> i8
     %c0_i8 = arith.constant 0 : i8
-    %75 = call @dora_fn_call(%arg0, %55, %73, %72, %56, %57, %58, %59, %71, %74, %c0_i8) : (!llvm.ptr, i64, !llvm.ptr, !llvm.ptr, i64, i64, i64, i64, i64, !llvm.ptr, i8) -> !llvm.ptr
-    %76 = llvm.getelementptr %75[16] : (!llvm.ptr) -> !llvm.ptr, i8
-    %77 = llvm.load %76 : !llvm.ptr -> i8
-    %78 = llvm.load %74 : !llvm.ptr -> i64
-    %79 = arith.extui %77 : i8 to i256
-    %80 = llvm.mlir.addressof @dora_global_stack_ptr : !llvm.ptr
-    %81 = llvm.load %80 : !llvm.ptr -> !llvm.ptr
-    llvm.store %79, %81 : i256, !llvm.ptr
-    %82 = llvm.getelementptr %81[1] : (!llvm.ptr) -> !llvm.ptr, i256
-    llvm.store %82, %80 : !llvm.ptr, !llvm.ptr
-    cf.br ^bb11
+    %72 = arith.cmpi ne, %71, %c0_i8 : i8
+    cf.cond_br %72, ^bb1(%71 : i8), ^bb11
   ^bb11:  // pred: ^bb10
-    %c0_i64_6 = arith.constant 0 : i64
+    %73 = llvm.mlir.addressof @dora_global_memory_ptr : !llvm.ptr
+    llvm.store %69, %73 : !llvm.ptr, !llvm.ptr
+    %74 = llvm.mlir.addressof @dora_global_memory_size : !llvm.ptr
+    llvm.store %66, %74 : i64, !llvm.ptr
+    %75 = llvm.mlir.addressof @dora_global_gas_counter : !llvm.ptr
+    %76 = llvm.load %75 : !llvm.ptr -> i64
+    %c1_i256 = arith.constant 1 : i256
+    %77 = llvm.alloca %c1_i256 x i256 : (i256) -> !llvm.ptr
+    llvm.store %c0_i256, %77 {alignment = 1 : i64} : i256, !llvm.ptr
+    %c1_i256_5 = arith.constant 1 : i256
+    %78 = llvm.alloca %c1_i256_5 x i256 : (i256) -> !llvm.ptr
+    llvm.store %38, %78 {alignment = 1 : i64} : i256, !llvm.ptr
+    %c1_i64 = arith.constant 1 : i64
+    %79 = llvm.alloca %c1_i64 x i64 : (i64) -> !llvm.ptr
+    %c0_i8_6 = arith.constant 0 : i8
+    %80 = call @dora_fn_call(%arg0, %55, %78, %77, %56, %57, %58, %59, %76, %79, %c0_i8_6) : (!llvm.ptr, i64, !llvm.ptr, !llvm.ptr, i64, i64, i64, i64, i64, !llvm.ptr, i8) -> !llvm.ptr
+    %81 = llvm.getelementptr %80[16] : (!llvm.ptr) -> !llvm.ptr, i8
+    %82 = llvm.load %81 : !llvm.ptr -> i8
+    %83 = llvm.load %79 : !llvm.ptr -> i64
+    %84 = arith.extui %82 : i8 to i256
+    %85 = llvm.mlir.addressof @dora_global_stack_ptr : !llvm.ptr
+    %86 = llvm.load %85 : !llvm.ptr -> !llvm.ptr
+    llvm.store %84, %86 : i256, !llvm.ptr
+    %87 = llvm.getelementptr %86[1] : (!llvm.ptr) -> !llvm.ptr, i256
+    llvm.store %87, %85 : !llvm.ptr, !llvm.ptr
+    cf.br ^bb12
+  ^bb12:  // pred: ^bb11
+    %c0_i64_7 = arith.constant 0 : i64
     %c1_i8 = arith.constant 1 : i8
-    %83 = call @dora_fn_write_result(%arg0, %c0_i64_6, %c0_i64_6, %arg1, %c1_i8) : (!llvm.ptr, i64, i64, i64, i8) -> !llvm.ptr
+    %88 = call @dora_fn_write_result(%arg0, %c0_i64_7, %c0_i64_7, %arg1, %c1_i8) : (!llvm.ptr, i64, i64, i64, i8) -> !llvm.ptr
     return %c1_i8 : i8
   }
 }

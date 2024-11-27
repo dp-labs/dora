@@ -1,14 +1,21 @@
 use super::utils;
+use crate::backend::IntCC;
 use crate::{
-    arith_constant, conversion::rewriter::Rewriter, create_var, errors::Result, store_var,
+    arith_constant,
+    conversion::{builder::OpBuilder, rewriter::Rewriter},
+    create_var,
+    errors::Result,
+    store_var,
 };
+use crate::{check_resize_memory, check_runtime_error, maybe_revert_here};
 use block::BlockArgument;
 use dora_runtime::constants;
 use dora_runtime::symbols;
+use dora_runtime::ExitStatusCode;
 use melior::{
     dialect::{
         arith::{self, CmpiPredicate},
-        func,
+        cf, func,
         llvm::{self, AllocaOptions, LoadStoreOptions},
         scf,
     },
@@ -147,86 +154,58 @@ pub(crate) fn resize_memory_with_gas_cost<'c>(
 }
 
 pub(crate) fn resize_memory<'c>(
-    required_size: Value<'c, 'c>,
     context: &'c Context,
+    op: &OperationRef<'c, 'c>,
     rewriter: &'c Rewriter,
     syscall_ctx: BlockArgument<'c, 'c>,
-    location: Location<'c>,
+    required_size: Value<'c, 'c>,
 ) -> Result<()> {
-    let uint64 = rewriter.intrinsics.i64_ty;
+    // Check the memory offset halt error
+    check_resize_memory!(op, rewriter, required_size);
+    let rewriter = Rewriter::new_with_op(context, *op);
+    let location = rewriter.get_insert_location();
     let ptr_type = rewriter.ptr_ty();
-
+    let rounded_required_size = utils::round_up_32(required_size, context, &rewriter, location)?;
+    let result_ptr = rewriter.make(func::call(
+        context,
+        FlatSymbolRefAttribute::new(context, symbols::EXTEND_MEMORY),
+        &[syscall_ctx.into(), rounded_required_size],
+        &[ptr_type],
+        location,
+    ))?;
+    let new_memory_ptr = rewriter.get_field_value(
+        result_ptr,
+        offset_of!(dora_runtime::context::Result<*mut u8>, value),
+        ptr_type,
+    )?;
+    let error = rewriter.get_field_value(
+        result_ptr,
+        offset_of!(dora_runtime::context::Result<*mut u8>, error),
+        rewriter.intrinsics.i8_ty,
+    )?;
+    // Check the runtime memory resize halt error
+    check_runtime_error!(op, rewriter, error);
+    let rewriter = Rewriter::new_with_op(context, *op);
+    // Load memory ptr
+    let memory_ptr_ptr =
+        rewriter.make(rewriter.addressof(constants::MEMORY_PTR_GLOBAL, ptr_type))?;
+    rewriter.create(llvm::store(
+        context,
+        new_memory_ptr,
+        memory_ptr_ptr,
+        location,
+        LoadStoreOptions::default(),
+    ));
     // Load memory size
     let memory_size_ptr =
         rewriter.make(rewriter.addressof(constants::MEMORY_SIZE_GLOBAL, ptr_type))?;
-    let memory_size = rewriter.make(llvm::load(
+
+    rewriter.create(llvm::store(
         context,
+        rounded_required_size,
         memory_size_ptr,
-        uint64,
         location,
         LoadStoreOptions::default(),
-    ))?;
-    let rounded_required_size = utils::round_up_32(required_size, context, rewriter, location)?;
-
-    let extension_flag = rewriter.make(arith::cmpi(
-        context,
-        CmpiPredicate::Ult,
-        memory_size,
-        rounded_required_size,
-        location,
-    ))?;
-    rewriter.create(scf::r#if(
-        extension_flag,
-        &[],
-        {
-            let region = Region::new();
-            let block = region.append_block(Block::new(&[]));
-            let rewriter = Rewriter::new_with_block(context, block);
-
-            let result_ptr = rewriter.make(func::call(
-                context,
-                FlatSymbolRefAttribute::new(context, symbols::EXTEND_MEMORY),
-                &[syscall_ctx.into(), rounded_required_size],
-                &[ptr_type],
-                location,
-            ))?;
-            // todo: syscall error handling
-            let new_memory_ptr = rewriter.get_field_value(
-                result_ptr,
-                offset_of!(dora_runtime::context::Result<*mut u8>, value),
-                ptr_type,
-            )?;
-
-            let store_new_mem_size_op = rewriter.create(llvm::store(
-                context,
-                rounded_required_size,
-                memory_size_ptr,
-                location,
-                LoadStoreOptions::default(),
-            ));
-            assert!(store_new_mem_size_op.verify());
-
-            let memory_ptr_ptr =
-                rewriter.make(rewriter.addressof(constants::MEMORY_PTR_GLOBAL, ptr_type))?;
-            let store_new_mem_ptr_op = rewriter.create(llvm::store(
-                context,
-                new_memory_ptr,
-                memory_ptr_ptr,
-                location,
-                LoadStoreOptions::default(),
-            ));
-            assert!(store_new_mem_ptr_op.verify());
-            rewriter.create(scf::r#yield(&[], location));
-            region
-        },
-        {
-            let region = Region::new();
-            let block = region.append_block(Block::new(&[]));
-            let rewriter = Rewriter::new_with_block(context, block);
-            rewriter.create(scf::r#yield(&[], location));
-            region
-        },
-        location,
     ));
 
     Ok(())
