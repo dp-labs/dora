@@ -317,10 +317,10 @@ impl<'c> EVMCompiler<'c> {
             let may_overflow = diff > 0;
 
             // Uncomment below to see the logs printing out while compilation
-            println!("{op:?} - {i} , {diff} | {may_underflow} , {may_overflow}");
+            println!("{op:?} - {i} , {o} | {may_underflow} , {may_overflow}");
 
             // If the opcode is non-eof format, check the stack overflow/underflow
-            if !is_eof && self.stack_bound_checks && (may_underflow || may_overflow) {
+            if !is_eof && self.stack_bound_checks {
                 let builder = OpBuilder::new_with_block(context, last_block);
                 let size_before =
                     builder.make(builder.load(stack_size_ptr, builder.intrinsics.i64_ty))?;
@@ -329,7 +329,6 @@ impl<'c> EVMCompiler<'c> {
                     builder.make(builder.iconst_64(diff))?,
                     location,
                 ))?;
-
                 if may_underflow && may_overflow {
                     // Check underflow
                     let i = builder.make(builder.iconst_64(i as i64))?;
@@ -375,8 +374,7 @@ impl<'c> EVMCompiler<'c> {
                         &[code],
                         location,
                     ));
-                // This must falls into `may_overflow`
-                } else {
+                } else if may_overflow {
                     // Check overflow
                     let overflow = builder.make(builder.icmp(
                         IntCC::UnsignedLessThan,
@@ -397,6 +395,10 @@ impl<'c> EVMCompiler<'c> {
                         &[code],
                         location,
                     ));
+                } else {
+                    // Update the stack length for this operation.
+                    builder.create(builder.store(size_after, stack_size_ptr));
+                    last_block.append_operation(cf::br(&block_start, &[], location));
                 }
             } else {
                 last_block.append_operation(cf::br(&block_start, &[], location));
