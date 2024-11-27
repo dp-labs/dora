@@ -25,8 +25,13 @@ enum Commands {
 
 #[derive(Args)]
 struct RunArgs {
-    /// Path to the contract file
+    /// Path to the contract file,
+    /// or hex text of the contract (Classified by 0x prefix)
     contract: String,
+
+    /// Whether the contract file is hex text format (Default is false)
+    #[clap(long)]
+    pub hex_file: bool,
 
     /// Call data in hex format (0x prefixed)
     #[arg(long)]
@@ -67,9 +72,40 @@ fn main() -> Result<()> {
     let cli = Cli::parse();
     match &cli.command {
         Commands::Run(run_args) => {
-            // Parse contract bytecode
-            let bytecode = std::fs::read(&run_args.contract)
-                .with_context(|| format!("Failed to read contract file: {}", run_args.contract))?;
+            let bytecode: Vec<u8>;
+            // Check hex flag
+            if !run_args.hex_file {
+                // Check contract string
+                match run_args.contract.strip_prefix("0x") {
+                    None => {
+                        // Parse contract bytecode
+                        bytecode = std::fs::read(&run_args.contract).with_context(|| {
+                            format!(
+                                "Failed to read contract bytecode file: {}",
+                                run_args.contract
+                            )
+                        })?;
+                    }
+                    Some(contract_hex) => {
+                        // Convert contract hex text into bytecode
+                        bytecode = hex::decode(contract_hex).with_context(|| {
+                            format!("Invalid contract hex text: {contract_hex}")
+                        })?;
+                    }
+                }
+            } else {
+                // Parse contract hex file
+                let contract_hex_text =
+                    std::fs::read_to_string(&run_args.contract).with_context(|| {
+                        format!("Failed to read contract hex file: {}", run_args.contract)
+                    })?;
+                bytecode = hex::decode(
+                    contract_hex_text
+                        .strip_prefix("0x")
+                        .unwrap_or(&contract_hex_text),
+                )
+                .with_context(|| format!("Invalid contract hex file: {}", run_args.contract))?;
+            }
 
             // Parse calldata
             let calldata = run_args
