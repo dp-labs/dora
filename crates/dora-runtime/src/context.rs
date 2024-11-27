@@ -113,12 +113,8 @@ impl CallFrame {
     }
 }
 
-pub type RuntimeTransaction<DB> = Arc<
-    dyn Transaction<
-        Context = RuntimeContext<DB>,
-        Result = anyhow::Result<ResultAndState<<DB as Database>::Artifact>>,
-    >,
->;
+pub type RuntimeTransaction<DB> =
+    Arc<dyn Transaction<Context = RuntimeContext<DB>, Result = anyhow::Result<ResultAndState>>>;
 pub type RuntimeHost = Arc<RwLock<dyn Host>>;
 pub type RuntimeDB<DB> = Arc<RwLock<DB>>;
 
@@ -335,7 +331,7 @@ impl<DB: Database> RuntimeContext<DB> {
     /// ```no_check
     /// let result = context.get_result();
     /// ```
-    pub fn get_result(&self) -> anyhow::Result<ResultAndState<DB::Artifact>, EVMError> {
+    pub fn get_result(&self) -> anyhow::Result<ResultAndState, EVMError> {
         let host = self.host.read().unwrap();
         let gas_remaining = self.inner_context.gas_remaining.unwrap_or(0);
         let gas_initial = host.env().tx.gas_limit;
@@ -774,7 +770,7 @@ impl<DB: Database> RuntimeContext<DB> {
         let host = self.host.read().unwrap();
         let addr = host.env().tx.transact_to;
         let account = if addr.is_zero() {
-            AccountInfo::<DB::Artifact>::default()
+            AccountInfo::default()
         } else {
             self.db
                 .read()

@@ -15,7 +15,7 @@ use dora_compiler::{
 use dora_primitives::{spec::SpecId, Address, Bytecode};
 use dora_runtime::artifact::Artifact;
 use dora_runtime::executor::Executor;
-use dora_runtime::{artifact::SymbolArtifact, context::CallFrame, env::Env};
+use dora_runtime::{context::CallFrame, env::Env};
 use dora_runtime::{context::RuntimeContext, host::DummyHost};
 use dora_runtime::{
     db::{Database, MemoryDB},
@@ -42,7 +42,7 @@ pub fn run_evm<DB: Database + 'static>(
     mut env: Env,
     db: DB,
     spec_id: SpecId,
-) -> Result<ResultAndState<DB::Artifact>> {
+) -> Result<ResultAndState> {
     env.validate_transaction().map_err(|e| anyhow::anyhow!(e))?;
     env.consume_intrinsic_cost()
         .map_err(|e| anyhow::anyhow!(e))?;
@@ -59,7 +59,7 @@ pub fn run_evm<DB: Database + 'static>(
 /// Run transaction with the runtime context.
 pub fn run_with_context<DB: Database>(
     runtime_context: &mut RuntimeContext<DB>,
-) -> Result<ResultAndState<DB::Artifact>> {
+) -> Result<ResultAndState> {
     let host = runtime_context.host.read().unwrap();
     let env = host.env();
     let code_address = env.tx.get_address();
@@ -72,14 +72,18 @@ pub fn run_with_context<DB: Database>(
     } else {
         // Fetch the bytecode artifact if exists
         let db = runtime_context.db.read().unwrap();
-        let artifact = db.artifact_by_address(code_address);
+        let acc = db
+            .basic(code_address)
+            .map_err(|e| anyhow::anyhow!(format!("{e:?}")))?;
+        let code_hash = acc.map(|acc| acc.code_hash).unwrap_or_default();
+        let artifact = db.get_artifact(code_hash);
         drop(host);
         if let Ok(Some(artifact)) = artifact {
             drop(db);
             artifact.execute(runtime_context, remaining_gas);
         } else {
             let opcodes = db
-                .code_by_address(code_address)
+                .code_by_hash(code_hash)
                 .map_err(|e| anyhow::anyhow!(format!("{e:?}")))?;
             drop(db);
             // Compile the contract code
@@ -110,7 +114,7 @@ pub fn run_with_context<DB: Database>(
                 .db
                 .write()
                 .unwrap()
-                .set_account_artifact(code_address, DB::Artifact::new(executor));
+                .set_artifact(code_hash, DB::Artifact::new(executor));
         }
     }
     runtime_context.get_result().map_err(|e| anyhow::anyhow!(e))
@@ -139,7 +143,7 @@ impl<DB: Database> Default for EVMTransaction<DB> {
 
 impl<DB: Database> Transaction for EVMTransaction<DB> {
     type Context = RuntimeContext<DB>;
-    type Result = Result<ResultAndState<DB::Artifact>>;
+    type Result = Result<ResultAndState>;
 
     #[inline]
     fn run(&self, ctx: &mut Self::Context, _initial_gas: u64) -> Self::Result {
@@ -167,7 +171,7 @@ pub fn run_evm_bytecode_with_calldata(
     calldata: &str,
     initial_gas: u64,
     spec_id: SpecId,
-) -> Result<ResultAndState<SymbolArtifact>> {
+) -> Result<ResultAndState> {
     let opcodes = hex::decode(program)?;
     let calldata = hex::decode(calldata)?;
     let address = Address::from_low_u64_be(40);

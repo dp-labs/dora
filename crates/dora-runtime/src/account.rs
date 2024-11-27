@@ -1,7 +1,6 @@
 use std::str::FromStr;
 use std::{collections::HashMap, fmt::Debug};
 
-use crate::artifact::Artifact;
 use crate::db::{DbAccount, StorageSlot};
 use bitflags::bitflags;
 use dora_primitives::{Bytecode, B256, U256};
@@ -39,7 +38,7 @@ pub const EMPTY_CODE_HASH_STR: &str =
 /// assert!(!account_info.has_code());
 /// ```
 #[derive(Clone, Default, PartialEq, Eq, Debug)]
-pub struct AccountInfo<A: Artifact> {
+pub struct AccountInfo {
     /// Account balance.
     pub balance: U256,
     /// Account nonce.
@@ -48,13 +47,11 @@ pub struct AccountInfo<A: Artifact> {
     pub code_hash: B256,
     /// The account's bytecode, if any. `None` indicates the code should be fetched when needed.
     pub code: Option<Bytecode>,
-    /// The account's bytecode artifact, if any. `None` indicates the code should be compiled.
-    pub artifact: Option<A>,
 }
 
-impl<A: Artifact> AccountInfo<A> {
+impl AccountInfo {
     /// Construct an empty account info.
-    pub fn empty() -> AccountInfo<A> {
+    pub fn empty() -> AccountInfo {
         DbAccount::empty().into()
     }
 
@@ -99,16 +96,16 @@ impl<A: Artifact> AccountInfo<A> {
 /// - `storage`: A storage cache represented as a `HashMap` that holds the account's storage slots.
 /// - `status`: The current status of the account, which may include flags indicating whether it has been modified.
 #[derive(Debug, Clone, PartialEq, Eq, Default)]
-pub struct Account<A: Artifact> {
+pub struct Account {
     /// The account's core information (balance, nonce, code).
-    pub info: AccountInfo<A>,
+    pub info: AccountInfo,
     /// A cache of the account's storage, mapping storage keys to storage slots.
     pub storage: HashMap<U256, StorageSlot>,
     /// Flags representing the account's current status (e.g., whether it has been modified).
     pub status: AccountStatus,
 }
 
-impl<A: Artifact> Account<A> {
+impl Account {
     /// Checks if the account is marked for self-destruction.
     ///
     /// # Returns:
@@ -177,8 +174,8 @@ impl Default for AccountStatus {
     }
 }
 
-impl<A: Artifact> From<AccountInfo<A>> for Account<A> {
-    fn from(info: AccountInfo<A>) -> Self {
+impl From<AccountInfo> for Account {
+    fn from(info: AccountInfo) -> Self {
         Self {
             info,
             storage: HashMap::new(),
