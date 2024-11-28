@@ -108,7 +108,7 @@ impl<'c> ConversionPass<'c> {
             rewriter,
             context,
             syscall_ctx,
-            symbols::CODE_HASH,
+            symbols::EXT_CODE_HASH,
             &[code_hash_ptr],
             rewriter.intrinsics.i256_ty,
             location
@@ -141,7 +141,7 @@ impl<'c> ConversionPass<'c> {
         rewrite_ctx!(context, op, rewriter, location);
         rewriter.create(func::call(
             context,
-            FlatSymbolRefAttribute::new(context, symbols::COPY_EXT_CODE_TO_MEMORY),
+            FlatSymbolRefAttribute::new(context, symbols::EXT_CODE_COPY),
             &[syscall_ctx.into(), address_ptr, offset, size, dest_offset],
             &[ptr_type],
             location,
