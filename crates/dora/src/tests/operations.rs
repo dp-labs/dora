@@ -3124,8 +3124,8 @@ fn store_return() {
 #[test]
 fn delegatecall() {
     let operations = vec![
-        Operation::Push((1_u8, BigUint::from(7000_u32))),
-        Operation::Push((1_u8, BigUint::from(0x3000_u32))),
+        Operation::Push((4_u8, BigUint::from(7000_u32))),
+        Operation::Push((4_u8, BigUint::from(0x3000_u32))),
         Operation::Push((1_u8, BigUint::from(32_u32))),
         Operation::Push((1_u8, BigUint::from(32_u32))),
         Operation::Push((1_u8, BigUint::from(64_u32))),
@@ -3139,7 +3139,7 @@ fn delegatecall() {
         Operation::Return,
     ];
     let (env, mut db) = default_env_and_db_setup(operations);
-    run_program_assert_num_result(env, db, 0_u8.into());
+    run_program_assert_num_result(env, db, 1_u8.into());
 }
 
 #[test]

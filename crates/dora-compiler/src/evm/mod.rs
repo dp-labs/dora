@@ -329,6 +329,7 @@ impl<'c> EVMCompiler<'c> {
                     builder.make(builder.iconst_64(diff))?,
                     location,
                 ))?;
+                // Check potential underflow/overflow
                 if may_underflow && may_overflow {
                     // Check underflow
                     let i = builder.make(builder.iconst_64(i as i64))?;
@@ -356,18 +357,18 @@ impl<'c> EVMCompiler<'c> {
                         location,
                     ));
                 } else if may_underflow {
-                    // Check underflow
-                    let i = builder.make(builder.iconst_64(i as i64))?;
-                    let underflow =
-                        builder.make(builder.icmp(IntCC::UnsignedLessThan, size_before, i))?;
                     // Update the stack length for this operation.
                     builder.create(builder.store(size_after, stack_size_ptr));
+                    // Whether revert (or underflow)
+                    let i = builder.make(builder.iconst_64(i as i64))?;
+                    let revert =
+                        builder.make(builder.icmp(IntCC::UnsignedLessThan, size_before, i))?;
 
                     let code = builder
                         .make(builder.iconst_8(ExitStatusCode::StackUnderflow.to_u8() as i8))?;
                     builder.create(cf::cond_br(
                         context,
-                        underflow,
+                        revert,
                         &ctx.revert_block,
                         &block_start,
                         &[],
@@ -375,20 +376,20 @@ impl<'c> EVMCompiler<'c> {
                         location,
                     ));
                 } else if may_overflow {
-                    // Check overflow
-                    let overflow = builder.make(builder.icmp(
+                    // Update the stack length for this operation.
+                    builder.create(builder.store(size_after, stack_size_ptr));
+                    // Whether revert (or overflow)
+                    let revert = builder.make(builder.icmp(
                         IntCC::UnsignedLessThan,
                         stack_max_size,
                         size_after,
                     ))?;
-                    // Update the stack length for this operation.
-                    builder.create(builder.store(size_after, stack_size_ptr));
 
                     let code = builder
                         .make(builder.iconst_8(ExitStatusCode::StackOverflow.to_u8() as i8))?;
                     builder.create(cf::cond_br(
                         context,
-                        overflow,
+                        revert,
                         &ctx.revert_block,
                         &block_start,
                         &[],
@@ -398,7 +399,7 @@ impl<'c> EVMCompiler<'c> {
                 } else {
                     // Update the stack length for this operation.
                     builder.create(builder.store(size_after, stack_size_ptr));
-                    last_block.append_operation(cf::br(&block_start, &[], location));
+                    builder.create(cf::br(&block_start, &[], location));
                 }
             } else {
                 last_block.append_operation(cf::br(&block_start, &[], location));
