@@ -366,7 +366,12 @@ impl<'c> GasPass<'c> {
                                             )?;
                                         }
                                         dora_ir::Operation::ExtCodeSize => {
-                                            // TODO: handle cold and warm accesses for dynamic gas computation
+                                            self.insert_dynamic_gas_check_block_before_op_block(
+                                                &op.next_in_block().unwrap(),
+                                                block,
+                                                revert_block,
+                                                |_rewriter| Ok(op.result(0)?.into()),
+                                            )?;
                                             self.insert_gas_check_block_before_op_block(
                                                 op,
                                                 block,
@@ -436,7 +441,12 @@ impl<'c> GasPass<'c> {
                                         }
                                         dora_ir::Operation::ReturnDataLoad => todo!(),
                                         dora_ir::Operation::ExtCodeHash => {
-                                            // TODO: add gas consumption
+                                            self.insert_dynamic_gas_check_block_before_op_block(
+                                                &op.next_in_block().unwrap(),
+                                                block,
+                                                revert_block,
+                                                |_rewriter| Ok(op.result(0)?.into()),
+                                            )?;
                                         }
                                         dora_ir::Operation::MLoad => {
                                             self.insert_dynamic_gas_check_block_before_op_block(

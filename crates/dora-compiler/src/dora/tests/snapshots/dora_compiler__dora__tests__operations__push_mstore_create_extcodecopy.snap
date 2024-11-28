@@ -1,7 +1,6 @@
 ---
 source: crates/dora-compiler/src/dora/tests/operations.rs
 expression: op
-snapshot_kind: text
 ---
 module {
   llvm.mlir.global internal @dora_global_stack_ptr() {addr_space = 0 : i32} : !llvm.ptr
@@ -43,10 +42,10 @@ module {
   func.func private @dora_fn_store_in_basefee_ptr(!llvm.ptr, !llvm.ptr) -> !llvm.ptr
   func.func private @dora_fn_call(!llvm.ptr, i64, !llvm.ptr, !llvm.ptr, i64, i64, i64, i64, i64, !llvm.ptr, i8) -> !llvm.ptr
   func.func private @dora_fn_store_in_balance(!llvm.ptr, !llvm.ptr, !llvm.ptr) -> !llvm.ptr
-  func.func private @dora_fn_copy_ext_code_to_memory(!llvm.ptr, !llvm.ptr, i64, i64, i64) -> !llvm.ptr
+  func.func private @dora_fn_ext_code_copy(!llvm.ptr, !llvm.ptr, i64, i64, i64) -> !llvm.ptr
   func.func private @dora_fn_blob_hash(!llvm.ptr, !llvm.ptr, !llvm.ptr) -> !llvm.ptr
   func.func private @dora_fn_block_hash(!llvm.ptr, !llvm.ptr) -> !llvm.ptr
-  func.func private @dora_fn_code_hash(!llvm.ptr, !llvm.ptr) -> !llvm.ptr
+  func.func private @dora_fn_ext_code_hash(!llvm.ptr, !llvm.ptr) -> !llvm.ptr
   func.func private @dora_fn_create(!llvm.ptr, i64, i64, !llvm.ptr, !llvm.ptr) -> !llvm.ptr
   func.func private @dora_fn_create2(!llvm.ptr, i64, i64, !llvm.ptr, !llvm.ptr, !llvm.ptr) -> !llvm.ptr
   func.func private @dora_fn_return_data_size(!llvm.ptr) -> !llvm.ptr
@@ -496,7 +495,7 @@ module {
     llvm.store %232, %236 : !llvm.ptr, !llvm.ptr
     %237 = llvm.mlir.addressof @dora_global_memory_size : !llvm.ptr
     llvm.store %229, %237 : i64, !llvm.ptr
-    %238 = call @dora_fn_copy_ext_code_to_memory(%arg0, %224, %221, %222, %223) : (!llvm.ptr, !llvm.ptr, i64, i64, i64) -> !llvm.ptr
+    %238 = call @dora_fn_ext_code_copy(%arg0, %224, %221, %222, %223) : (!llvm.ptr, !llvm.ptr, i64, i64, i64) -> !llvm.ptr
     cf.br ^bb37
   ^bb37:  // pred: ^bb36
     %c0_i64_44 = arith.constant 0 : i64

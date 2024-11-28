@@ -133,7 +133,7 @@ pub(crate) fn declare_symbols(context: &MLIRContext, module: &MLIRModule) {
             &[ptr_type],
         ),
         (
-            symbols::COPY_EXT_CODE_TO_MEMORY,
+            symbols::EXT_CODE_COPY,
             &[ptr_type, ptr_type, uint64, uint64, uint64],
             &[ptr_type],
         ),
@@ -143,7 +143,7 @@ pub(crate) fn declare_symbols(context: &MLIRContext, module: &MLIRModule) {
             &[ptr_type],
         ),
         (symbols::BLOCK_HASH, &[ptr_type, ptr_type], &[ptr_type]),
-        (symbols::CODE_HASH, &[ptr_type, ptr_type], &[ptr_type]),
+        (symbols::EXT_CODE_HASH, &[ptr_type, ptr_type], &[ptr_type]),
         (
             symbols::CREATE,
             &[ptr_type, uint64, uint64, ptr_type, ptr_type],

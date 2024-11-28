@@ -1068,7 +1068,25 @@ impl<DB: Database> RuntimeContext<DB> {
             .code_by_address(Address::from(address))
             .unwrap()
             .len();
-        uint_result_ptr!(size as u64)
+
+        let is_cold = true;
+        let gas_cost = if self.inner_context.spec_id.is_enabled_in(SpecId::BERLIN) {
+            if is_cold {
+                COLD_ACCOUNT_ACCESS_COST
+            } else {
+                WARM_STORAGE_READ_COST
+            }
+        } else if self.inner_context.spec_id.is_enabled_in(SpecId::TANGERINE) {
+            700
+        } else {
+            20
+        };
+
+        Box::into_raw(Box::new(Result {
+            gas_used: gas_cost,
+            error: 0,
+            value: size as u64,
+        }))
     }
 
     #[allow(clippy::clone_on_copy)]
@@ -1171,7 +1189,7 @@ impl<DB: Database> RuntimeContext<DB> {
         Box::into_raw(Box::new(Result::success(())))
     }
 
-    pub extern "C" fn copy_ext_code_to_memory(
+    pub extern "C" fn ext_code_copy(
         &mut self,
         address_value: &Bytes32,
         code_offset: u64,
@@ -1201,7 +1219,7 @@ impl<DB: Database> RuntimeContext<DB> {
         Box::into_raw(Box::new(Result::success(())))
     }
 
-    pub extern "C" fn code_hash(&mut self, address: &mut Bytes32) -> *mut Result<()> {
+    pub extern "C" fn ext_code_hash(&mut self, address: &mut Bytes32) -> *mut Result<()> {
         let hash = match self
             .db
             .read()
@@ -1212,7 +1230,25 @@ impl<DB: Database> RuntimeContext<DB> {
             _ => B256::zero(),
         };
         *address = Bytes32::from_be_bytes(hash.to_fixed_bytes());
-        Box::into_raw(Box::new(Result::success(())))
+
+        let is_cold = true;
+        let gas_cost = if self.inner_context.spec_id.is_enabled_in(SpecId::BERLIN) {
+            if is_cold {
+                COLD_ACCOUNT_ACCESS_COST
+            } else {
+                WARM_STORAGE_READ_COST
+            }
+        } else if self.inner_context.spec_id.is_enabled_in(SpecId::ISTANBUL) {
+            700
+        } else {
+            400
+        };
+
+        Box::into_raw(Box::new(Result {
+            gas_used: gas_cost,
+            error: 0,
+            value: (),
+        }))
     }
 
     pub fn create_contract(
@@ -1523,16 +1559,16 @@ impl<DB: Database> RuntimeContext<DB> {
                     RuntimeContext::<DB>::store_in_selfbalance_ptr as *const _,
                 ),
                 (
-                    symbols::COPY_EXT_CODE_TO_MEMORY,
-                    RuntimeContext::<DB>::copy_ext_code_to_memory as *const _,
+                    symbols::EXT_CODE_COPY,
+                    RuntimeContext::<DB>::ext_code_copy as *const _,
                 ),
                 (
                     symbols::BLOCK_HASH,
                     RuntimeContext::<DB>::block_hash as *const _,
                 ),
                 (
-                    symbols::CODE_HASH,
-                    RuntimeContext::<DB>::code_hash as *const _,
+                    symbols::EXT_CODE_HASH,
+                    RuntimeContext::<DB>::ext_code_hash as *const _,
                 ),
                 (symbols::CREATE, RuntimeContext::<DB>::create as *const _),
                 (symbols::CREATE2, RuntimeContext::<DB>::create2 as *const _),
