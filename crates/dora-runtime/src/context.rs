@@ -712,6 +712,13 @@ impl<DB: Database> RuntimeContext<DB> {
                     call_opcode::REVERT_RETURN_CODE
                 };
 
+                // EIP-150: Gas cost changes for IO-heavy operations
+                *consumed_gas = if self.inner_context.spec_id.is_enabled_in(SpecId::TANGERINE) {
+                    (*consumed_gas - *consumed_gas / 64).min(gas_to_send)
+                } else {
+                    gas_to_send
+                };
+
                 let output = result.into_output().unwrap_or_default();
                 (return_code, output)
             }
@@ -1098,8 +1105,12 @@ impl<DB: Database> RuntimeContext<DB> {
 
     pub extern "C" fn prevrandao(&self, prevrandao: &mut Bytes32) -> *mut Result<()> {
         let host = self.host.read().unwrap();
-        let randao = host.env().block.prevrandao.unwrap_or_default();
-        *prevrandao = Bytes32::from_be_bytes(randao.into());
+        *prevrandao = if self.inner_context.spec_id.is_enabled_in(SpecId::MERGE) {
+            let randao = host.env().block.prevrandao.unwrap_or_default();
+            Bytes32::from_be_bytes(randao.into())
+        } else {
+            host.env().block.difficulty.into()
+        };
         Box::into_raw(Box::new(Result::success(())))
     }
 
@@ -1337,7 +1348,11 @@ impl<DB: Database> RuntimeContext<DB> {
             sender_balance,
             Default::default(),
         );
-        // TODO: add dest_addr as warm in the access list
+
+        if self.inner_context.spec_id.is_enabled_in(SpecId::TANGERINE) {
+            *remaining_gas -= *remaining_gas / 64;
+        }
+
         Ok(dest_addr)
     }
 
@@ -1400,6 +1415,13 @@ impl<DB: Database> RuntimeContext<DB> {
         } else {
             0
         };
+
+        // EIP-3529: Reduction in refunds
+        if !self.inner_context.spec_id.is_enabled_in(SpecId::LONDON) && !result.previously_destroyed
+        {
+            self.inner_context.gas_refund += gas_cost::SELFDESTRUCT as u64;
+        }
+
         Box::into_raw(Box::new(Result {
             error: 0,
             gas_used: gas_cost,
