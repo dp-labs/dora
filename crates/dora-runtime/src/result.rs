@@ -413,6 +413,59 @@ pub enum OutOfGasError {
     InvalidOperand,
 }
 
+impl fmt::Display for HaltReason {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            HaltReason::OutOfGas(err) => write!(f, "Out of gas: {}", err),
+            HaltReason::OpcodeNotFound => write!(f, "Opcode not found"),
+            HaltReason::InvalidFEOpcode => write!(f, "Invalid FE opcode"),
+            HaltReason::InvalidJump => write!(f, "Invalid jump"),
+            HaltReason::NotActivated => write!(f, "Not activated"),
+            HaltReason::StackUnderflow => write!(f, "Stack underflow"),
+            HaltReason::StackOverflow => write!(f, "Stack overflow"),
+            HaltReason::OutOfOffset => write!(f, "Out of offset"),
+            HaltReason::CreateCollision => write!(f, "Create collision"),
+            HaltReason::PrecompileError => write!(f, "Precompile error"),
+            HaltReason::NonceOverflow => write!(f, "Nonce overflow"),
+            HaltReason::CreateContractSizeLimit => {
+                write!(f, "Create contract size exceeds limit")
+            }
+            HaltReason::CreateContractStartingWithEF => {
+                write!(f, "Created contract starts with EF")
+            }
+            HaltReason::CreateInitCodeSizeLimit => write!(f, "Initcode size limit exceeded"),
+            HaltReason::OverflowPayment => write!(f, "Overflow payment"),
+            HaltReason::StateChangeDuringStaticCall => {
+                write!(f, "State change during static call")
+            }
+            HaltReason::CallNotAllowedInsideStatic => {
+                write!(f, "Call not allowed inside static")
+            }
+            HaltReason::OutOfFunds => write!(f, "Out of funds"),
+            HaltReason::CallTooDeep => write!(f, "Call too deep"),
+            HaltReason::EofAuxDataOverflow => write!(f, "EOF aux data overflow"),
+            HaltReason::EofAuxDataTooSmall => write!(f, "EOF aux data too small"),
+            HaltReason::EOFFunctionStackOverflow => write!(f, "EOF function stack overflow"),
+            HaltReason::InvalidExtCallTarget => write!(f, "Invalid external call target"),
+        }
+    }
+}
+
+impl fmt::Display for OutOfGasError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            OutOfGasError::Basic => write!(f, "Basic out-of-gas error during execution"),
+            OutOfGasError::MemoryLimit => write!(f, "Out-of-gas: memory expansion exceeded limit"),
+            OutOfGasError::Memory => write!(f, "Out-of-gas: insufficient gas for memory expansion"),
+            OutOfGasError::Precompile => write!(f, "Out-of-gas triggered by a precompile"),
+            OutOfGasError::Create => write!(f, "Out-of-gas during contract creation"),
+            OutOfGasError::InvalidOperand => {
+                write!(f, "Out-of-gas: invalid operand for operation")
+            }
+        }
+    }
+}
+
 /// Internal result that are not ex
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
 pub enum InternalResult {

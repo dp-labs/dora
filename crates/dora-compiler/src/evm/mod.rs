@@ -1,6 +1,15 @@
-use std::collections::BTreeMap;
-
+use crate::backend::IntCC;
+use crate::context::Context;
+use crate::conversion::builder::OpBuilder;
+use crate::errors::{Error as CompileError, Result};
+use crate::evm::program::Operation;
+use crate::intrinsics::Intrinsics;
+use crate::module::Module as MLIRModule;
+use crate::symbols as symbols_ctx;
+use crate::Compiler;
+use anyhow::anyhow;
 use dora_runtime::constants::STACK_SIZE_GLOBAL;
+use dora_runtime::result::HaltReason;
 use dora_runtime::{constants::STACK_PTR_GLOBAL, ExitStatusCode};
 use dora_runtime::{
     constants::{
@@ -24,27 +33,15 @@ use melior::{
 };
 use num_bigint::BigUint;
 use program::{stack_io, CompileOptions};
-
-use crate::backend::IntCC;
-use crate::conversion::builder::OpBuilder;
-use crate::evm::program::Operation;
-use crate::Compiler;
-
-use crate::context::Context;
-use crate::errors::{Error as CompileError, Result};
-use crate::intrinsics::Intrinsics;
-use crate::module::Module as MLIRModule;
-use crate::symbols as symbols_ctx;
-
+use std::collections::BTreeMap;
+pub mod backend;
 pub(crate) mod conversion;
 pub(crate) mod instructions;
-
-pub mod backend;
 pub mod pass;
 pub mod program;
-
 pub use conversion::ConversionPass;
 pub use program::Program;
+use revmc::op_info_map;
 
 #[cfg(test)]
 mod tests;
@@ -172,7 +169,14 @@ impl<'c> EVMCompiler<'c> {
         ctx: &mut CtxType<'c>,
         region: &'c Region<'c>,
         op: Operation,
+        options: &<EVMCompiler<'c> as Compiler>::Options,
     ) -> Result<(BlockRef<'c, 'c>, BlockRef<'c, 'c>)> {
+        let op_infos = op_info_map(options.spec_id);
+        let op_info = op_infos[op.opcode()];
+        if op_info.is_unknown() || op_info.is_disabled() {
+            return Err(anyhow!(HaltReason::OpcodeNotFound));
+        }
+
         match op {
             Operation::Add => EVMCompiler::add(ctx, region),
             Operation::Mul => EVMCompiler::mul(ctx, region),
@@ -266,7 +270,7 @@ impl<'c> EVMCompiler<'c> {
         &self,
         module: &Module,
         program: &Program,
-        _options: &<EVMCompiler<'c> as Compiler>::Options,
+        options: &<EVMCompiler<'c> as Compiler>::Options,
     ) -> Result<()> {
         let context = &self.ctx.mlir_context;
         let location = self.intrinsics.unknown_loc;
@@ -310,7 +314,7 @@ impl<'c> EVMCompiler<'c> {
         // Generate code for the program
         for op in &ctx.program.operations {
             let (block_start, block_end) =
-                EVMCompiler::generate_code_for_op(&mut ctx, &main_region, op.clone())?;
+                EVMCompiler::generate_code_for_op(&mut ctx, &main_region, op.clone(), options)?;
             let (i, o) = stack_io(op);
             let diff = o as i64 - i as i64;
             let may_underflow = i > 0;

@@ -317,6 +317,20 @@ macro_rules! operations {
                 };
                 Ok(op)
             }
+
+            pub fn opcode(&self) -> usize {
+                match self {
+                    $(
+                        Operation::$variant => Opcode::$opcode as usize,
+                    )*
+                    Operation::PC { .. } => Opcode::PC as usize,
+                    Operation::Jumpdest { .. } => Opcode::JUMPDEST as usize,
+                    Operation::Push((n, _)) => Opcode::PUSH0 as usize + *n as usize,
+                    Operation::Dup(n) => Opcode::DUP1 as usize + (*n as usize - 1),
+                    Operation::Swap(n) => Opcode::SWAP1 as usize + (*n as usize - 1),
+                    Operation::Log(n) => Opcode::LOG0 as usize + *n as usize,
+                }
+            }
         }
     };
 }
