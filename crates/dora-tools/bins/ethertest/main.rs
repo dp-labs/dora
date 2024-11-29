@@ -253,7 +253,7 @@ fn should_skip(path: &Path) -> bool {
 fn run_with_shared_db<DB: Database + 'static>(
     mut env: Env,
     db: RuntimeDB<DB>,
-) -> Result<ResultAndState<DB::Artifact>> {
+) -> Result<ResultAndState> {
     env.validate_transaction().map_err(|e| anyhow::anyhow!(e))?;
     env.consume_intrinsic_cost()
         .map_err(|e| anyhow::anyhow!(e))?;
