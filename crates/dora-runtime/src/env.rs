@@ -203,6 +203,7 @@ pub struct BlockEnv {
     pub coinbase: Address,
     pub timestamp: U256,
     pub basefee: U256,
+    pub difficulty: U256,
     pub prevrandao: Option<B256>,
     pub excess_blob_gas: Option<u64>,
     pub blob_gasprice: Option<u128>,
