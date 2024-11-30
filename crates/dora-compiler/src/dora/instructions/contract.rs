@@ -1,8 +1,11 @@
 use crate::{
     arith_constant,
     backend::IntCC,
-    conversion::builder::OpBuilder,
-    conversion::rewriter::{DeferredRewriter, Rewriter},
+    check_runtime_error,
+    conversion::{
+        builder::OpBuilder,
+        rewriter::{DeferredRewriter, Rewriter},
+    },
     dora::{conversion::ConversionPass, gas, memory},
     errors::Result,
     maybe_revert_here, operands, rewrite_ctx, syscall_ctx,
@@ -49,11 +52,11 @@ impl<'c> ConversionPass<'c> {
             memory::allocate_u256_and_assign_value(context, &rewriter, value, location)?;
         let gas_ptr = gas::create_var_with_gas_counter(context, &rewriter, location)?;
 
-        let result = if is_create2 {
+        let result_ptr = if is_create2 {
             let salt: Value<'_, '_> = op.operand(3)?;
             let salt_ptr =
                 memory::allocate_u256_and_assign_value(context, &rewriter, salt, location)?;
-            let result_ptr = rewriter.make(func::call(
+            rewriter.make(func::call(
                 context,
                 FlatSymbolRefAttribute::new(context, symbols::CREATE2),
                 &[
@@ -66,28 +69,29 @@ impl<'c> ConversionPass<'c> {
                 ],
                 &[ptr_type],
                 location,
-            ))?;
-            // todo: syscall error handling
-            rewriter.get_field_value(
-                result_ptr,
-                offset_of!(dora_runtime::context::Result<u8>, value),
-                rewriter.intrinsics.i8_ty,
-            )?
+            ))?
         } else {
-            let result_ptr = rewriter.make(func::call(
+            rewriter.make(func::call(
                 context,
                 FlatSymbolRefAttribute::new(context, symbols::CREATE),
                 &[syscall_ctx.into(), size, offset, value_ptr, gas_ptr],
                 &[ptr_type],
                 location,
-            ))?;
-            // todo: syscall error handling
-            rewriter.get_field_value(
-                result_ptr,
-                offset_of!(dora_runtime::context::Result<u8>, value),
-                rewriter.intrinsics.i8_ty,
-            )?
+            ))?
         };
+        let result = rewriter.get_field_value(
+            result_ptr,
+            offset_of!(dora_runtime::context::Result<u8>, value),
+            rewriter.intrinsics.i8_ty,
+        )?;
+        let error = rewriter.get_field_value(
+            result_ptr,
+            offset_of!(dora_runtime::context::Result<*mut u8>, error),
+            rewriter.intrinsics.i8_ty,
+        )?;
+        // Check the runtime halt error
+        check_runtime_error!(op, rewriter, error);
+        let rewriter = Rewriter::new_with_op(context, *op);
         let zero = rewriter.make(rewriter.iconst_8(0))?;
         let revert_flag = rewriter.make(arith::cmpi(
             context,
@@ -182,7 +186,7 @@ impl<'c> ConversionPass<'c> {
         let req_mem_size =
             rewriter.make(arith::maxui(req_arg_mem_size, req_ret_mem_size, location))?;
         memory::resize_memory(context, op, &rewriter, syscall_ctx, req_mem_size)?;
-        rewrite_ctx!(context, op, rewriter, location);
+        let rewriter = Rewriter::new_with_op(context, *op);
         let available_gas = gas::get_gas_counter(&rewriter)?;
         let value_ptr =
             memory::allocate_u256_and_assign_value(context, &rewriter, value, location)?;
@@ -217,12 +221,19 @@ impl<'c> ConversionPass<'c> {
             &[ptr_type],
             location,
         ))?;
-        // todo: syscall error handling
         let result = rewriter.get_field_value(
             result_ptr,
             offset_of!(dora_runtime::context::Result<u8>, value),
             uint8,
         )?;
+        let error = rewriter.get_field_value(
+            result_ptr,
+            offset_of!(dora_runtime::context::Result<*mut u8>, error),
+            rewriter.intrinsics.i8_ty,
+        )?;
+        // Check the runtime halt error
+        check_runtime_error!(op, rewriter, error);
+        rewrite_ctx!(context, op, rewriter, location);
         rewriter.create(llvm::load(
             context,
             gas_ptr,

@@ -83,7 +83,7 @@ impl<'c> ConversionPass<'c> {
             &[ptr_type],
             location,
         ))?;
-        // todo: syscall error handling
+        // We don't need to check for errors here, as no errors will be returned.
         let codesize = rewriter.get_field_value(
             result_ptr,
             offset_of!(dora_runtime::context::Result<u64>, value),
