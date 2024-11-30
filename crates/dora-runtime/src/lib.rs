@@ -5,6 +5,7 @@ pub mod context;
 pub mod db;
 pub mod env;
 pub mod executor;
+pub mod gas;
 pub mod host;
 pub mod precompiles;
 pub mod result;

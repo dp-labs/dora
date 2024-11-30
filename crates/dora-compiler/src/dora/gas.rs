@@ -535,7 +535,21 @@ impl<'c> GasPass<'c> {
                                                 },
                                             )?;
                                         }
+                                        dora_ir::Operation::SLoad => {
+                                            self.insert_dynamic_gas_check_block_before_op_block(
+                                                &op.next_in_block().unwrap(),
+                                                block,
+                                                revert_block,
+                                                |_rewriter| Ok(op.result(0)?.into()),
+                                            )?;
+                                        }
                                         dora_ir::Operation::SStore => {
+                                            self.insert_dynamic_gas_check_block_before_op_block(
+                                                &op.next_in_block().unwrap(),
+                                                block,
+                                                revert_block,
+                                                |_rewriter| Ok(op.result(0)?.into()),
+                                            )?;
                                             self.insert_dynamic_gas_check_block_before_op_block(
                                                 op,
                                                 block,
@@ -545,7 +559,6 @@ impl<'c> GasPass<'c> {
                                                     Ok(dynamic_gas_cost)
                                                 },
                                             )?;
-                                            // TODO: Check that (gas_counter - needed_gas) >= SSTORE_MIN_REMAINING_GAS
                                         }
                                         dora_ir::Operation::MCopy => {
                                             self.insert_dynamic_gas_check_block_before_op_block(

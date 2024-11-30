@@ -346,9 +346,9 @@ impl MemoryDB {
     /// # Example
     ///
     /// ```no_check
-    /// db.write_storage(address, key, value);
+    /// db.sstore(address, key, value);
     /// ```
-    pub fn write_storage(&mut self, address: Address, key: U256, value: U256) {
+    pub fn sstore(&mut self, address: Address, key: U256, value: U256) {
         let account = self.accounts.entry(address).or_insert(DbAccount::empty());
         account.storage.insert(key, value);
     }
@@ -367,9 +367,9 @@ impl MemoryDB {
     /// # Example
     ///
     /// ```no_check
-    /// let value = db.read_storage(address, key);
+    /// let value = db.sload(address, key);
     /// ```
-    pub fn read_storage(&self, address: Address, key: U256) -> U256 {
+    pub fn sload(&self, address: Address, key: U256) -> U256 {
         self.accounts
             .get(&address)
             .and_then(|acc| acc.storage.get(&key).cloned())
@@ -440,7 +440,7 @@ impl Database for MemoryDB {
     }
 
     fn storage(&self, address: Address, index: U256) -> Result<U256, Self::Error> {
-        Ok(self.read_storage(address, index))
+        Ok(self.sload(address, index))
     }
 
     fn block_hash(&self, number: U256) -> Result<B256, Self::Error> {

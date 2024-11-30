@@ -147,8 +147,21 @@ pub mod gas_cost {
     pub const MAX_CODE_SIZE: usize = 0x6000;
     pub const MAX_INITCODE_SIZE: usize = 2 * MAX_CODE_SIZE;
 
+    /// EIP-1884: Repricing for trie-size-dependent opcodes
+    pub const INSTANBUL_SLOAD_GAS: u64 = 800;
+    pub const SSTORE_SET: u64 = 20000;
+    pub const SSTORE_RESET: u64 = 5000;
+    pub const REFUND_SSTORE_CLEARS: i64 = 15000;
+
+    pub const ACCESS_LIST_ADDRESS: u64 = 2400;
+    pub const ACCESS_LIST_STORAGE_KEY: u64 = 1900;
+    pub const COLD_SLOAD_COST: u64 = 2100;
     pub const COLD_ACCOUNT_ACCESS_COST: u64 = 2600;
     pub const WARM_STORAGE_READ_COST: u64 = 100;
+    pub const WARM_SSTORE_RESET: u64 = SSTORE_RESET - COLD_SLOAD_COST;
+
+    pub const CALL_STIPEND: u64 = 2300;
+    pub const MIN_CALLEE_GAS: u64 = CALL_STIPEND;
 
     /// Calculates the gas cost for initializing a contract based on the length of the initialization code.
     ///

@@ -1,7 +1,6 @@
 ---
 source: crates/dora-compiler/src/dora/tests/operations.rs
 expression: op
-snapshot_kind: text
 ---
 module {
   llvm.mlir.global internal @dora_global_stack_ptr() {addr_space = 0 : i32} : !llvm.ptr
@@ -26,8 +25,8 @@ module {
   func.func private @dora_fn_gaslimit(!llvm.ptr) -> !llvm.ptr
   func.func private @dora_fn_extend_memory(!llvm.ptr, i64) -> !llvm.ptr
   func.func private @dora_fn_code_copy(!llvm.ptr, i64, i64, i64) -> !llvm.ptr
-  func.func private @dora_fn_read_storage(!llvm.ptr, !llvm.ptr, !llvm.ptr) -> !llvm.ptr
-  func.func private @dora_fn_write_storage(!llvm.ptr, !llvm.ptr, !llvm.ptr) -> !llvm.ptr
+  func.func private @dora_fn_sload(!llvm.ptr, !llvm.ptr, !llvm.ptr) -> !llvm.ptr
+  func.func private @dora_fn_sstore(!llvm.ptr, !llvm.ptr, !llvm.ptr) -> !llvm.ptr
   func.func private @dora_fn_append_log(!llvm.ptr, i64, i64) -> !llvm.ptr
   func.func private @dora_fn_append_log_with_one_topic(!llvm.ptr, i64, i64, !llvm.ptr) -> !llvm.ptr
   func.func private @dora_fn_append_log_with_two_topics(!llvm.ptr, i64, i64, !llvm.ptr, !llvm.ptr) -> !llvm.ptr
@@ -534,7 +533,7 @@ module {
     %c1_i256_64 = arith.constant 1 : i256
     %250 = llvm.alloca %c1_i256_64 x i256 : (i256) -> !llvm.ptr
     llvm.store %248, %250 {alignment = 1 : i64} : i256, !llvm.ptr
-    %251 = call @dora_fn_write_storage(%arg0, %249, %250) : (!llvm.ptr, !llvm.ptr, !llvm.ptr) -> !llvm.ptr
+    %251 = call @dora_fn_sstore(%arg0, %249, %250) : (!llvm.ptr, !llvm.ptr, !llvm.ptr) -> !llvm.ptr
     %252 = llvm.load %9 : !llvm.ptr -> i64
     %c1_i64_65 = arith.constant 1 : i64
     %253 = arith.addi %252, %c1_i64_65 : i64

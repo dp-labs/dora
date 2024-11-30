@@ -179,7 +179,7 @@ impl<'c> ConversionPass<'c> {
             rewriter,
             context,
             syscall_ctx,
-            symbols::STORAGE_READ,
+            symbols::SLOAD,
             &[key_ptr, value_ptr],
             value_ptr,
             rewriter.intrinsics.i256_ty,
@@ -201,7 +201,7 @@ impl<'c> ConversionPass<'c> {
 
         rewriter.make(func::call(
             context,
-            FlatSymbolRefAttribute::new(context, symbols::STORAGE_WRITE),
+            FlatSymbolRefAttribute::new(context, symbols::SSTORE),
             &[syscall_ctx.into(), key_ptr, value_ptr],
             &[ptr_type],
             location,
