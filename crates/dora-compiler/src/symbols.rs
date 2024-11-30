@@ -66,13 +66,9 @@ pub(crate) fn declare_symbols(context: &MLIRContext, module: &MLIRModule) {
             &[ptr_type, uint64, uint64, uint64],
             &[ptr_type],
         ),
+        (symbols::SLOAD, &[ptr_type, ptr_type, ptr_type], &[ptr_type]),
         (
-            symbols::STORAGE_READ,
-            &[ptr_type, ptr_type, ptr_type],
-            &[ptr_type],
-        ),
-        (
-            symbols::STORAGE_WRITE,
+            symbols::SSTORE,
             &[ptr_type, ptr_type, ptr_type],
             &[ptr_type],
         ),

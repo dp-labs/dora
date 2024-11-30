@@ -1,9 +1,9 @@
 use crate::account::AccountInfo;
 use crate::constants::gas_cost::MAX_CODE_SIZE;
 use crate::constants::{call_opcode, gas_cost, precompiles, CallType, CALL_STACK_LIMIT};
-use crate::context::gas_cost::{COLD_ACCOUNT_ACCESS_COST, WARM_STORAGE_READ_COST};
 use crate::db::{Database, StorageSlot};
 use crate::executor::ExecutionEngine;
+use crate::gas;
 use crate::host::Host;
 use crate::precompiles::{blake2f, ecrecover, identity, modexp, ripemd_160, sha2_256};
 use crate::result::{
@@ -907,7 +907,7 @@ impl<DB: Database> RuntimeContext<DB> {
         Box::into_raw(Box::new(Result::success(())))
     }
 
-    pub extern "C" fn read_storage(
+    pub extern "C" fn sload(
         &mut self,
         stg_key: &Bytes32,
         stg_value: &mut Bytes32,
@@ -916,10 +916,13 @@ impl<DB: Database> RuntimeContext<DB> {
         let addr = host.env().tx.transact_to;
         let result = host.get_storage(&addr, stg_key);
         *stg_value = result.value;
-        Box::into_raw(Box::new(Result::success(())))
+
+        let is_cold = true;
+        let gas_cost = gas::sload_cost(self.inner_context.spec_id, is_cold);
+        Box::into_raw(Box::new(Result::success_with_gas((), gas_cost)))
     }
 
-    pub extern "C" fn write_storage(
+    pub extern "C" fn sstore(
         &mut self,
         stg_key: &Bytes32,
         stg_value: &mut Bytes32,
@@ -928,41 +931,24 @@ impl<DB: Database> RuntimeContext<DB> {
         let addr = host.env().tx.transact_to;
         let result = host.set_storage(addr, *stg_key, *stg_value);
 
-        // Dynamic gas cost
         let original = result.original_value.to_u256();
         let current = result.present_value.to_u256();
-        let value = stg_value.to_u256();
+        let new = stg_value.to_u256();
 
-        // Compute the gas cost
-        let mut gas_cost: i64 = if original.is_zero() && current.is_zero() && current != value {
-            20_000
-        } else if original == current && current != value {
-            2_900
-        } else {
-            100
-        };
+        let is_cold = true;
+        let gas_cost = gas::sstore_cost(
+            self.inner_context.spec_id,
+            original,
+            current,
+            new,
+            self.inner_context.gas_remaining.unwrap_or(0),
+            is_cold,
+        )
+        .unwrap_or(0);
+        self.inner_context.gas_refund =
+            gas::sstore_refund(self.inner_context.spec_id, original, current, new) as u64;
 
-        if result.is_cold {
-            gas_cost += 2_100; // Extra cost for cold storage
-        }
-
-        // Compute the gas refund
-        let gas_refund: i64 = match (original.is_zero(), current.is_zero(), value.is_zero()) {
-            (false, false, true) => 4_800, // Reset non-zero to zero
-            (false, true, false) if value == original => -2_000, // Undo reset to zero into original
-            (false, true, false) => -4_800, // Undo reset to zero
-            (true, false, true) => 19_900, // Reset back to zero
-            (true, false, false) if current != value && original == value => 2_800, // Reset to original
-            _ => 0,
-        };
-
-        if gas_refund > 0 {
-            self.inner_context.gas_refund += gas_refund as u64;
-        } else {
-            self.inner_context.gas_refund -= gas_refund.unsigned_abs();
-        };
-
-        uint_result_ptr!(gas_cost as u64)
+        uint_result_ptr!(gas_cost)
     }
 
     pub extern "C" fn append_log(&mut self, offset: u64, size: u64) -> *mut Result<()> {
@@ -1073,17 +1059,7 @@ impl<DB: Database> RuntimeContext<DB> {
             .len();
 
         let is_cold = true;
-        let gas_cost = if self.inner_context.spec_id.is_enabled_in(SpecId::BERLIN) {
-            if is_cold {
-                COLD_ACCOUNT_ACCESS_COST
-            } else {
-                WARM_STORAGE_READ_COST
-            }
-        } else if self.inner_context.spec_id.is_enabled_in(SpecId::TANGERINE) {
-            700
-        } else {
-            20
-        };
+        let gas_cost = gas::extcodesize_gas_cost(self.inner_context.spec_id, is_cold);
 
         Box::into_raw(Box::new(Result {
             gas_used: gas_cost,
@@ -1146,20 +1122,7 @@ impl<DB: Database> RuntimeContext<DB> {
         };
 
         let is_cold = true;
-        let gas_cost = if self.inner_context.spec_id.is_enabled_in(SpecId::BERLIN) {
-            if is_cold {
-                COLD_ACCOUNT_ACCESS_COST
-            } else {
-                WARM_STORAGE_READ_COST
-            }
-        } else if self.inner_context.spec_id.is_enabled_in(SpecId::ISTANBUL) {
-            // EIP-1884: Repricing for trie-size-dependent opcodes
-            700
-        } else if self.inner_context.spec_id.is_enabled_in(SpecId::TANGERINE) {
-            400
-        } else {
-            20
-        };
+        let gas_cost = gas::balance_gas_cost(self.inner_context.spec_id, is_cold);
 
         Box::into_raw(Box::new(Result {
             gas_used: gas_cost,
@@ -1239,17 +1202,7 @@ impl<DB: Database> RuntimeContext<DB> {
         *address = Bytes32::from_be_bytes(hash.to_fixed_bytes());
 
         let is_cold = true;
-        let gas_cost = if self.inner_context.spec_id.is_enabled_in(SpecId::BERLIN) {
-            if is_cold {
-                COLD_ACCOUNT_ACCESS_COST
-            } else {
-                WARM_STORAGE_READ_COST
-            }
-        } else if self.inner_context.spec_id.is_enabled_in(SpecId::ISTANBUL) {
-            700
-        } else {
-            400
-        };
+        let gas_cost = gas::extcodehash_gas_cost(self.inner_context.spec_id, is_cold);
 
         Box::into_raw(Box::new(Result {
             gas_used: gas_cost,
@@ -1479,14 +1432,8 @@ impl<DB: Database> RuntimeContext<DB> {
                     symbols::EXTEND_MEMORY,
                     RuntimeContext::<DB>::extend_memory as *const _,
                 ),
-                (
-                    symbols::STORAGE_READ,
-                    RuntimeContext::<DB>::read_storage as *const _,
-                ),
-                (
-                    symbols::STORAGE_WRITE,
-                    RuntimeContext::<DB>::write_storage as *const _,
-                ),
+                (symbols::SLOAD, RuntimeContext::<DB>::sload as *const _),
+                (symbols::SSTORE, RuntimeContext::<DB>::sstore as *const _),
                 (
                     symbols::APPEND_LOG,
                     RuntimeContext::<DB>::append_log as *const _,
