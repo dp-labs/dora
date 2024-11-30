@@ -346,9 +346,9 @@ impl MemoryDB {
     /// # Example
     ///
     /// ```no_check
-    /// db.store(address, key, value);
+    /// db.sstore(address, key, value);
     /// ```
-    pub fn store(&mut self, address: Address, key: U256, value: U256) {
+    pub fn sstore(&mut self, address: Address, key: U256, value: U256) {
         let account = self.accounts.entry(address).or_insert(DbAccount::empty());
         account.storage.insert(key, value);
     }
