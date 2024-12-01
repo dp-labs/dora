@@ -320,9 +320,6 @@ impl<'c> EVMCompiler<'c> {
             let may_underflow = i > 0;
             let may_overflow = diff > 0;
 
-            // Uncomment below to see the logs printing out while compilation
-            println!("{op:?} - {i} , {o} | {may_underflow} , {may_overflow}");
-
             // If the opcode is non-eof format, check the stack overflow/underflow
             if !is_eof && self.stack_bound_checks {
                 let builder = OpBuilder::new_with_block(context, last_block);
