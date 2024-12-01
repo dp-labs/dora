@@ -7,7 +7,7 @@ use crate::{
     errors::Result,
     store_var,
 };
-use crate::{check_resize_memory, check_runtime_error, maybe_revert_here};
+use crate::{check_op_oog, check_runtime_error, maybe_revert_here};
 use block::BlockArgument;
 use dora_runtime::constants;
 use dora_runtime::symbols;
@@ -161,8 +161,7 @@ pub(crate) fn resize_memory<'c>(
     required_size: Value<'c, 'c>,
 ) -> Result<()> {
     // Check the memory offset halt error
-    check_resize_memory!(op, rewriter, required_size);
-    let rewriter = Rewriter::new_with_op(context, *op);
+    check_op_oog!(op, rewriter, required_size);
     let location = rewriter.get_insert_location();
     let ptr_type = rewriter.ptr_ty();
     let rounded_required_size = utils::round_up_32(required_size, context, &rewriter, location)?;

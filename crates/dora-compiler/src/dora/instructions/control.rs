@@ -1,14 +1,17 @@
 use crate::{
     arith_constant,
+    backend::IntCC,
+    check_op_oog,
+    conversion::builder::OpBuilder,
     conversion::rewriter::{DeferredRewriter, Rewriter},
     dora::{conversion::ConversionPass, memory},
     errors::Result,
-    load_by_addr, operands, rewrite_ctx, syscall_ctx,
+    load_by_addr, maybe_revert_here, operands, rewrite_ctx, syscall_ctx, u256_to_64,
 };
 use dora_runtime::ExitStatusCode;
 use dora_runtime::{constants, symbols};
 use melior::{
-    dialect::{arith, func},
+    dialect::{arith, cf, func},
     ir::{
         attribute::{FlatSymbolRefAttribute, IntegerAttribute},
         operation::OperationRef,
@@ -26,8 +29,8 @@ impl<'c> ConversionPass<'c> {
         let uint64 = rewriter.intrinsics.i64_ty;
         let ptr_type = rewriter.ptr_ty();
 
-        let offset = rewriter.make(arith::trunci(offset, uint64, location))?;
-        let size = rewriter.make(arith::trunci(size, uint64, location))?;
+        u256_to_64!(op, rewriter, offset);
+        u256_to_64!(op, rewriter, size);
 
         // required_size = offset + size
         let required_memory_size = rewriter.make(arith::addi(offset, size, location))?;
