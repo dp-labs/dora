@@ -381,6 +381,12 @@ impl<'c> GasPass<'c> {
                                         }
                                         dora_ir::Operation::ExtCodeCopy => {
                                             self.insert_dynamic_gas_check_block_before_op_block(
+                                                &op.next_in_block().unwrap(),
+                                                block,
+                                                revert_block,
+                                                |_rewriter| Ok(op.result(0)?.into()),
+                                            )?;
+                                            self.insert_dynamic_gas_check_block_before_op_block(
                                                 op,
                                                 block,
                                                 revert_block,

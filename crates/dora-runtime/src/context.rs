@@ -1182,11 +1182,15 @@ impl<DB: Database> RuntimeContext<DB> {
         let code_len = code_end - code_offset;
         let code_slice = &code[code_offset..code_end];
         self.inner_context.memory[dest_offset..dest_offset + code_len].copy_from_slice(code_slice);
+
+        let is_cold = true;
+        let gas_cost = gas::extcodecopy_gas_cost(self.inner_context.spec_id, is_cold);
+
         // Zero-fill the remaining space
         if size > code_len {
             self.inner_context.memory[dest_offset + code_len..dest_offset + size].fill(0);
         }
-        Box::into_raw(Box::new(Result::success(())))
+        Box::into_raw(Box::new(Result::success_with_gas((), gas_cost)))
     }
 
     pub extern "C" fn ext_code_hash(&mut self, address: &mut Bytes32) -> *mut Result<()> {
