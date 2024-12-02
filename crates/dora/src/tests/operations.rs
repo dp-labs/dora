@@ -1188,6 +1188,22 @@ fn calldatacopy_large_range() {
 }
 
 #[test]
+fn calldatacopy_out_of_range() {
+    let operations = vec![
+        Operation::Push((1_u8, BigUint::from(1_u8))),
+        Operation::Push((1_u8, BigUint::from(1_u8))),
+        Operation::Push((1_u8, BigUint::from(1_u8))),
+        Operation::CallDataCopy,
+        // Return result
+        Operation::Push((1, 32_u8.into())),
+        Operation::Push0,
+        Operation::Return,
+    ];
+    let (env, mut db) = default_env_and_db_setup(operations);
+    run_program_assert_num_result(env, db, 0_u8.into());
+}
+
+#[test]
 fn codesize() {
     let operations = vec![
         Operation::Codesize,

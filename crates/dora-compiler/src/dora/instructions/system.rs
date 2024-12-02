@@ -279,7 +279,7 @@ impl<'c> ConversionPass<'c> {
         ))?;
         let flag = rewriter.make(arith::cmpi(
             context,
-            CmpiPredicate::Ugt,
+            CmpiPredicate::Ult,
             call_data_offset,
             call_data_size,
             location,
