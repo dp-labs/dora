@@ -1,4 +1,4 @@
-use crate::{account::Account, db::DatabaseError};
+use crate::{account::Account, context::Log, db::DatabaseError};
 use core::fmt;
 use dora_primitives::{Bytes, EVMAddress as Address};
 use ruint::aliases::U256;
@@ -37,6 +37,7 @@ pub enum ExecutionResult {
         gas_used: u64,
         gas_refunded: u64,
         output: Output,
+        logs: Vec<Log>,
     },
     /// Reverted by the `REVERT` opcode, consuming partial gas.
     /// Contains:
@@ -102,6 +103,14 @@ impl ExecutionResult {
             _ => None,
         }
         .filter(|data| !data.is_empty())
+    }
+
+    /// Returns the logs if execution is successful, or an empty list otherwise.
+    pub fn logs(&self) -> &[Log] {
+        match self {
+            Self::Success { logs, .. } => logs,
+            _ => &[],
+        }
     }
 
     /// Consumes the execution result and returns the output data.

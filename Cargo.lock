@@ -1251,6 +1251,7 @@ dependencies = [
 name = "dora-primitives"
 version = "0.2.0"
 dependencies = [
+ "alloy-rlp",
  "bytes",
  "ethereum-types",
  "revm-primitives 5.0.0",
@@ -1265,6 +1266,7 @@ dependencies = [
 name = "dora-runtime"
 version = "0.2.0"
 dependencies = [
+ "alloy-rlp",
  "anyhow",
  "bitflags 2.6.0",
  "bytes",
@@ -1285,6 +1287,7 @@ dependencies = [
 name = "dora-tools"
 version = "0.2.0"
 dependencies = [
+ "alloy-rlp",
  "anyhow",
  "bytes",
  "clap",
@@ -1292,16 +1295,20 @@ dependencies = [
  "dora-compiler",
  "dora-primitives",
  "dora-runtime",
+ "hash-db",
  "hex",
  "hex-literal",
  "indexmap 2.6.0",
  "indicatif",
  "num-bigint",
+ "plain_hasher",
+ "revm-primitives 5.0.0",
  "serde",
  "serde_json",
  "thiserror",
  "tracing",
  "tracing-subscriber",
+ "triehash",
  "walkdir",
 ]
 
@@ -1724,6 +1731,12 @@ dependencies = [
  "cfg-if",
  "crunchy",
 ]
+
+[[package]]
+name = "hash-db"
+version = "0.15.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "d23bd4e7b5eda0d0f3a307e8b381fdc8ba9000f26fbe912250c0a4cc3956364a"
 
 [[package]]
 name = "hashbrown"
@@ -2445,6 +2458,15 @@ checksum = "f950b2377845cebe5cf8b5165cb3cc1a5e0fa5cfa3e1f7f55707d8fd82e0a7b7"
 dependencies = [
  "der",
  "spki",
+]
+
+[[package]]
+name = "plain_hasher"
+version = "0.2.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "1e19e6491bdde87c2c43d70f4c194bc8a758f2eb732df00f61e43f7362e3b4cc"
+dependencies = [
+ "crunchy",
 ]
 
 [[package]]
@@ -3644,6 +3666,16 @@ dependencies = [
  "thread_local",
  "tracing-core",
  "tracing-log",
+]
+
+[[package]]
+name = "triehash"
+version = "0.8.4"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "a1631b201eb031b563d2e85ca18ec8092508e262a3196ce9bd10a67ec87b9f5c"
+dependencies = [
+ "hash-db",
+ "rlp",
 ]
 
 [[package]]
