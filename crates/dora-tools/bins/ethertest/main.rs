@@ -532,13 +532,13 @@ fn execute_test(path: &Path) -> Result<(), TestError> {
                     //     });
                     // }
                 }
-                Err(_) => {
+                Err(error) => {
                     if test_case.expect_exception.is_none() {
                         return Err(TestError {
                             name: name.to_string(),
                             kind: TestErrorKind::UnexpectedException {
                                 expected_exception: test_case.expect_exception.clone(),
-                                got_exception: None,
+                                got_exception: Some(error.to_string()),
                             },
                         });
                     }

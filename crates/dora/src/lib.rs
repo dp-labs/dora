@@ -68,7 +68,8 @@ pub fn run_with_context<DB: Database>(
         let value = env.tx.value;
         let data = env.tx.data.clone();
         drop(host);
-        runtime_context.create_contract(&data, &mut remaining_gas, value, None)?;
+        // Here we get the conrtact create error from the runtime context.
+        let _ = runtime_context.create_contract(&data, &mut remaining_gas, value, None);
     } else {
         // Fetch the bytecode artifact if exists
         let db = runtime_context.db.read().unwrap();
