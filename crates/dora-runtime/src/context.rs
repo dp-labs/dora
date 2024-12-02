@@ -1278,16 +1278,21 @@ impl<DB: Database> RuntimeContext<DB> {
         self.call_frame = CallFrame::new(sender_address);
         self.inner_context.depth += 1;
         let tx = self.transaction.clone();
-        let result = tx.run(self, *remaining_gas).unwrap().result;
-        let _output = result.output().cloned().unwrap_or_default();
-        // Set the gas cost
         let init_code_cost = minimum_word_size * gas_cost::INIT_WORD_COST as u64;
         let code_deposit_cost = (bytecode.len() as u64) * gas_cost::BYTE_DEPOSIT_COST as u64;
-        let gas_cost = init_code_cost + code_deposit_cost + hash_cost + result.gas_used()
-            - result.gas_refunded();
-        *remaining_gas = gas_cost;
+        // Set the gas cost
+        *remaining_gas = match tx.run(self, *remaining_gas) {
+            Ok(result) => {
+                // Contract create success.
+                init_code_cost + code_deposit_cost + hash_cost + result.result.gas_used()
+                    - result.result.gas_refunded()
+            }
+            Err(_) => {
+                // Contract create failed.
+                init_code_cost + code_deposit_cost + hash_cost
+            }
+        };
         self.inner_context.depth -= 1;
-
         // Check if balance is enough
         let sender_balance = match sender_account.balance.checked_sub(value) {
             Some(balance) => balance,
