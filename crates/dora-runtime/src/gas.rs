@@ -191,6 +191,36 @@ pub const fn extcodesize_gas_cost(spec_id: SpecId, is_cold: bool) -> u64 {
     }
 }
 
+/// Computes the gas cost for the `EXTCODECOPY` operation based on the Ethereum specification.
+///
+/// # Parameters
+/// - `spec_id`: The `SpecId` representing the Ethereum specification version.
+/// - `is_cold`: A boolean indicating whether the operation is accessing a cold account (`true`)
+///   or a warm account (`false`).
+///
+/// # Returns
+/// - A `u64` value representing the gas cost for the `EXTCODECOPY` operation
+///
+/// # Notes
+/// - This function leverages inline execution for performance optimization.
+/// - Gas costs vary depending on the Ethereum specification version to maintain compatibility
+///   with historical and updated protocol rules.
+///
+#[inline]
+pub const fn extcodecopy_gas_cost(spec_id: SpecId, is_cold: bool) -> u64 {
+    if spec_id.is_enabled_in(SpecId::BERLIN) {
+        if is_cold {
+            COLD_ACCOUNT_ACCESS_COST
+        } else {
+            WARM_STORAGE_READ_COST
+        }
+    } else if spec_id.is_enabled_in(SpecId::TANGERINE) {
+        700
+    } else {
+        20
+    }
+}
+
 /// Calculates the balance store gas cost for an EVM operation based on the specification version and access type.
 ///
 /// The gas cost varies depending on the EVM specification and whether the operation involves
