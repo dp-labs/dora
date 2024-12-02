@@ -748,16 +748,13 @@ impl<DB: Database> RuntimeContext<DB> {
         let source_offset = source_offset as usize;
         let size = size as usize;
 
-        // todo: fix error return
+        let (source_end, overflow) = source_offset.overflowing_add(size);
         // Check bounds
-        if size + target_offset > target.len() {
-            eprintln!("ERROR: Target offset and size exceed target length");
-            return Box::into_raw(Box::new(Result::success(())));
+        if overflow || source_end > source.len() {
+            return &mut Result::error(ExitStatusCode::OutOfOffset.to_u8(), ()) as _;
         }
-
         if size + source_offset > source.len() {
-            eprintln!("ERROR: Source offset and size exceed source length");
-            return Box::into_raw(Box::new(Result::success(())));
+            return &mut Result::error(ExitStatusCode::OutOfOffset.to_u8(), ()) as _;
         }
 
         // Calculate bytes to copy
@@ -769,7 +766,7 @@ impl<DB: Database> RuntimeContext<DB> {
         target[target_offset..target_offset + bytes_to_copy]
             .copy_from_slice(&source[source_offset..source_offset + bytes_to_copy]);
 
-        Box::into_raw(Box::new(Result::success(())))
+        &mut Result::success(()) as _
     }
 
     pub extern "C" fn store_in_selfbalance_ptr(
@@ -875,13 +872,10 @@ impl<DB: Database> RuntimeContext<DB> {
                     self.inner_context.memory.as_mut_ptr() as _,
                 )))
             }
-            Err(err) => {
-                eprintln!("Failed to reserve memory: {err}");
-                Box::into_raw(Box::new(Result::error(
-                    ExitStatusCode::MemoryLimitOOG.to_u8(),
-                    std::ptr::null_mut(),
-                )))
-            }
+            Err(_) => Box::into_raw(Box::new(Result::error(
+                ExitStatusCode::MemoryLimitOOG.to_u8(),
+                std::ptr::null_mut(),
+            ))),
         }
     }
 
