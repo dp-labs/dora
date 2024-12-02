@@ -153,6 +153,14 @@ impl Account {
     pub fn is_touched(&self) -> bool {
         self.status.contains(AccountStatus::Touched)
     }
+
+    /// New empty account with the storage.
+    pub fn new_empty_with_storage(storage: HashMap<U256, StorageSlot>) -> Self {
+        Self {
+            storage,
+            ..Default::default()
+        }
+    }
 }
 
 bitflags! {

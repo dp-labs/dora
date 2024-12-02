@@ -7,6 +7,8 @@
 //! cargo install --path .
 //! dora-ethertest run tests/GeneralStateTests
 //! ```
+use alloy_rlp::RlpEncodable;
+use alloy_rlp::RlpMaxEncodedLen;
 use anyhow::Result;
 use clap::{Args, Parser, Subcommand};
 use dora::{run_with_context, EVMTransaction};
@@ -14,12 +16,18 @@ use dora_primitives::spec::SpecId;
 use dora_primitives::spec::SpecName;
 use dora_primitives::Bytes;
 use dora_primitives::{Address, B256, U256};
+use dora_runtime::account::Account;
+use dora_runtime::context::Log;
 use dora_runtime::context::{CallFrame, RuntimeContext, RuntimeDB};
 use dora_runtime::db::{Database, MemoryDB};
 use dora_runtime::env::Env;
 use dora_runtime::host::DummyHost;
 use dora_runtime::result::ResultAndState;
+use hash_db::Hasher;
 use indicatif::{ProgressBar, ProgressDrawTarget};
+use plain_hasher::PlainHasher;
+use revm_primitives::keccak256;
+use revm_primitives::EvmStorageSlot;
 use serde::de::Visitor;
 use serde::{de, Deserialize, Serialize};
 use std::fmt;
@@ -30,6 +38,7 @@ use std::{
 };
 use thiserror::Error;
 use tracing::{error, info};
+use triehash::sec_trie_root;
 use walkdir::{DirEntry, WalkDir};
 
 #[derive(Parser)]
@@ -70,7 +79,7 @@ pub struct Test {
     pub info: Option<serde_json::Value>,
     env: TestEnv,
     transaction: Transaction,
-    pre: HashMap<Address, AccountInfo>,
+    pre: HashMap<Address, TestAccountInfo>,
     post: BTreeMap<SpecName, Vec<PostStateTest>>,
     #[serde(default)]
     pub out: Option<DeserializeBytes>,
@@ -142,7 +151,7 @@ pub struct Authorization {
 
 #[derive(Clone, Debug, PartialEq, Eq, Deserialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
-pub struct AccountInfo {
+pub struct TestAccountInfo {
     pub balance: U256,
     pub code: DeserializeBytes,
     #[serde(deserialize_with = "deserialize_str_as_u64")]
@@ -157,7 +166,7 @@ pub struct PostStateTest {
     pub indexes: TestIndexes,
     pub hash: B256,
     #[serde(default)]
-    pub post_state: HashMap<Address, AccountInfo>,
+    pub post_state: HashMap<Address, TestAccountInfo>,
     pub logs: B256,
     pub txbytes: Option<DeserializeBytes>,
 }
@@ -180,9 +189,9 @@ pub struct TestError {
 #[derive(Debug, Error)]
 pub enum TestErrorKind {
     #[error("logs root mismatch: got {got}, expected {expected}")]
-    LogsRootMismatch { got: String, expected: String },
+    LogsRootMismatch { got: B256, expected: B256 },
     #[error("state root mismatch: got {got}, expected {expected}")]
-    StateRootMismatch { got: String, expected: String },
+    StateRootMismatch { got: B256, expected: B256 },
     #[error(transparent)]
     SerdeDeserialize(#[from] serde_json::Error),
     #[error("unexpected execution error")]
@@ -197,6 +206,149 @@ pub enum TestErrorKind {
         expected_exception: Option<String>,
         got_exception: Option<String>,
     },
+}
+
+fn log_rlp_hash(logs: &[Log]) -> B256 {
+    let logs: Vec<revm_primitives::Log> = logs
+        .iter()
+        .map(|l| revm_primitives::Log {
+            address: revm_primitives::Address::from_slice(l.address.as_bytes()),
+            data: revm_primitives::LogData::new_unchecked(
+                l.data
+                    .topics
+                    .iter()
+                    .map(|t| revm_primitives::FixedBytes::<32>(t.to_le_bytes()))
+                    .collect(),
+                revm_primitives::Bytes(Bytes::from(l.data.data.clone())),
+            ),
+        })
+        .collect();
+    let mut out = Vec::with_capacity(alloy_rlp::list_length(&logs));
+    alloy_rlp::encode_list(&logs, &mut out);
+    B256::from_slice(revm_primitives::keccak256(&out).as_slice())
+}
+
+pub fn state_merkle_trie_root<'a>(
+    accounts: impl IntoIterator<Item = (&'a Address, &'a Account)>,
+) -> B256 {
+    B256::from_slice(
+        trie_root(accounts.into_iter().map(|(address, acc)| {
+            (
+                address,
+                alloy_rlp::encode_fixed_size(&TrieAccount::new(acc)),
+            )
+        }))
+        .as_slice(),
+    )
+}
+
+#[derive(RlpEncodable, RlpMaxEncodedLen)]
+struct TrieAccount {
+    nonce: u64,
+    balance: U256,
+    root_hash: revm_primitives::B256,
+    code_hash: revm_primitives::B256,
+}
+
+impl TrieAccount {
+    fn new(acc: &Account) -> Self {
+        Self {
+            nonce: acc.info.nonce,
+            balance: acc.info.balance,
+            root_hash: sec_trie_root::<KeccakHasher, _, _, _>(
+                acc.storage
+                    .iter()
+                    .filter(|(_k, v)| !v.present_value.is_zero())
+                    .map(|(k, v)| {
+                        (
+                            k.to_be_bytes::<32>(),
+                            alloy_rlp::encode_fixed_size(&v.present_value),
+                        )
+                    }),
+            ),
+            code_hash: revm_primitives::B256::from_slice(acc.info.code_hash.as_bytes()),
+        }
+    }
+}
+
+/// This type keeps track of the current value of a storage slot.
+#[derive(
+    Debug, Copy, Clone, Default, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize,
+)]
+pub struct StorageSlot {
+    /// The value of the storage slot before it was changed.
+    ///
+    /// When the slot is first loaded, this is the original value.
+    ///
+    /// If the slot was not changed, this is equal to the present value.
+    pub previous_or_original_value: U256,
+    /// When loaded with sload present value is set to original value
+    pub present_value: U256,
+}
+
+impl From<EvmStorageSlot> for StorageSlot {
+    fn from(value: EvmStorageSlot) -> Self {
+        Self::new_changed(value.original_value, value.present_value)
+    }
+}
+
+impl StorageSlot {
+    /// Creates a new _unchanged_ `StorageSlot` for the given value.
+    pub fn new(original: U256) -> Self {
+        Self {
+            previous_or_original_value: original,
+            present_value: original,
+        }
+    }
+
+    /// Creates a new _changed_ `StorageSlot`.
+    pub fn new_changed(previous_or_original_value: U256, present_value: U256) -> Self {
+        Self {
+            previous_or_original_value,
+            present_value,
+        }
+    }
+
+    /// Returns true if the present value differs from the original value
+    pub fn is_changed(&self) -> bool {
+        self.previous_or_original_value != self.present_value
+    }
+
+    /// Returns the original value of the storage slot.
+    pub fn original_value(&self) -> U256 {
+        self.previous_or_original_value
+    }
+
+    /// Returns the current value of the storage slot.
+    pub fn present_value(&self) -> U256 {
+        self.present_value
+    }
+}
+
+pub type StorageWithOriginalValues = HashMap<U256, StorageSlot>;
+
+#[inline]
+pub fn trie_root<I, A, B>(input: I) -> revm_primitives::B256
+where
+    I: IntoIterator<Item = (A, B)>,
+    A: AsRef<[u8]>,
+    B: AsRef<[u8]>,
+{
+    sec_trie_root::<KeccakHasher, _, _, _>(input)
+}
+
+#[derive(Default, Debug, Clone, PartialEq, Eq, Hash)]
+pub struct KeccakHasher;
+
+impl Hasher for KeccakHasher {
+    type Out = revm_primitives::B256;
+    type StdHasher = PlainHasher;
+    const LENGTH: usize = 32;
+
+    #[inline]
+    fn hash(x: &[u8]) -> Self::Out {
+        keccak256(x)
+    }
 }
 
 fn find_all_json_tests(path: &Path) -> Vec<PathBuf> {
@@ -332,6 +484,10 @@ fn execute_test(path: &Path) -> Result<(), TestError> {
             }
             // Run EVM and get the state result.
             let res = run_with_shared_db(env, db.clone());
+            let logs_root = log_rlp_hash(res.as_ref().map(|r| r.result.logs()).unwrap_or_default());
+            let state = db.read().unwrap().clone().into_state();
+            let state_root = state_merkle_trie_root(state.iter());
+            // Check result and output.
             match res {
                 Ok(res) => {
                     if test_case.expect_exception.is_some() && res.result.is_success() {
@@ -343,7 +499,7 @@ fn execute_test(path: &Path) -> Result<(), TestError> {
                             },
                         });
                     }
-                    // Check output
+                    // Check output.
                     if let Some((expected_output, output)) =
                         suite.out.as_ref().zip(res.result.output())
                     {
@@ -369,6 +525,28 @@ fn execute_test(path: &Path) -> Result<(), TestError> {
                         });
                     }
                 }
+            }
+            // Check the logs root.
+            if logs_root != test_case.logs {
+                let kind = TestErrorKind::LogsRootMismatch {
+                    got: logs_root,
+                    expected: test_case.logs,
+                };
+                return Err(TestError {
+                    name: name.to_string(),
+                    kind,
+                });
+            }
+            // Check the state root.
+            if state_root != test_case.hash {
+                let kind = TestErrorKind::StateRootMismatch {
+                    got: state_root,
+                    expected: test_case.hash,
+                };
+                return Err(TestError {
+                    name: name.to_string(),
+                    kind,
+                });
             }
         }
     }

@@ -351,12 +351,14 @@ impl<DB: Database> RuntimeContext<DB> {
                 gas_used,
                 gas_refunded,
                 output: Output::Call(return_values.into()),
+                logs: self.logs(),
             },
             ExitStatusCode::Stop => ExecutionResult::Success {
                 reason: SuccessReason::Stop,
                 gas_used,
                 gas_refunded,
                 output: Output::Call(return_values.into()),
+                logs: self.logs(),
             },
             ExitStatusCode::Revert
             | ExitStatusCode::CreateInitCodeStartingEF00
