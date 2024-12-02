@@ -11,7 +11,7 @@ use thiserror::Error;
 /// The `Database` trait provides an interface for interacting with various on-chain data sources
 /// related to accounts, storage, and blocks. It defines methods to retrieve basic account information,
 /// contract code, storage values, and block hashes.
-pub trait Database: Clone + Debug {
+pub trait Database: Clone + Debug + DatabaseCommit {
     /// The type representing an error that may occur when interacting with the database.
     type Error: Debug + Sync + Send;
     type Artifact: Artifact;
@@ -124,6 +124,12 @@ pub trait Database: Clone + Debug {
 #[derive(Error, Debug, Clone, Hash, PartialEq, Eq)]
 #[error("Error during database access")]
 pub struct DatabaseError;
+
+/// Database commit interface.
+pub trait DatabaseCommit {
+    /// Commit changes to the database.
+    fn commit(&mut self, changes: FxHashMap<Address, Account>);
+}
 
 /// Represents a storage slot's state, holding both the original value and the current value.
 ///
@@ -376,48 +382,6 @@ impl MemoryDB {
             .unwrap_or_default()
     }
 
-    /// Commits a set of changes to the in-memory database.
-    ///
-    /// The changes consist of a map of addresses and their corresponding `Account` objects.
-    /// Each account's balance, nonce, status, and storage are updated accordingly. If the account
-    /// is created but self-destructed or untouched, it is skipped.
-    ///
-    /// # Parameters
-    ///
-    /// - `changes`: A `HashMap<Address, Account>` containing the changes to be committed.
-    ///
-    /// # Example
-    ///
-    /// ```no_check
-    /// db.commit(changes);
-    /// ```
-    pub fn commit(&mut self, changes: FxHashMap<Address, Account>) {
-        for (address, account) in changes {
-            if account.is_created() && account.is_selfdestructed() || !account.is_touched() {
-                continue;
-            }
-
-            if account.is_created() {
-                self.store_contract(&account.info);
-            }
-
-            let db_account = self
-                .accounts
-                .entry(address)
-                .or_insert_with(DbAccount::empty);
-            db_account.nonce = account.info.nonce;
-            db_account.balance = account.info.balance;
-            db_account.status = AccountStatus::Cold;
-            db_account.bytecode_hash = account.info.code_hash;
-            db_account.storage.extend(
-                account
-                    .storage
-                    .into_iter()
-                    .map(|(key, value)| (key, value.present_value)),
-            );
-        }
-    }
-
     fn store_contract(&mut self, account: &AccountInfo) {
         if let Some(code) = account.code.as_ref() {
             self.contracts
@@ -500,6 +464,52 @@ impl Database for MemoryDB {
                 )
             })
             .collect()
+    }
+}
+
+impl DatabaseCommit for MemoryDB {
+    /// Commits a set of changes to the in-memory database.
+    ///
+    /// The changes consist of a map of addresses and their corresponding `Account` objects.
+    /// Each account's balance, nonce, status, and storage are updated accordingly. If the account
+    /// is created but self-destructed or untouched, it is skipped.
+    ///
+    /// # Parameters
+    ///
+    /// - `changes`: A `HashMap<Address, Account>` containing the changes to be committed.
+    ///
+    /// # Example
+    ///
+    /// ```no_check
+    /// db.commit(changes);
+    /// ```
+    fn commit(&mut self, changes: FxHashMap<Address, Account>) {
+        for (address, account) in changes {
+            if account.is_created() {
+                self.store_contract(&account.info);
+            }
+
+            if account.is_selfdestructed() {
+                let db_account = self.accounts.entry(address).or_default();
+                db_account.storage.clear();
+                continue;
+            }
+
+            let db_account = self
+                .accounts
+                .entry(address)
+                .or_insert_with(DbAccount::empty);
+            db_account.nonce = account.info.nonce;
+            db_account.balance = account.info.balance;
+            db_account.status = AccountStatus::Cold;
+            db_account.bytecode_hash = account.info.code_hash;
+            db_account.storage.extend(
+                account
+                    .storage
+                    .into_iter()
+                    .map(|(key, value)| (key, value.present_value)),
+            );
+        }
     }
 }
 
