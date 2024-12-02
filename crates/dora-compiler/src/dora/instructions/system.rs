@@ -1,7 +1,7 @@
 use crate::{
     arith_constant,
     backend::IntCC,
-    check_op_oog,
+    check_op_oog, check_runtime_error,
     conversion::{
         builder::OpBuilder,
         rewriter::{DeferredRewriter, Rewriter},
@@ -412,13 +412,20 @@ impl<'c> ConversionPass<'c> {
         let req_mem_size: Value = rewriter.make(arith::addi(dest_offset, size, location))?;
         memory::resize_memory(context, op, &rewriter, syscall_ctx, req_mem_size)?;
         rewrite_ctx!(context, op, rewriter, location);
-        rewriter.create(func::call(
+        let result_ptr = rewriter.make(func::call(
             context,
             FlatSymbolRefAttribute::new(context, symbols::RETURN_DATA_COPY),
             &[syscall_ctx.into(), dest_offset, offset, size],
             &[ptr_type],
             location,
-        ));
+        ))?;
+        let error = rewriter.get_field_value(
+            result_ptr,
+            offset_of!(dora_runtime::context::Result<()>, error),
+            rewriter.intrinsics.i8_ty,
+        )?;
+        // Check the runtime memory data copy out of offset halt error
+        check_runtime_error!(op, rewriter, error);
         Ok(())
     }
 
