@@ -82,7 +82,7 @@ module {
     %12 = arith.cmpi ult, %c1024_i64, %11 : i64
     %c92_i8 = arith.constant 92 : i8
     cf.cond_br %12, ^bb1(%c92_i8 : i8), ^bb3
-  ^bb1(%13: i8):  // 10 preds: ^bb0, ^bb2, ^bb3, ^bb4, ^bb5, ^bb6, ^bb7, ^bb8, ^bb9, ^bb10
+  ^bb1(%13: i8):  // 11 preds: ^bb0, ^bb2, ^bb3, ^bb4, ^bb5, ^bb6, ^bb7, ^bb8, ^bb9, ^bb10, ^bb11
     %c0_i64_1 = arith.constant 0 : i64
     %14 = call @dora_fn_write_result(%arg0, %c0_i64_1, %c0_i64_1, %c0_i64_1, %13) : (!llvm.ptr, i64, i64, i64, i8) -> !llvm.ptr
     return %13 : i8
@@ -193,11 +193,17 @@ module {
     %64 = llvm.mlir.addressof @dora_global_memory_size : !llvm.ptr
     llvm.store %56, %64 : i64, !llvm.ptr
     %65 = call @dora_fn_return_data_copy(%arg0, %46, %48, %50) : (!llvm.ptr, i64, i64, i64) -> !llvm.ptr
-    cf.br ^bb12
+    %66 = llvm.getelementptr %65[0] : (!llvm.ptr) -> !llvm.ptr, i8
+    %67 = llvm.load %66 : !llvm.ptr -> i8
+    %c0_i8_14 = arith.constant 0 : i8
+    %68 = arith.cmpi ne, %67, %c0_i8_14 : i8
+    cf.cond_br %68, ^bb1(%67 : i8), ^bb12
   ^bb12:  // pred: ^bb11
-    %c0_i64_14 = arith.constant 0 : i64
+    cf.br ^bb13
+  ^bb13:  // pred: ^bb12
+    %c0_i64_15 = arith.constant 0 : i64
     %c1_i8 = arith.constant 1 : i8
-    %66 = call @dora_fn_write_result(%arg0, %c0_i64_14, %c0_i64_14, %arg1, %c1_i8) : (!llvm.ptr, i64, i64, i64, i8) -> !llvm.ptr
+    %69 = call @dora_fn_write_result(%arg0, %c0_i64_15, %c0_i64_15, %arg1, %c1_i8) : (!llvm.ptr, i64, i64, i64, i8) -> !llvm.ptr
     return %c1_i8 : i8
   }
 }

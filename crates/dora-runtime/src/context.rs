@@ -111,6 +111,14 @@ impl CallFrame {
             last_call_return_data: Vec::new(),
         }
     }
+
+    pub fn new_with_data(caller: Address, data: Vec<u8>) -> Self {
+        Self {
+            caller,
+            ctx_is_static: false,
+            last_call_return_data: data,
+        }
+    }
 }
 
 pub type RuntimeTransaction<DB> =
@@ -530,8 +538,7 @@ impl<DB: Database> RuntimeContext<DB> {
             dest_offset,
             offset,
             size,
-        );
-        Box::into_raw(Box::new(Result::success(())))
+        )
     }
 
     pub extern "C" fn call(
@@ -751,10 +758,16 @@ impl<DB: Database> RuntimeContext<DB> {
         let (source_end, overflow) = source_offset.overflowing_add(size);
         // Check bounds
         if overflow || source_end > source.len() {
-            return &mut Result::error(ExitStatusCode::OutOfOffset.to_u8(), ()) as _;
+            return Box::into_raw(Box::new(Result::error(
+                ExitStatusCode::OutOfOffset.to_u8(),
+                (),
+            )));
         }
         if size + source_offset > source.len() {
-            return &mut Result::error(ExitStatusCode::OutOfOffset.to_u8(), ()) as _;
+            return Box::into_raw(Box::new(Result::error(
+                ExitStatusCode::OutOfOffset.to_u8(),
+                (),
+            )));
         }
 
         // Calculate bytes to copy
@@ -766,7 +779,7 @@ impl<DB: Database> RuntimeContext<DB> {
         target[target_offset..target_offset + bytes_to_copy]
             .copy_from_slice(&source[source_offset..source_offset + bytes_to_copy]);
 
-        &mut Result::success(()) as _
+        Box::into_raw(Box::new(Result::success(())))
     }
 
     pub extern "C" fn store_in_selfbalance_ptr(

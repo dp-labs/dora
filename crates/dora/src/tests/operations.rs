@@ -1,12 +1,16 @@
 #![allow(unused)]
 
 use std::str::FromStr;
+use std::sync::{Arc, RwLock};
 
 use crate::{run_evm, tests::INIT_GAS};
+use crate::{run_with_context, EVMTransaction};
 use bytes::Bytes;
 use dora_compiler::evm::program::{Operation, Program};
 use dora_primitives::spec::SpecId;
 use dora_primitives::{Address, Bytecode, Bytes32, B256, H160};
+use dora_runtime::context::CallFrame;
+use dora_runtime::host::DummyHost;
 use dora_runtime::{
     account::EMPTY_CODE_HASH_STR,
     context::{compute_contract_address, RuntimeContext},
@@ -1524,9 +1528,10 @@ fn returndatasize() {
 
 #[test]
 fn returndatacopy() {
+    let call_data_size = 32_u8;
     let operations = vec![
         // size
-        Operation::Push((1_u8, BigUint::from(32_u8))),
+        Operation::Push((1_u8, BigUint::from(call_data_size))),
         // offset
         Operation::Push((1_u8, BigUint::from(0_u8))),
         // Dest offset
@@ -1542,7 +1547,17 @@ fn returndatacopy() {
         Operation::Return,
     ];
     let (env, mut db) = default_env_and_db_setup(operations);
-    run_program_assert_num_result(env, db, 0_u8.into());
+    let mut call_frame = CallFrame::new_with_data(env.tx.caller, vec![0; call_data_size as usize]);
+    let mut runtime_context = RuntimeContext::new(
+        Arc::new(RwLock::new(db)),
+        call_frame,
+        Arc::new(EVMTransaction::<_>::new()),
+        Arc::new(RwLock::new(DummyHost::new(env))),
+        SpecId::CANCUN,
+    );
+    run_with_context(&mut runtime_context);
+    let result = runtime_context.get_result().unwrap().result;
+    assert!(result.is_success());
 }
 
 #[test]
@@ -1551,9 +1566,9 @@ fn returndatacopy_offset_size_adjustments() {
         // size
         Operation::Push((1_u8, BigUint::from(0_u8))),
         // offset
-        Operation::Push((1_u8, BigUint::from(10_u8))),
+        Operation::Push((1_u8, BigUint::from(0_u8))),
         // Dest offset
-        Operation::Push((1_u8, BigUint::from(20_u8))),
+        Operation::Push((1_u8, BigUint::from(0_u8))),
         Operation::ReturnDataCopy,
         Operation::Push((1_u8, BigUint::from(0_u8))),
         Operation::Mload,
@@ -1569,7 +1584,7 @@ fn returndatacopy_offset_size_adjustments() {
 }
 
 #[test]
-fn returndatacopy_out_of_bounds() {
+fn returndatacopy_out_of_bounds_with_empty_call_data() {
     let operations = vec![
         Operation::Push((1_u8, BigUint::from(0_u8))),
         Operation::Push((1_u8, BigUint::from(50_u8))),
@@ -1585,7 +1600,43 @@ fn returndatacopy_out_of_bounds() {
         Operation::Return,
     ];
     let (env, mut db) = default_env_and_db_setup(operations);
-    run_program_assert_num_result(env, db, 0_u8.into());
+    run_program_assert_halt(env, db);
+}
+
+#[test]
+fn returndatacopy_out_of_bounds() {
+    let call_data_size = 32_u8;
+    let operations = vec![
+        // size
+        Operation::Push((1_u8, BigUint::from(call_data_size))),
+        // offset
+        Operation::Push((1_u8, BigUint::from(0_u8))),
+        // Dest offset
+        Operation::Push((1_u8, BigUint::from(0_u8))),
+        Operation::ReturnDataCopy,
+        Operation::Push((1_u8, BigUint::from(0_u8))),
+        Operation::Mload,
+        // Return result
+        Operation::Push0,
+        Operation::Mstore,
+        Operation::Push((1, 32_u8.into())),
+        Operation::Push0,
+        Operation::Return,
+    ];
+    let (env, mut db) = default_env_and_db_setup(operations);
+    // Out of offset "size - 10"
+    let mut call_frame =
+        CallFrame::new_with_data(env.tx.caller, vec![0; (call_data_size - 10) as usize]);
+    let mut runtime_context = RuntimeContext::new(
+        Arc::new(RwLock::new(db)),
+        call_frame,
+        Arc::new(EVMTransaction::<_>::new()),
+        Arc::new(RwLock::new(DummyHost::new(env))),
+        SpecId::CANCUN,
+    );
+    run_with_context(&mut runtime_context);
+    let result = runtime_context.get_result().unwrap().result;
+    assert!(result.is_halt());
 }
 
 #[test]
