@@ -1,13 +1,12 @@
 use crate::backend::IntCC;
-use crate::check_u256_to_u64_overflow;
 use crate::{
-    arith_constant,
+    arith_constant, check_op_oog, check_u256_to_u64_overflow,
     conversion::builder::OpBuilder,
     conversion::rewriter::{DeferredRewriter, Rewriter},
     create_var,
     dora::{conversion::ConversionPass, memory},
     errors::{CompileError, Result},
-    load_var, maybe_revert_here, operands, rewrite_ctx, syscall_ctx,
+    load_var, maybe_revert_here, operands, rewrite_ctx, syscall_ctx, u256_to_64,
 };
 use dora_runtime::symbols;
 use dora_runtime::ExitStatusCode;
@@ -121,12 +120,11 @@ impl<'c> ConversionPass<'c> {
         syscall_ctx!(op, syscall_ctx);
         let rewriter = Rewriter::new_with_op(context, *op);
         let location = rewriter.get_insert_location();
-
-        let uint64 = rewriter.intrinsics.i64_ty;
         let ptr_type = rewriter.ptr_ty();
-        let offset = rewriter.make(arith::trunci(offset, uint64, location))?;
-        let size = rewriter.make(arith::trunci(size, uint64, location))?;
-        let dest_offset = rewriter.make(arith::trunci(dest_offset, uint64, location))?;
+
+        u256_to_64!(op, rewriter, offset);
+        u256_to_64!(op, rewriter, size);
+        u256_to_64!(op, rewriter, dest_offset);
 
         let address_ptr =
             memory::allocate_u256_and_assign_value(context, &rewriter, address, location)?;

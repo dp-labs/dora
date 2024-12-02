@@ -1,5 +1,7 @@
 use crate::{
     arith_constant,
+    backend::IntCC,
+    check_op_oog,
     conversion::{
         builder::OpBuilder,
         rewriter::{DeferredRewriter, Rewriter},
@@ -7,14 +9,15 @@ use crate::{
     create_var,
     dora::{conversion::ConversionPass, gas, memory},
     errors::Result,
-    load_by_addr, load_var, operands, rewrite_ctx, syscall_ctx,
+    load_by_addr, load_var, maybe_revert_here, operands, rewrite_ctx, syscall_ctx, u256_to_64,
 };
 use dora_runtime::constants;
 use dora_runtime::symbols;
+use dora_runtime::ExitStatusCode;
 use melior::{
     dialect::{
         arith::{self, CmpiPredicate},
-        func,
+        cf, func,
         llvm::{self, AllocaOptions, LoadStoreOptions},
         ods, scf,
     },
@@ -34,9 +37,8 @@ impl<'c> ConversionPass<'c> {
         syscall_ctx!(op, syscall_ctx);
         let rewriter = Rewriter::new_with_op(context, *op);
         let location = rewriter.get_insert_location();
-        let uint64 = rewriter.intrinsics.i64_ty;
-        let offset = rewriter.make(arith::trunci(offset, uint64, location))?;
-        let size = rewriter.make(arith::trunci(size, uint64, location))?;
+        u256_to_64!(op, rewriter, offset);
+        u256_to_64!(op, rewriter, size);
         let required_memory_size = rewriter.make(arith::addi(offset, size, location))?;
 
         // dynamic_gas_cost = 3 * (size + 31) / 32 gas
@@ -237,9 +239,10 @@ impl<'c> ConversionPass<'c> {
 
         let uint64 = rewriter.intrinsics.i64_ty;
         let ptr_type = rewriter.ptr_ty();
-        let call_data_offset = rewriter.make(arith::trunci(call_data_offset, uint64, location))?;
-        let dest_offset = rewriter.make(arith::trunci(dest_offset, uint64, location))?;
-        let length = rewriter.make(arith::trunci(length, uint64, location))?;
+
+        u256_to_64!(op, rewriter, call_data_offset);
+        u256_to_64!(op, rewriter, dest_offset);
+        u256_to_64!(op, rewriter, length);
 
         // required size = dest_offset + size
         let required_memory_size = rewriter.make(arith::addi(dest_offset, length, location))?;
@@ -349,11 +352,11 @@ impl<'c> ConversionPass<'c> {
         let rewriter = Rewriter::new_with_op(context, *op);
         let location = rewriter.get_insert_location();
 
-        let uint64 = rewriter.intrinsics.i64_ty;
         let ptr_type = rewriter.ptr_ty();
-        let offset = rewriter.make(arith::trunci(offset, uint64, location))?;
-        let dest_offset = rewriter.make(arith::trunci(dest_offset, uint64, location))?;
-        let length = rewriter.make(arith::trunci(length, uint64, location))?;
+
+        u256_to_64!(op, rewriter, offset);
+        u256_to_64!(op, rewriter, dest_offset);
+        u256_to_64!(op, rewriter, length);
 
         // required size = dest_offset + size
         let required_memory_size = rewriter.make(arith::addi(dest_offset, length, location))?;
@@ -400,13 +403,11 @@ impl<'c> ConversionPass<'c> {
         let location = rewriter.get_insert_location();
 
         let ptr_type = rewriter.ptr_ty();
-        let dest_offset = rewriter.make(arith::trunci(
-            dest_offset,
-            rewriter.intrinsics.i64_ty,
-            location,
-        ))?;
-        let offset = rewriter.make(arith::trunci(offset, rewriter.intrinsics.i64_ty, location))?;
-        let size = rewriter.make(arith::trunci(size, rewriter.intrinsics.i64_ty, location))?;
+
+        u256_to_64!(op, rewriter, dest_offset);
+        u256_to_64!(op, rewriter, offset);
+        u256_to_64!(op, rewriter, size);
+
         // Extend memory to required size
         let req_mem_size: Value = rewriter.make(arith::addi(dest_offset, size, location))?;
         memory::resize_memory(context, op, &rewriter, syscall_ctx, req_mem_size)?;

@@ -250,19 +250,31 @@ macro_rules! maybe_revert_here {
 }
 
 #[macro_export]
-macro_rules! check_resize_memory {
-    ($op:expr, $rewriter:expr, $required_memory_size:expr) => {
+macro_rules! check_op_oog {
+    ($op:expr, $rewriter:ident, $size:expr) => {
         // Check the memory offset halt error
         let zero = $rewriter.make($rewriter.iconst_64(0))?;
-        let overflow =
-            $rewriter.make($rewriter.icmp(IntCC::SignedLessThan, $required_memory_size, zero))?;
+        let overflow = $rewriter.make($rewriter.icmp(IntCC::SignedLessThan, $size, zero))?;
         maybe_revert_here!($op, $rewriter, overflow, ExitStatusCode::InvalidOperandOOG);
+        let $rewriter = Rewriter::new_with_op($rewriter.context(), *$op);
+    };
+}
+
+#[macro_export]
+macro_rules! u256_to_64 {
+    ($op:expr, $rewriter:ident, $size:ident) => {
+        let $size = $rewriter.make(arith::trunci(
+            $size,
+            $rewriter.intrinsics.i64_ty,
+            $rewriter.get_insert_location(),
+        ))?;
+        check_op_oog!($op, $rewriter, $size)
     };
 }
 
 #[macro_export]
 macro_rules! check_runtime_error {
-    ($op:expr, $rewriter:expr, $error:expr) => {
+    ($op:expr, $rewriter:ident, $error:expr) => {
         // Check the runtime halt error
         let zero = $rewriter.make($rewriter.iconst_8(0))?;
         let has_error = $rewriter.make($rewriter.icmp(IntCC::NotEqual, $error, zero))?;
@@ -272,7 +284,7 @@ macro_rules! check_runtime_error {
 
 #[macro_export]
 macro_rules! check_u256_to_u64_overflow {
-    ($op:expr, $rewriter:expr, $required_memory_size:expr) => {
+    ($op:expr, $rewriter:ident, $required_memory_size:expr) => {
         // Check the memory offset halt error
         let max_u64 =
             $rewriter.make($rewriter.iconst_256(BigUint::from(18446744073709551615_u128))?)?;

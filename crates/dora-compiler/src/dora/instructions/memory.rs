@@ -1,13 +1,18 @@
+use crate::backend::IntCC;
+use crate::conversion::builder::OpBuilder;
+use crate::u256_to_64;
 use crate::{
+    check_op_oog,
     conversion::rewriter::{DeferredRewriter, Rewriter},
     dora::{conversion::ConversionPass, memory},
     errors::Result,
-    load_by_addr, operands, rewrite_ctx, syscall_ctx,
+    load_by_addr, maybe_revert_here, operands, rewrite_ctx, syscall_ctx,
 };
-use dora_runtime::constants;
+use dora_runtime::{constants, ExitStatusCode};
 use melior::{
     dialect::{
         arith::{self},
+        cf,
         llvm::{self, LoadStoreOptions},
         ods,
     },
@@ -24,12 +29,8 @@ impl<'c> ConversionPass<'c> {
 
         let uint8 = IntegerType::new(context, 8);
         let uint256 = rewriter.intrinsics.i256_ty;
-        let offset = rewriter.make(arith::trunci(offset, rewriter.intrinsics.i64_ty, location))?;
-        let value_size = rewriter.make(arith::constant(
-            context,
-            IntegerAttribute::new(rewriter.intrinsics.i64_ty, 32).into(),
-            location,
-        ))?;
+        u256_to_64!(op, rewriter, offset);
+        let value_size = rewriter.make(rewriter.iconst_64(32))?;
         let required_size = rewriter.make(arith::addi(offset, value_size, location))?;
 
         memory::resize_memory(context, op, &rewriter, syscall_ctx, required_size)?;
@@ -69,16 +70,15 @@ impl<'c> ConversionPass<'c> {
         syscall_ctx!(op, syscall_ctx);
         let rewriter = Rewriter::new_with_op(context, *op);
         let location = rewriter.get_insert_location();
-
         let uint8 = rewriter.intrinsics.i8_ty;
-        let uint64 = rewriter.intrinsics.i64_ty;
+
         // If byte_size is 1 (mstore8), truncate value to 1 byte
         let value = if byte_size == 1 {
             rewriter.make(arith::trunci(value, rewriter.intrinsics.i8_ty, location))?
         } else {
             value
         };
-        let offset = rewriter.make(arith::trunci(offset, uint64, location))?;
+        u256_to_64!(op, rewriter, offset);
         // Calculate value size (1 byte for mstore8, 32 bytes for mstore)
         let value_size = rewriter.make(rewriter.iconst_64(byte_size as i64))?;
         let required_size = rewriter.make(arith::addi(offset, value_size, location))?;
@@ -133,10 +133,9 @@ impl<'c> ConversionPass<'c> {
         let rewriter = Rewriter::new_with_op(context, *op);
         let location = rewriter.get_insert_location();
         let uint8 = rewriter.intrinsics.i8_ty;
-        let uint64 = rewriter.intrinsics.i64_ty;
-        let dest_offset = rewriter.make(arith::trunci(dest_offset, uint64, location))?;
-        let offset = rewriter.make(arith::trunci(offset, uint64, location))?;
-        let size = rewriter.make(arith::trunci(size, uint64, location))?;
+        u256_to_64!(op, rewriter, dest_offset);
+        u256_to_64!(op, rewriter, offset);
+        u256_to_64!(op, rewriter, size);
         // required size = dest_offset + size
         let src_required_size = rewriter.make(arith::addi(offset, size, location))?;
         // dest_required_size = dest_offset + size
@@ -146,6 +145,7 @@ impl<'c> ConversionPass<'c> {
             dest_required_size,
             location,
         ))?;
+
         memory::resize_memory(context, op, &rewriter, syscall_ctx, required_memory_size)?;
         rewrite_ctx!(context, op, rewriter, location);
         let memory_ptr = load_by_addr!(rewriter, constants::MEMORY_PTR_GLOBAL, rewriter.ptr_ty());
