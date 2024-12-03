@@ -282,6 +282,12 @@ impl Bytes32 {
         buffer[12..32].copy_from_slice(&value.0);
         *self = Bytes32::from_be_bytes(buffer);
     }
+
+    /// Converts this byte32 value to an [`Address`]  with 20 bytes.
+    #[inline]
+    pub fn to_address(self) -> Address {
+        Address::from_slice(&self.to_be_bytes()[12..])
+    }
 }
 
 impl Bytes32 {

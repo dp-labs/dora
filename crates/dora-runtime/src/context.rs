@@ -1113,20 +1113,13 @@ impl<DB: Database> RuntimeContext<DB> {
         Box::into_raw(Box::new(Result::success(())))
     }
 
-    pub extern "C" fn store_in_balance(
-        &mut self,
-        address: &Bytes32,
-        balance: &mut Bytes32,
-    ) -> *mut Result<()> {
-        if !address.is_valid_eth_address() {
-            *balance = Bytes32::ZERO;
-            return Box::into_raw(Box::new(Result::success(())));
-        }
-        let addr = Address::from(address);
+    /// This function reads an address pointer and set the balance of the address to the same pointer
+    pub extern "C" fn store_in_balance(&mut self, address: &mut Bytes32) -> *mut Result<()> {
+        let addr = address.to_address();
         if let Some(a) = self.db.read().unwrap().basic(addr).unwrap() {
-            *balance = Bytes32::from_u256(a.balance);
+            *address = Bytes32::from_u256(a.balance);
         } else {
-            *balance = Bytes32::ZERO;
+            *address = Bytes32::ZERO;
         };
 
         let is_cold = true;

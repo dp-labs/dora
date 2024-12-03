@@ -42,7 +42,7 @@ module {
   func.func private @dora_fn_store_in_timestamp_ptr(!llvm.ptr, !llvm.ptr) -> !llvm.ptr
   func.func private @dora_fn_store_in_basefee_ptr(!llvm.ptr, !llvm.ptr) -> !llvm.ptr
   func.func private @dora_fn_call(!llvm.ptr, i64, !llvm.ptr, !llvm.ptr, i64, i64, i64, i64, i64, !llvm.ptr, i8) -> !llvm.ptr
-  func.func private @dora_fn_store_in_balance(!llvm.ptr, !llvm.ptr, !llvm.ptr) -> !llvm.ptr
+  func.func private @dora_fn_store_in_balance(!llvm.ptr, !llvm.ptr) -> !llvm.ptr
   func.func private @dora_fn_ext_code_copy(!llvm.ptr, !llvm.ptr, i64, i64, i64) -> !llvm.ptr
   func.func private @dora_fn_blob_hash(!llvm.ptr, !llvm.ptr, !llvm.ptr) -> !llvm.ptr
   func.func private @dora_fn_block_hash(!llvm.ptr, !llvm.ptr) -> !llvm.ptr
@@ -527,17 +527,17 @@ module {
     %c84_i8_75 = arith.constant 84 : i8
     cf.cond_br %236, ^bb1(%c84_i8_75 : i8), ^bb34
   ^bb34:  // pred: ^bb33
-    %237 = arith.addi %235, %233 : i64
-    %238 = llvm.mlir.addressof @dora_global_gas_counter : !llvm.ptr
-    %239 = llvm.load %238 : !llvm.ptr -> i64
+    %237 = llvm.mlir.addressof @dora_global_gas_counter : !llvm.ptr
+    %238 = llvm.load %237 : !llvm.ptr -> i64
+    %239 = arith.addi %235, %233 : i64
     %c0_i64_76 = arith.constant 0 : i64
-    %240 = arith.cmpi slt, %237, %c0_i64_76 : i64
+    %240 = arith.cmpi slt, %239, %c0_i64_76 : i64
     %c84_i8_77 = arith.constant 84 : i8
     cf.cond_br %240, ^bb1(%c84_i8_77 : i8), ^bb35
   ^bb35:  // pred: ^bb34
     %c31_i64_78 = arith.constant 31 : i64
     %c32_i64_79 = arith.constant 32 : i64
-    %241 = arith.addi %237, %c31_i64_78 : i64
+    %241 = arith.addi %239, %c31_i64_78 : i64
     %242 = arith.divui %241, %c32_i64_79 : i64
     %243 = arith.muli %242, %c32_i64_79 : i64
     %244 = call @dora_fn_extend_memory(%arg0, %243) : (!llvm.ptr, i64) -> !llvm.ptr
@@ -554,7 +554,7 @@ module {
     %251 = llvm.mlir.addressof @dora_global_memory_size : !llvm.ptr
     llvm.store %243, %251 : i64, !llvm.ptr
     %c0_i8_81 = arith.constant 0 : i8
-    %252 = call @dora_fn_write_result(%arg0, %233, %235, %239, %c0_i8_81) : (!llvm.ptr, i64, i64, i64, i8) -> !llvm.ptr
+    %252 = call @dora_fn_write_result(%arg0, %233, %235, %238, %c0_i8_81) : (!llvm.ptr, i64, i64, i64, i8) -> !llvm.ptr
     return %c0_i8_81 : i8
   ^bb37:  // no predecessors
     cf.br ^bb38

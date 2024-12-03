@@ -24,17 +24,13 @@ impl<'c> ConversionPass<'c> {
         operands!(op, offset, size);
         syscall_ctx!(op, syscall_ctx);
         let rewriter = Rewriter::new_with_op(context, *op);
-        let location = rewriter.get_insert_location();
         let uint8 = rewriter.intrinsics.i8_ty;
         let uint64 = rewriter.intrinsics.i64_ty;
         let ptr_type = rewriter.ptr_ty();
 
         u256_to_64!(op, rewriter, offset);
         u256_to_64!(op, rewriter, size);
-
-        // required_size = offset + size
-        let required_memory_size = rewriter.make(arith::addi(offset, size, location))?;
-        memory::resize_memory(context, op, &rewriter, syscall_ctx, required_memory_size)?;
+        memory::resize_memory(context, op, &rewriter, syscall_ctx, offset, size)?;
         rewrite_ctx!(context, op, rewriter, location);
 
         let gas_counter = load_by_addr!(rewriter, constants::GAS_COUNTER_GLOBAL, uint64);

@@ -1,6 +1,7 @@
 ---
 source: crates/dora-compiler/src/dora/tests/gas.rs
 expression: op
+snapshot_kind: text
 ---
 module {
   llvm.mlir.global internal @dora_global_stack_ptr() {addr_space = 0 : i32} : !llvm.ptr
@@ -41,7 +42,7 @@ module {
   func.func private @dora_fn_store_in_timestamp_ptr(!llvm.ptr, !llvm.ptr) -> !llvm.ptr
   func.func private @dora_fn_store_in_basefee_ptr(!llvm.ptr, !llvm.ptr) -> !llvm.ptr
   func.func private @dora_fn_call(!llvm.ptr, i64, !llvm.ptr, !llvm.ptr, i64, i64, i64, i64, i64, !llvm.ptr, i8) -> !llvm.ptr
-  func.func private @dora_fn_store_in_balance(!llvm.ptr, !llvm.ptr, !llvm.ptr) -> !llvm.ptr
+  func.func private @dora_fn_store_in_balance(!llvm.ptr, !llvm.ptr) -> !llvm.ptr
   func.func private @dora_fn_ext_code_copy(!llvm.ptr, !llvm.ptr, i64, i64, i64) -> !llvm.ptr
   func.func private @dora_fn_blob_hash(!llvm.ptr, !llvm.ptr, !llvm.ptr) -> !llvm.ptr
   func.func private @dora_fn_block_hash(!llvm.ptr, !llvm.ptr) -> !llvm.ptr
@@ -147,10 +148,8 @@ module {
       %50 = arith.divui %49, %c8_i256 : i256
       %c50_i256 = arith.constant 50 : i256
       %51 = arith.muli %50, %c50_i256 : i256
-      %c10_i256 = arith.constant 10 : i256
-      %52 = arith.addi %c10_i256, %51 : i256
-      %53 = arith.trunci %52 : i256 to i64
-      scf.yield %53 : i64
+      %52 = arith.trunci %51 : i256 to i64
+      scf.yield %52 : i64
     }
     %40 = arith.cmpi sge, %37, %39 : i64
     %41 = arith.subi %37, %39 : i64

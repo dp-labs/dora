@@ -1,9 +1,10 @@
+use std::fmt::Debug;
 use std::str::FromStr;
-use std::{collections::HashMap, fmt::Debug};
 
 use crate::db::{DbAccount, StorageSlot};
 use bitflags::bitflags;
 use dora_primitives::{Bytecode, B256, U256};
+use rustc_hash::FxHashMap;
 
 /// Keccak256 hash of an empty bytecode.
 ///
@@ -100,7 +101,7 @@ pub struct Account {
     /// The account's core information (balance, nonce, code).
     pub info: AccountInfo,
     /// A cache of the account's storage, mapping storage keys to storage slots.
-    pub storage: HashMap<U256, StorageSlot>,
+    pub storage: FxHashMap<U256, StorageSlot>,
     /// Flags representing the account's current status (e.g., whether it has been modified).
     pub status: AccountStatus,
 }
@@ -155,7 +156,7 @@ impl Account {
     }
 
     /// New empty account with the storage.
-    pub fn new_empty_with_storage(storage: HashMap<U256, StorageSlot>) -> Self {
+    pub fn new_empty_with_storage(storage: FxHashMap<U256, StorageSlot>) -> Self {
         Self {
             storage,
             ..Default::default()
@@ -186,7 +187,7 @@ impl From<AccountInfo> for Account {
     fn from(info: AccountInfo) -> Self {
         Self {
             info,
-            storage: HashMap::new(),
+            storage: FxHashMap::default(),
             status: AccountStatus::Loaded,
         }
     }

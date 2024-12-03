@@ -13,7 +13,7 @@ use dora_primitives::spec::SpecId;
 use dora_runtime::{
     constants::{
         self,
-        gas_cost::{self, INIT_WORD_COST, MAX_INITCODE_SIZE},
+        gas_cost::{self, COPY_WORD, INIT_WORD_COST, KECCAK256_WORD, MAX_INITCODE_SIZE},
     },
     ExitStatusCode,
 };
@@ -215,7 +215,7 @@ impl<'c> GasPass<'c> {
                                                                     )?,
                                                                     location,
                                                                 ))?;
-                                                                let dynamic_gas_cost =
+                                                                let total_gas_cost =
                                                                 rewriter.make(arith::muli(
                                                                     number_of_bytes,
                                                                     rewriter.make(
@@ -229,19 +229,6 @@ impl<'c> GasPass<'c> {
                                                                             },
                                                                         )?,
                                                                     )?,
-                                                                    location,
-                                                                ))?;
-
-                                                                let total_gas_cost =
-                                                                rewriter.make(arith::addi(
-                                                                    rewriter.make(
-                                                                        rewriter
-                                                                            .iconst_256_from_u64(
-                                                                                gas_cost::EXP
-                                                                                    as u64,
-                                                                            )?,
-                                                                    )?,
-                                                                    dynamic_gas_cost,
                                                                     location,
                                                                 ))?;
 
@@ -277,17 +264,7 @@ impl<'c> GasPass<'c> {
                                                         rewriter.intrinsics.i64_ty,
                                                         location,
                                                     ))?;
-                                                    let dynamic_gas_cost =
-                                                        compute_copy_cost(rewriter, size)?;
-                                                    let constant_2 =
-                                                        rewriter.make(rewriter.iconst_64(2))?;
-                                                    let total_gas_cost =
-                                                        rewriter.make(arith::muli(
-                                                            dynamic_gas_cost,
-                                                            constant_2,
-                                                            location,
-                                                        ))?;
-                                                    Ok(total_gas_cost)
+                                                    compute_keccak256_cost(rewriter, size)
                                                 },
                                             )?;
                                         }
@@ -445,7 +422,6 @@ impl<'c> GasPass<'c> {
                                                 },
                                             )?;
                                         }
-                                        dora_ir::Operation::ReturnDataLoad => todo!(),
                                         dora_ir::Operation::ExtCodeHash => {
                                             self.insert_dynamic_gas_check_block_before_op_block(
                                                 &op.next_in_block().unwrap(),
@@ -654,7 +630,9 @@ impl<'c> GasPass<'c> {
                                                             gas_cost::LOG0,
                                                         )?;
                                                     let dynamic_gas_cost =
-                                                        compute_log_dynamic_gas(rewriter, 0, size)?;
+                                                        compute_log_dynamic_cost(
+                                                            rewriter, 0, size,
+                                                        )?;
                                                     let total_gas_cost =
                                                         rewriter.make(arith::addi(
                                                             total_gas_cost,
@@ -695,7 +673,9 @@ impl<'c> GasPass<'c> {
                                                             gas_cost::LOG1,
                                                         )?;
                                                     let dynamic_gas_cost =
-                                                        compute_log_dynamic_gas(rewriter, 1, size)?;
+                                                        compute_log_dynamic_cost(
+                                                            rewriter, 1, size,
+                                                        )?;
                                                     let total_gas_cost =
                                                         rewriter.make(arith::addi(
                                                             total_gas_cost,
@@ -736,7 +716,9 @@ impl<'c> GasPass<'c> {
                                                             gas_cost::LOG2,
                                                         )?;
                                                     let dynamic_gas_cost =
-                                                        compute_log_dynamic_gas(rewriter, 2, size)?;
+                                                        compute_log_dynamic_cost(
+                                                            rewriter, 2, size,
+                                                        )?;
                                                     let total_gas_cost =
                                                         rewriter.make(arith::addi(
                                                             total_gas_cost,
@@ -777,7 +759,9 @@ impl<'c> GasPass<'c> {
                                                             gas_cost::LOG3,
                                                         )?;
                                                     let dynamic_gas_cost =
-                                                        compute_log_dynamic_gas(rewriter, 3, size)?;
+                                                        compute_log_dynamic_cost(
+                                                            rewriter, 3, size,
+                                                        )?;
                                                     let total_gas_cost =
                                                         rewriter.make(arith::addi(
                                                             total_gas_cost,
@@ -818,7 +802,9 @@ impl<'c> GasPass<'c> {
                                                             gas_cost::LOG4,
                                                         )?;
                                                     let dynamic_gas_cost =
-                                                        compute_log_dynamic_gas(rewriter, 4, size)?;
+                                                        compute_log_dynamic_cost(
+                                                            rewriter, 4, size,
+                                                        )?;
                                                     let total_gas_cost =
                                                         rewriter.make(arith::addi(
                                                             total_gas_cost,
@@ -1153,7 +1139,10 @@ impl<'c> GasPass<'c> {
                                                 },
                                             )?;
                                         }
-                                        _ => todo!(),
+                                        dora_ir::Operation::ReturnDataLoad => unimplemented!(
+                                            "https://github.com/dp-labs/dora/issues/77"
+                                        ),
+                                        x => unimplemented!("dynamic gas computation for {:?}", x),
                                     }
                                 } else {
                                     // Static gas computation.
@@ -1242,6 +1231,7 @@ impl<'c> GasPass<'c> {
     ) -> Result<()> {
         // To ensure the op rewriter live long as the context.
         let rewriter = Rewriter::new_with_block(self.ctx, block);
+        let location = rewriter.get_insert_location();
         let new_block = rewriter.split_block(block, Some(*op))?;
         // Get address of gas counter global
         let gas_counter_ptr =
@@ -1254,18 +1244,14 @@ impl<'c> GasPass<'c> {
             arith::CmpiPredicate::Sge,
             gas_counter,
             gas_value,
-            rewriter.get_insert_location(),
+            location,
         ))?;
-        let new_gas_counter = rewriter.make(arith::subi(
-            gas_counter,
-            gas_value,
-            rewriter.get_insert_location(),
-        ))?;
+        let new_gas_counter = rewriter.make(arith::subi(gas_counter, gas_value, location))?;
         rewriter.create(llvm::store(
             rewriter.context(),
             new_gas_counter,
             gas_counter_ptr,
-            rewriter.get_insert_location(),
+            location,
             LoadStoreOptions::default(),
         ));
         rewriter.create(cf::cond_br(
@@ -1275,7 +1261,7 @@ impl<'c> GasPass<'c> {
             &revert_block,
             &[],
             &[rewriter.make(rewriter.iconst_8(ExitStatusCode::OutOfGas.to_u8() as i8))?],
-            rewriter.get_insert_location(),
+            location,
         ));
         Ok(())
     }
@@ -1395,18 +1381,18 @@ pub(crate) fn create_gas_var<'c>(
     Ok(gas_ptr)
 }
 
-// This function computes memory copying cost (excluding expansion), which is given by the following equations
-// memory_size_word = (memory_byte_size + 31) / 32
-// memory_cost = 3 * memory_size_word
-pub(crate) fn compute_copy_cost<'c>(
+/// Calculate the cost of buffer per word.
+/// num_words = (memory_byte_size + 31) / 32
+/// cost = num_words * multiple
+pub(crate) fn compute_per_word_cost<'c>(
     rewriter: &'c Rewriter,
-    memory_byte_size: Value<'c, 'c>,
+    len: Value<'c, 'c>, /*i64*/
+    multiple: u64,
 ) -> Result<Value<'c, 'c>> {
     let location = rewriter.get_insert_location();
-    let uint64 = rewriter.intrinsics.i64_ty;
-
-    let memory_size_extended = rewriter.make(arith::extui(memory_byte_size, uint64, location))?;
-    let constant_3 = rewriter.make(rewriter.iconst_64(3))?;
+    let memory_size_extended =
+        rewriter.make(arith::extui(len, rewriter.intrinsics.i64_ty, location))?;
+    let constant_multiple = rewriter.make(rewriter.iconst_64(multiple as i64))?;
     let constant_31 = rewriter.make(rewriter.iconst_64(31))?;
     let constant_32 = rewriter.make(rewriter.iconst_64(32))?;
     let memory_byte_size_plus_31 =
@@ -1418,13 +1404,36 @@ pub(crate) fn compute_copy_cost<'c>(
         location,
     ))?;
 
-    let memory_cost = rewriter.make(arith::muli(memory_size_word, constant_3, location))?;
+    let memory_cost = rewriter.make(arith::muli(memory_size_word, constant_multiple, location))?;
 
     Ok(memory_cost)
 }
 
-// computes dynamic_gas = 375 * topic_count + 8 * size
-pub(crate) fn compute_log_dynamic_gas<'c>(
+/// This function computes copying cost (excluding expansion), which is given by the following equations
+/// memory_size_word = (memory_byte_size + 31) / 32
+/// memory_cost = 3 * memory_size_word
+#[inline]
+pub(crate) fn compute_copy_cost<'c>(
+    rewriter: &'c Rewriter,
+    memory_byte_size: Value<'c, 'c>,
+) -> Result<Value<'c, 'c>> {
+    compute_per_word_cost(rewriter, memory_byte_size, COPY_WORD)
+}
+
+/// This function computes keccak256 cost, which is given by the following equations
+/// memory_size_word = (memory_byte_size + 31) / 32
+/// memory_cost = 3 * memory_size_word
+#[inline]
+pub(crate) fn compute_keccak256_cost<'c>(
+    rewriter: &'c Rewriter,
+    memory_byte_size: Value<'c, 'c>,
+) -> Result<Value<'c, 'c>> {
+    compute_per_word_cost(rewriter, memory_byte_size, KECCAK256_WORD)
+}
+
+/// This function computes LOG opcode cost, which is given by the following equations
+/// computes dynamic_gas = 375 * topic_count + 8 * size
+pub(crate) fn compute_log_dynamic_cost<'c>(
     rewriter: &'c Rewriter,
     nth: u8,
     size: Value<'c, 'c>,

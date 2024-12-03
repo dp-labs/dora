@@ -158,11 +158,13 @@ pub(crate) fn resize_memory<'c>(
     op: &OperationRef<'c, 'c>,
     rewriter: &'c Rewriter,
     syscall_ctx: BlockArgument<'c, 'c>,
-    required_size: Value<'c, 'c>,
+    offset: Value<'c, 'c>,
+    len: Value<'c, 'c>,
 ) -> Result<()> {
+    let location = rewriter.get_insert_location();
+    let required_size = rewriter.make(arith::addi(offset, len, location))?;
     // Check the memory offset halt error
     check_op_oog!(op, rewriter, required_size);
-    let location = rewriter.get_insert_location();
     let ptr_type = rewriter.ptr_ty();
     let rounded_required_size = utils::round_up_32(required_size, context, &rewriter, location)?;
     let result_ptr = rewriter.make(func::call(
