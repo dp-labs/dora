@@ -8,7 +8,7 @@ use crate::{
     errors::{CompileError, Result},
     load_var, maybe_revert_here, operands, rewrite_ctx, syscall_ctx, u256_to_64,
 };
-use dora_runtime::symbols;
+use dora_runtime::symbols::{self, CTX_IS_STATIC};
 use dora_runtime::ExitStatusCode;
 use melior::{
     dialect::{
@@ -303,8 +303,19 @@ impl<'c> ConversionPass<'c> {
     pub(crate) fn selfdestruct(context: &Context, op: &OperationRef<'_, '_>) -> Result<()> {
         operands!(op, address);
         syscall_ctx!(op, syscall_ctx);
+        // Ensure non static call before the gas computation.
+        let rewriter = Rewriter::new_with_op(context, *op);
+        let ctx_is_static_ptr =
+            rewriter.make(rewriter.addressof(CTX_IS_STATIC, rewriter.ptr_ty()))?;
+        let ctx_is_static =
+            rewriter.make(rewriter.load(ctx_is_static_ptr, rewriter.intrinsics.i1_ty))?;
+        maybe_revert_here!(
+            op,
+            rewriter,
+            ctx_is_static,
+            ExitStatusCode::StateChangeDuringStaticCall
+        );
         rewrite_ctx!(context, op, rewriter, location);
-
         let ptr_type = rewriter.ptr_ty();
         let address_ptr =
             memory::allocate_u256_and_assign_value(context, &rewriter, address, location)?;

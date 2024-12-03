@@ -497,7 +497,7 @@ impl<DB: Database> RuntimeContext<DB> {
         let callee_address = host.env().tx.get_address();
 
         state.entry(callee_address).or_default().storage.extend(
-            host.access_storage()
+            host.storage()
                 .iter()
                 .map(|(k, v)| (k.to_u256(), StorageSlot::from(v.to_u256()))),
         );
@@ -925,8 +925,7 @@ impl<DB: Database> RuntimeContext<DB> {
         let result = host.get_storage(&addr, stg_key);
         *stg_value = result.value;
 
-        let is_cold = true;
-        let gas_cost = gas::sload_cost(self.inner_context.spec_id, is_cold);
+        let gas_cost = gas::sload_cost(self.inner_context.spec_id, result.is_cold);
         Box::into_raw(Box::new(Result::success_with_gas((), gas_cost)))
     }
 
@@ -934,7 +933,7 @@ impl<DB: Database> RuntimeContext<DB> {
         &mut self,
         stg_key: &Bytes32,
         stg_value: &mut Bytes32,
-    ) -> *mut Result<u64> {
+    ) -> *mut Result<()> {
         let mut host = self.host.write().unwrap();
         let addr = host.env().tx.transact_to;
         let result = host.set_storage(addr, *stg_key, *stg_value);
@@ -943,20 +942,19 @@ impl<DB: Database> RuntimeContext<DB> {
         let current = result.present_value.to_u256();
         let new = stg_value.to_u256();
 
-        let is_cold = true;
         let gas_cost = gas::sstore_cost(
             self.inner_context.spec_id,
             original,
             current,
             new,
             self.inner_context.gas_remaining.unwrap_or(0),
-            is_cold,
+            result.is_cold,
         )
         .unwrap_or(0);
-        self.inner_context.gas_refund =
+        self.inner_context.gas_refund +=
             gas::sstore_refund(self.inner_context.spec_id, original, current, new) as u64;
 
-        uint_result_ptr!(gas_cost)
+        Box::into_raw(Box::new(Result::success_with_gas((), gas_cost)))
     }
 
     pub extern "C" fn append_log(&mut self, offset: u64, size: u64) -> *mut Result<()> {
@@ -1058,15 +1056,10 @@ impl<DB: Database> RuntimeContext<DB> {
     }
 
     pub extern "C" fn extcodesize(&mut self, address: &Bytes32) -> *mut Result<u64> {
-        let size = self
-            .db
-            .read()
-            .unwrap()
-            .code_by_address(Address::from(address))
-            .unwrap()
-            .len();
+        let addr = Address::from(address);
+        let size = self.db.read().unwrap().code_by_address(addr).unwrap().len();
 
-        let is_cold = true;
+        let is_cold = self.host.read().unwrap().access_account(addr).is_cold();
         let gas_cost = gas::extcodesize_gas_cost(self.inner_context.spec_id, is_cold);
 
         Box::into_raw(Box::new(Result {
@@ -1162,12 +1155,12 @@ impl<DB: Database> RuntimeContext<DB> {
         size: u64,
         dest_offset: u64,
     ) -> *mut Result<()> {
-        let address = Address::from(address_value);
+        let addr = Address::from(address_value);
         let code = self
             .db
             .read()
             .unwrap()
-            .code_by_address(address)
+            .code_by_address(addr)
             .unwrap_or_default();
         let code_size = code.len();
         let code_offset = code_offset as usize;
@@ -1179,7 +1172,7 @@ impl<DB: Database> RuntimeContext<DB> {
         let code_slice = &code[code_offset..code_end];
         self.inner_context.memory[dest_offset..dest_offset + code_len].copy_from_slice(code_slice);
 
-        let is_cold = true;
+        let is_cold = self.host.read().unwrap().access_account(addr).is_cold();
         let gas_cost = gas::extcodecopy_gas_cost(self.inner_context.spec_id, is_cold);
 
         // Zero-fill the remaining space
@@ -1190,18 +1183,14 @@ impl<DB: Database> RuntimeContext<DB> {
     }
 
     pub extern "C" fn ext_code_hash(&mut self, address: &mut Bytes32) -> *mut Result<()> {
-        let hash = match self
-            .db
-            .read()
-            .unwrap()
-            .basic(Address::from(address as &Bytes32))
-        {
+        let addr = Address::from(address as &Bytes32);
+        let hash = match self.db.read().unwrap().basic(addr) {
             Ok(Some(account_info)) => account_info.code_hash,
             _ => B256::zero(),
         };
         *address = Bytes32::from_be_bytes(hash.to_fixed_bytes());
 
-        let is_cold = true;
+        let is_cold = self.host.read().unwrap().access_account(addr).is_cold();
         let gas_cost = gas::extcodehash_gas_cost(self.inner_context.spec_id, is_cold);
 
         Box::into_raw(Box::new(Result {
@@ -1352,12 +1341,6 @@ impl<DB: Database> RuntimeContext<DB> {
         let receiver_address = Address::from(receiver_address);
         let result = host.selfdestruct(&sender_address, receiver_address);
 
-        let gas_cost = if result.had_value && !result.target_exists {
-            gas_cost::SELFDESTRUCT_DYNAMIC_GAS as u64
-        } else {
-            0
-        };
-
         // EIP-3529: Reduction in refunds
         if !self.inner_context.spec_id.is_enabled_in(SpecId::LONDON) && !result.previously_destroyed
         {
@@ -1366,7 +1349,7 @@ impl<DB: Database> RuntimeContext<DB> {
 
         Box::into_raw(Box::new(Result {
             error: 0,
-            gas_used: gas_cost,
+            gas_used: gas::selfdestruct_cost(self.inner_context.spec_id, &result),
             value: 0,
         }))
     }

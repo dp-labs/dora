@@ -1,3 +1,5 @@
+use std::mem::offset_of;
+
 use super::memory;
 use crate::backend::IntCC;
 use crate::conversion::builder::OpBuilder;
@@ -133,7 +135,17 @@ impl<'c> GasPass<'c> {
                                             self.insert_dynamic_gas_check_block_before_op_block(
                                                 &op.next_in_block().unwrap(),
                                                 revert_block,
-                                                |_rewriter| Ok(op.result(0)?.into()),
+                                                |rewriter| {
+                                                    let result_ptr = op.result(0)?.into();
+                                                    rewriter.get_field_value(
+                                                        result_ptr,
+                                                        offset_of!(
+                                                            dora_runtime::context::Result<()>,
+                                                            gas_used
+                                                        ),
+                                                        rewriter.intrinsics.i64_ty,
+                                                    )
+                                                },
                                             )?;
                                         }
                                         dora_ir::Operation::Exp => {
@@ -348,20 +360,20 @@ impl<'c> GasPass<'c> {
                                             self.insert_dynamic_gas_check_block_before_op_block(
                                                 &op.next_in_block().unwrap(),
                                                 revert_block,
-                                                |_rewriter| Ok(op.result(0)?.into()),
-                                            )?;
-                                            self.insert_gas_check_block_before_op_block(
-                                                op,
-                                                revert_block,
-                                                gas_cost::EXTCODESIZE_WARM,
+                                                |rewriter| {
+                                                    let result_ptr = op.result(0)?.into();
+                                                    rewriter.get_field_value(
+                                                        result_ptr,
+                                                        offset_of!(
+                                                            dora_runtime::context::Result<u64>,
+                                                            gas_used
+                                                        ),
+                                                        rewriter.intrinsics.i64_ty,
+                                                    )
+                                                },
                                             )?;
                                         }
                                         dora_ir::Operation::ExtCodeCopy => {
-                                            self.insert_dynamic_gas_check_block_before_op_block(
-                                                &op.next_in_block().unwrap(),
-                                                revert_block,
-                                                |_rewriter| Ok(op.result(0)?.into()),
-                                            )?;
                                             self.insert_dynamic_gas_check_block_before_op_block(
                                                 op,
                                                 revert_block,
@@ -398,6 +410,21 @@ impl<'c> GasPass<'c> {
                                                     Ok(total_gas_cost)
                                                 },
                                             )?;
+                                            self.insert_dynamic_gas_check_block_before_op_block(
+                                                &op.next_in_block().unwrap(),
+                                                revert_block,
+                                                |rewriter| {
+                                                    let result_ptr = op.result(0)?.into();
+                                                    rewriter.get_field_value(
+                                                        result_ptr,
+                                                        offset_of!(
+                                                            dora_runtime::context::Result<()>,
+                                                            gas_used
+                                                        ),
+                                                        rewriter.intrinsics.i64_ty,
+                                                    )
+                                                },
+                                            )?;
                                         }
                                         dora_ir::Operation::ReturnDataCopy => {
                                             self.insert_dynamic_gas_check_block_before_op_block(
@@ -421,7 +448,17 @@ impl<'c> GasPass<'c> {
                                             self.insert_dynamic_gas_check_block_before_op_block(
                                                 &op.next_in_block().unwrap(),
                                                 revert_block,
-                                                |_| Ok(op.result(0)?.into()),
+                                                |rewriter| {
+                                                    let result_ptr = op.result(0)?.into();
+                                                    rewriter.get_field_value(
+                                                        result_ptr,
+                                                        offset_of!(
+                                                            dora_runtime::context::Result<()>,
+                                                            gas_used
+                                                        ),
+                                                        rewriter.intrinsics.i64_ty,
+                                                    )
+                                                },
                                             )?;
                                         }
                                         dora_ir::Operation::MLoad => {
@@ -504,21 +541,33 @@ impl<'c> GasPass<'c> {
                                             self.insert_dynamic_gas_check_block_before_op_block(
                                                 &op.next_in_block().unwrap(),
                                                 revert_block,
-                                                |_rewriter| Ok(op.result(0)?.into()),
+                                                |rewriter| {
+                                                    let result_ptr = op.result(0)?.into();
+                                                    rewriter.get_field_value(
+                                                        result_ptr,
+                                                        offset_of!(
+                                                            dora_runtime::context::Result<()>,
+                                                            gas_used
+                                                        ),
+                                                        rewriter.intrinsics.i64_ty,
+                                                    )
+                                                },
                                             )?;
                                         }
                                         dora_ir::Operation::SStore => {
                                             self.insert_dynamic_gas_check_block_before_op_block(
                                                 &op.next_in_block().unwrap(),
                                                 revert_block,
-                                                |_rewriter| Ok(op.result(0)?.into()),
-                                            )?;
-                                            self.insert_dynamic_gas_check_block_before_op_block(
-                                                op,
-                                                revert_block,
-                                                |_rewriter| {
-                                                    let dynamic_gas_cost = op.result(0)?.into();
-                                                    Ok(dynamic_gas_cost)
+                                                |rewriter| {
+                                                    let result_ptr = op.result(0)?.into();
+                                                    rewriter.get_field_value(
+                                                        result_ptr,
+                                                        offset_of!(
+                                                            dora_runtime::context::Result<()>,
+                                                            gas_used
+                                                        ),
+                                                        rewriter.intrinsics.i64_ty,
+                                                    )
                                                 },
                                             )?;
                                         }
@@ -1114,7 +1163,28 @@ impl<'c> GasPass<'c> {
                                             )?;
                                         }
                                         dora_ir::Operation::Return => {
-                                            // No gas cost
+                                            self.insert_dynamic_gas_check_block_before_op_block(
+                                                op,
+                                                revert_block,
+                                                |rewriter| {
+                                                    let location = rewriter.get_insert_location();
+                                                    let offset = op.operand(0)?;
+                                                    let offset = rewriter.make(arith::trunci(
+                                                        offset,
+                                                        rewriter.intrinsics.i64_ty,
+                                                        location,
+                                                    ))?;
+                                                    let size = op.operand(1)?;
+                                                    let size = rewriter.make(arith::trunci(
+                                                        size,
+                                                        rewriter.intrinsics.i64_ty,
+                                                        location,
+                                                    ))?;
+                                                    compute_resize_memory_cost(
+                                                        op, rewriter, offset, size,
+                                                    )
+                                                },
+                                            )?;
                                         }
                                         dora_ir::Operation::Revert => {
                                             // No gas cost
@@ -1127,11 +1197,18 @@ impl<'c> GasPass<'c> {
                                         }
                                         dora_ir::Operation::SelfDestruct => {
                                             self.insert_dynamic_gas_check_block_before_op_block(
-                                                op,
+                                                &op.next_in_block().unwrap(),
                                                 revert_block,
-                                                |_rewriter| {
-                                                    let dynamic_gas_cost = op.result(0)?.into();
-                                                    Ok(dynamic_gas_cost)
+                                                |rewriter| {
+                                                    let result_ptr = op.result(0)?.into();
+                                                    rewriter.get_field_value(
+                                                        result_ptr,
+                                                        offset_of!(
+                                                            dora_runtime::context::Result<u64>,
+                                                            gas_used
+                                                        ),
+                                                        rewriter.intrinsics.i64_ty,
+                                                    )
                                                 },
                                             )?;
                                         }
