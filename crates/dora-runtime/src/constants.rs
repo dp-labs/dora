@@ -182,8 +182,9 @@ pub mod gas_cost {
     /// ```no_check
     /// let cost = gas_cost::init_code_cost(512);
     /// ```
+    #[inline]
     pub fn init_code_cost(init_code_length: usize) -> u64 {
-        INIT_WORD_COST as u64 * ((init_code_length as u64 + 31) / 32)
+        INIT_WORD_COST * ((init_code_length as u64 + 31) / 32)
     }
 
     /// Calculates the gas cost for expanding memory from a previous size to a new size.

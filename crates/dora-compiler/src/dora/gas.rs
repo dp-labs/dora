@@ -797,7 +797,7 @@ impl<'c> GasPass<'c> {
                                         dora_ir::Operation::Create
                                         | dora_ir::Operation::Create2 => {
                                             // Ensure non static call before the gas computation.
-                                            let rewriter = Rewriter::new_with_op(&self.ctx, *op);
+                                            let rewriter = Rewriter::new_with_op(self.ctx, *op);
                                             let ctx_is_static_ptr = rewriter.make(
                                                 rewriter
                                                     .addressof(CTX_IS_STATIC, rewriter.ptr_ty()),
@@ -819,7 +819,7 @@ impl<'c> GasPass<'c> {
                                                 .map(|limit| limit.saturating_mul(2))
                                                 .unwrap_or(MAX_INITCODE_SIZE);
                                             let size = op.operand(2)?;
-                                            let rewriter = Rewriter::new_with_op(&self.ctx, *op);
+                                            let rewriter = Rewriter::new_with_op(self.ctx, *op);
                                             u256_to_64!(op, rewriter, size);
                                             let max_initcode_size = rewriter.make(
                                                 rewriter.iconst_64(max_initcode_size as i64),
@@ -997,6 +997,30 @@ impl<'c> GasPass<'c> {
                                                             location,
                                                         ))?;
                                                     Ok(total_gas_cost)
+                                                },
+                                            )?;
+                                            self.insert_dynamic_gas_check_block_before_op_block(
+                                                op,
+                                                revert_block,
+                                                |rewriter| {
+                                                    let location = rewriter.get_insert_location();
+                                                    let is_create2 = matches!(
+                                                        dora_op,
+                                                        dora_ir::Operation::Create
+                                                    );
+                                                    if is_create2 {
+                                                        let size = op.operand(2)?;
+                                                        let size = rewriter.make(arith::trunci(
+                                                            size,
+                                                            rewriter.intrinsics.i64_ty,
+                                                            location,
+                                                        ))?;
+                                                        compute_create2_cost(rewriter, size)
+                                                    } else {
+                                                        rewriter.make(
+                                                            rewriter.iconst_64(gas_cost::CREATE),
+                                                        )
+                                                    }
                                                 },
                                             )?;
                                             if spec_id.is_enabled_in(SpecId::TANGERINE) {
@@ -1399,6 +1423,22 @@ pub(crate) fn compute_initcode_cost<'c>(
     memory_byte_size: Value<'c, 'c>,
 ) -> Result<Value<'c, 'c>> {
     compute_per_word_cost(rewriter, memory_byte_size, INIT_WORD_COST)
+}
+
+/// This function computes create2 cost, which is given by the following equations
+/// size_word = (len + 31) / 32
+/// memory_cost = 6 * size_word
+/// cost = len * memory_cost
+#[inline]
+pub(crate) fn compute_create2_cost<'c>(
+    rewriter: &'c Rewriter,
+    len: Value<'c, 'c>,
+) -> Result<Value<'c, 'c>> {
+    rewriter.make(arith::addi(
+        rewriter.make(rewriter.iconst_64(gas_cost::CREATE))?,
+        compute_keccak256_cost(rewriter, len)?,
+        rewriter.get_insert_location(),
+    ))
 }
 
 /// This function computes LOG opcode cost, which is given by the following equations
