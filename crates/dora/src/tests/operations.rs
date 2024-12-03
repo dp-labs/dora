@@ -2869,6 +2869,24 @@ fn create2_with_large_salt() {
 }
 
 #[test]
+fn create_too_init_code_size_limit_halt() {
+    let operations = vec![
+        Operation::Push((4_u8, BigUint::from(0x16000_u32))),
+        Operation::Push((1_u8, BigUint::from(0_u8))),
+        Operation::Push((1_u8, BigUint::from(0_u8))),
+        Operation::Create,
+        // Return result
+        Operation::Push0,
+        Operation::Mstore,
+        Operation::Push((1, 32_u8.into())),
+        Operation::Push0,
+        Operation::Return,
+    ];
+    let (env, mut db) = default_env_and_db_setup(operations);
+    run_program_assert_halt(env, db);
+}
+
+#[test]
 fn log0() {
     let operations = vec![
         Operation::Push((1_u8, BigUint::from(0x40_u8))),

@@ -12,7 +12,6 @@ use crate::result::{
 };
 use crate::transaction::Transaction;
 use crate::{symbols, ExitStatusCode};
-use anyhow::bail;
 use bytes::Bytes;
 use dora_primitives::spec::SpecId;
 use dora_primitives::{Bytes32, EVMAddress as Address, B256, H160, U256};
@@ -1230,13 +1229,11 @@ impl<DB: Database> RuntimeContext<DB> {
         remaining_gas: &mut u64,
         value: U256,
         salt: Option<&Bytes32>,
-    ) -> anyhow::Result<Address> {
+    ) -> core::result::Result<Address, ExitStatusCode> {
         // Check the call depth
         if self.inner_context.depth > CALL_STACK_LIMIT {
-            bail!(
-                "call depth {} is too deep and exceed the limit {CALL_STACK_LIMIT}",
-                self.inner_context.depth
-            );
+            self.inner_context.exit_status = Some(ExitStatusCode::CallTooDeep);
+            return Err(ExitStatusCode::CallTooDeep);
         }
 
         let host = self.host.read().unwrap();
@@ -1244,10 +1241,8 @@ impl<DB: Database> RuntimeContext<DB> {
 
         // Check the create init code size limit
         if size > 2 * MAX_CODE_SIZE {
-            bail!(
-                "create init code size {size} exceed the limit {}",
-                2 * MAX_CODE_SIZE
-            )
+            self.inner_context.exit_status = Some(ExitStatusCode::CreateInitCodeSizeLimit);
+            return Err(ExitStatusCode::CreateInitCodeSizeLimit);
         }
 
         let minimum_word_size = ((size + 31) / 32) as u64;
@@ -1268,7 +1263,8 @@ impl<DB: Database> RuntimeContext<DB> {
         };
         // Check if there is already a contract stored in dest_address
         if let Ok(Some(_)) = db.basic(dest_addr) {
-            bail!("account {} already exists", dest_addr);
+            self.inner_context.exit_status = Some(ExitStatusCode::CreateCollision);
+            return Err(ExitStatusCode::CreateCollision);
         }
         drop(host);
         // Create sub context for the initialization code
@@ -1346,7 +1342,7 @@ impl<DB: Database> RuntimeContext<DB> {
                 value.copy_from(&addr);
                 Box::into_raw(Box::new(Result::success(0)))
             }
-            Err(_) => Box::into_raw(Box::new(Result::success(1))),
+            Err(err_code) => Box::into_raw(Box::new(Result::error(err_code.to_u8(), 1))),
         }
     }
 

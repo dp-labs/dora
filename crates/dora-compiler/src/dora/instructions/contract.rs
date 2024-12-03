@@ -16,8 +16,7 @@ use dora_runtime::symbols::CTX_IS_STATIC;
 use dora_runtime::ExitStatusCode;
 use melior::{
     dialect::{
-        arith::{self, CmpiPredicate},
-        cf, func,
+        arith, cf, func,
         llvm::{self, LoadStoreOptions},
     },
     ir::{
@@ -78,11 +77,6 @@ impl<'c> ConversionPass<'c> {
                 location,
             ))?
         };
-        let result = rewriter.get_field_value(
-            result_ptr,
-            offset_of!(dora_runtime::context::Result<u8>, value),
-            rewriter.intrinsics.i8_ty,
-        )?;
         let error = rewriter.get_field_value(
             result_ptr,
             offset_of!(dora_runtime::context::Result<*mut u8>, error),
@@ -90,16 +84,6 @@ impl<'c> ConversionPass<'c> {
         )?;
         // Check the runtime halt error
         check_runtime_error!(op, rewriter, error);
-        let rewriter = Rewriter::new_with_op(context, *op);
-        let zero = rewriter.make(rewriter.iconst_8(0))?;
-        let revert_flag = rewriter.make(arith::cmpi(
-            context,
-            CmpiPredicate::Ne,
-            zero,
-            result,
-            location,
-        ))?;
-        maybe_revert_here!(op, rewriter, revert_flag, ExitStatusCode::CreateCollision);
         rewrite_ctx!(context, op, rewriter, location);
         // Deferred rewriter is need to be the op generation scope.
         rewriter.make(llvm::load(
