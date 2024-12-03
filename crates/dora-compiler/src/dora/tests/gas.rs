@@ -100,3 +100,18 @@ fn gas_create() {
     ];
     assert_snapshot!(operations);
 }
+
+#[test]
+fn gas_call() {
+    let operations = vec![
+        Operation::Push((4_u8, BigUint::from(10000_u32))),
+        Operation::Push((4_u8, BigUint::from(0x1000_u32))),
+        Operation::Push((1_u8, BigUint::from(1_u32))),
+        Operation::Push((1_u8, BigUint::from(32_u32))),
+        Operation::Push((1_u8, BigUint::from(32_u32))),
+        Operation::Push((1_u8, BigUint::from(64_u32))),
+        Operation::Push((1_u8, BigUint::from(64_u32))),
+        Operation::Call,
+    ];
+    assert_snapshot!(operations);
+}

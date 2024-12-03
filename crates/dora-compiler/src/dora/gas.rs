@@ -1,6 +1,7 @@
 use super::memory;
 use crate::backend::IntCC;
 use crate::conversion::builder::OpBuilder;
+use crate::dora::utils;
 use crate::{
     arith_constant, check_op_oog,
     conversion::{rewriter::Rewriter, walker::walk_operation},
@@ -9,7 +10,6 @@ use crate::{
     load_by_addr, maybe_revert_here, u256_to_64,
     value::IntoContextOperation,
 };
-use cost::get_static_cost_from_op;
 use dora_primitives::spec::SpecId;
 use dora_runtime::symbols::CTX_IS_STATIC;
 use dora_runtime::{
@@ -116,6 +116,15 @@ impl<'c> GasPass<'c> {
 
                                 if info.is_unknown() || info.is_disabled() {
                                     continue;
+                                }
+
+                                let base_gas = info.base_gas();
+                                if base_gas > 0 {
+                                    self.insert_gas_check_block_before_op_block(
+                                        op,
+                                        revert_block,
+                                        base_gas as i64,
+                                    )?;
                                 }
 
                                 if info.is_dynamic() {
@@ -286,14 +295,12 @@ impl<'c> GasPass<'c> {
                                                         rewriter.intrinsics.i64_ty,
                                                         location,
                                                     ))?;
-                                                    let required_size = rewriter.make(
-                                                        arith::addi(dest_offset, size, location),
-                                                    )?;
                                                     let total_gas_cost =
-                                                        memory::resize_memory_with_gas_cost(
+                                                        compute_resize_memory_cost(
+                                                            op,
                                                             rewriter,
-                                                            required_size,
-                                                            gas_cost::CALLDATACOPY,
+                                                            dest_offset,
+                                                            size,
                                                         )?;
                                                     Ok(total_gas_cost)
                                                 },
@@ -318,14 +325,12 @@ impl<'c> GasPass<'c> {
                                                         rewriter.intrinsics.i64_ty,
                                                         location,
                                                     ))?;
-                                                    let required_size = rewriter.make(
-                                                        arith::addi(dest_offset, size, location),
-                                                    )?;
                                                     let total_gas_cost =
-                                                        memory::resize_memory_with_gas_cost(
+                                                        compute_resize_memory_cost(
+                                                            op,
                                                             rewriter,
-                                                            required_size,
-                                                            gas_cost::CODECOPY,
+                                                            dest_offset,
+                                                            size,
                                                         )?;
                                                     let dynamic_gas_cost =
                                                         compute_copy_cost(rewriter, size)?;
@@ -375,14 +380,12 @@ impl<'c> GasPass<'c> {
                                                         rewriter.intrinsics.i64_ty,
                                                         location,
                                                     ))?;
-                                                    let required_size = rewriter.make(
-                                                        arith::addi(dest_offset, size, location),
-                                                    )?;
                                                     let total_gas_cost =
-                                                        memory::resize_memory_with_gas_cost(
+                                                        compute_resize_memory_cost(
+                                                            op,
                                                             rewriter,
-                                                            required_size,
-                                                            gas_cost::EXTCODECOPY_WARM,
+                                                            dest_offset,
+                                                            size,
                                                         )?;
                                                     let dynamic_gas_cost =
                                                         compute_copy_cost(rewriter, size)?;
@@ -436,14 +439,12 @@ impl<'c> GasPass<'c> {
                                                         ))?;
                                                     let size =
                                                         rewriter.make(rewriter.iconst_32(32))?;
-                                                    let required_size = rewriter.make(
-                                                        arith::addi(dest_offset, size, location),
-                                                    )?;
                                                     let total_gas_cost =
-                                                        memory::resize_memory_with_gas_cost(
+                                                        compute_resize_memory_cost(
+                                                            op,
                                                             rewriter,
-                                                            required_size,
-                                                            gas_cost::MLOAD,
+                                                            dest_offset,
+                                                            size,
                                                         )?;
                                                     Ok(total_gas_cost)
                                                 },
@@ -464,14 +465,12 @@ impl<'c> GasPass<'c> {
                                                         ))?;
                                                     let size =
                                                         rewriter.make(rewriter.iconst_32(32))?;
-                                                    let required_size = rewriter.make(
-                                                        arith::addi(dest_offset, size, location),
-                                                    )?;
                                                     let total_gas_cost =
-                                                        memory::resize_memory_with_gas_cost(
+                                                        compute_resize_memory_cost(
+                                                            op,
                                                             rewriter,
-                                                            required_size,
-                                                            gas_cost::MSTORE,
+                                                            dest_offset,
+                                                            size,
                                                         )?;
                                                     Ok(total_gas_cost)
                                                 },
@@ -491,17 +490,13 @@ impl<'c> GasPass<'c> {
                                                             location,
                                                         ))?;
                                                     let size =
-                                                        rewriter.make(rewriter.iconst_32(8))?;
-                                                    let required_size = rewriter.make(
-                                                        arith::addi(dest_offset, size, location),
-                                                    )?;
-                                                    let total_gas_cost =
-                                                        memory::resize_memory_with_gas_cost(
-                                                            rewriter,
-                                                            required_size,
-                                                            gas_cost::MSTORE8,
-                                                        )?;
-                                                    Ok(total_gas_cost)
+                                                        rewriter.make(rewriter.iconst_64(8))?;
+                                                    compute_resize_memory_cost(
+                                                        op,
+                                                        rewriter,
+                                                        dest_offset,
+                                                        size,
+                                                    )
                                                 },
                                             )?;
                                         }
@@ -533,6 +528,20 @@ impl<'c> GasPass<'c> {
                                                 revert_block,
                                                 |rewriter| {
                                                     let location = rewriter.get_insert_location();
+                                                    let size = op.operand(2)?;
+                                                    let size = rewriter.make(arith::trunci(
+                                                        size,
+                                                        rewriter.intrinsics.i64_ty,
+                                                        location,
+                                                    ))?;
+                                                    compute_copy_cost(rewriter, size)
+                                                },
+                                            )?;
+                                            self.insert_dynamic_gas_check_block_before_op_block(
+                                                op,
+                                                revert_block,
+                                                |rewriter| {
+                                                    let location = rewriter.get_insert_location();
                                                     let dest_offset = op.operand(0)?;
                                                     let dest_offset =
                                                         rewriter.make(arith::trunci(
@@ -552,35 +561,14 @@ impl<'c> GasPass<'c> {
                                                         rewriter.intrinsics.i64_ty,
                                                         location,
                                                     ))?;
-                                                    // required_size = offset + size
-                                                    let src_required_size = rewriter.make(
-                                                        arith::addi(offset, size, location),
-                                                    )?;
-                                                    // dest_required_size = dest_offset + size
-                                                    let dest_required_size = rewriter.make(
-                                                        arith::addi(dest_offset, size, location),
-                                                    )?;
-                                                    let required_size =
-                                                        rewriter.make(arith::maxui(
-                                                            src_required_size,
-                                                            dest_required_size,
-                                                            location,
-                                                        ))?;
-                                                    let total_gas_cost =
-                                                        memory::resize_memory_with_gas_cost(
-                                                            rewriter,
-                                                            required_size,
-                                                            gas_cost::MCOPY,
-                                                        )?;
-                                                    let dynamic_gas_cost =
-                                                        compute_copy_cost(rewriter, size)?;
-                                                    let total_gas_cost =
-                                                        rewriter.make(arith::addi(
-                                                            total_gas_cost,
-                                                            dynamic_gas_cost,
-                                                            location,
-                                                        ))?;
-                                                    Ok(total_gas_cost)
+                                                    let offset = rewriter.make(arith::maxui(
+                                                        dest_offset,
+                                                        offset,
+                                                        location,
+                                                    ))?;
+                                                    compute_resize_memory_cost(
+                                                        op, rewriter, offset, size,
+                                                    )
                                                 },
                                             )?;
                                         }
@@ -603,14 +591,12 @@ impl<'c> GasPass<'c> {
                                                         rewriter.intrinsics.i64_ty,
                                                         location,
                                                     ))?;
-                                                    let required_size = rewriter.make(
-                                                        arith::addi(dest_offset, size, location),
-                                                    )?;
                                                     let total_gas_cost =
-                                                        memory::resize_memory_with_gas_cost(
+                                                        compute_resize_memory_cost(
+                                                            op,
                                                             rewriter,
-                                                            required_size,
-                                                            gas_cost::LOG0,
+                                                            dest_offset,
+                                                            size,
                                                         )?;
                                                     let dynamic_gas_cost =
                                                         compute_log_dynamic_cost(
@@ -645,14 +631,12 @@ impl<'c> GasPass<'c> {
                                                         rewriter.intrinsics.i64_ty,
                                                         location,
                                                     ))?;
-                                                    let required_size = rewriter.make(
-                                                        arith::addi(dest_offset, size, location),
-                                                    )?;
                                                     let total_gas_cost =
-                                                        memory::resize_memory_with_gas_cost(
+                                                        compute_resize_memory_cost(
+                                                            op,
                                                             rewriter,
-                                                            required_size,
-                                                            gas_cost::LOG1,
+                                                            dest_offset,
+                                                            size,
                                                         )?;
                                                     let dynamic_gas_cost =
                                                         compute_log_dynamic_cost(
@@ -687,14 +671,12 @@ impl<'c> GasPass<'c> {
                                                         rewriter.intrinsics.i64_ty,
                                                         location,
                                                     ))?;
-                                                    let required_size = rewriter.make(
-                                                        arith::addi(dest_offset, size, location),
-                                                    )?;
                                                     let total_gas_cost =
-                                                        memory::resize_memory_with_gas_cost(
+                                                        compute_resize_memory_cost(
+                                                            op,
                                                             rewriter,
-                                                            required_size,
-                                                            gas_cost::LOG2,
+                                                            dest_offset,
+                                                            size,
                                                         )?;
                                                     let dynamic_gas_cost =
                                                         compute_log_dynamic_cost(
@@ -729,14 +711,12 @@ impl<'c> GasPass<'c> {
                                                         rewriter.intrinsics.i64_ty,
                                                         location,
                                                     ))?;
-                                                    let required_size = rewriter.make(
-                                                        arith::addi(dest_offset, size, location),
-                                                    )?;
                                                     let total_gas_cost =
-                                                        memory::resize_memory_with_gas_cost(
+                                                        compute_resize_memory_cost(
+                                                            op,
                                                             rewriter,
-                                                            required_size,
-                                                            gas_cost::LOG3,
+                                                            dest_offset,
+                                                            size,
                                                         )?;
                                                     let dynamic_gas_cost =
                                                         compute_log_dynamic_cost(
@@ -771,14 +751,12 @@ impl<'c> GasPass<'c> {
                                                         rewriter.intrinsics.i64_ty,
                                                         location,
                                                     ))?;
-                                                    let required_size = rewriter.make(
-                                                        arith::addi(dest_offset, size, location),
-                                                    )?;
                                                     let total_gas_cost =
-                                                        memory::resize_memory_with_gas_cost(
+                                                        compute_resize_memory_cost(
+                                                            op,
                                                             rewriter,
-                                                            required_size,
-                                                            gas_cost::LOG4,
+                                                            dest_offset,
+                                                            size,
                                                         )?;
                                                     let dynamic_gas_cost =
                                                         compute_log_dynamic_cost(
@@ -929,8 +907,8 @@ impl<'c> GasPass<'c> {
                                                         location,
                                                     ))?;
 
-                                                    let zero = rewriter
-                                                        .make(rewriter.iconst_64(0))?;
+                                                    let zero =
+                                                        rewriter.make(rewriter.iconst_64(0))?;
                                                     let is_size_zero =
                                                         rewriter.make(arith::cmpi(
                                                             rewriter.context(),
@@ -971,21 +949,20 @@ impl<'c> GasPass<'c> {
                                                                         block,
                                                                     );
 
-                                                                    let dest_offset =
-                                                                    rewriter.make(arith::trunci(
+                                                                let dest_offset = rewriter.make(
+                                                                    arith::trunci(
                                                                         dest_offset,
                                                                         rewriter.intrinsics.i64_ty,
                                                                         location,
-                                                                    ))?;
-
-                                                                let required_size = rewriter.make(
-                                                                    arith::addi(dest_offset, size, location),
+                                                                    ),
                                                                 )?;
+
                                                                 let gas_cost =
-                                                                    memory::resize_memory_with_gas_cost(
+                                                                    compute_resize_memory_cost(
+                                                                        op,
                                                                         &rewriter,
-                                                                        required_size,
-                                                                        gas_cost::CREATE,
+                                                                        dest_offset,
+                                                                        size,
                                                                     )?;
 
                                                                 rewriter.create(scf::r#yield(
@@ -1046,6 +1023,44 @@ impl<'c> GasPass<'c> {
                                         | dora_ir::Operation::DelegateCall
                                         | dora_ir::Operation::StaticCall
                                         | dora_ir::Operation::CallCode => {
+                                            if matches!(
+                                                dora_op,
+                                                dora_ir::Operation::Call
+                                                    | dora_ir::Operation::CallCode
+                                            ) {
+                                                // Static call value is zero check
+                                                let rewriter = Rewriter::new_with_op(self.ctx, *op);
+                                                let location = rewriter.get_insert_location();
+                                                let ctx_is_static_ptr =
+                                                    rewriter.make(rewriter.addressof(
+                                                        CTX_IS_STATIC,
+                                                        rewriter.ptr_ty(),
+                                                    ))?;
+                                                let ctx_is_static =
+                                                    rewriter.make(rewriter.load(
+                                                        ctx_is_static_ptr,
+                                                        rewriter.intrinsics.i1_ty,
+                                                    ))?;
+                                                let zero = rewriter
+                                                    .make(rewriter.iconst_256_from_u64(0)?)?;
+                                                let value = op.operand(2)?;
+                                                let value_is_not_zero = rewriter.make(
+                                                    rewriter.icmp(IntCC::NotEqual, value, zero),
+                                                )?;
+                                                let revert_flag = rewriter.make(arith::andi(
+                                                    ctx_is_static,
+                                                    value_is_not_zero,
+                                                    location,
+                                                ))?;
+
+                                                maybe_revert_here!(
+                                                    op,
+                                                    rewriter,
+                                                    revert_flag,
+                                                    ExitStatusCode::CallNotAllowedInsideStatic
+                                                );
+                                            }
+
                                             self.insert_dynamic_gas_check_block_before_op_block(
                                                 op,
                                                 revert_block,
@@ -1065,7 +1080,20 @@ impl<'c> GasPass<'c> {
                                                             rewriter.intrinsics.i64_ty,
                                                             location,
                                                         ))?;
+                                                    compute_resize_memory_cost(
+                                                        op,
+                                                        rewriter,
+                                                        args_offset,
+                                                        args_size,
+                                                    )
+                                                },
+                                            )?;
 
+                                            self.insert_dynamic_gas_check_block_before_op_block(
+                                                op,
+                                                revert_block,
+                                                |rewriter| {
+                                                    let location = rewriter.get_insert_location();
                                                     let ret_offset = op.operand(3)?;
                                                     let ret_offset =
                                                         rewriter.make(arith::trunci(
@@ -1079,28 +1107,9 @@ impl<'c> GasPass<'c> {
                                                         rewriter.intrinsics.i64_ty,
                                                         location,
                                                     ))?;
-                                                    let req_arg_mem_size =
-                                                        rewriter.make(arith::addi(
-                                                            args_offset,
-                                                            args_size,
-                                                            location,
-                                                        ))?;
-                                                    let req_ret_mem_size = rewriter.make(
-                                                        arith::addi(ret_offset, ret_size, location),
-                                                    )?;
-                                                    let required_size =
-                                                        rewriter.make(arith::maxui(
-                                                            req_arg_mem_size,
-                                                            req_ret_mem_size,
-                                                            location,
-                                                        ))?;
-                                                    let total_gas_cost =
-                                                        memory::resize_memory_with_gas_cost(
-                                                            rewriter,
-                                                            required_size,
-                                                            gas_cost::CALL,
-                                                        )?;
-                                                    Ok(total_gas_cost)
+                                                    compute_resize_memory_cost(
+                                                        op, rewriter, ret_offset, ret_size,
+                                                    )
                                                 },
                                             )?;
                                         }
@@ -1131,15 +1140,6 @@ impl<'c> GasPass<'c> {
                                         ),
                                         x => unimplemented!("dynamic gas computation for {:?}", x),
                                     }
-                                } else {
-                                    // Static gas computation.
-                                    let gas_cost = get_static_cost_from_op(&name);
-                                    debug_assert!(gas_cost > 0);
-                                    self.insert_gas_check_block_before_op_block(
-                                        op,
-                                        revert_block,
-                                        gas_cost as i64,
-                                    )?;
                                 }
                             }
                         }
@@ -1250,93 +1250,6 @@ impl<'c> GasPass<'c> {
             ));
         }
         Ok(())
-    }
-}
-
-pub mod cost {
-    use dora_runtime::constants::gas_cost;
-
-    pub fn get_static_cost_from_op(name: &str) -> u64 {
-        let cost = match name {
-            "dora.add" => gas_cost::ADD,
-            "dora.sub" => gas_cost::SUB,
-            "dora.mul" => gas_cost::MUL,
-            "dora.div" => gas_cost::DIV,
-            "dora.sdiv" => gas_cost::SDIV,
-            "dora.mod" => gas_cost::MOD,
-            "dora.smod" => gas_cost::SMOD,
-            "dora.addmod" => gas_cost::ADDMOD,
-            "dora.mulmod" => gas_cost::MULMOD,
-            "dora.exp" => gas_cost::EXP,
-            "dora.signextend" => gas_cost::SIGNEXTEND,
-            "dora.lt" => gas_cost::LT,
-            "dora.gt" => gas_cost::GT,
-            "dora.slt" => gas_cost::SLT,
-            "dora.sgt" => gas_cost::SGT,
-            "dora.eq" => gas_cost::EQ,
-            "dora.iszero" => gas_cost::ISZERO,
-            "dora.and" => gas_cost::AND,
-            "dora.or" => gas_cost::OR,
-            "dora.xor" => gas_cost::XOR,
-            "dora.not" => gas_cost::NOT,
-            "dora.byte" => gas_cost::BYTE,
-            "dora.shl" => gas_cost::SHL,
-            "dora.shr" => gas_cost::SHR,
-            "dora.sar" => gas_cost::SAR,
-            "dora.keccak256" => gas_cost::KECCAK256,
-            "dora.address" => gas_cost::ADDRESS,
-            "dora.balance" => gas_cost::BALANCE,
-            "dora.origin" => gas_cost::ORIGIN,
-            "dora.caller" => gas_cost::CALLER,
-            "dora.callvalue" => gas_cost::CALLVALUE,
-            "dora.calldataload" => gas_cost::CALLDATALOAD,
-            "dora.calldatasize" => gas_cost::CALLDATASIZE,
-            "dora.calldatacopy" => gas_cost::CALLDATACOPY,
-            "dora.codesize" => gas_cost::CODESIZE,
-            "dora.codecopy" => gas_cost::CODECOPY,
-            "dora.gasprice" => gas_cost::GASPRICE,
-            "dora.extcodesize" => gas_cost::EXTCODESIZE_WARM,
-            "dora.extcodecopy" => gas_cost::EXTCODECOPY_WARM,
-            "dora.returndatasize" => gas_cost::RETURNDATASIZE,
-            "dora.returndatacopy" => gas_cost::RETURNDATACOPY,
-            "dora.extcodehash" => gas_cost::EXTCODEHASH,
-            "dora.blockhash" => gas_cost::BLOCKHASH,
-            "dora.coinbase" => gas_cost::COINBASE,
-            "dora.timestamp" => gas_cost::TIMESTAMP,
-            "dora.number" => gas_cost::NUMBER,
-            "dora.prevrandao" => gas_cost::PREVRANDAO,
-            "dora.gaslimit" => gas_cost::GASLIMIT,
-            "dora.chainid" => gas_cost::CHAINID,
-            "dora.selfbalance" => gas_cost::SELFBALANCE,
-            "dora.basefee" => gas_cost::BASEFEE,
-            "dora.blobhash" => gas_cost::BLOBHASH,
-            "dora.blobbasefee" => gas_cost::BLOBBASEFEE,
-            "dora.mload" => gas_cost::MLOAD,
-            "dora.mstore" => gas_cost::MSTORE,
-            "dora.mstore8" => gas_cost::MSTORE8,
-            "dora.sload" => gas_cost::SLOAD,
-            "dora.sstore" => gas_cost::SSTORE,
-            "dora.msize" => gas_cost::MSIZE,
-            "dora.gas" => gas_cost::GAS,
-            "dora.tload" => gas_cost::TLOAD,
-            "dora.tstore" => gas_cost::TSTORE,
-            "dora.mcopy" => gas_cost::MCOPY,
-            "dora.log0" => gas_cost::LOG0,
-            "dora.log1" => gas_cost::LOG1,
-            "dora.log2" => gas_cost::LOG2,
-            "dora.log3" => gas_cost::LOG3,
-            "dora.log4" => gas_cost::LOG4,
-            "dora.create" => gas_cost::CREATE,
-            "dora.create2" => gas_cost::CREATE2,
-            "dora.call" => gas_cost::CALL,
-            "dora.return" => gas_cost::RETURN,
-            "dora.staticcall" => gas_cost::STATICCALL,
-            "dora.revert" => gas_cost::REVERT,
-            "dora.selfdestruct" => gas_cost::SELFDESTRUCT,
-            _ => 0,
-        };
-
-        cost as u64
     }
 }
 
@@ -1458,4 +1371,108 @@ pub(crate) fn compute_log_dynamic_cost<'c>(
     let dynamic_gas = rewriter.make(arith::addi(topic_count_x_375, size_x_8, location))?;
     let dynamic_gas = rewriter.make(arith::trunci(dynamic_gas, uint64, location))?;
     Ok(dynamic_gas)
+}
+
+pub(crate) fn compute_resize_memory_cost<'c>(
+    _op: &OperationRef<'c, 'c>,
+    rewriter: &'c Rewriter,
+    offset: Value<'c, 'c>,
+    len: Value<'c, 'c>,
+) -> Result<Value<'c, 'c>> {
+    let context = rewriter.context();
+    let location = rewriter.get_insert_location();
+    let required_size = rewriter.make(arith::addi(offset, len, location))?;
+    // Load memory size
+    let memory_size_ptr =
+        rewriter.make(rewriter.addressof(constants::MEMORY_SIZE_GLOBAL, rewriter.ptr_ty()))?;
+    let memory_size = rewriter.make(llvm::load(
+        context,
+        memory_size_ptr,
+        rewriter.intrinsics.i64_ty,
+        location,
+        LoadStoreOptions::default(),
+    ))?;
+    let rounded_required_size = utils::round_up_32(required_size, context, rewriter, location)?;
+    let extension_flag = rewriter.make(arith::cmpi(
+        context,
+        CmpiPredicate::Ult,
+        memory_size,
+        rounded_required_size,
+        location,
+    ))?;
+    let dynamic_gas_value = rewriter.make(scf::r#if(
+        extension_flag,
+        &[rewriter.intrinsics.i64_ty],
+        {
+            let region = Region::new();
+            let block = region.append_block(Block::new(&[]));
+            let rewriter = Rewriter::new_with_block(context, block);
+            // dynamic gas computation in the gas pass
+            let memory_cost_before = memory_gas_cost(&rewriter, memory_size)?;
+            let memory_cost_after = memory_gas_cost(&rewriter, rounded_required_size)?;
+            let dynamic_gas_value =
+                rewriter.make(arith::subi(memory_cost_after, memory_cost_before, location))?;
+            rewriter.create(scf::r#yield(&[dynamic_gas_value], location));
+            region
+        },
+        {
+            let region = Region::new();
+            let block = region.append_block(Block::new(&[]));
+            let rewriter = Rewriter::new_with_block(context, block);
+            rewriter.create(scf::r#yield(
+                &[rewriter.make(rewriter.iconst_64(0))?],
+                location,
+            ));
+            region
+        },
+        location,
+    ))?;
+    Ok(dynamic_gas_value)
+}
+
+// This function computes memory gas cost, which is given by the following equations.
+// memory_size_word = (memory_byte_size + 31) / 32
+// memory_cost = (memory_size_word ** 2) / 512 + (3 * memory_size_word)
+pub(crate) fn memory_gas_cost<'c>(
+    rewriter: &'c Rewriter,
+    memory_byte_size: Value<'c, 'c>,
+) -> Result<Value<'c, 'c>> {
+    let location = rewriter.get_insert_location();
+    // Helper function to create constants
+    let make_constant =
+        |val: i64| -> Result<Value<'c, 'c>> { rewriter.make(rewriter.iconst_64(val)) };
+
+    // Predefined constants
+    let constant_3 = make_constant(3)?;
+    let constant_31 = make_constant(31)?;
+    let constant_32 = make_constant(32)?;
+    let constant_512 = make_constant(512)?;
+
+    // Memory calculations
+    let memory_byte_size_plus_31 =
+        rewriter.make(arith::addi(memory_byte_size, constant_31, location))?;
+    let memory_size_word = rewriter.make(arith::divui(
+        memory_byte_size_plus_31,
+        constant_32,
+        location,
+    ))?;
+
+    // Word-based calculations
+    let memory_size_word_squared =
+        rewriter.make(arith::muli(memory_size_word, memory_size_word, location))?;
+    let memory_size_word_squared_divided_by_512 = rewriter.make(arith::divui(
+        memory_size_word_squared,
+        constant_512,
+        location,
+    ))?;
+    let memory_size_word_times_3 =
+        rewriter.make(arith::muli(memory_size_word, constant_3, location))?;
+
+    // Final memory cost calculation
+    let memory_cost = rewriter.make(arith::addi(
+        memory_size_word_squared_divided_by_512,
+        memory_size_word_times_3,
+        location,
+    ))?;
+    Ok(memory_cost)
 }
