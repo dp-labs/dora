@@ -296,3 +296,19 @@ macro_rules! check_u256_to_u64_overflow {
         maybe_revert_here!($op, $rewriter, overflow, ExitStatusCode::InvalidOperandOOG);
     };
 }
+
+#[macro_export]
+macro_rules! ensure_non_staticcall {
+    ($op:expr, $rewriter:ident) => {
+        let ctx_is_static_ptr =
+            $rewriter.make($rewriter.addressof(CTX_IS_STATIC, $rewriter.ptr_ty()))?;
+        let ctx_is_static =
+            $rewriter.make($rewriter.load(ctx_is_static_ptr, $rewriter.intrinsics.i1_ty))?;
+        maybe_revert_here!(
+            $op,
+            $rewriter,
+            ctx_is_static,
+            ExitStatusCode::StateChangeDuringStaticCall
+        );
+    };
+}
