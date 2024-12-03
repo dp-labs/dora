@@ -1527,6 +1527,24 @@ fn returndatasize() {
 }
 
 #[test]
+fn returndataload() {
+    let operations = vec![
+        Operation::Push((1_u8, BigUint::from(0_u8))),
+        // Note that RETURNDATALOAD is not found in the CANCUN spec.
+        Operation::ReturnDataLoad,
+        // Return result
+        Operation::Push0,
+        Operation::Mstore,
+        Operation::Push((1, 32_u8.into())),
+        Operation::Push0,
+        Operation::Return,
+    ];
+    let (env, mut db) = default_env_and_db_setup(operations);
+    let result = run_evm(env, db, SpecId::CANCUN).unwrap().result;
+    assert!(result.is_halt());
+}
+
+#[test]
 fn returndatacopy() {
     let call_data_size = 32_u8;
     let operations = vec![

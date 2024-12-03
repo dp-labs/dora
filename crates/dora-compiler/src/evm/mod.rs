@@ -7,9 +7,7 @@ use crate::intrinsics::Intrinsics;
 use crate::module::Module as MLIRModule;
 use crate::symbols as symbols_ctx;
 use crate::Compiler;
-use anyhow::anyhow;
 use dora_runtime::constants::STACK_SIZE_GLOBAL;
-use dora_runtime::result::HaltReason;
 use dora_runtime::{constants::STACK_PTR_GLOBAL, ExitStatusCode};
 use dora_runtime::{
     constants::{
@@ -173,10 +171,11 @@ impl<'c> EVMCompiler<'c> {
     ) -> Result<(BlockRef<'c, 'c>, BlockRef<'c, 'c>)> {
         let op_infos = op_info_map(options.spec_id);
         let op_info = op_infos[op.opcode()];
+        // Note: make opcode not found as the runtime halt error,
+        // because normal opcodes still consumes GAS during runtime.
         if op_info.is_unknown() || op_info.is_disabled() {
-            return Err(anyhow!(HaltReason::OpcodeNotFound));
+            return Self::invalid_with_error_code(ctx, region, ExitStatusCode::OpcodeNotFound);
         }
-
         match op {
             Operation::Add => EVMCompiler::add(ctx, region),
             Operation::Mul => EVMCompiler::mul(ctx, region),

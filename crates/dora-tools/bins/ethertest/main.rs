@@ -374,6 +374,8 @@ fn should_skip(path: &Path) -> bool {
         // JSON big int issue cases: https://github.com/ethereum/tests/issues/971
         "ValueOverflow.json" |
         "ValueOverflowParis.json" |
+        // https://github.com/dp-labs/dora/issues/77
+        "all_opcodes.json" |
         // Attack cases
         "run_until_out_of_gas.json" |
         "ContractCreationSpam.json" |
@@ -398,6 +400,7 @@ fn should_skip(path: &Path) -> bool {
         "createNameRegistratorOutOfMemoryBonds0.json"
     ) || path_str.contains("stEOF")
         || path_str.contains("stBugs")
+        // https://github.com/dp-labs/dora/issues/77
         || path_str.contains("stBadOpcode")
         || path_str.contains("stMemory")
         || path_str.contains("stRandom")

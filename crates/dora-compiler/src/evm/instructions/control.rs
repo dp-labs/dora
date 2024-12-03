@@ -90,9 +90,18 @@ impl<'c> EVMCompiler<'c> {
         Ok((start_block, empty_block))
     }
 
+    #[inline]
     pub(crate) fn invalid<'r>(
         ctx: &mut CtxType<'c>,
         region: &'r Region<'c>,
+    ) -> Result<(BlockRef<'r, 'c>, BlockRef<'r, 'c>)> {
+        Self::invalid_with_error_code(ctx, region, ExitStatusCode::InvalidFEOpcode)
+    }
+
+    pub(crate) fn invalid_with_error_code<'r>(
+        ctx: &mut CtxType<'c>,
+        region: &'r Region<'c>,
+        error_code: ExitStatusCode,
     ) -> Result<(BlockRef<'r, 'c>, BlockRef<'r, 'c>)> {
         let start_block = region.append_block(Block::new(&[]));
         let empty_block = region.append_block(Block::new(&[]));
@@ -100,7 +109,7 @@ impl<'c> EVMCompiler<'c> {
         builder.invalid();
         start_block.append_operation(cf::br(
             &builder.ctx.revert_block,
-            &[builder.make(builder.iconst_8(ExitStatusCode::InvalidFEOpcode as i8))?],
+            &[builder.make(builder.iconst_8(error_code as i8))?],
             builder.location(),
         ));
         Ok((start_block, empty_block))
