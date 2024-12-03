@@ -24,7 +24,7 @@ use melior::{
     ir::{
         attribute::{FlatSymbolRefAttribute, IntegerAttribute, TypeAttribute},
         r#type::IntegerType,
-        Block, OperationRef, Region, Value,
+        Block, OperationRef, Region,
     },
     Context,
 };
@@ -36,14 +36,10 @@ impl<'c> ConversionPass<'c> {
         operands!(op, offset, size);
         syscall_ctx!(op, syscall_ctx);
         let rewriter = Rewriter::new_with_op(context, *op);
-        let location = rewriter.get_insert_location();
+
         u256_to_64!(op, rewriter, offset);
         u256_to_64!(op, rewriter, size);
-        let required_memory_size = rewriter.make(arith::addi(offset, size, location))?;
-
-        // dynamic_gas_cost = 3 * (size + 31) / 32 gas
-
-        memory::resize_memory(context, op, &rewriter, syscall_ctx, required_memory_size)?;
+        memory::resize_memory(context, op, &rewriter, syscall_ctx, offset, size)?;
         rewrite_ctx!(context, op, rewriter, location);
 
         let hash_ptr = create_var!(rewriter, context, location);
@@ -235,8 +231,6 @@ impl<'c> ConversionPass<'c> {
         operands!(op, dest_offset, call_data_offset, length);
         syscall_ctx!(op, syscall_ctx);
         let rewriter = Rewriter::new_with_op(context, *op);
-        let location = rewriter.get_insert_location();
-
         let uint64 = rewriter.intrinsics.i64_ty;
         let ptr_type = rewriter.ptr_ty();
 
@@ -244,9 +238,7 @@ impl<'c> ConversionPass<'c> {
         u256_to_64!(op, rewriter, dest_offset);
         u256_to_64!(op, rewriter, length);
 
-        // required size = dest_offset + size
-        let required_memory_size = rewriter.make(arith::addi(dest_offset, length, location))?;
-        memory::resize_memory(context, op, &rewriter, syscall_ctx, required_memory_size)?;
+        memory::resize_memory(context, op, &rewriter, syscall_ctx, dest_offset, length)?;
         rewrite_ctx!(context, op, rewriter, location);
 
         let memory_ptr = memory::get_memory_pointer(context, &rewriter, location)?;
@@ -258,18 +250,6 @@ impl<'c> ConversionPass<'c> {
             rewriter.intrinsics.ptr_ty,
             location,
         ))?;
-        let zero = rewriter.make(rewriter.iconst_8(0))?;
-        rewriter.create(
-            ods::llvm::intr_memset(
-                context,
-                memory_dest,
-                zero,
-                length,
-                IntegerAttribute::new(IntegerType::new(context, 1).into(), 0),
-                location,
-            )
-            .into(),
-        );
         let call_data_size = rewriter.make(func::call(
             context,
             FlatSymbolRefAttribute::new(context, symbols::CALLDATA_SIZE),
@@ -289,8 +269,8 @@ impl<'c> ConversionPass<'c> {
             &[],
             {
                 let region = Region::new();
-                let valid_offset_block = region.append_block(Block::new(&[]));
-                let builder = OpBuilder::new_with_block(context, valid_offset_block);
+                let block = region.append_block(Block::new(&[]));
+                let builder = OpBuilder::new_with_block(context, block);
                 let remaining_calldata_size =
                     builder.make(arith::subi(call_data_size, call_data_offset, location))?;
                 let memcpy_len =
@@ -326,9 +306,8 @@ impl<'c> ConversionPass<'c> {
             },
             {
                 let region = Region::new();
-                let invalid_offset_block = region.append_block(Block::new(&[]));
-                let builder = OpBuilder::new_with_block(context, invalid_offset_block);
-                builder.create(scf::r#yield(&[], location));
+                let block = region.append_block(Block::new(&[]));
+                block.append_operation(scf::r#yield(&[], location));
                 region
             },
             location,
@@ -350,17 +329,13 @@ impl<'c> ConversionPass<'c> {
         operands!(op, dest_offset, offset, length);
         syscall_ctx!(op, syscall_ctx);
         let rewriter = Rewriter::new_with_op(context, *op);
-        let location = rewriter.get_insert_location();
-
         let ptr_type = rewriter.ptr_ty();
 
         u256_to_64!(op, rewriter, offset);
         u256_to_64!(op, rewriter, dest_offset);
         u256_to_64!(op, rewriter, length);
 
-        // required size = dest_offset + size
-        let required_memory_size = rewriter.make(arith::addi(dest_offset, length, location))?;
-        memory::resize_memory(context, op, &rewriter, syscall_ctx, required_memory_size)?;
+        memory::resize_memory(context, op, &rewriter, syscall_ctx, dest_offset, length)?;
         rewrite_ctx!(context, op, rewriter, location);
 
         rewriter.create(func::call(
@@ -400,17 +375,13 @@ impl<'c> ConversionPass<'c> {
         operands!(op, dest_offset, offset, size);
         syscall_ctx!(op, syscall_ctx);
         let rewriter = Rewriter::new_with_op(context, *op);
-        let location = rewriter.get_insert_location();
-
         let ptr_type = rewriter.ptr_ty();
 
         u256_to_64!(op, rewriter, dest_offset);
         u256_to_64!(op, rewriter, offset);
         u256_to_64!(op, rewriter, size);
 
-        // Extend memory to required size
-        let req_mem_size: Value = rewriter.make(arith::addi(dest_offset, size, location))?;
-        memory::resize_memory(context, op, &rewriter, syscall_ctx, req_mem_size)?;
+        memory::resize_memory(context, op, &rewriter, syscall_ctx, dest_offset, size)?;
         rewrite_ctx!(context, op, rewriter, location);
         let result_ptr = rewriter.make(func::call(
             context,

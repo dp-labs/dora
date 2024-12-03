@@ -8,7 +8,7 @@ use crate::{
     errors::{CompileError, Result},
     load_var, maybe_revert_here, operands, rewrite_ctx, syscall_ctx, u256_to_64,
 };
-use dora_runtime::symbols;
+use dora_runtime::symbols::{self, CTX_IS_STATIC};
 use dora_runtime::ExitStatusCode;
 use melior::{
     dialect::{
@@ -34,15 +34,14 @@ impl<'c> ConversionPass<'c> {
 
         let address_ptr =
             memory::allocate_u256_and_assign_value(context, &rewriter, account, location)?;
-        let balance_ptr = create_var!(rewriter, context, location);
         load_var!(
             rewriter,
             context,
             syscall_ctx,
             symbols::STORE_IN_BALANCE,
-            &[address_ptr, balance_ptr],
+            &[address_ptr],
             [rewriter.intrinsics.ptr_ty],
-            balance_ptr,
+            address_ptr,
             rewriter.intrinsics.i256_ty,
             location
         );
@@ -125,17 +124,9 @@ impl<'c> ConversionPass<'c> {
         u256_to_64!(op, rewriter, offset);
         u256_to_64!(op, rewriter, size);
         u256_to_64!(op, rewriter, dest_offset);
-
         let address_ptr =
             memory::allocate_u256_and_assign_value(context, &rewriter, address, location)?;
-
-        // required size = dest_offset + size
-        let required_memory_size = rewriter.make(arith::addi(dest_offset, size, location))?;
-
-        // consume 3 * (size + 31) / 32 gas
-        // dynamic gas computation
-
-        memory::resize_memory(context, op, &rewriter, syscall_ctx, required_memory_size)?;
+        memory::resize_memory(context, op, &rewriter, syscall_ctx, dest_offset, size)?;
         rewrite_ctx!(context, op, rewriter, location);
         rewriter.create(func::call(
             context,
@@ -271,12 +262,7 @@ impl<'c> ConversionPass<'c> {
 
         let offset = rewriter.make(arith::trunci(offset, uint64, location))?;
         let size = rewriter.make(arith::trunci(size, uint64, location))?;
-
-        // dynamic gas computation in the gas pass
-
-        // required_size = offset + size
-        let required_memory_size = rewriter.make(arith::addi(offset, size, location))?;
-        memory::resize_memory(context, op, &rewriter, syscall_ctx, required_memory_size)?;
+        memory::resize_memory(context, op, &rewriter, syscall_ctx, offset, size)?;
         rewrite_ctx!(context, op, rewriter, location);
 
         // Handle topics dynamically
@@ -317,8 +303,19 @@ impl<'c> ConversionPass<'c> {
     pub(crate) fn selfdestruct(context: &Context, op: &OperationRef<'_, '_>) -> Result<()> {
         operands!(op, address);
         syscall_ctx!(op, syscall_ctx);
+        // Ensure non static call before the gas computation.
+        let rewriter = Rewriter::new_with_op(context, *op);
+        let ctx_is_static_ptr =
+            rewriter.make(rewriter.addressof(CTX_IS_STATIC, rewriter.ptr_ty()))?;
+        let ctx_is_static =
+            rewriter.make(rewriter.load(ctx_is_static_ptr, rewriter.intrinsics.i1_ty))?;
+        maybe_revert_here!(
+            op,
+            rewriter,
+            ctx_is_static,
+            ExitStatusCode::StateChangeDuringStaticCall
+        );
         rewrite_ctx!(context, op, rewriter, location);
-
         let ptr_type = rewriter.ptr_ty();
         let address_ptr =
             memory::allocate_u256_and_assign_value(context, &rewriter, address, location)?;

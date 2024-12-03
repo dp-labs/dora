@@ -1,6 +1,7 @@
 ---
 source: crates/dora-compiler/src/dora/tests/operations.rs
 expression: op
+snapshot_kind: text
 ---
 module {
   llvm.mlir.global internal @dora_global_stack_ptr() {addr_space = 0 : i32} : !llvm.ptr
@@ -41,7 +42,7 @@ module {
   func.func private @dora_fn_store_in_timestamp_ptr(!llvm.ptr, !llvm.ptr) -> !llvm.ptr
   func.func private @dora_fn_store_in_basefee_ptr(!llvm.ptr, !llvm.ptr) -> !llvm.ptr
   func.func private @dora_fn_call(!llvm.ptr, i64, !llvm.ptr, !llvm.ptr, i64, i64, i64, i64, i64, !llvm.ptr, i8) -> !llvm.ptr
-  func.func private @dora_fn_store_in_balance(!llvm.ptr, !llvm.ptr, !llvm.ptr) -> !llvm.ptr
+  func.func private @dora_fn_store_in_balance(!llvm.ptr, !llvm.ptr) -> !llvm.ptr
   func.func private @dora_fn_ext_code_copy(!llvm.ptr, !llvm.ptr, i64, i64, i64) -> !llvm.ptr
   func.func private @dora_fn_blob_hash(!llvm.ptr, !llvm.ptr, !llvm.ptr) -> !llvm.ptr
   func.func private @dora_fn_block_hash(!llvm.ptr, !llvm.ptr) -> !llvm.ptr
@@ -81,7 +82,7 @@ module {
     %12 = arith.cmpi ult, %c1024_i64, %11 : i64
     %c92_i8 = arith.constant 92 : i8
     cf.cond_br %12, ^bb1(%c92_i8 : i8), ^bb3
-  ^bb1(%13: i8):  // 3 preds: ^bb0, ^bb2, ^bb3
+  ^bb1(%13: i8):  // 4 preds: ^bb0, ^bb2, ^bb3, ^bb4
     %c0_i64_1 = arith.constant 0 : i64
     %14 = call @dora_fn_write_result(%arg0, %c0_i64_1, %c0_i64_1, %c0_i64_1, %13) : (!llvm.ptr, i64, i64, i64, i8) -> !llvm.ptr
     return %13 : i8
@@ -111,15 +112,20 @@ module {
     %24 = llvm.getelementptr %23[-1] : (!llvm.ptr) -> !llvm.ptr, i256
     %25 = llvm.load %24 : !llvm.ptr -> i256
     llvm.store %24, %22 : !llvm.ptr, !llvm.ptr
-    %c1_i256 = arith.constant 1 : i256
-    %26 = llvm.alloca %c1_i256 x i256 : (i256) -> !llvm.ptr
-    llvm.store %25, %26 {alignment = 1 : i64} : i256, !llvm.ptr
-    %27 = call @dora_fn_selfdestruct(%arg0, %26) : (!llvm.ptr, !llvm.ptr) -> !llvm.ptr
-    cf.br ^bb5
+    %26 = llvm.mlir.addressof @dora_global_ctx_is_static : !llvm.ptr
+    %27 = llvm.load %26 : !llvm.ptr -> i1
+    %c87_i8 = arith.constant 87 : i8
+    cf.cond_br %27, ^bb1(%c87_i8 : i8), ^bb5
   ^bb5:  // pred: ^bb4
+    %c1_i256 = arith.constant 1 : i256
+    %28 = llvm.alloca %c1_i256 x i256 : (i256) -> !llvm.ptr
+    llvm.store %25, %28 {alignment = 1 : i64} : i256, !llvm.ptr
+    %29 = call @dora_fn_selfdestruct(%arg0, %28) : (!llvm.ptr, !llvm.ptr) -> !llvm.ptr
+    cf.br ^bb6
+  ^bb6:  // pred: ^bb5
     %c0_i64_3 = arith.constant 0 : i64
     %c1_i8 = arith.constant 1 : i8
-    %28 = call @dora_fn_write_result(%arg0, %c0_i64_3, %c0_i64_3, %arg1, %c1_i8) : (!llvm.ptr, i64, i64, i64, i8) -> !llvm.ptr
+    %30 = call @dora_fn_write_result(%arg0, %c0_i64_3, %c0_i64_3, %arg1, %c1_i8) : (!llvm.ptr, i64, i64, i64, i8) -> !llvm.ptr
     return %c1_i8 : i8
   }
 }

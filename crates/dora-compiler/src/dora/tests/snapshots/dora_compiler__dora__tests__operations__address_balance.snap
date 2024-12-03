@@ -1,6 +1,7 @@
 ---
 source: crates/dora-compiler/src/dora/tests/operations.rs
 expression: op
+snapshot_kind: text
 ---
 module {
   llvm.mlir.global internal @dora_global_stack_ptr() {addr_space = 0 : i32} : !llvm.ptr
@@ -41,7 +42,7 @@ module {
   func.func private @dora_fn_store_in_timestamp_ptr(!llvm.ptr, !llvm.ptr) -> !llvm.ptr
   func.func private @dora_fn_store_in_basefee_ptr(!llvm.ptr, !llvm.ptr) -> !llvm.ptr
   func.func private @dora_fn_call(!llvm.ptr, i64, !llvm.ptr, !llvm.ptr, i64, i64, i64, i64, i64, !llvm.ptr, i8) -> !llvm.ptr
-  func.func private @dora_fn_store_in_balance(!llvm.ptr, !llvm.ptr, !llvm.ptr) -> !llvm.ptr
+  func.func private @dora_fn_store_in_balance(!llvm.ptr, !llvm.ptr) -> !llvm.ptr
   func.func private @dora_fn_ext_code_copy(!llvm.ptr, !llvm.ptr, i64, i64, i64) -> !llvm.ptr
   func.func private @dora_fn_blob_hash(!llvm.ptr, !llvm.ptr, !llvm.ptr) -> !llvm.ptr
   func.func private @dora_fn_block_hash(!llvm.ptr, !llvm.ptr) -> !llvm.ptr
@@ -119,20 +120,18 @@ module {
     %c1_i256 = arith.constant 1 : i256
     %32 = llvm.alloca %c1_i256 x i256 : (i256) -> !llvm.ptr
     llvm.store %31, %32 {alignment = 1 : i64} : i256, !llvm.ptr
-    %c1_i256_4 = arith.constant 1 : i256
-    %33 = llvm.alloca %c1_i256_4 x i256 : (i256) -> !llvm.ptr
-    %34 = call @dora_fn_store_in_balance(%arg0, %32, %33) : (!llvm.ptr, !llvm.ptr, !llvm.ptr) -> !llvm.ptr
-    %35 = llvm.load %33 : !llvm.ptr -> i256
-    %36 = llvm.mlir.addressof @dora_global_stack_ptr : !llvm.ptr
-    %37 = llvm.load %36 : !llvm.ptr -> !llvm.ptr
-    llvm.store %35, %37 : i256, !llvm.ptr
-    %38 = llvm.getelementptr %37[1] : (!llvm.ptr) -> !llvm.ptr, i256
-    llvm.store %38, %36 : !llvm.ptr, !llvm.ptr
+    %33 = call @dora_fn_store_in_balance(%arg0, %32) : (!llvm.ptr, !llvm.ptr) -> !llvm.ptr
+    %34 = llvm.load %32 : !llvm.ptr -> i256
+    %35 = llvm.mlir.addressof @dora_global_stack_ptr : !llvm.ptr
+    %36 = llvm.load %35 : !llvm.ptr -> !llvm.ptr
+    llvm.store %34, %36 : i256, !llvm.ptr
+    %37 = llvm.getelementptr %36[1] : (!llvm.ptr) -> !llvm.ptr, i256
+    llvm.store %37, %35 : !llvm.ptr, !llvm.ptr
     cf.br ^bb5
   ^bb5:  // pred: ^bb4
-    %c0_i64_5 = arith.constant 0 : i64
+    %c0_i64_4 = arith.constant 0 : i64
     %c1_i8 = arith.constant 1 : i8
-    %39 = call @dora_fn_write_result(%arg0, %c0_i64_5, %c0_i64_5, %arg1, %c1_i8) : (!llvm.ptr, i64, i64, i64, i8) -> !llvm.ptr
+    %38 = call @dora_fn_write_result(%arg0, %c0_i64_4, %c0_i64_4, %arg1, %c1_i8) : (!llvm.ptr, i64, i64, i64, i8) -> !llvm.ptr
     return %c1_i8 : i8
   }
 }

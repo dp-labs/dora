@@ -125,7 +125,7 @@ pub(crate) fn declare_symbols(context: &MLIRContext, module: &MLIRModule) {
         ),
         (
             symbols::STORE_IN_BALANCE,
-            &[ptr_type, ptr_type, ptr_type],
+            &[ptr_type, ptr_type],
             &[ptr_type],
         ),
         (

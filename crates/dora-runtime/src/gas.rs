@@ -3,6 +3,7 @@ use crate::constants::gas_cost::{
     INSTANBUL_SLOAD_GAS, REFUND_SSTORE_CLEARS, SSTORE_RESET, SSTORE_SET, WARM_SSTORE_RESET,
     WARM_STORAGE_READ_COST,
 };
+use crate::host::SelfDestructResult;
 use dora_primitives::spec::SpecId;
 use dora_primitives::U256;
 
@@ -275,4 +276,47 @@ pub const fn extcodehash_gas_cost(spec_id: SpecId, is_cold: bool) -> u64 {
     } else {
         400
     }
+}
+
+/// `SELFDESTRUCT` opcode cost calculation.
+///
+/// Calculates the gas cost for the `SELFDESTRUCT` opcode based on the specification version
+/// and the self destruct result returned by the host.
+///
+/// ### Parameters:
+/// - `spec_id`: The current EVM specification version.
+/// - `res`: The self destruct result returned by the host.
+///
+/// ### Returns:
+/// The gas cost for the `SELFDESTRUCT` operation.
+///
+#[inline]
+pub const fn selfdestruct_cost(spec_id: SpecId, res: &SelfDestructResult) -> u64 {
+    // EIP-161: State trie clearing (invariant-preserving alternative)
+    let should_charge_topup = if spec_id.is_enabled_in(SpecId::SPURIOUS_DRAGON) {
+        res.had_value && !res.target_exists
+    } else {
+        !res.target_exists
+    };
+
+    // EIP-150: Gas cost changes for IO-heavy operations
+    let selfdestruct_gas_topup = if spec_id.is_enabled_in(SpecId::TANGERINE) && should_charge_topup
+    {
+        25000
+    } else {
+        0
+    };
+
+    // EIP-150: Gas cost changes for IO-heavy operations
+    let selfdestruct_gas = if spec_id.is_enabled_in(SpecId::TANGERINE) {
+        5000
+    } else {
+        0
+    };
+
+    let mut gas = selfdestruct_gas + selfdestruct_gas_topup;
+    if spec_id.is_enabled_in(SpecId::BERLIN) && res.is_cold {
+        gas += COLD_ACCOUNT_ACCESS_COST
+    }
+    gas
 }

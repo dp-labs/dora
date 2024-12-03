@@ -25,15 +25,11 @@ impl<'c> ConversionPass<'c> {
         operands!(op, offset);
         syscall_ctx!(op, syscall_ctx);
         let rewriter = Rewriter::new_with_op(context, *op);
-        let location = rewriter.get_insert_location();
-
         let uint8 = IntegerType::new(context, 8);
         let uint256 = rewriter.intrinsics.i256_ty;
         u256_to_64!(op, rewriter, offset);
         let value_size = rewriter.make(rewriter.iconst_64(32))?;
-        let required_size = rewriter.make(arith::addi(offset, value_size, location))?;
-
-        memory::resize_memory(context, op, &rewriter, syscall_ctx, required_size)?;
+        memory::resize_memory(context, op, &rewriter, syscall_ctx, offset, value_size)?;
         rewrite_ctx!(context, op, rewriter, location);
         let memory_ptr = load_by_addr!(rewriter, constants::MEMORY_PTR_GLOBAL, rewriter.ptr_ty());
         let memory_destination = rewriter.make(llvm::get_element_ptr_dynamic(
@@ -81,8 +77,7 @@ impl<'c> ConversionPass<'c> {
         u256_to_64!(op, rewriter, offset);
         // Calculate value size (1 byte for mstore8, 32 bytes for mstore)
         let value_size = rewriter.make(rewriter.iconst_64(byte_size as i64))?;
-        let required_size = rewriter.make(arith::addi(offset, value_size, location))?;
-        memory::resize_memory(context, op, &rewriter, syscall_ctx, required_size)?;
+        memory::resize_memory(context, op, &rewriter, syscall_ctx, offset, value_size)?;
         rewrite_ctx!(context, op, rewriter, location);
         let memory_ptr = load_by_addr!(rewriter, constants::MEMORY_PTR_GLOBAL, rewriter.ptr_ty());
         // Memory_destination = memory_ptr + offset
@@ -136,17 +131,9 @@ impl<'c> ConversionPass<'c> {
         u256_to_64!(op, rewriter, dest_offset);
         u256_to_64!(op, rewriter, offset);
         u256_to_64!(op, rewriter, size);
-        // required size = dest_offset + size
-        let src_required_size = rewriter.make(arith::addi(offset, size, location))?;
-        // dest_required_size = dest_offset + size
-        let dest_required_size = rewriter.make(arith::addi(dest_offset, size, location))?;
-        let required_memory_size = rewriter.make(arith::maxui(
-            src_required_size,
-            dest_required_size,
-            location,
-        ))?;
 
-        memory::resize_memory(context, op, &rewriter, syscall_ctx, required_memory_size)?;
+        let offset = rewriter.make(arith::maxui(dest_offset, offset, location))?;
+        memory::resize_memory(context, op, &rewriter, syscall_ctx, offset, size)?;
         rewrite_ctx!(context, op, rewriter, location);
         let memory_ptr = load_by_addr!(rewriter, constants::MEMORY_PTR_GLOBAL, rewriter.ptr_ty());
         // memory_destination = memory_ptr + offset

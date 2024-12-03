@@ -23,10 +23,16 @@ pub trait Host: Debug {
     fn set_storage(&mut self, addr: Address, key: Bytes32, value: Bytes32) -> SetStorageResult;
 
     /// Access all storage in the journal
-    fn access_storage(&self) -> FxHashMap<Bytes32, Bytes32>;
+    fn storage(&self) -> FxHashMap<Bytes32, Bytes32>;
+
+    /// Get access status for the specific account
+    fn access_storage(&self, addr: Address, key: Bytes32) -> AccessStatus;
+
+    /// Get access status for the specific account
+    fn access_account(&self, addr: Address) -> AccessStatus;
 
     /// Retrieves the balance of a specified account.
-    fn get_balance(&mut self, addr: &Address) -> Bytes32;
+    fn get_balance(&self, addr: &Address) -> GetBalanceResult;
 
     /// Get the transient storage value of `address` at `key`.
     fn get_transient_storage(&mut self, addr: &Address, key: &Bytes32) -> Bytes32;
@@ -53,6 +59,13 @@ pub trait Host: Debug {
 /// Result of a `get_storage` action.
 #[derive(Debug, Clone, Default, PartialEq, Eq, Hash)]
 pub struct GetStorageResult {
+    pub value: Bytes32,
+    pub is_cold: bool,
+}
+
+/// Result of a `get_storage` action.
+#[derive(Debug, Clone, Default, PartialEq, Eq, Hash)]
+pub struct GetBalanceResult {
     pub value: Bytes32,
     pub is_cold: bool,
 }
@@ -132,8 +145,11 @@ impl Host for DummyHost {
     }
 
     #[inline]
-    fn get_balance(&mut self, _addr: &Address) -> Bytes32 {
-        Bytes32::ZERO
+    fn get_balance(&self, _addr: &Address) -> GetBalanceResult {
+        GetBalanceResult {
+            value: Bytes32::ZERO,
+            is_cold: true,
+        }
     }
 
     #[inline]
@@ -176,7 +192,37 @@ impl Host for DummyHost {
     }
 
     #[inline]
-    fn access_storage(&self) -> FxHashMap<Bytes32, Bytes32> {
+    fn storage(&self) -> FxHashMap<Bytes32, Bytes32> {
         self.storage.clone()
+    }
+
+    #[inline]
+    fn access_storage(&self, _addr: Address, _key: Bytes32) -> AccessStatus {
+        AccessStatus::Cold
+    }
+
+    #[inline]
+    fn access_account(&self, _addr: Address) -> AccessStatus {
+        AccessStatus::Cold
+    }
+}
+
+/// Access status per EIP-2929: Gas cost increases for state access opcodes.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[repr(u8)]
+pub enum AccessStatus {
+    Cold = 0,
+    Warm = 1,
+}
+
+impl AccessStatus {
+    #[inline]
+    pub fn is_cold(&self) -> bool {
+        matches!(self, AccessStatus::Cold)
+    }
+
+    #[inline]
+    pub fn is_warm(&self) -> bool {
+        matches!(self, AccessStatus::Warm)
     }
 }

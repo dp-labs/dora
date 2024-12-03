@@ -42,9 +42,7 @@ impl<'c> ConversionPass<'c> {
         let ptr_type = rewriter.ptr_ty();
         u256_to_64!(op, rewriter, offset);
         u256_to_64!(op, rewriter, size);
-        // required_size = offset + size
-        let required_memory_size = rewriter.make(arith::addi(offset, size, location))?;
-        memory::resize_memory(context, op, &rewriter, syscall_ctx, required_memory_size)?;
+        memory::resize_memory(context, op, &rewriter, syscall_ctx, offset, size)?;
         let rewriter = Rewriter::new_with_op(context, *op);
         let value_ptr =
             memory::allocate_u256_and_assign_value(context, &rewriter, value, location)?;
@@ -159,16 +157,16 @@ impl<'c> ConversionPass<'c> {
         let uint64 = rewriter.intrinsics.i64_ty;
         let uint256 = rewriter.intrinsics.i256_ty;
         let ptr_type = rewriter.ptr_ty();
-        let gas = rewriter.make(arith::trunci(gas, uint64, location))?;
+        u256_to_64!(op, rewriter, gas);
         u256_to_64!(op, rewriter, args_offset);
         u256_to_64!(op, rewriter, args_size);
         u256_to_64!(op, rewriter, ret_offset);
         u256_to_64!(op, rewriter, ret_size);
-        let req_arg_mem_size = rewriter.make(arith::addi(args_offset, args_size, location))?;
-        let req_ret_mem_size = rewriter.make(arith::addi(ret_offset, ret_size, location))?;
-        let req_mem_size =
-            rewriter.make(arith::maxui(req_arg_mem_size, req_ret_mem_size, location))?;
-        memory::resize_memory(context, op, &rewriter, syscall_ctx, req_mem_size)?;
+        // Input memory resize
+        memory::resize_memory(context, op, &rewriter, syscall_ctx, args_offset, args_size)?;
+        let rewriter = Rewriter::new_with_op(context, *op);
+        // Output memery resize
+        memory::resize_memory(context, op, &rewriter, syscall_ctx, ret_offset, ret_size)?;
         let rewriter = Rewriter::new_with_op(context, *op);
         let available_gas = gas::get_gas_counter(&rewriter)?;
         let value_ptr =
@@ -239,9 +237,8 @@ impl<'c> ConversionPass<'c> {
 
         u256_to_64!(op, rewriter, offset);
         u256_to_64!(op, rewriter, size);
-        let required_size = rewriter.make(arith::addi(size, offset, location))?;
         let gas_counter = gas::get_gas_counter(&rewriter)?;
-        memory::resize_memory(context, op, &rewriter, syscall_ctx, required_size)?;
+        memory::resize_memory(context, op, &rewriter, syscall_ctx, size, offset)?;
         let reason = rewriter.make(arith_constant!(
             rewriter,
             context,

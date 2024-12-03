@@ -90,6 +90,8 @@ pub mod gas_cost {
     pub const TIMESTAMP: i64 = 2;
     pub const KECCAK256: i64 = 30;
     pub const CODECOPY: i64 = 3;
+    pub const KECCAK256_WORD_COST: u64 = 6;
+    pub const COPY_WORD_COST: u64 = 3;
 
     // Logging
     pub const LOG0: i64 = 375;
@@ -131,7 +133,7 @@ pub mod gas_cost {
 
     pub const BYTE_DEPOSIT_COST: i64 = 200;
     /// EIP-3860 : Limit and meter initcode
-    pub const INIT_WORD_COST: i64 = 2;
+    pub const INIT_WORD_COST: u64 = 2;
     pub const HASH_WORD_COST: i64 = 6;
 
     // Transaction costs
@@ -180,8 +182,9 @@ pub mod gas_cost {
     /// ```no_check
     /// let cost = gas_cost::init_code_cost(512);
     /// ```
+    #[inline]
     pub fn init_code_cost(init_code_length: usize) -> u64 {
-        INIT_WORD_COST as u64 * ((init_code_length as u64 + 31) / 32)
+        INIT_WORD_COST * ((init_code_length as u64 + 31) / 32)
     }
 
     /// Calculates the gas cost for expanding memory from a previous size to a new size.
@@ -315,13 +318,30 @@ pub mod precompiles {
     }
 }
 
-// CallType enum and parsing
-#[derive(PartialEq, Debug)]
+/// The type of a `*CALL*` instruction.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[repr(u8)]
 pub enum CallType {
+    /// `CALL`.
     Call,
+    /// `STATICCALL`.
     StaticCall,
+    /// `DELEGATECALL`.
     DelegateCall,
+    /// `CALLCODE`.
     CallCode,
+}
+
+/// The kind of a `EXT*CALL` instruction.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[repr(u8)]
+pub enum ExtCallType {
+    /// `EXTCALL`.
+    Call,
+    /// `EXTDELEGATECALL`.
+    DelegateCall,
+    /// `EXTSTATICCALL`.
+    StaticCall,
 }
 
 #[derive(Error, Debug)]
@@ -337,6 +357,19 @@ impl TryFrom<u8> for CallType {
             x if x == CallType::StaticCall as u8 => Ok(CallType::StaticCall),
             x if x == CallType::DelegateCall as u8 => Ok(CallType::DelegateCall),
             x if x == CallType::CallCode as u8 => Ok(CallType::CallCode),
+            _ => Err(CallTypeParseError),
+        }
+    }
+}
+
+impl TryFrom<u8> for ExtCallType {
+    type Error = CallTypeParseError;
+
+    fn try_from(value: u8) -> Result<Self, Self::Error> {
+        match value {
+            x if x == ExtCallType::Call as u8 => Ok(ExtCallType::Call),
+            x if x == ExtCallType::StaticCall as u8 => Ok(ExtCallType::StaticCall),
+            x if x == ExtCallType::DelegateCall as u8 => Ok(ExtCallType::DelegateCall),
             _ => Err(CallTypeParseError),
         }
     }
