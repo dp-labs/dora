@@ -90,8 +90,8 @@ pub mod gas_cost {
     pub const TIMESTAMP: i64 = 2;
     pub const KECCAK256: i64 = 30;
     pub const CODECOPY: i64 = 3;
-    pub const KECCAK256_WORD: u64 = 6;
-    pub const COPY_WORD: u64 = 3;
+    pub const KECCAK256_WORD_COST: u64 = 6;
+    pub const COPY_WORD_COST: u64 = 3;
 
     // Logging
     pub const LOG0: i64 = 375;
@@ -133,7 +133,7 @@ pub mod gas_cost {
 
     pub const BYTE_DEPOSIT_COST: i64 = 200;
     /// EIP-3860 : Limit and meter initcode
-    pub const INIT_WORD_COST: i64 = 2;
+    pub const INIT_WORD_COST: u64 = 2;
     pub const HASH_WORD_COST: i64 = 6;
 
     // Transaction costs

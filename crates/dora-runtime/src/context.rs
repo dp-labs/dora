@@ -1233,21 +1233,14 @@ impl<DB: Database> RuntimeContext<DB> {
             return Err(ExitStatusCode::CreateInitCodeSizeLimit);
         }
 
-        let minimum_word_size = ((size + 31) / 32) as u64;
         let sender_address = host.env().tx.get_address();
         let caller = host.env().tx.caller;
         let mut db = self.db.write().unwrap();
         let sender_account = db.basic(sender_address).unwrap().unwrap_or_default();
 
-        let (dest_addr, hash_cost) = match salt {
-            Some(s) => (
-                compute_contract_address2(sender_address, s.to_u256(), bytecode),
-                minimum_word_size * gas_cost::HASH_WORD_COST as u64,
-            ),
-            _ => (
-                compute_contract_address(sender_address, sender_account.nonce),
-                0,
-            ),
+        let dest_addr = match salt {
+            Some(s) => compute_contract_address2(sender_address, s.to_u256(), bytecode),
+            _ => compute_contract_address(sender_address, sender_account.nonce),
         };
         // Check if there is already a contract stored in dest_address
         if let Ok(Some(_)) = db.basic(dest_addr) {
@@ -1269,18 +1262,16 @@ impl<DB: Database> RuntimeContext<DB> {
         self.call_frame = CallFrame::new(sender_address);
         self.inner_context.depth += 1;
         let tx = self.transaction.clone();
-        let init_code_cost = minimum_word_size * gas_cost::INIT_WORD_COST as u64;
         let code_deposit_cost = (bytecode.len() as u64) * gas_cost::BYTE_DEPOSIT_COST as u64;
         // Set the gas cost
         *remaining_gas = match tx.run(self, *remaining_gas) {
             Ok(result) => {
                 // Contract create success.
-                init_code_cost + code_deposit_cost + hash_cost + result.result.gas_used()
-                    - result.result.gas_refunded()
+                code_deposit_cost + result.result.gas_used() - result.result.gas_refunded()
             }
             Err(_) => {
                 // Contract create failed.
-                init_code_cost + code_deposit_cost + hash_cost
+                code_deposit_cost
             }
         };
         self.inner_context.depth -= 1;

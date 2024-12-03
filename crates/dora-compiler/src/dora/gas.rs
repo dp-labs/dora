@@ -1,19 +1,21 @@
 use super::memory;
+use crate::backend::IntCC;
+use crate::conversion::builder::OpBuilder;
 use crate::{
-    arith_constant,
+    arith_constant, check_op_oog,
     conversion::{rewriter::Rewriter, walker::walk_operation},
     create_var,
-    dora::utils,
     errors::Result,
-    load_by_addr,
+    load_by_addr, maybe_revert_here, u256_to_64,
     value::IntoContextOperation,
 };
 use cost::get_static_cost_from_op;
 use dora_primitives::spec::SpecId;
+use dora_runtime::symbols::CTX_IS_STATIC;
 use dora_runtime::{
     constants::{
         self,
-        gas_cost::{self, COPY_WORD, INIT_WORD_COST, KECCAK256_WORD, MAX_INITCODE_SIZE},
+        gas_cost::{self, COPY_WORD_COST, INIT_WORD_COST, KECCAK256_WORD_COST, MAX_INITCODE_SIZE},
     },
     ExitStatusCode,
 };
@@ -121,7 +123,6 @@ impl<'c> GasPass<'c> {
                                         dora_ir::Operation::Balance => {
                                             self.insert_dynamic_gas_check_block_before_op_block(
                                                 &op.next_in_block().unwrap(),
-                                                block,
                                                 revert_block,
                                                 |_rewriter| Ok(op.result(0)?.into()),
                                             )?;
@@ -129,7 +130,6 @@ impl<'c> GasPass<'c> {
                                         dora_ir::Operation::Exp => {
                                             self.insert_dynamic_gas_check_block_before_op_block(
                                                 op,
-                                                block,
                                                 revert_block,
                                                 |rewriter| {
                                                     let exponent = op.operand(1)?;
@@ -255,7 +255,6 @@ impl<'c> GasPass<'c> {
                                             self.insert_dynamic_gas_check_block_before_op_block(
                                                 op,
                                                 block,
-                                                revert_block,
                                                 |rewriter| {
                                                     let size = op.operand(1)?;
                                                     let location = rewriter.get_insert_location();
@@ -271,7 +270,6 @@ impl<'c> GasPass<'c> {
                                         dora_ir::Operation::CallDataCopy => {
                                             self.insert_dynamic_gas_check_block_before_op_block(
                                                 op,
-                                                block,
                                                 revert_block,
                                                 |rewriter| {
                                                     let location = rewriter.get_insert_location();
@@ -304,7 +302,6 @@ impl<'c> GasPass<'c> {
                                         dora_ir::Operation::CodeCopy => {
                                             self.insert_dynamic_gas_check_block_before_op_block(
                                                 op,
-                                                block,
                                                 revert_block,
                                                 |rewriter| {
                                                     let location = rewriter.get_insert_location();
@@ -345,13 +342,11 @@ impl<'c> GasPass<'c> {
                                         dora_ir::Operation::ExtCodeSize => {
                                             self.insert_dynamic_gas_check_block_before_op_block(
                                                 &op.next_in_block().unwrap(),
-                                                block,
                                                 revert_block,
                                                 |_rewriter| Ok(op.result(0)?.into()),
                                             )?;
                                             self.insert_gas_check_block_before_op_block(
                                                 op,
-                                                block,
                                                 revert_block,
                                                 gas_cost::EXTCODESIZE_WARM,
                                             )?;
@@ -359,13 +354,11 @@ impl<'c> GasPass<'c> {
                                         dora_ir::Operation::ExtCodeCopy => {
                                             self.insert_dynamic_gas_check_block_before_op_block(
                                                 &op.next_in_block().unwrap(),
-                                                block,
                                                 revert_block,
                                                 |_rewriter| Ok(op.result(0)?.into()),
                                             )?;
                                             self.insert_dynamic_gas_check_block_before_op_block(
                                                 op,
-                                                block,
                                                 revert_block,
                                                 |rewriter| {
                                                     let location = rewriter.get_insert_location();
@@ -406,7 +399,6 @@ impl<'c> GasPass<'c> {
                                         dora_ir::Operation::ReturnDataCopy => {
                                             self.insert_dynamic_gas_check_block_before_op_block(
                                                 op,
-                                                block,
                                                 revert_block,
                                                 |rewriter| {
                                                     let location = rewriter.get_insert_location();
@@ -425,15 +417,13 @@ impl<'c> GasPass<'c> {
                                         dora_ir::Operation::ExtCodeHash => {
                                             self.insert_dynamic_gas_check_block_before_op_block(
                                                 &op.next_in_block().unwrap(),
-                                                block,
                                                 revert_block,
-                                                |_rewriter| Ok(op.result(0)?.into()),
+                                                |_| Ok(op.result(0)?.into()),
                                             )?;
                                         }
                                         dora_ir::Operation::MLoad => {
                                             self.insert_dynamic_gas_check_block_before_op_block(
                                                 op,
-                                                block,
                                                 revert_block,
                                                 |rewriter| {
                                                     let location = rewriter.get_insert_location();
@@ -462,7 +452,6 @@ impl<'c> GasPass<'c> {
                                         dora_ir::Operation::MStore => {
                                             self.insert_dynamic_gas_check_block_before_op_block(
                                                 op,
-                                                block,
                                                 revert_block,
                                                 |rewriter| {
                                                     let location = rewriter.get_insert_location();
@@ -491,7 +480,6 @@ impl<'c> GasPass<'c> {
                                         dora_ir::Operation::MStore8 => {
                                             self.insert_dynamic_gas_check_block_before_op_block(
                                                 op,
-                                                block,
                                                 revert_block,
                                                 |rewriter| {
                                                     let location = rewriter.get_insert_location();
@@ -520,7 +508,6 @@ impl<'c> GasPass<'c> {
                                         dora_ir::Operation::SLoad => {
                                             self.insert_dynamic_gas_check_block_before_op_block(
                                                 &op.next_in_block().unwrap(),
-                                                block,
                                                 revert_block,
                                                 |_rewriter| Ok(op.result(0)?.into()),
                                             )?;
@@ -528,13 +515,11 @@ impl<'c> GasPass<'c> {
                                         dora_ir::Operation::SStore => {
                                             self.insert_dynamic_gas_check_block_before_op_block(
                                                 &op.next_in_block().unwrap(),
-                                                block,
                                                 revert_block,
                                                 |_rewriter| Ok(op.result(0)?.into()),
                                             )?;
                                             self.insert_dynamic_gas_check_block_before_op_block(
                                                 op,
-                                                block,
                                                 revert_block,
                                                 |_rewriter| {
                                                     let dynamic_gas_cost = op.result(0)?.into();
@@ -545,7 +530,6 @@ impl<'c> GasPass<'c> {
                                         dora_ir::Operation::MCopy => {
                                             self.insert_dynamic_gas_check_block_before_op_block(
                                                 op,
-                                                block,
                                                 revert_block,
                                                 |rewriter| {
                                                     let location = rewriter.get_insert_location();
@@ -603,7 +587,6 @@ impl<'c> GasPass<'c> {
                                         dora_ir::Operation::Log0 => {
                                             self.insert_dynamic_gas_check_block_before_op_block(
                                                 op,
-                                                block,
                                                 revert_block,
                                                 |rewriter| {
                                                     let location = rewriter.get_insert_location();
@@ -646,7 +629,6 @@ impl<'c> GasPass<'c> {
                                         dora_ir::Operation::Log1 => {
                                             self.insert_dynamic_gas_check_block_before_op_block(
                                                 op,
-                                                block,
                                                 revert_block,
                                                 |rewriter| {
                                                     let location = rewriter.get_insert_location();
@@ -689,7 +671,6 @@ impl<'c> GasPass<'c> {
                                         dora_ir::Operation::Log2 => {
                                             self.insert_dynamic_gas_check_block_before_op_block(
                                                 op,
-                                                block,
                                                 revert_block,
                                                 |rewriter| {
                                                     let location = rewriter.get_insert_location();
@@ -732,7 +713,6 @@ impl<'c> GasPass<'c> {
                                         dora_ir::Operation::Log3 => {
                                             self.insert_dynamic_gas_check_block_before_op_block(
                                                 op,
-                                                block,
                                                 revert_block,
                                                 |rewriter| {
                                                     let location = rewriter.get_insert_location();
@@ -775,7 +755,6 @@ impl<'c> GasPass<'c> {
                                         dora_ir::Operation::Log4 => {
                                             self.insert_dynamic_gas_check_block_before_op_block(
                                                 op,
-                                                block,
                                                 revert_block,
                                                 |rewriter| {
                                                     let location = rewriter.get_insert_location();
@@ -815,16 +794,52 @@ impl<'c> GasPass<'c> {
                                                 },
                                             )?;
                                         }
-                                        dora_ir::Operation::Create => {
-                                            let _max_initcode_size = self
+                                        dora_ir::Operation::Create
+                                        | dora_ir::Operation::Create2 => {
+                                            // Ensure non static call before the gas computation.
+                                            let rewriter = Rewriter::new_with_op(&self.ctx, *op);
+                                            let ctx_is_static_ptr = rewriter.make(
+                                                rewriter
+                                                    .addressof(CTX_IS_STATIC, rewriter.ptr_ty()),
+                                            )?;
+                                            let ctx_is_static = rewriter.make(rewriter.load(
+                                                ctx_is_static_ptr,
+                                                rewriter.intrinsics.i1_ty,
+                                            ))?;
+                                            maybe_revert_here!(
+                                                op,
+                                                rewriter,
+                                                ctx_is_static,
+                                                ExitStatusCode::StateChangeDuringStaticCall
+                                            );
+                                            // Limit is set as double of max contract bytecode size.
+                                            let max_initcode_size = self
                                                 .options
                                                 .limit_contract_code_size
                                                 .map(|limit| limit.saturating_mul(2))
                                                 .unwrap_or(MAX_INITCODE_SIZE);
-
+                                            let size = op.operand(2)?;
+                                            let rewriter = Rewriter::new_with_op(&self.ctx, *op);
+                                            u256_to_64!(op, rewriter, size);
+                                            let max_initcode_size = rewriter.make(
+                                                rewriter.iconst_64(max_initcode_size as i64),
+                                            )?;
+                                            let revert_flag = rewriter.make(arith::cmpi(
+                                                self.ctx,
+                                                CmpiPredicate::Ugt,
+                                                size,
+                                                max_initcode_size,
+                                                rewriter.get_insert_location(),
+                                            ))?;
+                                            maybe_revert_here!(
+                                                op,
+                                                rewriter,
+                                                revert_flag,
+                                                ExitStatusCode::CreateInitCodeSizeLimit
+                                            );
+                                            // Check init code gas cost
                                             self.insert_dynamic_gas_check_block_before_op_block(
                                                 op,
-                                                block,
                                                 revert_block,
                                                 |rewriter| {
                                                     let location = rewriter.get_insert_location();
@@ -835,8 +850,8 @@ impl<'c> GasPass<'c> {
                                                         location,
                                                     ))?;
 
-                                                    let zero = rewriter
-                                                        .make(rewriter.iconst_256_from_u64(0)?)?;
+                                                    let zero =
+                                                        rewriter.make(rewriter.iconst_64(0))?;
                                                     let is_size_zero =
                                                         rewriter.make(arith::cmpi(
                                                             rewriter.context(),
@@ -880,29 +895,14 @@ impl<'c> GasPass<'c> {
                                                                 let gas_cost = if spec_id
                                                                     .is_enabled_in(SpecId::SHANGHAI)
                                                                 {
-                                                                    // todo: check size with max_initcode_size
-
-                                                                    let rounded_size =
-                                                                        utils::round_up_32(
-                                                                            size,
-                                                                            rewriter.context(),
-                                                                            &rewriter,
-                                                                            location,
-                                                                        )?;
-                                                                    rewriter.make(arith::muli(
-                                                                        rounded_size,
-                                                                        rewriter.make(
-                                                                            rewriter.iconst_64(
-                                                                                INIT_WORD_COST,
-                                                                            ),
-                                                                        )?,
-                                                                        location,
-                                                                    ))?
+                                                                    // Init code gas cost
+                                                                    compute_initcode_cost(
+                                                                        &rewriter, size,
+                                                                    )
                                                                 } else {
-                                                                    rewriter.make(
-                                                                        rewriter.iconst_64(0),
-                                                                    )?
-                                                                };
+                                                                    rewriter
+                                                                        .make(rewriter.iconst_64(0))
+                                                                }?;
 
                                                                 rewriter.create(scf::r#yield(
                                                                     &[gas_cost],
@@ -915,9 +915,9 @@ impl<'c> GasPass<'c> {
                                                     Ok(total_gas_cost)
                                                 },
                                             )?;
+                                            // Check memory extend gas cost
                                             self.insert_dynamic_gas_check_block_before_op_block(
                                                 op,
-                                                block,
                                                 revert_block,
                                                 |rewriter| {
                                                     let location = rewriter.get_insert_location();
@@ -930,7 +930,7 @@ impl<'c> GasPass<'c> {
                                                     ))?;
 
                                                     let zero = rewriter
-                                                        .make(rewriter.iconst_256_from_u64(0)?)?;
+                                                        .make(rewriter.iconst_64(0))?;
                                                     let is_size_zero =
                                                         rewriter.make(arith::cmpi(
                                                             rewriter.context(),
@@ -1002,7 +1002,6 @@ impl<'c> GasPass<'c> {
                                             if spec_id.is_enabled_in(SpecId::TANGERINE) {
                                                 self.insert_dynamic_gas_check_block_before_op_block(
                                                     op,
-                                                    block,
                                                     revert_block,
                                                     |rewriter| {
                                                         let location = rewriter.get_insert_location();
@@ -1019,47 +1018,12 @@ impl<'c> GasPass<'c> {
                                             }
                                             // TODO: calculate dynamic gas cost from the system call
                                         }
-                                        dora_ir::Operation::Create2 => {
-                                            self.insert_dynamic_gas_check_block_before_op_block(
-                                                op,
-                                                block,
-                                                revert_block,
-                                                |rewriter| {
-                                                    let location = rewriter.get_insert_location();
-                                                    let dest_offset = op.operand(1)?;
-                                                    let dest_offset =
-                                                        rewriter.make(arith::trunci(
-                                                            dest_offset,
-                                                            rewriter.intrinsics.i64_ty,
-                                                            location,
-                                                        ))?;
-                                                    let size = op.operand(2)?;
-                                                    let size = rewriter.make(arith::trunci(
-                                                        size,
-                                                        rewriter.intrinsics.i64_ty,
-                                                        location,
-                                                    ))?;
-                                                    let required_size = rewriter.make(
-                                                        arith::addi(dest_offset, size, location),
-                                                    )?;
-                                                    let total_gas_cost =
-                                                        memory::resize_memory_with_gas_cost(
-                                                            rewriter,
-                                                            required_size,
-                                                            gas_cost::CREATE2,
-                                                        )?;
-                                                    Ok(total_gas_cost)
-                                                },
-                                            )?;
-                                            // TODO: calculate dynamic gas cost from the system call
-                                        }
                                         dora_ir::Operation::Call
                                         | dora_ir::Operation::DelegateCall
                                         | dora_ir::Operation::StaticCall
                                         | dora_ir::Operation::CallCode => {
                                             self.insert_dynamic_gas_check_block_before_op_block(
                                                 op,
-                                                block,
                                                 revert_block,
                                                 |rewriter| {
                                                     let location = rewriter.get_insert_location();
@@ -1131,7 +1095,6 @@ impl<'c> GasPass<'c> {
                                         dora_ir::Operation::SelfDestruct => {
                                             self.insert_dynamic_gas_check_block_before_op_block(
                                                 op,
-                                                block,
                                                 revert_block,
                                                 |_rewriter| {
                                                     let dynamic_gas_cost = op.result(0)?.into();
@@ -1150,7 +1113,6 @@ impl<'c> GasPass<'c> {
                                     debug_assert!(gas_cost > 0);
                                     self.insert_gas_check_block_before_op_block(
                                         op,
-                                        block,
                                         revert_block,
                                         gas_cost as i64,
                                     )?;
@@ -1189,11 +1151,10 @@ impl<'c> GasPass<'c> {
     pub fn insert_gas_check_block_before_op_block(
         &mut self,
         op: &OperationRef<'_, '_>,
-        block: BlockRef<'_, '_>,
         revert_block: BlockRef<'_, '_>,
         gas_cost: i64,
     ) -> Result<()> {
-        self.insert_dynamic_gas_check_block_before_op_block(op, block, revert_block, |rewriter| {
+        self.insert_dynamic_gas_check_block_before_op_block(op, revert_block, |rewriter| {
             rewriter.make(rewriter.iconst_64(gas_cost))
         })
     }
@@ -1225,44 +1186,45 @@ impl<'c> GasPass<'c> {
     pub(crate) fn insert_dynamic_gas_check_block_before_op_block(
         &mut self,
         op: &OperationRef<'_, '_>,
-        block: BlockRef<'_, '_>,
         revert_block: BlockRef<'_, '_>,
         gas_cost: impl for<'a> FnOnce(&'a Rewriter<'a, 'a>) -> Result<Value<'a, 'a>>,
     ) -> Result<()> {
-        // To ensure the op rewriter live long as the context.
-        let rewriter = Rewriter::new_with_block(self.ctx, block);
-        let location = rewriter.get_insert_location();
-        let new_block = rewriter.split_block(block, Some(*op))?;
-        // Get address of gas counter global
-        let gas_counter_ptr =
-            rewriter.make(rewriter.addressof(constants::GAS_COUNTER_GLOBAL, rewriter.ptr_ty()))?;
-        let gas_counter =
-            rewriter.make(rewriter.load(gas_counter_ptr, rewriter.intrinsics.i64_ty))?;
-        let gas_value = gas_cost(&rewriter)?;
-        let flag = rewriter.make(arith::cmpi(
-            rewriter.context(),
-            arith::CmpiPredicate::Sge,
-            gas_counter,
-            gas_value,
-            location,
-        ))?;
-        let new_gas_counter = rewriter.make(arith::subi(gas_counter, gas_value, location))?;
-        rewriter.create(llvm::store(
-            rewriter.context(),
-            new_gas_counter,
-            gas_counter_ptr,
-            location,
-            LoadStoreOptions::default(),
-        ));
-        rewriter.create(cf::cond_br(
-            rewriter.context(),
-            flag,
-            &new_block,
-            &revert_block,
-            &[],
-            &[rewriter.make(rewriter.iconst_8(ExitStatusCode::OutOfGas.to_u8() as i8))?],
-            location,
-        ));
+        if let Some(block) = op.block() {
+            // To ensure the op rewriter live long as the context.
+            let rewriter = Rewriter::new_with_block(self.ctx, block);
+            let location = rewriter.get_insert_location();
+            let new_block = rewriter.split_block(block, Some(*op))?;
+            // Get address of gas counter global
+            let gas_counter_ptr = rewriter
+                .make(rewriter.addressof(constants::GAS_COUNTER_GLOBAL, rewriter.ptr_ty()))?;
+            let gas_counter =
+                rewriter.make(rewriter.load(gas_counter_ptr, rewriter.intrinsics.i64_ty))?;
+            let gas_value = gas_cost(&rewriter)?;
+            let flag = rewriter.make(arith::cmpi(
+                rewriter.context(),
+                arith::CmpiPredicate::Sge,
+                gas_counter,
+                gas_value,
+                location,
+            ))?;
+            let new_gas_counter = rewriter.make(arith::subi(gas_counter, gas_value, location))?;
+            rewriter.create(llvm::store(
+                rewriter.context(),
+                new_gas_counter,
+                gas_counter_ptr,
+                location,
+                LoadStoreOptions::default(),
+            ));
+            rewriter.create(cf::cond_br(
+                rewriter.context(),
+                flag,
+                &new_block,
+                &revert_block,
+                &[],
+                &[rewriter.make(rewriter.iconst_8(ExitStatusCode::OutOfGas.to_u8() as i8))?],
+                location,
+            ));
+        }
         Ok(())
     }
 }
@@ -1390,13 +1352,10 @@ pub(crate) fn compute_per_word_cost<'c>(
     multiple: u64,
 ) -> Result<Value<'c, 'c>> {
     let location = rewriter.get_insert_location();
-    let memory_size_extended =
-        rewriter.make(arith::extui(len, rewriter.intrinsics.i64_ty, location))?;
     let constant_multiple = rewriter.make(rewriter.iconst_64(multiple as i64))?;
     let constant_31 = rewriter.make(rewriter.iconst_64(31))?;
     let constant_32 = rewriter.make(rewriter.iconst_64(32))?;
-    let memory_byte_size_plus_31 =
-        rewriter.make(arith::addi(memory_size_extended, constant_31, location))?;
+    let memory_byte_size_plus_31 = rewriter.make(arith::addi(len, constant_31, location))?;
 
     let memory_size_word = rewriter.make(arith::divui(
         memory_byte_size_plus_31,
@@ -1417,18 +1376,29 @@ pub(crate) fn compute_copy_cost<'c>(
     rewriter: &'c Rewriter,
     memory_byte_size: Value<'c, 'c>,
 ) -> Result<Value<'c, 'c>> {
-    compute_per_word_cost(rewriter, memory_byte_size, COPY_WORD)
+    compute_per_word_cost(rewriter, memory_byte_size, COPY_WORD_COST)
 }
 
 /// This function computes keccak256 cost, which is given by the following equations
 /// memory_size_word = (memory_byte_size + 31) / 32
-/// memory_cost = 3 * memory_size_word
+/// memory_cost = 6 * memory_size_word
 #[inline]
 pub(crate) fn compute_keccak256_cost<'c>(
     rewriter: &'c Rewriter,
     memory_byte_size: Value<'c, 'c>,
 ) -> Result<Value<'c, 'c>> {
-    compute_per_word_cost(rewriter, memory_byte_size, KECCAK256_WORD)
+    compute_per_word_cost(rewriter, memory_byte_size, KECCAK256_WORD_COST)
+}
+
+/// This function computes init code cost, which is given by the following equations
+/// memory_size_word = (memory_byte_size + 31) / 32
+/// memory_cost = 2 * memory_size_word
+#[inline]
+pub(crate) fn compute_initcode_cost<'c>(
+    rewriter: &'c Rewriter,
+    memory_byte_size: Value<'c, 'c>,
+) -> Result<Value<'c, 'c>> {
+    compute_per_word_cost(rewriter, memory_byte_size, INIT_WORD_COST)
 }
 
 /// This function computes LOG opcode cost, which is given by the following equations
