@@ -82,7 +82,7 @@ module {
     %12 = arith.cmpi ult, %c1024_i64, %11 : i64
     %c92_i8 = arith.constant 92 : i8
     cf.cond_br %12, ^bb1(%c92_i8 : i8), ^bb3
-  ^bb1(%13: i8):  // 4 preds: ^bb0, ^bb2, ^bb3, ^bb4
+  ^bb1(%13: i8):  // 5 preds: ^bb0, ^bb2, ^bb3, ^bb4, ^bb5
     %c0_i64_1 = arith.constant 0 : i64
     %14 = call @dora_fn_write_result(%arg0, %c0_i64_1, %c0_i64_1, %c0_i64_1, %13) : (!llvm.ptr, i64, i64, i64, i8) -> !llvm.ptr
     return %13 : i8
@@ -131,18 +131,23 @@ module {
     %34 = llvm.getelementptr %33[-1] : (!llvm.ptr) -> !llvm.ptr, i256
     %35 = llvm.load %34 : !llvm.ptr -> i256
     llvm.store %34, %32 : !llvm.ptr, !llvm.ptr
-    %c1_i256 = arith.constant 1 : i256
-    %36 = llvm.alloca %c1_i256 x i256 : (i256) -> !llvm.ptr
-    llvm.store %31, %36 {alignment = 1 : i64} : i256, !llvm.ptr
-    %c1_i256_4 = arith.constant 1 : i256
-    %37 = llvm.alloca %c1_i256_4 x i256 : (i256) -> !llvm.ptr
-    llvm.store %35, %37 {alignment = 1 : i64} : i256, !llvm.ptr
-    %38 = call @dora_fn_sstore(%arg0, %36, %37) : (!llvm.ptr, !llvm.ptr, !llvm.ptr) -> !llvm.ptr
-    cf.br ^bb6
+    %36 = llvm.mlir.addressof @dora_global_ctx_is_static : !llvm.ptr
+    %37 = llvm.load %36 : !llvm.ptr -> i1
+    %c87_i8 = arith.constant 87 : i8
+    cf.cond_br %37, ^bb1(%c87_i8 : i8), ^bb6
   ^bb6:  // pred: ^bb5
+    %c1_i256 = arith.constant 1 : i256
+    %38 = llvm.alloca %c1_i256 x i256 : (i256) -> !llvm.ptr
+    llvm.store %31, %38 {alignment = 1 : i64} : i256, !llvm.ptr
+    %c1_i256_4 = arith.constant 1 : i256
+    %39 = llvm.alloca %c1_i256_4 x i256 : (i256) -> !llvm.ptr
+    llvm.store %35, %39 {alignment = 1 : i64} : i256, !llvm.ptr
+    %40 = call @dora_fn_sstore(%arg0, %38, %39) : (!llvm.ptr, !llvm.ptr, !llvm.ptr) -> !llvm.ptr
+    cf.br ^bb7
+  ^bb7:  // pred: ^bb6
     %c0_i64_5 = arith.constant 0 : i64
     %c1_i8 = arith.constant 1 : i8
-    %39 = call @dora_fn_write_result(%arg0, %c0_i64_5, %c0_i64_5, %arg1, %c1_i8) : (!llvm.ptr, i64, i64, i64, i8) -> !llvm.ptr
+    %41 = call @dora_fn_write_result(%arg0, %c0_i64_5, %c0_i64_5, %arg1, %c1_i8) : (!llvm.ptr, i64, i64, i64, i8) -> !llvm.ptr
     return %c1_i8 : i8
   }
 }

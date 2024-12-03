@@ -1,4 +1,5 @@
 use crate::backend::IntCC;
+use crate::ensure_non_staticcall;
 use crate::{
     arith_constant, check_op_oog, check_u256_to_u64_overflow,
     conversion::builder::OpBuilder,
@@ -180,6 +181,8 @@ impl<'c> ConversionPass<'c> {
     pub(crate) fn sstore(context: &Context, op: &OperationRef<'_, '_>) -> Result<()> {
         operands!(op, key, value);
         syscall_ctx!(op, syscall_ctx);
+        let rewriter = Rewriter::new_with_op(context, *op);
+        ensure_non_staticcall!(op, rewriter);
         rewrite_ctx!(context, op, rewriter, location);
 
         let ptr_type = rewriter.ptr_ty();
@@ -305,16 +308,7 @@ impl<'c> ConversionPass<'c> {
         syscall_ctx!(op, syscall_ctx);
         // Ensure non static call before the gas computation.
         let rewriter = Rewriter::new_with_op(context, *op);
-        let ctx_is_static_ptr =
-            rewriter.make(rewriter.addressof(CTX_IS_STATIC, rewriter.ptr_ty()))?;
-        let ctx_is_static =
-            rewriter.make(rewriter.load(ctx_is_static_ptr, rewriter.intrinsics.i1_ty))?;
-        maybe_revert_here!(
-            op,
-            rewriter,
-            ctx_is_static,
-            ExitStatusCode::StateChangeDuringStaticCall
-        );
+        ensure_non_staticcall!(op, rewriter);
         rewrite_ctx!(context, op, rewriter, location);
         let ptr_type = rewriter.ptr_ty();
         let address_ptr =
