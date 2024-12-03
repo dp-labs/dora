@@ -26,7 +26,7 @@ pub trait Host: Debug {
     fn access_storage(&self) -> FxHashMap<Bytes32, Bytes32>;
 
     /// Retrieves the balance of a specified account.
-    fn get_balance(&mut self, addr: &Address) -> Bytes32;
+    fn get_balance(&self, addr: &Address) -> GetBalanceResult;
 
     /// Get the transient storage value of `address` at `key`.
     fn get_transient_storage(&mut self, addr: &Address, key: &Bytes32) -> Bytes32;
@@ -53,6 +53,13 @@ pub trait Host: Debug {
 /// Result of a `get_storage` action.
 #[derive(Debug, Clone, Default, PartialEq, Eq, Hash)]
 pub struct GetStorageResult {
+    pub value: Bytes32,
+    pub is_cold: bool,
+}
+
+/// Result of a `get_storage` action.
+#[derive(Debug, Clone, Default, PartialEq, Eq, Hash)]
+pub struct GetBalanceResult {
     pub value: Bytes32,
     pub is_cold: bool,
 }
@@ -132,8 +139,11 @@ impl Host for DummyHost {
     }
 
     #[inline]
-    fn get_balance(&mut self, _addr: &Address) -> Bytes32 {
-        Bytes32::ZERO
+    fn get_balance(&self, _addr: &Address) -> GetBalanceResult {
+        GetBalanceResult {
+            value: Bytes32::ZERO,
+            is_cold: true,
+        }
     }
 
     #[inline]

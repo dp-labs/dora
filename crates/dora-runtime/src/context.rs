@@ -1116,14 +1116,9 @@ impl<DB: Database> RuntimeContext<DB> {
     /// This function reads an address pointer and set the balance of the address to the same pointer
     pub extern "C" fn store_in_balance(&mut self, address: &mut Bytes32) -> *mut Result<()> {
         let addr = address.to_address();
-        if let Some(a) = self.db.read().unwrap().basic(addr).unwrap() {
-            *address = Bytes32::from_u256(a.balance);
-        } else {
-            *address = Bytes32::ZERO;
-        };
-
-        let is_cold = true;
-        let gas_cost = gas::balance_gas_cost(self.inner_context.spec_id, is_cold);
+        let result = self.host.read().unwrap().get_balance(&addr);
+        *address = result.value;
+        let gas_cost = gas::balance_gas_cost(self.inner_context.spec_id, result.is_cold);
 
         Box::into_raw(Box::new(Result {
             gas_used: gas_cost,
