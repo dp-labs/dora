@@ -250,18 +250,6 @@ impl<'c> ConversionPass<'c> {
             rewriter.intrinsics.ptr_ty,
             location,
         ))?;
-        let zero = rewriter.make(rewriter.iconst_8(0))?;
-        rewriter.create(
-            ods::llvm::intr_memset(
-                context,
-                memory_dest,
-                zero,
-                length,
-                IntegerAttribute::new(IntegerType::new(context, 1).into(), 0),
-                location,
-            )
-            .into(),
-        );
         let call_data_size = rewriter.make(func::call(
             context,
             FlatSymbolRefAttribute::new(context, symbols::CALLDATA_SIZE),
@@ -281,8 +269,8 @@ impl<'c> ConversionPass<'c> {
             &[],
             {
                 let region = Region::new();
-                let valid_offset_block = region.append_block(Block::new(&[]));
-                let builder = OpBuilder::new_with_block(context, valid_offset_block);
+                let block = region.append_block(Block::new(&[]));
+                let builder = OpBuilder::new_with_block(context, block);
                 let remaining_calldata_size =
                     builder.make(arith::subi(call_data_size, call_data_offset, location))?;
                 let memcpy_len =
@@ -318,9 +306,8 @@ impl<'c> ConversionPass<'c> {
             },
             {
                 let region = Region::new();
-                let invalid_offset_block = region.append_block(Block::new(&[]));
-                let builder = OpBuilder::new_with_block(context, invalid_offset_block);
-                builder.create(scf::r#yield(&[], location));
+                let block = region.append_block(Block::new(&[]));
+                block.append_operation(scf::r#yield(&[], location));
                 region
             },
             location,
