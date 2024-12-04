@@ -12,7 +12,7 @@ Dora is a modular machine layer designed to bring real-world computing use cases
 
 ## Status
 
-Dora is currently in the Proof-of-Concept (PoC) stage, with support for ERC-20 contracts. It is under active development and is not yet ready for production use.
+Dora is currently in the MVP stage, with support for EVM functionalities. It is actively under development and will soon be ready for production use.
 
 ## Why
 
