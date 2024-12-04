@@ -57,7 +57,7 @@ pub(crate) fn declare_symbols(context: &MLIRContext, module: &MLIRModule) {
         (
             symbols::STORE_IN_BLOBBASEFEE_PTR,
             &[ptr_type, ptr_type],
-            &[ptr_type],
+            &[],
         ),
         (symbols::GASLIMIT, &[ptr_type], &[ptr_type]),
         (symbols::EXTEND_MEMORY, &[ptr_type, uint64], &[ptr_type]),
@@ -72,32 +72,28 @@ pub(crate) fn declare_symbols(context: &MLIRContext, module: &MLIRModule) {
             &[ptr_type, ptr_type, ptr_type],
             &[ptr_type],
         ),
-        (
-            symbols::APPEND_LOG,
-            &[ptr_type, uint64, uint64],
-            &[ptr_type],
-        ),
+        (symbols::APPEND_LOG, &[ptr_type, uint64, uint64], &[]),
         (
             symbols::APPEND_LOG_ONE_TOPIC,
             &[ptr_type, uint64, uint64, ptr_type],
-            &[ptr_type],
+            &[],
         ),
         (
             symbols::APPEND_LOG_TWO_TOPICS,
             &[ptr_type, uint64, uint64, ptr_type, ptr_type],
-            &[ptr_type],
+            &[],
         ),
         (
             symbols::APPEND_LOG_THREE_TOPICS,
             &[ptr_type, uint64, uint64, ptr_type, ptr_type, ptr_type],
-            &[ptr_type],
+            &[],
         ),
         (
             symbols::APPEND_LOG_FOUR_TOPICS,
             &[
                 ptr_type, uint64, uint64, ptr_type, ptr_type, ptr_type, ptr_type,
             ],
-            &[ptr_type],
+            &[],
         ),
         (symbols::ORIGIN, &[ptr_type, ptr_type], &[ptr_type]),
         (symbols::COINBASE, &[ptr_type], &[ptr_type]),
@@ -133,11 +129,7 @@ pub(crate) fn declare_symbols(context: &MLIRContext, module: &MLIRModule) {
             &[ptr_type, ptr_type, uint64, uint64, uint64],
             &[ptr_type],
         ),
-        (
-            symbols::BLOB_HASH,
-            &[ptr_type, ptr_type, ptr_type],
-            &[ptr_type],
-        ),
+        (symbols::BLOB_HASH, &[ptr_type, ptr_type], &[]),
         (symbols::BLOCK_HASH, &[ptr_type, ptr_type], &[ptr_type]),
         (symbols::EXT_CODE_HASH, &[ptr_type, ptr_type], &[ptr_type]),
         (

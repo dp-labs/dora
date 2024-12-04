@@ -90,7 +90,7 @@ fn frontier_sstore_cost(current: U256, new: U256) -> u64 {
 /// # Returns
 /// The refund amount as `i64`.
 #[inline]
-pub fn sstore_refund(spec_id: SpecId, original: U256, current: U256, new: U256) -> i64 {
+pub fn sstore_refund(spec_id: SpecId, original: U256, current: U256, new: U256) -> u64 {
     if !spec_id.is_enabled_in(SpecId::ISTANBUL) {
         return if !current.is_zero() && new.is_zero() {
             REFUND_SSTORE_CLEARS
@@ -100,7 +100,7 @@ pub fn sstore_refund(spec_id: SpecId, original: U256, current: U256, new: U256) 
     }
 
     let sstore_clears_schedule = if spec_id.is_enabled_in(SpecId::LONDON) {
-        (SSTORE_RESET - COLD_SLOAD_COST + ACCESS_LIST_STORAGE_KEY) as i64
+        SSTORE_RESET - COLD_SLOAD_COST + ACCESS_LIST_STORAGE_KEY
     } else {
         REFUND_SSTORE_CLEARS
     };
@@ -131,9 +131,9 @@ pub fn sstore_refund(spec_id: SpecId, original: U256, current: U256, new: U256) 
         };
 
         refund += if original.is_zero() {
-            (SSTORE_SET - sload_cost) as i64
+            SSTORE_SET - sload_cost
         } else {
-            (sstore_reset_cost - sload_cost) as i64
+            sstore_reset_cost - sload_cost
         };
     }
 

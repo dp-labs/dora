@@ -214,14 +214,14 @@ impl<'c> ConversionPass<'c> {
 
         let index_ptr =
             memory::allocate_u256_and_assign_value(context, &rewriter, index, location)?;
-        let var_ptr = create_var!(rewriter, context, location);
         load_var!(
             rewriter,
             context,
             syscall_ctx,
             symbols::BLOB_HASH,
-            &[index_ptr, var_ptr],
-            var_ptr,
+            &[index_ptr],
+            [],
+            index_ptr,
             rewriter.intrinsics.i256_ty,
             location
         );
@@ -233,20 +233,17 @@ impl<'c> ConversionPass<'c> {
         rewrite_ctx!(context, op, rewriter, location);
 
         let blobbasefee_ptr = create_var!(rewriter, context, location);
-        let blobbasefee = load_var!(
+        load_var!(
             rewriter,
             context,
             syscall_ctx,
             symbols::STORE_IN_BLOBBASEFEE_PTR,
             &[blobbasefee_ptr],
-            rewriter.intrinsics.i128_ty,
+            [],
+            blobbasefee_ptr,
+            rewriter.intrinsics.i256_ty,
             location
         );
-        rewriter.make(arith::extui(
-            blobbasefee,
-            rewriter.intrinsics.i256_ty,
-            location,
-        ))?;
         Ok(())
     }
 }

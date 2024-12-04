@@ -207,6 +207,8 @@ impl<'c> ConversionPass<'c> {
     pub(crate) fn tstore(context: &Context, op: &OperationRef<'_, '_>) -> Result<()> {
         operands!(op, key, value);
         syscall_ctx!(op, syscall_ctx);
+        let rewriter = Rewriter::new_with_op(context, *op);
+        ensure_non_staticcall!(op, rewriter);
         rewrite_ctx!(context, op, rewriter, location);
 
         let ptr_type = rewriter.ptr_ty();
@@ -253,10 +255,10 @@ impl<'c> ConversionPass<'c> {
         operands!(op, offset, size);
         syscall_ctx!(op, syscall_ctx);
         let rewriter = Rewriter::new_with_op(context, *op);
+        ensure_non_staticcall!(op, rewriter);
+        let rewriter = Rewriter::new_with_op(context, *op);
         let location = rewriter.get_insert_location();
         let uint64 = rewriter.intrinsics.i64_ty;
-        let ptr_type = rewriter.ptr_ty();
-
         // Check the log mem offset and size overflow error
         check_u256_to_u64_overflow!(op, rewriter, size);
         let rewriter = Rewriter::new_with_op(context, *op);
@@ -296,7 +298,7 @@ impl<'c> ConversionPass<'c> {
             context,
             FlatSymbolRefAttribute::new(context, symbol),
             &call_args,
-            &[ptr_type],
+            &[],
             location,
         ));
 
