@@ -5,11 +5,7 @@ use anyhow::Result;
 use dora_compiler::{
     context::Context,
     dora,
-    evm::{
-        self,
-        program::{CompileOptions, Program},
-        EVMCompiler,
-    },
+    evm::{self, program::Program, CompileOptions, EVMCompiler},
     pass, Compiler,
 };
 use dora_primitives::{spec::SpecId, Address, Bytecode};

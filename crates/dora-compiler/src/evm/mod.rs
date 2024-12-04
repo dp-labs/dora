@@ -30,7 +30,8 @@ use melior::{
     Context as MLIRContext,
 };
 use num_bigint::BigUint;
-use program::{stack_io, CompileOptions};
+use program::stack_io;
+use revmc::primitives::SpecId;
 use revmc::OpcodeInfo;
 use std::collections::BTreeMap;
 pub mod backend;
@@ -492,6 +493,31 @@ impl<'c> EVMCompiler<'c> {
         ));
         builder.create(func::r#return(&[reason], builder.get_insert_location()));
         Ok(())
+    }
+}
+
+/// Represents the options used during the compilation process.
+/// This struct encapsulates various settings that can be adjusted to customize the compilation behavior.
+#[derive(Debug)]
+pub struct CompileOptions {
+    /// Specification IDs and their activation block.
+    ///
+    /// Information was obtained from the [Ethereum Execution Specifications](https://github.com/ethereum/execution-specs)
+    pub spec_id: SpecId,
+    /// A flag indicating whether to perform gas metering during compilation.
+    pub gas_metering: bool,
+    /// Check for stack overflow or underflow errors. Note that there is no need to check for EOF Bytecode,
+    /// as stack operations are statically determined at compile time.
+    pub stack_bound_checks: bool,
+}
+
+impl Default for CompileOptions {
+    fn default() -> Self {
+        Self {
+            spec_id: SpecId::CANCUN,
+            gas_metering: true,
+            stack_bound_checks: true,
+        }
     }
 }
 

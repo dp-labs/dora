@@ -1,6 +1,6 @@
 use crate::context::Context;
-use crate::evm::program::{CompileOptions, Operation, Program};
-use crate::evm::EVMCompiler;
+use crate::evm::program::{Operation, Program};
+use crate::evm::{CompileOptions, EVMCompiler};
 use crate::Compiler;
 use num_bigint::BigUint;
 
