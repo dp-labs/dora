@@ -5,8 +5,7 @@ use criterion::{
     criterion_group, criterion_main, measurement::WallTime, BenchmarkGroup, Criterion,
 };
 use dora_bench::benches::{get_benches, Bench};
-use dora_compiler::evm::program::CompileOptions;
-use dora_compiler::evm::Program;
+use dora_compiler::evm::{CompileOptions, Program};
 use dora_compiler::{dora, evm, pass, Compiler, Context, EVMCompiler};
 use dora_primitives::{spec::SpecId, Bytes};
 use dora_primitives::{Address, Bytecode};

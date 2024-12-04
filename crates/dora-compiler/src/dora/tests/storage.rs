@@ -1,7 +1,5 @@
-use crate::evm::program::CompileOptions;
 use crate::evm::program::Operation;
-use crate::evm::program::Program;
-use crate::evm::EVMCompiler;
+use crate::evm::{CompileOptions, EVMCompiler, Program};
 use crate::pass::run;
 use crate::Compiler;
 use crate::{context::Context, dora::storage::STORAGE_MEMORY_MAP_CODE};

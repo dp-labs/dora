@@ -1,8 +1,8 @@
 use crate::context::Context;
 use crate::dora::gas::GasOptions;
-use crate::evm::program::CompileOptions;
 use crate::evm::program::Operation;
 use crate::evm::program::Program;
+use crate::evm::CompileOptions;
 use crate::evm::EVMCompiler;
 use crate::Compiler;
 use dora_primitives::spec::SpecId;
