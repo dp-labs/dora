@@ -153,7 +153,7 @@ pub mod gas_cost {
     pub const INSTANBUL_SLOAD_GAS: u64 = 800;
     pub const SSTORE_SET: u64 = 20000;
     pub const SSTORE_RESET: u64 = 5000;
-    pub const REFUND_SSTORE_CLEARS: i64 = 15000;
+    pub const REFUND_SSTORE_CLEARS: u64 = 15000;
 
     pub const ACCESS_LIST_ADDRESS: u64 = 2400;
     pub const ACCESS_LIST_STORAGE_KEY: u64 = 1900;

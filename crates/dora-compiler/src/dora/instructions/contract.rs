@@ -7,6 +7,7 @@ use crate::{
         rewriter::{DeferredRewriter, Rewriter},
     },
     dora::{conversion::ConversionPass, gas, memory},
+    ensure_non_staticcall,
     errors::Result,
     maybe_revert_here, operands, rewrite_ctx, syscall_ctx, u256_to_64,
 };
@@ -36,6 +37,8 @@ impl<'c> ConversionPass<'c> {
     ) -> Result<()> {
         operands!(op, value, offset, size);
         syscall_ctx!(op, syscall_ctx);
+        let rewriter = Rewriter::new_with_op(context, *op);
+        ensure_non_staticcall!(op, rewriter);
         let rewriter = Rewriter::new_with_op(context, *op);
         let location = rewriter.get_insert_location();
         let uint256 = rewriter.intrinsics.i256_ty;

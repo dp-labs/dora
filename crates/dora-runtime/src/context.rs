@@ -821,10 +821,9 @@ impl<DB: Database> RuntimeContext<DB> {
         Box::into_raw(Box::new(Result::success(())))
     }
 
-    pub extern "C" fn store_in_blobbasefee_ptr(&self, value: &mut u128) -> *mut Result<()> {
+    pub extern "C" fn store_in_blobbasefee_ptr(&self, value: &mut Bytes32) {
         let host = self.host.read().unwrap();
-        *value = host.env().block.blob_gasprice.unwrap_or_default();
-        Box::into_raw(Box::new(Result::success(())))
+        *value = Bytes32::from(host.env().block.blob_gasprice.unwrap_or_default());
     }
 
     pub extern "C" fn gaslimit(&self) -> *mut Result<u64> {
@@ -952,14 +951,13 @@ impl<DB: Database> RuntimeContext<DB> {
         )
         .unwrap_or(0);
         self.inner_context.gas_refund +=
-            gas::sstore_refund(self.inner_context.spec_id, original, current, new) as u64;
+            gas::sstore_refund(self.inner_context.spec_id, original, current, new);
 
         Box::into_raw(Box::new(Result::success_with_gas((), gas_cost)))
     }
 
-    pub extern "C" fn append_log(&mut self, offset: u64, size: u64) -> *mut Result<()> {
+    pub extern "C" fn append_log(&mut self, offset: u64, size: u64) {
         self.create_log(offset, size, vec![]);
-        Box::into_raw(Box::new(Result::success(())))
     }
 
     pub extern "C" fn append_log_with_one_topic(
@@ -967,9 +965,8 @@ impl<DB: Database> RuntimeContext<DB> {
         offset: u64,
         size: u64,
         topic: &Bytes32,
-    ) -> *mut Result<()> {
+    ) {
         self.create_log(offset, size, vec![topic.to_u256()]);
-        Box::into_raw(Box::new(Result::success(())))
     }
 
     pub extern "C" fn append_log_with_two_topics(
@@ -978,9 +975,8 @@ impl<DB: Database> RuntimeContext<DB> {
         size: u64,
         topic1: &Bytes32,
         topic2: &Bytes32,
-    ) -> *mut Result<()> {
+    ) {
         self.create_log(offset, size, vec![topic1.to_u256(), topic2.to_u256()]);
-        Box::into_raw(Box::new(Result::success(())))
     }
 
     pub extern "C" fn append_log_with_three_topics(
@@ -990,13 +986,12 @@ impl<DB: Database> RuntimeContext<DB> {
         topic1: &Bytes32,
         topic2: &Bytes32,
         topic3: &Bytes32,
-    ) -> *mut Result<()> {
+    ) {
         self.create_log(
             offset,
             size,
             vec![topic1.to_u256(), topic2.to_u256(), topic3.to_u256()],
         );
-        Box::into_raw(Box::new(Result::success(())))
     }
 
     pub extern "C" fn append_log_with_four_topics(
@@ -1007,7 +1002,7 @@ impl<DB: Database> RuntimeContext<DB> {
         topic2: &Bytes32,
         topic3: &Bytes32,
         topic4: &Bytes32,
-    ) -> *mut Result<()> {
+    ) {
         self.create_log(
             offset,
             size,
@@ -1018,7 +1013,6 @@ impl<DB: Database> RuntimeContext<DB> {
                 topic4.to_u256(),
             ],
         );
-        Box::into_raw(Box::new(Result::success(())))
     }
 
     pub extern "C" fn block_number(&self, number: &mut Bytes32) -> *mut Result<()> {
@@ -1045,14 +1039,13 @@ impl<DB: Database> RuntimeContext<DB> {
         Box::into_raw(Box::new(Result::success(())))
     }
 
-    fn create_log(&mut self, offset: u64, size: u64, topics: Vec<U256>) -> *mut Result<()> {
+    fn create_log(&mut self, offset: u64, size: u64, topics: Vec<U256>) {
         let offset = offset as usize;
         let size = size as usize;
         let data: Vec<u8> = self.inner_context.memory[offset..offset + size].into();
 
         let log = LogData { data, topics };
         self.inner_context.logs.push(log);
-        Box::into_raw(Box::new(Result::success(())))
     }
 
     pub extern "C" fn extcodesize(&mut self, address: &Bytes32) -> *mut Result<u64> {
@@ -1120,20 +1113,15 @@ impl<DB: Database> RuntimeContext<DB> {
         }))
     }
 
-    pub extern "C" fn blob_hash(
-        &mut self,
-        index: &Bytes32,
-        blobhash: &mut Bytes32,
-    ) -> *mut Result<()> {
+    pub extern "C" fn blob_hash(&mut self, index: &mut Bytes32) {
         // Check if the high 12 bytes are zero, indicating a valid usize-compatible index
         if index.slice()[0..12] != [0u8; 12] {
-            *blobhash = Bytes32::default();
-            return Box::into_raw(Box::new(Result::success(())));
+            *index = Bytes32::default();
         }
 
         // Convert the low 20 bytes into a usize for the index
         let idx = usize::from_be_bytes(index.slice()[12..32].try_into().unwrap_or_default());
-        *blobhash = self
+        *index = self
             .host
             .read()
             .unwrap()
@@ -1144,8 +1132,6 @@ impl<DB: Database> RuntimeContext<DB> {
             .cloned()
             .map(|x| Bytes32::from_be_bytes(x.into()))
             .unwrap_or_default();
-
-        Box::into_raw(Box::new(Result::success(())))
     }
 
     pub extern "C" fn ext_code_copy(
