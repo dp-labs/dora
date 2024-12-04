@@ -1,13 +1,20 @@
 use crate::{
-    arith_constant, conversion::rewriter::DeferredRewriter, dora::conversion::ConversionPass,
-    errors::Result, operands, rewrite_ctx,
+    arith_constant,
+    backend::IntCC,
+    conversion::rewriter::{DeferredRewriter, Rewriter},
+    dora::conversion::ConversionPass,
+    errors::Result,
+    operands, rewrite_ctx,
 };
 use melior::{
     dialect::{
-        arith::{self},
-        ods,
+        arith,
+        ods::{llvm, math},
+        scf,
     },
-    ir::{attribute::IntegerAttribute, operation::OperationRef, r#type::IntegerType},
+    ir::{
+        attribute::IntegerAttribute, operation::OperationRef, r#type::IntegerType, Block, Region,
+    },
     Context,
 };
 
@@ -36,28 +43,73 @@ impl<'c> ConversionPass<'c> {
     pub(crate) fn udiv(context: &Context, op: &OperationRef<'_, '_>) -> Result<()> {
         operands!(op, l, r);
         rewrite_ctx!(context, op, rewriter, location);
-        rewriter.make(arith::divui(l, r, location))?;
+        let result = rewriter.make(arith::divui(l, r, location))?;
+        let zero = rewriter.make(rewriter.iconst_256_from_u64(0)?)?;
+        let is_zero = rewriter.make(rewriter.icmp(IntCC::Equal, r, zero))?;
+        rewriter.make(arith::select(is_zero, zero, result, location))?;
         Ok(())
     }
 
     pub(crate) fn sdiv(context: &Context, op: &OperationRef<'_, '_>) -> Result<()> {
         operands!(op, l, r);
         rewrite_ctx!(context, op, rewriter, location);
-        rewriter.make(ods::llvm::sdiv(context, l, r, location).into())?;
+        let zero = rewriter.make(rewriter.iconst_256_from_u64(0)?)?;
+        let is_zero = rewriter.make(rewriter.icmp(IntCC::Equal, r, zero))?;
+        rewriter.make(scf::r#if(
+            is_zero,
+            &[rewriter.intrinsics.i256_ty],
+            {
+                let region = Region::new();
+                let block = region.append_block(Block::new(&[]));
+                let rewriter = Rewriter::new_with_block(context, block);
+                rewriter.create(scf::r#yield(&[zero], location));
+                region
+            },
+            {
+                // Note the sdiv overflow
+                let region = Region::new();
+                let block = region.append_block(Block::new(&[]));
+                let rewriter = Rewriter::new_with_block(context, block);
+                // i256::min 0x80000000_00000000_00000000_00000000
+                let i256_min = rewriter.make(rewriter.iconst_256_min()?)?;
+                let l_is_i256_min = rewriter.make(rewriter.icmp(IntCC::Equal, r, i256_min))?;
+                let h_is_neg1 = rewriter.make(rewriter.icmp_imm(IntCC::Equal, r, -1)?)?;
+                let is_sdiv_edge_case =
+                    rewriter.make(arith::andi(l_is_i256_min, h_is_neg1, location))?;
+                let result = rewriter.make(arith::divsi(l, r, location))?;
+                rewriter.create(scf::r#yield(
+                    &[rewriter.make(arith::select(
+                        is_sdiv_edge_case,
+                        i256_min,
+                        result,
+                        location,
+                    ))?],
+                    location,
+                ));
+                region
+            },
+            location,
+        ))?;
         Ok(())
     }
 
     pub(crate) fn umod(context: &Context, op: &OperationRef<'_, '_>) -> Result<()> {
         operands!(op, l, r);
         rewrite_ctx!(context, op, rewriter, location);
-        rewriter.make(arith::remui(l, r, location))?;
+        let result = rewriter.make(arith::remui(l, r, location))?;
+        let zero = rewriter.make(rewriter.iconst_256_from_u64(0)?)?;
+        let is_zero = rewriter.make(rewriter.icmp(IntCC::Equal, r, zero))?;
+        rewriter.make(arith::select(is_zero, zero, result, location))?;
         Ok(())
     }
 
     pub(crate) fn smod(context: &Context, op: &OperationRef<'_, '_>) -> Result<()> {
         operands!(op, l, r);
         rewrite_ctx!(context, op, rewriter, location);
-        rewriter.make(ods::llvm::srem(context, l, r, location).into())?;
+        let result = rewriter.make(arith::remsi(l, r, location))?;
+        let zero = rewriter.make(rewriter.iconst_256_from_u64(0)?)?;
+        let is_zero = rewriter.make(rewriter.icmp(IntCC::Equal, r, zero))?;
+        rewriter.make(arith::select(is_zero, zero, result, location))?;
         Ok(())
     }
 
@@ -93,7 +145,7 @@ impl<'c> ConversionPass<'c> {
     pub(crate) fn exp(context: &Context, op: &OperationRef<'_, '_>) -> Result<()> {
         operands!(op, l, r);
         rewrite_ctx!(context, op, rewriter, location);
-        rewriter.make(ods::math::ipowi(context, l, r, location).into())?;
+        rewriter.make(math::ipowi(context, l, r, location).into())?;
         Ok(())
     }
 
@@ -144,12 +196,11 @@ impl<'c> ConversionPass<'c> {
         let bits_to_shift = rewriter.make(arith::subi(max_bits, value_size_in_bits, location))?;
 
         // value_to_extend << bits_to_shift
-        let left_shifted_value = rewriter
-            .make(ods::llvm::shl(context, value_to_extend, bits_to_shift, location).into())?;
+        let left_shifted_value =
+            rewriter.make(llvm::shl(context, value_to_extend, bits_to_shift, location).into())?;
 
         // value_to_extend >> bits_to_shift  (sign extended)
-        rewriter
-            .make(ods::llvm::ashr(context, left_shifted_value, bits_to_shift, location).into())?;
+        rewriter.make(llvm::ashr(context, left_shifted_value, bits_to_shift, location).into())?;
         Ok(())
     }
 }
