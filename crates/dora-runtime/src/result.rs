@@ -48,7 +48,11 @@ pub enum ExecutionResult {
     /// Contains:
     /// - `reason`: Reason for the halt (e.g., `OutOfGas`, `OpcodeNotFound`).
     /// - `gas_used`: Total gas consumed during execution.
-    Halt { reason: HaltReason, gas_used: u64 },
+    Halt {
+        reason: HaltReason,
+        gas_limit: u64,
+        gas_used: u64,
+    },
     /// Internal error result.
     Internal {
         result: InternalResult,

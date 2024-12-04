@@ -380,13 +380,7 @@ fn should_skip(path: &Path) -> bool {
         path_str.contains("stEOF")
         // Temporarily skip out of gas error test suites: https://github.com/dp-labs/dora/issues/91
         || path_str.contains("stRevertTest/costRevert.json")
-        || path_str.contains("vmIOandFlowOperations/jump.json")
-        || path_str.contains("vmIOandFlowOperations/jumpi.json")
-        || path_str.contains("stSolidityTest/CallInfiniteLoop.json")
-        || path_str.contains("stateRevert.json")
-        || path_str.contains("stReturnDataTest/returndatasize_after_oog_after_deeper.json")
-        || path_str.contains("stEIP1153-transientStorage/15_tstoreCannotBeDosd.json")
-        || path_str.contains("eip1153_tstore/run_until_out_of_gas.json")
+        || path_str.contains("Pyspecs/cancun/eip1153_tstore/run_until_out_of_gas.json")
 }
 
 fn run_with_shared_db<DB: Database + 'static>(

@@ -96,6 +96,7 @@ pub fn run_with_context<DB: Database>(
                 &(),
                 &CompileOptions {
                     spec_id: runtime_context.inner_context.spec_id,
+                    ..Default::default()
                 },
             )?;
             // Lowering the EVM dialect to MLIR builtin dialects.

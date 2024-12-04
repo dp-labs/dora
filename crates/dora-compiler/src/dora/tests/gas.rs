@@ -17,13 +17,7 @@ macro_rules! assert_snapshot {
         let context = Context::new();
         let compiler = EVMCompiler::new(&context);
         let mut module = compiler
-            .compile(
-                &program,
-                &(),
-                &CompileOptions {
-                    spec_id: SpecId::CANCUN,
-                },
-            )
+            .compile(&program, &(), &CompileOptions::default())
             .expect("failed to compile program");
 
         crate::evm::pass::run(&context.mlir_context, &mut module.mlir_module).unwrap();

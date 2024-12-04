@@ -1291,40 +1291,46 @@ impl<'c> GasPass<'c> {
         gas_cost: impl for<'a> FnOnce(&'a Rewriter<'a, 'a>) -> Result<Value<'a, 'a>>,
     ) -> Result<()> {
         if let Some(block) = op.block() {
-            // To ensure the op rewriter live long as the context.
-            let rewriter = Rewriter::new_with_block(self.ctx, block);
-            let location = rewriter.get_insert_location();
-            let new_block = rewriter.split_block(block, Some(*op))?;
-            // Get address of gas counter global
-            let gas_counter_ptr = rewriter
-                .make(rewriter.addressof(constants::GAS_COUNTER_GLOBAL, rewriter.ptr_ty()))?;
-            let gas_counter =
-                rewriter.make(rewriter.load(gas_counter_ptr, rewriter.intrinsics.i64_ty))?;
-            let gas_value = gas_cost(&rewriter)?;
-            let flag = rewriter.make(arith::cmpi(
-                rewriter.context(),
-                arith::CmpiPredicate::Sge,
-                gas_counter,
-                gas_value,
-                location,
-            ))?;
-            let new_gas_counter = rewriter.make(arith::subi(gas_counter, gas_value, location))?;
-            rewriter.create(llvm::store(
-                rewriter.context(),
-                new_gas_counter,
-                gas_counter_ptr,
-                location,
-                LoadStoreOptions::default(),
-            ));
-            rewriter.create(cf::cond_br(
-                rewriter.context(),
-                flag,
-                &new_block,
-                &revert_block,
-                &[],
-                &[rewriter.make(rewriter.iconst_8(ExitStatusCode::OutOfGas.to_u8() as i8))?],
-                location,
-            ));
+            if let Some(region) = block.parent_region() {
+                let update_gas_remaining_block = region.append_block(Block::new(&[]));
+                // To ensure the op rewriter live long as the context.
+                let rewriter = Rewriter::new_with_block(self.ctx, block);
+                let location = rewriter.get_insert_location();
+                let new_block = rewriter.split_block(block, Some(*op))?;
+                // Get address of gas counter global
+                let gas_counter_ptr = rewriter
+                    .make(rewriter.addressof(constants::GAS_COUNTER_GLOBAL, rewriter.ptr_ty()))?;
+                let gas_counter =
+                    rewriter.make(rewriter.load(gas_counter_ptr, rewriter.intrinsics.i64_ty))?;
+                let gas_value = gas_cost(&rewriter)?;
+                let flag = rewriter.make(arith::cmpi(
+                    rewriter.context(),
+                    arith::CmpiPredicate::Uge,
+                    gas_counter,
+                    gas_value,
+                    location,
+                ))?;
+                rewriter.create(cf::cond_br(
+                    rewriter.context(),
+                    flag,
+                    &update_gas_remaining_block,
+                    &revert_block,
+                    &[],
+                    &[rewriter.make(rewriter.iconst_8(ExitStatusCode::OutOfGas.to_u8() as i8))?],
+                    location,
+                ));
+                let rewriter = Rewriter::new_with_block(self.ctx, update_gas_remaining_block);
+                let new_gas_counter =
+                    rewriter.make(arith::subi(gas_counter, gas_value, location))?;
+                rewriter.create(llvm::store(
+                    rewriter.context(),
+                    new_gas_counter,
+                    gas_counter_ptr,
+                    location,
+                    LoadStoreOptions::default(),
+                ));
+                rewriter.create(cf::br(&new_block, &[], location));
+            }
         }
         Ok(())
     }

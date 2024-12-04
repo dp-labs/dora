@@ -44,6 +44,8 @@ fn run_bench(c: &mut Criterion, bench: &Bench) {
             &(),
             &CompileOptions {
                 spec_id: SpecId::CANCUN,
+                stack_bound_checks: false,
+                gas_metering: false,
             },
         )
         .unwrap();

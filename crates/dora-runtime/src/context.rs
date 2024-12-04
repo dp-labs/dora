@@ -341,8 +341,8 @@ impl<DB: Database> RuntimeContext<DB> {
     pub fn get_result(&self) -> anyhow::Result<ResultAndState, EVMError> {
         let host = self.host.read().unwrap();
         let gas_remaining = self.inner_context.gas_remaining.unwrap_or(0);
-        let gas_initial = host.env().tx.gas_limit;
-        let gas_used = gas_initial.saturating_sub(gas_remaining);
+        let gas_limit = host.env().tx.gas_limit;
+        let gas_used = gas_limit.saturating_sub(gas_remaining);
         let gas_refunded = self.inner_context.gas_refund;
 
         let return_values = self.return_values().to_vec();
@@ -375,115 +375,143 @@ impl<DB: Database> RuntimeContext<DB> {
             },
             ExitStatusCode::CallTooDeep => ExecutionResult::Halt {
                 reason: HaltReason::CallTooDeep,
+                gas_limit,
                 gas_used,
             },
             ExitStatusCode::OutOfFunds => ExecutionResult::Halt {
                 reason: HaltReason::OutOfFunds,
+                gas_limit,
                 gas_used,
             },
             ExitStatusCode::OutOfGas => ExecutionResult::Halt {
                 reason: HaltReason::OutOfGas(OutOfGasError::Basic),
+                gas_limit,
                 gas_used,
             },
             ExitStatusCode::MemoryOOG => ExecutionResult::Halt {
                 reason: HaltReason::OutOfGas(OutOfGasError::Memory),
+                gas_limit,
                 gas_used,
             },
             ExitStatusCode::MemoryLimitOOG => ExecutionResult::Halt {
                 reason: HaltReason::OutOfGas(OutOfGasError::MemoryLimit),
+                gas_limit,
                 gas_used,
             },
             ExitStatusCode::PrecompileOOG => ExecutionResult::Halt {
                 reason: HaltReason::OutOfGas(OutOfGasError::Precompile),
+                gas_limit,
                 gas_used,
             },
             ExitStatusCode::InvalidOperandOOG => ExecutionResult::Halt {
                 reason: HaltReason::OutOfGas(OutOfGasError::InvalidOperand),
+                gas_limit,
                 gas_used,
             },
             ExitStatusCode::OpcodeNotFound => ExecutionResult::Halt {
                 reason: HaltReason::OpcodeNotFound,
+                gas_limit,
                 gas_used,
             },
             ExitStatusCode::CallNotAllowedInsideStatic => ExecutionResult::Halt {
                 reason: HaltReason::CallNotAllowedInsideStatic,
+                gas_limit,
                 gas_used,
             },
             ExitStatusCode::StateChangeDuringStaticCall => ExecutionResult::Halt {
                 reason: HaltReason::StateChangeDuringStaticCall,
+                gas_limit,
                 gas_used,
             },
             ExitStatusCode::InvalidFEOpcode => ExecutionResult::Halt {
                 reason: HaltReason::InvalidFEOpcode,
+                gas_limit,
                 gas_used,
             },
             ExitStatusCode::InvalidJump => ExecutionResult::Halt {
                 reason: HaltReason::InvalidJump,
+                gas_limit,
                 gas_used,
             },
             ExitStatusCode::NotActivated => ExecutionResult::Halt {
                 reason: HaltReason::NotActivated,
+                gas_limit,
                 gas_used,
             },
             ExitStatusCode::StackUnderflow => ExecutionResult::Halt {
                 reason: HaltReason::StackUnderflow,
+                gas_limit,
                 gas_used,
             },
             ExitStatusCode::StackOverflow => ExecutionResult::Halt {
                 reason: HaltReason::StackOverflow,
+                gas_limit,
                 gas_used,
             },
             ExitStatusCode::OutOfOffset => ExecutionResult::Halt {
                 reason: HaltReason::OutOfOffset,
+                gas_limit,
                 gas_used,
             },
             ExitStatusCode::CreateCollision => ExecutionResult::Halt {
                 reason: HaltReason::CreateCollision,
+                gas_limit,
                 gas_used,
             },
             ExitStatusCode::OverflowPayment => ExecutionResult::Halt {
                 reason: HaltReason::OverflowPayment,
+                gas_limit,
                 gas_used,
             },
             ExitStatusCode::PrecompileError => ExecutionResult::Halt {
                 reason: HaltReason::PrecompileError,
+                gas_limit,
                 gas_used,
             },
             ExitStatusCode::NonceOverflow => ExecutionResult::Halt {
                 reason: HaltReason::NonceOverflow,
+                gas_limit,
                 gas_used,
             },
             ExitStatusCode::CreateContractSizeLimit => ExecutionResult::Halt {
                 reason: HaltReason::CreateContractSizeLimit,
+                gas_limit,
                 gas_used,
             },
             ExitStatusCode::CreateContractStartingWithEF => ExecutionResult::Halt {
                 reason: HaltReason::CreateContractStartingWithEF,
+                gas_limit,
                 gas_used,
             },
             ExitStatusCode::CreateInitCodeSizeLimit => ExecutionResult::Halt {
                 reason: HaltReason::CreateInitCodeSizeLimit,
+                gas_limit,
                 gas_used,
             },
             ExitStatusCode::EOFOpcodeDisabledInLegacy
             | ExitStatusCode::ReturnContractInNotInitEOF => ExecutionResult::Halt {
                 reason: HaltReason::OpcodeNotFound,
+                gas_limit,
                 gas_used,
             },
             ExitStatusCode::EOFFunctionStackOverflow => ExecutionResult::Halt {
                 reason: HaltReason::EOFFunctionStackOverflow,
+                gas_limit,
                 gas_used,
             },
             ExitStatusCode::EofAuxDataOverflow => ExecutionResult::Halt {
                 reason: HaltReason::EofAuxDataOverflow,
+                gas_limit,
                 gas_used,
             },
             ExitStatusCode::EofAuxDataTooSmall => ExecutionResult::Halt {
                 reason: HaltReason::EofAuxDataTooSmall,
+                gas_limit,
                 gas_used,
             },
             ExitStatusCode::InvalidExtCallTarget => ExecutionResult::Halt {
                 reason: HaltReason::InvalidExtCallTarget,
+                gas_limit,
                 gas_used,
             },
             ExitStatusCode::InvalidExtDelegateCallTarget => ExecutionResult::Internal {
