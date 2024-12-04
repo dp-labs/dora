@@ -6,7 +6,6 @@ use crate::pass::run;
 use crate::Compiler;
 use crate::{context::Context, dora::storage::STORAGE_MEMORY_MAP_CODE};
 use dora_primitives::config::OptimizationLevel;
-use dora_primitives::spec::SpecId;
 use melior::ir::Module;
 use melior::ExecutionEngine;
 use num_bigint::BigUint;
@@ -20,13 +19,7 @@ macro_rules! assert_snapshot {
         let context = Context::new();
         let compiler = EVMCompiler::new(&context);
         let mut module = compiler
-            .compile(
-                &program,
-                &(),
-                &CompileOptions {
-                    spec_id: SpecId::CANCUN,
-                },
-            )
+            .compile(&program, &(), &CompileOptions::default())
             .expect("failed to compile program");
         crate::evm::pass::run(&context.mlir_context, &mut module.mlir_module).unwrap();
         crate::dora::pass::run_storage_pass(&context.mlir_context, &mut module.mlir_module)

@@ -1833,7 +1833,7 @@ fn gaslimit() {
         Operation::Return,
     ];
     let (env, mut db) = default_env_and_db_setup(operations);
-    run_program_assert_num_result(env, db, 978_999_u64.into());
+    run_program_assert_num_result(env, db, 999979000_u64.into());
 }
 
 #[test]
@@ -2561,7 +2561,7 @@ fn gas() {
         Operation::Return,
     ];
     let (env, mut db) = default_env_and_db_setup(operations);
-    run_program_assert_num_result(env, db, (957_999_u64).into());
+    run_program_assert_num_result(env, db, (999958000_u64).into());
 }
 
 #[test]

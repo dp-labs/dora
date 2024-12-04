@@ -31,6 +31,7 @@ use melior::{
 };
 use num_bigint::BigUint;
 use program::{stack_io, CompileOptions};
+use revmc::OpcodeInfo;
 use std::collections::BTreeMap;
 pub mod backend;
 pub(crate) mod conversion;
@@ -176,11 +177,11 @@ impl<'c> EVMCompiler<'c> {
         if op_info.is_unknown() || op_info.is_disabled() {
             return Self::invalid_with_error_code(ctx, region, ExitStatusCode::OpcodeNotFound);
         }
-        match op {
+        let (mut block_start, block_end) = match &op {
             Operation::Add => EVMCompiler::add(ctx, region),
             Operation::Mul => EVMCompiler::mul(ctx, region),
             Operation::Push0 => EVMCompiler::push(ctx, region, BigUint::ZERO),
-            Operation::Push((_, x)) => EVMCompiler::push(ctx, region, x),
+            Operation::Push((_, x)) => EVMCompiler::push(ctx, region, x.clone()),
             Operation::Sub => EVMCompiler::sub(ctx, region),
             Operation::Div => EVMCompiler::udiv(ctx, region),
             Operation::Sdiv => EVMCompiler::sdiv(ctx, region),
@@ -241,16 +242,16 @@ impl<'c> EVMCompiler<'c> {
             Operation::Sstore => EVMCompiler::sstore(ctx, region),
             Operation::Jump => EVMCompiler::jump(ctx, region),
             Operation::Jumpi => EVMCompiler::jumpi(ctx, region),
-            Operation::PC { pc } => EVMCompiler::pc(ctx, region, pc),
+            Operation::PC { pc } => EVMCompiler::pc(ctx, region, *pc),
             Operation::Msize => EVMCompiler::msize(ctx, region),
             Operation::Gas => EVMCompiler::gas(ctx, region),
-            Operation::Jumpdest { pc } => EVMCompiler::jumpdest(ctx, region, pc),
+            Operation::Jumpdest { pc } => EVMCompiler::jumpdest(ctx, region, *pc),
             Operation::Tload => EVMCompiler::tload(ctx, region),
             Operation::Tstore => EVMCompiler::tstore(ctx, region),
             Operation::Mcopy => EVMCompiler::mcopy(ctx, region),
-            Operation::Dup(n) => EVMCompiler::dup(ctx, region, n.into()),
-            Operation::Swap(n) => EVMCompiler::swap(ctx, region, n.into()),
-            Operation::Log(x) => EVMCompiler::log(ctx, region, x),
+            Operation::Dup(n) => EVMCompiler::dup(ctx, region, (*n).into()),
+            Operation::Swap(n) => EVMCompiler::swap(ctx, region, (*n).into()),
+            Operation::Log(x) => EVMCompiler::log(ctx, region, *x),
             Operation::Create => EVMCompiler::create(ctx, region),
             Operation::Call => EVMCompiler::call(ctx, region),
             Operation::CallCode => EVMCompiler::callcode(ctx, region),
@@ -262,7 +263,152 @@ impl<'c> EVMCompiler<'c> {
             Operation::Invalid => EVMCompiler::invalid(ctx, region),
             Operation::Stop => EVMCompiler::stop(ctx, region),
             Operation::SelfDestruct => EVMCompiler::selfdestruct(ctx, region),
+        }?;
+        // FIXME : alter below hardcoded line with eof checks in Program in the future
+        let is_eof = false;
+        // Stack overflow/underflow check.
+        if !is_eof && options.stack_bound_checks {
+            block_start = Self::stack_bound_checks_block(ctx, region, block_start, &op)?;
         }
+        // Static gas metering needs to be done before stack checking.
+        if options.gas_metering {
+            block_start = Self::gas_metering_block(ctx, region, block_start, &op_info)?;
+        }
+        Ok((block_start, block_end))
+    }
+
+    fn stack_bound_checks_block<'r>(
+        ctx: &mut CtxType<'c>,
+        region: &'r Region<'c>,
+        block_start: BlockRef<'r, 'c>,
+        op: &Operation,
+    ) -> Result<BlockRef<'r, 'c>> {
+        let (i, o) = stack_io(op);
+        let diff = o as i64 - i as i64;
+        let may_underflow = i > 0;
+        let may_overflow = diff > 0;
+        let stack_check_block = region.append_block(Block::new(&[]));
+        let builder = OpBuilder::new_with_block(ctx.context, stack_check_block);
+        let location = builder.get_insert_location();
+        let stack_size_ptr =
+            builder.make(builder.addressof(STACK_SIZE_GLOBAL, builder.ptr_ty()))?;
+        let stack_max_size = builder.make(builder.iconst_64(MAX_STACK_SIZE as i64))?;
+        let size_before = builder.make(builder.load(stack_size_ptr, builder.intrinsics.i64_ty))?;
+        let size_after = builder.make(arith::addi(
+            size_before,
+            builder.make(builder.iconst_64(diff))?,
+            location,
+        ))?;
+        // Check potential underflow/overflow
+        if may_underflow && may_overflow {
+            // Check underflow
+            let i = builder.make(builder.iconst_64(i as i64))?;
+            let underflow = builder.make(builder.icmp(IntCC::UnsignedLessThan, size_before, i))?;
+            // Check overflow
+            let overflow =
+                builder.make(builder.icmp(IntCC::UnsignedLessThan, stack_max_size, size_after))?;
+            // Update the stack length for this operation.
+            builder.create(builder.store(size_after, stack_size_ptr));
+            // Whether revert
+            let revert = builder.make(arith::xori(underflow, overflow, location))?;
+            let code =
+                builder.make(builder.iconst_8(ExitStatusCode::StackOverflow.to_u8() as i8))?;
+            builder.create(cf::cond_br(
+                ctx.context,
+                revert,
+                &ctx.revert_block,
+                &block_start,
+                &[],
+                &[code],
+                location,
+            ));
+        } else if may_underflow {
+            // Update the stack length for this operation.
+            builder.create(builder.store(size_after, stack_size_ptr));
+            // Whether revert (or underflow)
+            let i = builder.make(builder.iconst_64(i as i64))?;
+            let revert = builder.make(builder.icmp(IntCC::UnsignedLessThan, size_before, i))?;
+
+            let code =
+                builder.make(builder.iconst_8(ExitStatusCode::StackUnderflow.to_u8() as i8))?;
+            builder.create(cf::cond_br(
+                ctx.context,
+                revert,
+                &ctx.revert_block,
+                &block_start,
+                &[],
+                &[code],
+                location,
+            ));
+        } else if may_overflow {
+            // Update the stack length for this operation.
+            builder.create(builder.store(size_after, stack_size_ptr));
+            // Whether revert (or overflow)
+            let revert =
+                builder.make(builder.icmp(IntCC::UnsignedLessThan, stack_max_size, size_after))?;
+
+            let code =
+                builder.make(builder.iconst_8(ExitStatusCode::StackOverflow.to_u8() as i8))?;
+            builder.create(cf::cond_br(
+                ctx.context,
+                revert,
+                &ctx.revert_block,
+                &block_start,
+                &[],
+                &[code],
+                location,
+            ));
+        } else {
+            // Update the stack length for this operation.
+            builder.create(builder.store(size_after, stack_size_ptr));
+            builder.create(cf::br(&block_start, &[], location));
+        }
+        Ok(stack_check_block)
+    }
+
+    fn gas_metering_block<'r>(
+        ctx: &mut CtxType<'c>,
+        region: &'r Region<'c>,
+        block_start: BlockRef<'r, 'c>,
+        op_info: &OpcodeInfo,
+    ) -> Result<BlockRef<'r, 'c>> {
+        let base_gas = op_info.base_gas();
+        let gas_check_block = region.append_block(Block::new(&[]));
+        let update_gas_remaining_block = region.append_block(Block::new(&[]));
+        let builder = OpBuilder::new_with_block(ctx.context, gas_check_block);
+        let location = builder.get_insert_location();
+        // Get address of gas counter global
+        let gas_counter_ptr =
+            builder.make(builder.addressof(GAS_COUNTER_GLOBAL, builder.ptr_ty()))?;
+        let gas_counter = builder.make(builder.load(gas_counter_ptr, builder.intrinsics.i64_ty))?;
+        let gas_value = builder.make(builder.iconst_64(base_gas as i64))?;
+        let flag = builder.make(arith::cmpi(
+            builder.context(),
+            arith::CmpiPredicate::Uge,
+            gas_counter,
+            gas_value,
+            location,
+        ))?;
+        builder.create(cf::cond_br(
+            builder.context(),
+            flag,
+            &update_gas_remaining_block,
+            &ctx.revert_block,
+            &[],
+            &[builder.make(builder.iconst_8(ExitStatusCode::OutOfGas.to_u8() as i8))?],
+            location,
+        ));
+        let builder = OpBuilder::new_with_block(ctx.context, update_gas_remaining_block);
+        let new_gas_counter = builder.make(arith::subi(gas_counter, gas_value, location))?;
+        builder.create(llvm::store(
+            builder.context(),
+            new_gas_counter,
+            gas_counter_ptr,
+            location,
+            LoadStoreOptions::default(),
+        ));
+        builder.create(cf::br(&block_start, &[], location));
+        Ok(gas_check_block)
     }
 
     fn compile_module(
@@ -302,108 +448,14 @@ impl<'c> EVMCompiler<'c> {
         let main_region = main_func.region(0)?;
 
         let setup_block = main_region.append_block(Block::new(&[]));
-        // FIXME : alter below hardcoded line with eof checks in Program in the future
-        let is_eof = false;
+
         let mut ctx = CtxType::new(self.ctx, module, &main_region, &setup_block, program)?;
         let mut last_block = setup_block;
-        let builder = OpBuilder::new_with_block(context, last_block);
-        let stack_size_ptr =
-            builder.make(builder.addressof(STACK_SIZE_GLOBAL, builder.ptr_ty()))?;
-        let stack_max_size = builder.make(builder.iconst_64(MAX_STACK_SIZE as i64))?;
         // Generate code for the program
         for op in &ctx.program.operations {
             let (block_start, block_end) =
                 EVMCompiler::generate_code_for_op(&mut ctx, &main_region, op.clone(), options)?;
-            let (i, o) = stack_io(op);
-            let diff = o as i64 - i as i64;
-            let may_underflow = i > 0;
-            let may_overflow = diff > 0;
-
-            // If the opcode is non-eof format, check the stack overflow/underflow
-            if !is_eof && self.stack_bound_checks {
-                let builder = OpBuilder::new_with_block(context, last_block);
-                let size_before =
-                    builder.make(builder.load(stack_size_ptr, builder.intrinsics.i64_ty))?;
-                let size_after = builder.make(arith::addi(
-                    size_before,
-                    builder.make(builder.iconst_64(diff))?,
-                    location,
-                ))?;
-                // Check potential underflow/overflow
-                if may_underflow && may_overflow {
-                    // Check underflow
-                    let i = builder.make(builder.iconst_64(i as i64))?;
-                    let underflow =
-                        builder.make(builder.icmp(IntCC::UnsignedLessThan, size_before, i))?;
-                    // Check overflow
-                    let overflow = builder.make(builder.icmp(
-                        IntCC::UnsignedLessThan,
-                        stack_max_size,
-                        size_after,
-                    ))?;
-                    // Update the stack length for this operation.
-                    builder.create(builder.store(size_after, stack_size_ptr));
-                    // Whether revert
-                    let revert = builder.make(arith::xori(underflow, overflow, location))?;
-                    let code = builder
-                        .make(builder.iconst_8(ExitStatusCode::StackOverflow.to_u8() as i8))?;
-                    builder.create(cf::cond_br(
-                        context,
-                        revert,
-                        &ctx.revert_block,
-                        &block_start,
-                        &[],
-                        &[code],
-                        location,
-                    ));
-                } else if may_underflow {
-                    // Update the stack length for this operation.
-                    builder.create(builder.store(size_after, stack_size_ptr));
-                    // Whether revert (or underflow)
-                    let i = builder.make(builder.iconst_64(i as i64))?;
-                    let revert =
-                        builder.make(builder.icmp(IntCC::UnsignedLessThan, size_before, i))?;
-
-                    let code = builder
-                        .make(builder.iconst_8(ExitStatusCode::StackUnderflow.to_u8() as i8))?;
-                    builder.create(cf::cond_br(
-                        context,
-                        revert,
-                        &ctx.revert_block,
-                        &block_start,
-                        &[],
-                        &[code],
-                        location,
-                    ));
-                } else if may_overflow {
-                    // Update the stack length for this operation.
-                    builder.create(builder.store(size_after, stack_size_ptr));
-                    // Whether revert (or overflow)
-                    let revert = builder.make(builder.icmp(
-                        IntCC::UnsignedLessThan,
-                        stack_max_size,
-                        size_after,
-                    ))?;
-
-                    let code = builder
-                        .make(builder.iconst_8(ExitStatusCode::StackOverflow.to_u8() as i8))?;
-                    builder.create(cf::cond_br(
-                        context,
-                        revert,
-                        &ctx.revert_block,
-                        &block_start,
-                        &[],
-                        &[code],
-                        location,
-                    ));
-                } else {
-                    // Update the stack length for this operation.
-                    builder.create(builder.store(size_after, stack_size_ptr));
-                    builder.create(cf::br(&block_start, &[], location));
-                }
-            } else {
-                last_block.append_operation(cf::br(&block_start, &[], location));
-            }
+            last_block.append_operation(cf::br(&block_start, &[], location));
             last_block = block_end;
         }
         // Deal jump operations
@@ -426,16 +478,15 @@ impl<'c> EVMCompiler<'c> {
             .create(builder.iconst(builder.intrinsics.i8_ty, code.to_u8() as i64))
             .result(0)?
             .into();
+
+        let gas_counter_ptr =
+            builder.make(builder.addressof(GAS_COUNTER_GLOBAL, builder.ptr_ty()))?;
+        let gas_counter = builder.make(builder.load(gas_counter_ptr, builder.intrinsics.i64_ty))?;
+
         builder.create(func::call(
             builder.context(),
             FlatSymbolRefAttribute::new(builder.context(), symbols::WRITE_RESULT),
-            &[
-                ctx.values.syscall_ctx,
-                zero,
-                zero,
-                ctx.values.remaining_gas,
-                reason,
-            ],
+            &[ctx.values.syscall_ctx, zero, zero, gas_counter, reason],
             &[builder.ptr_ty()],
             builder.get_insert_location(),
         ));
@@ -534,9 +585,6 @@ pub struct CtxType<'c> {
 pub struct CtxValues<'c> {
     /// The system call context value used during EVM execution.
     pub syscall_ctx: Value<'c, 'c>,
-
-    /// The remaining gas value, which controls the computational cost during EVM execution.
-    pub remaining_gas: Value<'c, 'c>,
 }
 
 impl<'c> CtxType<'c> {
@@ -576,22 +624,14 @@ impl<'c> CtxType<'c> {
             .gas_counter(initial_gas)?
             .declare_symbols()?;
 
-        let remaining_gas = initial_gas;
-        let revert_block = region.append_block(revert_block(
-            &context.mlir_context,
-            syscall_ctx,
-            remaining_gas,
-        )?);
+        let revert_block = region.append_block(revert_block(&context.mlir_context, syscall_ctx)?);
         let uint256 = op_builder.intrinsics.i256_ty;
         let jumptable_block = region.append_block(Block::new(&[(uint256, location)]));
 
         Ok(CtxType {
             context: &context.mlir_context,
             program,
-            values: CtxValues {
-                syscall_ctx,
-                remaining_gas,
-            },
+            values: CtxValues { syscall_ctx },
             revert_block,
             jumptable_block,
             jumpdest_blocks: Default::default(),
@@ -714,11 +754,7 @@ impl<'c> CtxType<'c> {
 /// - Creation of a reason constant based on the exit status code for errors.
 /// - A call to `WRITE_RESULT` with the syscall context and error information.
 /// - A return operation that provides the reason for the revert.
-pub fn revert_block<'c>(
-    context: &'c MLIRContext,
-    syscall_ctx: Value<'c, 'c>,
-    _remaining_gas: Value<'c, 'c>,
-) -> Result<Block<'c>> {
+pub fn revert_block<'c>(context: &'c MLIRContext, syscall_ctx: Value<'c, 'c>) -> Result<Block<'c>> {
     let builder = OpBuilder::new(context);
     let block = Block::new(&[(builder.intrinsics.i8_ty, builder.unknown_loc())]);
     let location = builder.unknown_loc();
@@ -729,12 +765,19 @@ pub fn revert_block<'c>(
         .into();
     let reason = block.argument(0)?.into();
 
-    // TODO: check remaining gas.
+    let gas_counter_ptr = block
+        .append_operation(builder.addressof(GAS_COUNTER_GLOBAL, builder.ptr_ty()))
+        .result(0)?
+        .into();
+    let gas_counter = block
+        .append_operation(builder.load(gas_counter_ptr, builder.intrinsics.i64_ty))
+        .result(0)?
+        .into();
 
     block.append_operation(func::call(
         context,
         FlatSymbolRefAttribute::new(context, symbols::WRITE_RESULT),
-        &[syscall_ctx, zero, zero, zero, reason],
+        &[syscall_ctx, zero, zero, gas_counter, reason],
         &[builder.ptr_ty()],
         location,
     ));
