@@ -405,6 +405,21 @@ impl<'c, 'a> OpBuilder<'c, 'a> {
         ))
     }
 
+    /// Creates a 256-bit integer minimum constant operation with the specified `BigUint` value.
+    ///
+    /// # Returns
+    /// A result containing a minimum 256-bit integer constant operation or an error.
+    #[inline]
+    pub fn iconst_256_min(&self) -> Result<Op<'c, '_>> {
+        Ok(arith::constant(
+            self.context(),
+            Attribute::parse(self.context(), "-57896044618658097711785492504343953926634992332820282019728792003956564819968 : i256").ok_or(
+                CompileError::Codegen("can't parse the i256 min value".to_string()),
+            )?,
+            self.unknown_loc(),
+        ))
+    }
+
     /// Creates an 1-bit integer constant operation with the specified value.
     ///
     /// # Parameters
