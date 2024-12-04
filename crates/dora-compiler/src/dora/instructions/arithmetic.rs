@@ -72,10 +72,10 @@ impl<'c> ConversionPass<'c> {
                 let rewriter = Rewriter::new_with_block(context, block);
                 // i256::min 0x80000000_00000000_00000000_00000000
                 let i256_min = rewriter.make(rewriter.iconst_256_min()?)?;
-                let l_is_i256_min = rewriter.make(rewriter.icmp(IntCC::Equal, r, i256_min))?;
-                let h_is_neg1 = rewriter.make(rewriter.icmp_imm(IntCC::Equal, r, -1)?)?;
+                let l_is_i256_min = rewriter.make(rewriter.icmp(IntCC::Equal, l, i256_min))?;
+                let r_is_neg1 = rewriter.make(rewriter.icmp_imm(IntCC::Equal, r, -1)?)?;
                 let is_sdiv_edge_case =
-                    rewriter.make(arith::andi(l_is_i256_min, h_is_neg1, location))?;
+                    rewriter.make(arith::andi(l_is_i256_min, r_is_neg1, location))?;
                 let result = rewriter.make(arith::divsi(l, r, location))?;
                 rewriter.create(scf::r#yield(
                     &[rewriter.make(arith::select(
