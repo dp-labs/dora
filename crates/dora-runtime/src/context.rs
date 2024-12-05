@@ -16,6 +16,7 @@ use bytes::Bytes;
 use dora_primitives::spec::SpecId;
 use dora_primitives::{Bytes32, EVMAddress as Address, B256, H160, U256};
 use sha3::{Digest, Keccak256};
+use std::collections::HashSet;
 use std::sync::{Arc, RwLock};
 
 /// Function type for the main entrypoint of the generated code.
@@ -76,6 +77,10 @@ pub struct InnerContext {
     pub is_eof_init: bool,
     /// VM spec id
     pub spec_id: SpecId,
+    /// Warm loaded addresses are used to check if loaded address
+    /// should be considered cold or warm loaded when the account
+    /// is first accessed.
+    pub warm_preloaded_addresses: HashSet<Address>,
 }
 
 /// A frame of execution representing a single call within a smart contract execution context.
@@ -949,7 +954,7 @@ impl<DB: Database> RuntimeContext<DB> {
     ) -> *mut Result<()> {
         let mut host = self.host.write().unwrap();
         let addr = host.env().tx.transact_to;
-        let result = host.get_storage(&addr, stg_key);
+        let result = host.sload(&addr, stg_key);
         *stg_value = result.value;
 
         let gas_cost = gas::sload_cost(self.inner_context.spec_id, result.is_cold);
@@ -963,7 +968,7 @@ impl<DB: Database> RuntimeContext<DB> {
     ) -> *mut Result<()> {
         let mut host = self.host.write().unwrap();
         let addr = host.env().tx.transact_to;
-        let result = host.set_storage(addr, *stg_key, *stg_value);
+        let result = host.sstore(addr, *stg_key, *stg_value);
 
         let original = result.original_value.to_u256();
         let current = result.present_value.to_u256();
@@ -1130,7 +1135,7 @@ impl<DB: Database> RuntimeContext<DB> {
     /// This function reads an address pointer and set the balance of the address to the same pointer
     pub extern "C" fn store_in_balance(&mut self, address: &mut Bytes32) -> *mut Result<()> {
         let addr = address.to_address();
-        let result = self.host.read().unwrap().get_balance(&addr);
+        let result = self.host.read().unwrap().balance(&addr);
         *address = result.value;
         let gas_cost = gas::balance_gas_cost(self.inner_context.spec_id, result.is_cold);
 
@@ -1375,7 +1380,7 @@ impl<DB: Database> RuntimeContext<DB> {
     ) -> *mut Result<()> {
         let mut host = self.host.write().unwrap();
         let addr = host.env().tx.transact_to;
-        let result = host.get_transient_storage(&addr, stg_key);
+        let result = host.tload(&addr, stg_key);
         *stg_value = result;
         Box::into_raw(Box::new(Result::success(())))
     }
@@ -1387,7 +1392,7 @@ impl<DB: Database> RuntimeContext<DB> {
     ) -> *mut Result<()> {
         let mut host = self.host.write().unwrap();
         let addr = host.env().tx.transact_to;
-        host.set_transient_storage(&addr, *stg_key, *stg_value);
+        host.tstore(&addr, *stg_key, *stg_value);
         Box::into_raw(Box::new(Result::success(())))
     }
 }

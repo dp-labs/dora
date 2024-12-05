@@ -159,6 +159,57 @@ pub struct StorageSlot {
     pub is_cold: bool,
 }
 
+impl StorageSlot {
+    /// Creates a new _unchanged_ `StorageSlot` for the given value.
+    #[inline]
+    pub fn new(original: U256) -> Self {
+        Self {
+            original_value: original,
+            present_value: original,
+            is_cold: false,
+        }
+    }
+
+    /// Creates a new _changed_ `StorageSlot`.
+    #[inline]
+    pub fn new_changed(original_value: U256, present_value: U256) -> Self {
+        Self {
+            original_value,
+            present_value,
+            is_cold: false,
+        }
+    }
+    /// Returns true if the present value differs from the original value
+    #[inline]
+    pub fn is_changed(&self) -> bool {
+        self.original_value != self.present_value
+    }
+
+    /// Returns the original value of the storage slot.
+    #[inline]
+    pub fn original_value(&self) -> U256 {
+        self.original_value
+    }
+
+    /// Returns the current value of the storage slot.
+    #[inline]
+    pub fn present_value(&self) -> U256 {
+        self.present_value
+    }
+
+    /// Marks the storage slot as cold.
+    #[inline]
+    pub fn mark_cold(&mut self) {
+        self.is_cold = true;
+    }
+
+    /// Marks the storage slot as warm and returns a bool indicating if it was previously cold.
+    #[inline]
+    pub fn mark_warm(&mut self) -> bool {
+        core::mem::replace(&mut self.is_cold, false)
+    }
+}
+
 impl From<U256> for StorageSlot {
     /// Converts a `U256` value directly into a `StorageSlot`.
     ///
