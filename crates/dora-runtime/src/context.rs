@@ -1,4 +1,4 @@
-use crate::account::AccountInfo;
+use crate::account::{AccountInfo, EMPTY_CODE_HASH_BYTES};
 use crate::constants::gas_cost::MAX_CODE_SIZE;
 use crate::constants::{call_opcode, gas_cost, precompiles, CallType, CALL_STACK_LIMIT};
 use crate::db::{Database, StorageSlot};
@@ -322,6 +322,12 @@ impl<DB: Database> RuntimeContext<DB> {
                 data: logdata.clone(),
             })
             .collect()
+    }
+
+    /// Retrieves the memory used during execution.
+    #[inline]
+    pub fn memory(&self) -> &[u8] {
+        &self.inner_context.memory
     }
 
     /// Retrieves the result of the execution, including gas usage, return values, and the resulting state changes.
@@ -829,18 +835,16 @@ impl<DB: Database> RuntimeContext<DB> {
         Box::into_raw(Box::new(Result::success(())))
     }
 
-    pub extern "C" fn keccak256_hasher(
-        &mut self,
-        offset: u64,
-        size: u64,
-        hash_ptr: &mut Bytes32,
-    ) -> *mut Result<()> {
-        let data = &self.inner_context.memory[offset as usize..offset as usize + size as usize];
-        let mut hasher = Keccak256::new();
-        hasher.update(data);
-        let result = hasher.finalize();
-        *hash_ptr = Bytes32::from_be_bytes(result.into());
-        Box::into_raw(Box::new(Result::success(())))
+    pub extern "C" fn keccak256_hasher(&mut self, offset: u64, size: u64, hash_ptr: &mut Bytes32) {
+        if size == 0 {
+            *hash_ptr = Bytes32::from_be_bytes(EMPTY_CODE_HASH_BYTES);
+        } else {
+            let data = &self.inner_context.memory[offset as usize..offset as usize + size as usize];
+            let mut hasher = Keccak256::new();
+            hasher.update(data);
+            let result = hasher.finalize();
+            *hash_ptr = Bytes32::from_be_bytes(result.into());
+        }
     }
 
     pub extern "C" fn callvalue(&self, value: &mut Bytes32) -> *mut Result<()> {
@@ -956,11 +960,7 @@ impl<DB: Database> RuntimeContext<DB> {
         Box::into_raw(Box::new(Result::success_with_gas((), gas_cost)))
     }
 
-    pub extern "C" fn sstore(
-        &mut self,
-        stg_key: &Bytes32,
-        stg_value: &mut Bytes32,
-    ) -> *mut Result<()> {
+    pub extern "C" fn sstore(&mut self, stg_key: &Bytes32, stg_value: &Bytes32) -> *mut Result<()> {
         let mut host = self.host.write().unwrap();
         let addr = host.env().tx.transact_to;
         let result = host.set_storage(addr, *stg_key, *stg_value);
@@ -1317,7 +1317,11 @@ impl<DB: Database> RuntimeContext<DB> {
         }
         let available_size = memory_len - offset;
         let actual_size = size.min(available_size);
-        let bytecode = self.inner_context.memory[offset..offset + actual_size].to_vec();
+        let bytecode = if size == 0 {
+            vec![]
+        } else {
+            self.inner_context.memory[offset..offset + actual_size].to_vec()
+        };
         let value_u256 = value.to_u256();
         match self.create_contract(&bytecode, remaining_gas, value_u256, salt) {
             Ok(addr) => {

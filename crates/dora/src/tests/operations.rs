@@ -5,12 +5,14 @@ use std::sync::{Arc, RwLock};
 
 use crate::{run_evm, tests::INIT_GAS};
 use crate::{run_with_context, EVMTransaction};
-use bytes::Bytes;
+
 use dora_compiler::evm::program::{Operation, Program};
 use dora_primitives::spec::SpecId;
 use dora_primitives::{Address, Bytecode, Bytes32, B256, H160};
+use dora_runtime::constants::MAX_STACK_SIZE;
 use dora_runtime::context::CallFrame;
 use dora_runtime::host::DummyHost;
+use dora_runtime::result::{ExecutionResult, ResultAndState};
 use dora_runtime::{
     account::EMPTY_CODE_HASH_STR,
     context::{compute_contract_address, RuntimeContext},
@@ -19,6 +21,11 @@ use dora_runtime::{
 };
 use num_bigint::{BigInt, BigUint};
 use ruint::aliases::U256;
+
+use super::utils::{
+    biguint_256_from_bigint, default_env_and_db_setup, run_program_assert_halt,
+    run_program_assert_num_result, run_program_assert_revert,
+};
 
 const CREATE_ADDRESS_U256_STR: &str = "471519750947579038811315280252789814448584561545";
 
@@ -31,7 +38,7 @@ fn add() {
         Operation::Add,
         // Return result
         Operation::Push0,
-        Operation::Mstore,
+        Operation::MStore,
         Operation::Push((1, 32_u8.into())),
         Operation::Push0,
         Operation::Return,
@@ -49,7 +56,7 @@ fn add_overflow_u64() {
         Operation::Add,
         // Return result
         Operation::Push0,
-        Operation::Mstore,
+        Operation::MStore,
         Operation::Push((1, 32_u8.into())),
         Operation::Push0,
         Operation::Return,
@@ -67,7 +74,7 @@ fn add_overflow_u128() {
         Operation::Add,
         // Return result
         Operation::Push0,
-        Operation::Mstore,
+        Operation::MStore,
         Operation::Push((1, 32_u8.into())),
         Operation::Push0,
         Operation::Return,
@@ -85,7 +92,7 @@ fn mul() {
         Operation::Mul,
         // Return result
         Operation::Push0,
-        Operation::Mstore,
+        Operation::MStore,
         Operation::Push((1, 32_u8.into())),
         Operation::Push0,
         Operation::Return,
@@ -103,7 +110,7 @@ fn mul_large() {
         Operation::Mul,
         // Return result
         Operation::Push0,
-        Operation::Mstore,
+        Operation::MStore,
         Operation::Push((1, 32_u8.into())),
         Operation::Push0,
         Operation::Return,
@@ -121,7 +128,7 @@ fn mul_overflow() {
         Operation::Mul,
         // Return result
         Operation::Push0,
-        Operation::Mstore,
+        Operation::MStore,
         Operation::Push((1, 32_u8.into())),
         Operation::Push0,
         Operation::Return,
@@ -139,7 +146,7 @@ fn sub() {
         Operation::Sub,
         // Return result
         Operation::Push0,
-        Operation::Mstore,
+        Operation::MStore,
         Operation::Push((1, 32_u8.into())),
         Operation::Push0,
         Operation::Return,
@@ -157,7 +164,7 @@ fn sub_underflow() {
         Operation::Sub,
         // Return result
         Operation::Push0,
-        Operation::Mstore,
+        Operation::MStore,
         Operation::Push((1, 32_u8.into())),
         Operation::Push0,
         Operation::Return,
@@ -179,7 +186,7 @@ fn sub_underflow_u64() {
         Operation::Sub,
         // Return result
         Operation::Push0,
-        Operation::Mstore,
+        Operation::MStore,
         Operation::Push((1, 32_u8.into())),
         Operation::Push0,
         Operation::Return,
@@ -201,7 +208,7 @@ fn div() {
         Operation::Div,
         // Return result
         Operation::Push0,
-        Operation::Mstore,
+        Operation::MStore,
         Operation::Push((1, 32_u8.into())),
         Operation::Push0,
         Operation::Return,
@@ -219,7 +226,7 @@ fn div_by_zero() {
         Operation::Div,
         // Return result
         Operation::Push0,
-        Operation::Mstore,
+        Operation::MStore,
         Operation::Push((1, 32_u8.into())),
         Operation::Push0,
         Operation::Return,
@@ -237,7 +244,7 @@ fn div_zero() {
         Operation::Div,
         // Return result
         Operation::Push0,
-        Operation::Mstore,
+        Operation::MStore,
         Operation::Push((1, 32_u8.into())),
         Operation::Push0,
         Operation::Return,
@@ -255,7 +262,7 @@ fn mod_by_zero() {
         Operation::Mod,
         // Return result
         Operation::Push0,
-        Operation::Mstore,
+        Operation::MStore,
         Operation::Push((1, 32_u8.into())),
         Operation::Push0,
         Operation::Return,
@@ -273,7 +280,7 @@ fn mod_zero() {
         Operation::Mod,
         // Return result
         Operation::Push0,
-        Operation::Mstore,
+        Operation::MStore,
         Operation::Push((1, 32_u8.into())),
         Operation::Push0,
         Operation::Return,
@@ -288,10 +295,10 @@ fn sdiv_positive() {
     let operations = vec![
         Operation::Push((1_u8, b.clone())),
         Operation::Push((1_u8, a.clone())),
-        Operation::Sdiv,
+        Operation::SDiv,
         // Return result
         Operation::Push0,
-        Operation::Mstore,
+        Operation::MStore,
         Operation::Push((1, 32_u8.into())),
         Operation::Push0,
         Operation::Return,
@@ -317,10 +324,10 @@ fn sdiv_negative() {
                 0xFF,
             ]),
         )),
-        Operation::Sdiv,
+        Operation::SDiv,
         // Return result
         Operation::Push0,
-        Operation::Mstore,
+        Operation::MStore,
         Operation::Push((1, 32_u8.into())),
         Operation::Push0,
         Operation::Return,
@@ -338,7 +345,7 @@ fn modulus() {
         Operation::Mod,
         // Return result
         Operation::Push0,
-        Operation::Mstore,
+        Operation::MStore,
         Operation::Push((1, 32_u8.into())),
         Operation::Push0,
         Operation::Return,
@@ -356,7 +363,7 @@ fn modulus_large_numbers() {
         Operation::Mod,
         // Return result
         Operation::Push0,
-        Operation::Mstore,
+        Operation::MStore,
         Operation::Push((1, 32_u8.into())),
         Operation::Push0,
         Operation::Return,
@@ -374,7 +381,7 @@ fn smod() {
         Operation::SMod,
         // Return result
         Operation::Push0,
-        Operation::Mstore,
+        Operation::MStore,
         Operation::Push((1, 32_u8.into())),
         Operation::Push0,
         Operation::Return,
@@ -395,7 +402,7 @@ fn smod_negative() {
         Operation::SMod,
         // Return result
         Operation::Push0,
-        Operation::Mstore,
+        Operation::MStore,
         Operation::Push((1, 32_u8.into())),
         Operation::Push0,
         Operation::Return,
@@ -415,10 +422,10 @@ fn addmod() {
         Operation::Push((1_u8, den.clone())),
         Operation::Push((1_u8, b.clone())),
         Operation::Push((1_u8, a.clone())),
-        Operation::Addmod,
+        Operation::AddMod,
         // Return result
         Operation::Push0,
-        Operation::Mstore,
+        Operation::MStore,
         Operation::Push((1, 32_u8.into())),
         Operation::Push0,
         Operation::Return,
@@ -438,10 +445,10 @@ fn addmod_large_mod() {
         Operation::Push((32_u8, den.clone())),
         Operation::Push((32_u8, b.clone())),
         Operation::Push((32_u8, a.clone())),
-        Operation::Addmod,
+        Operation::AddMod,
         // Return result
         Operation::Push0,
-        Operation::Mstore,
+        Operation::MStore,
         Operation::Push((1, 32_u8.into())),
         Operation::Push0,
         Operation::Return,
@@ -461,10 +468,10 @@ fn mulmod() {
         Operation::Push((1_u8, den.clone())),
         Operation::Push((1_u8, b.clone())),
         Operation::Push((1_u8, a.clone())),
-        Operation::Mulmod,
+        Operation::MulMod,
         // Return result
         Operation::Push0,
-        Operation::Mstore,
+        Operation::MStore,
         Operation::Push((1, 32_u8.into())),
         Operation::Push0,
         Operation::Return,
@@ -484,10 +491,10 @@ fn mulmod_zero_mod() {
         Operation::Push((32_u8, den.clone())),
         Operation::Push((32_u8, b.clone())),
         Operation::Push((32_u8, a.clone())),
-        Operation::Mulmod,
+        Operation::MulMod,
         // Return result
         Operation::Push0,
-        Operation::Mstore,
+        Operation::MStore,
         Operation::Push((1, 32_u8.into())),
         Operation::Push0,
         Operation::Return,
@@ -505,7 +512,7 @@ fn exp() {
         Operation::Exp,
         // Return result
         Operation::Push0,
-        Operation::Mstore,
+        Operation::MStore,
         Operation::Push((1, 32_u8.into())),
         Operation::Push0,
         Operation::Return,
@@ -523,7 +530,7 @@ fn exp_large_base() {
         Operation::Exp,
         // Return result
         Operation::Push0,
-        Operation::Mstore,
+        Operation::MStore,
         Operation::Push((1, 32_u8.into())),
         Operation::Push0,
         Operation::Return,
@@ -541,7 +548,7 @@ fn exp_edge_case() {
         Operation::Exp,
         // Return result
         Operation::Push0,
-        Operation::Mstore,
+        Operation::MStore,
         Operation::Push((1, 32_u8.into())),
         Operation::Push0,
         Operation::Return,
@@ -559,7 +566,7 @@ fn signextend() {
         Operation::SignExtend,
         // Return result
         Operation::Push0,
-        Operation::Mstore,
+        Operation::MStore,
         Operation::Push((1, 32_u8.into())),
         Operation::Push0,
         Operation::Return,
@@ -577,7 +584,7 @@ fn lt() {
         Operation::Lt,
         // Return result
         Operation::Push0,
-        Operation::Mstore,
+        Operation::MStore,
         Operation::Push((1, 32_u8.into())),
         Operation::Push0,
         Operation::Return,
@@ -595,7 +602,7 @@ fn gt() {
         Operation::Gt,
         // Return result
         Operation::Push0,
-        Operation::Mstore,
+        Operation::MStore,
         Operation::Push((1, 32_u8.into())),
         Operation::Push0,
         Operation::Return,
@@ -613,7 +620,7 @@ fn eq_true() {
         Operation::Eq,
         // Return result
         Operation::Push0,
-        Operation::Mstore,
+        Operation::MStore,
         Operation::Push((1, 32_u8.into())),
         Operation::Push0,
         Operation::Return,
@@ -631,7 +638,7 @@ fn eq_false() {
         Operation::Eq,
         // Return result
         Operation::Push0,
-        Operation::Mstore,
+        Operation::MStore,
         Operation::Push((1, 32_u8.into())),
         Operation::Push0,
         Operation::Return,
@@ -647,7 +654,7 @@ fn iszero_true() {
         Operation::IsZero,
         // Return result
         Operation::Push0,
-        Operation::Mstore,
+        Operation::MStore,
         Operation::Push((1, 32_u8.into())),
         Operation::Push0,
         Operation::Return,
@@ -663,7 +670,7 @@ fn iszero_false() {
         Operation::IsZero,
         // Return result
         Operation::Push0,
-        Operation::Mstore,
+        Operation::MStore,
         Operation::Push((1, 32_u8.into())),
         Operation::Push0,
         Operation::Return,
@@ -680,7 +687,7 @@ fn and_identical_non_zero() {
         Operation::And,
         // Return result
         Operation::Push0,
-        Operation::Mstore,
+        Operation::MStore,
         Operation::Push((1, 32_u8.into())),
         Operation::Push0,
         Operation::Return,
@@ -697,7 +704,7 @@ fn and_zero_with_non_zero() {
         Operation::And,
         // Return result
         Operation::Push0,
-        Operation::Mstore,
+        Operation::MStore,
         Operation::Push((1, 32_u8.into())),
         Operation::Push0,
         Operation::Return,
@@ -720,7 +727,7 @@ fn and_zero_with_large() {
         Operation::And,
         // Return result
         Operation::Push0,
-        Operation::Mstore,
+        Operation::MStore,
         Operation::Push((1, 32_u8.into())),
         Operation::Push0,
         Operation::Return,
@@ -737,7 +744,7 @@ fn or_identical_non_zero() {
         Operation::Or,
         // Return result
         Operation::Push0,
-        Operation::Mstore,
+        Operation::MStore,
         Operation::Push((1, 32_u8.into())),
         Operation::Push0,
         Operation::Return,
@@ -754,7 +761,7 @@ fn or_zero_with_non_zero() {
         Operation::Or,
         // Return result
         Operation::Push0,
-        Operation::Mstore,
+        Operation::MStore,
         Operation::Push((1, 32_u8.into())),
         Operation::Push0,
         Operation::Return,
@@ -777,7 +784,7 @@ fn or_zero_with_large() {
         Operation::Or,
         // Return result
         Operation::Push0,
-        Operation::Mstore,
+        Operation::MStore,
         Operation::Push((1, 32_u8.into())),
         Operation::Push0,
         Operation::Return,
@@ -801,7 +808,7 @@ fn xor_non_zero() {
         Operation::Xor,
         // Return result
         Operation::Push0,
-        Operation::Mstore,
+        Operation::MStore,
         Operation::Push((1, 32_u8.into())),
         Operation::Push0,
         Operation::Return,
@@ -818,7 +825,7 @@ fn xor_zero_with_non_zero() {
         Operation::Xor,
         // Return result
         Operation::Push0,
-        Operation::Mstore,
+        Operation::MStore,
         Operation::Push((1, 32_u8.into())),
         Operation::Push0,
         Operation::Return,
@@ -839,7 +846,7 @@ fn xor_large_with_zero() {
         Operation::Xor,
         // Return result
         Operation::Push0,
-        Operation::Mstore,
+        Operation::MStore,
         Operation::Push((1, 32_u8.into())),
         Operation::Push0,
         Operation::Return,
@@ -855,7 +862,7 @@ fn not() {
         Operation::Not,
         // Return result
         Operation::Push0,
-        Operation::Mstore,
+        Operation::MStore,
         Operation::Push((1, 32_u8.into())),
         Operation::Push0,
         Operation::Return,
@@ -880,7 +887,7 @@ fn byte() {
         Operation::Byte,
         // Return result
         Operation::Push0,
-        Operation::Mstore,
+        Operation::MStore,
         Operation::Push((1, 32_u8.into())),
         Operation::Push0,
         Operation::Return,
@@ -897,7 +904,7 @@ fn shl() {
         Operation::Shl,
         // Return result
         Operation::Push0,
-        Operation::Mstore,
+        Operation::MStore,
         Operation::Push((1, 32_u8.into())),
         Operation::Push0,
         Operation::Return,
@@ -914,7 +921,7 @@ fn shr() {
         Operation::Shr,
         // Return result
         Operation::Push0,
-        Operation::Mstore,
+        Operation::MStore,
         Operation::Push((1, 32_u8.into())),
         Operation::Push0,
         Operation::Return,
@@ -931,7 +938,7 @@ fn sar() {
         Operation::Sar,
         // Return result
         Operation::Push0,
-        Operation::Mstore,
+        Operation::MStore,
         Operation::Push((1, 32_u8.into())),
         Operation::Push0,
         Operation::Return,
@@ -948,7 +955,7 @@ fn keccak256_empty_bytes() {
         Operation::Keccak256,
         // Return result
         Operation::Push0,
-        Operation::Mstore,
+        Operation::MStore,
         Operation::Push((1, 32_u8.into())),
         Operation::Push0,
         Operation::Return,
@@ -974,13 +981,13 @@ fn keccak256_padded_data() {
             ]),
         )),
         Operation::Push((1_u8, BigUint::from(0_u8))),
-        Operation::Mstore,
+        Operation::MStore,
         Operation::Push((1_u8, BigUint::from(4_u8))),
         Operation::Push((1_u8, BigUint::from(0_u8))),
         Operation::Keccak256,
         // Return result
         Operation::Push0,
-        Operation::Mstore,
+        Operation::MStore,
         Operation::Push((1, 32_u8.into())),
         Operation::Push0,
         Operation::Return,
@@ -1002,7 +1009,7 @@ fn keccak256_single_byte() {
         Operation::Keccak256,
         // Return result
         Operation::Push0,
-        Operation::Mstore,
+        Operation::MStore,
         Operation::Push((1, 32_u8.into())),
         Operation::Push0,
         Operation::Return,
@@ -1022,7 +1029,7 @@ fn address() {
         Operation::Address,
         // Return result
         Operation::Push0,
-        Operation::Mstore,
+        Operation::MStore,
         Operation::Push((1, 32_u8.into())),
         Operation::Push0,
         Operation::Return,
@@ -1038,7 +1045,7 @@ fn balance() {
         Operation::Balance,
         // Return result
         Operation::Push0,
-        Operation::Mstore,
+        Operation::MStore,
         Operation::Push((1, 32_u8.into())),
         Operation::Push0,
         Operation::Return,
@@ -1053,7 +1060,7 @@ fn origin() {
         Operation::Origin,
         // Return result
         Operation::Push0,
-        Operation::Mstore,
+        Operation::MStore,
         Operation::Push((1, 32_u8.into())),
         Operation::Push0,
         Operation::Return,
@@ -1071,7 +1078,7 @@ fn caller() {
         Operation::Caller,
         // Return result
         Operation::Push0,
-        Operation::Mstore,
+        Operation::MStore,
         Operation::Push((1, 32_u8.into())),
         Operation::Push0,
         Operation::Return,
@@ -1084,10 +1091,10 @@ fn caller() {
 #[test]
 fn callvalue() {
     let operations = vec![
-        Operation::Callvalue,
+        Operation::CallValue,
         // Return result
         Operation::Push0,
-        Operation::Mstore,
+        Operation::MStore,
         Operation::Push((1, 32_u8.into())),
         Operation::Push0,
         Operation::Return,
@@ -1100,10 +1107,10 @@ fn callvalue() {
 fn calldataload_zero_offset() {
     let operations = vec![
         Operation::Push((1_u8, BigUint::from(0_u8))),
-        Operation::CalldataLoad,
+        Operation::CallDataLoad,
         // Return result
         Operation::Push0,
-        Operation::Mstore,
+        Operation::MStore,
         Operation::Push((1, 32_u8.into())),
         Operation::Push0,
         Operation::Return,
@@ -1116,10 +1123,10 @@ fn calldataload_zero_offset() {
 fn calldataload_non_zero_offset() {
     let operations = vec![
         Operation::Push((1_u8, BigUint::from(100_u8))),
-        Operation::CalldataLoad,
+        Operation::CallDataLoad,
         // Return result
         Operation::Push0,
-        Operation::Mstore,
+        Operation::MStore,
         Operation::Push((1, 32_u8.into())),
         Operation::Push0,
         Operation::Return,
@@ -1134,7 +1141,7 @@ fn calldatasize() {
         Operation::CallDataSize,
         // Return result
         Operation::Push0,
-        Operation::Mstore,
+        Operation::MStore,
         Operation::Push((1, 32_u8.into())),
         Operation::Push0,
         Operation::Return,
@@ -1210,10 +1217,10 @@ fn calldatacopy_out_of_range() {
 #[test]
 fn codesize() {
     let operations = vec![
-        Operation::Codesize,
+        Operation::CodeSize,
         // Return result
         Operation::Push0,
-        Operation::Mstore,
+        Operation::MStore,
         Operation::Push((1, 32_u8.into())),
         Operation::Push0,
         Operation::Return,
@@ -1227,10 +1234,10 @@ fn codesize_with_push_pop() {
     let operations = vec![
         Operation::Push((1_u8, BigUint::from(0_u8))),
         Operation::Pop,
-        Operation::Codesize,
+        Operation::CodeSize,
         // Return result
         Operation::Push0,
-        Operation::Mstore,
+        Operation::MStore,
         Operation::Push((1, 32_u8.into())),
         Operation::Push0,
         Operation::Return,
@@ -1245,7 +1252,7 @@ fn codecopy() {
         Operation::Push((1_u8, BigUint::from(0_u8))),
         Operation::Push((1_u8, BigUint::from(0_u8))),
         Operation::Push((1_u8, BigUint::from(10_u8))),
-        Operation::Codecopy,
+        Operation::CodeCopy,
         // Return result
         Operation::Push((1, 32_u8.into())),
         Operation::Push0,
@@ -1268,14 +1275,21 @@ fn codecopy_with_large_value() {
         Operation::Push((1_u8, BigUint::from(32_u8))),
         Operation::Push((1_u8, BigUint::from(0_u8))),
         Operation::Push((1_u8, BigUint::from(0_u8))),
-        Operation::Codecopy,
+        Operation::CodeCopy,
         // Return result
         Operation::Push((1, 32_u8.into())),
         Operation::Push0,
         Operation::Return,
     ];
     let (env, mut db) = default_env_and_db_setup(operations);
-    run_program_assert_num_result(env, db, 0_u8.into());
+    run_program_assert_num_result(
+        env,
+        db,
+        BigUint::from_str(
+            "50208493039807347493768565078611515464268940091219712940177602988105906782208",
+        )
+        .unwrap(),
+    );
 }
 
 #[test]
@@ -1284,7 +1298,7 @@ fn codecopy_partial() {
         Operation::Push((1_u8, BigUint::from(0_u8))),
         Operation::Push((1_u8, BigUint::from(5_u8))),
         Operation::Push((1_u8, BigUint::from(5_u8))),
-        Operation::Codecopy,
+        Operation::CodeCopy,
         // Return result
         Operation::Push((1, 32_u8.into())),
         Operation::Push0,
@@ -1300,7 +1314,7 @@ fn codecopy_large_offset() {
         Operation::Push((1_u8, BigUint::from(0_u8))),
         Operation::Push((1_u8, BigUint::from(50_u8))),
         Operation::Push((1_u8, BigUint::from(10_u8))),
-        Operation::Codecopy,
+        Operation::CodeCopy,
         // Return result
         Operation::Push((1, 32_u8.into())),
         Operation::Push0,
@@ -1313,10 +1327,10 @@ fn codecopy_large_offset() {
 #[test]
 fn gasprice() {
     let operations = vec![
-        Operation::Gasprice,
+        Operation::GasPrice,
         // Return result
         Operation::Push0,
-        Operation::Mstore,
+        Operation::MStore,
         Operation::Push((1, 32_u8.into())),
         Operation::Push0,
         Operation::Return,
@@ -1336,7 +1350,7 @@ fn test_extcodesize() {
             ]),
         )),
         Operation::Push((1_u8, BigUint::from(0_u8))),
-        Operation::Mstore,
+        Operation::MStore,
         Operation::Push((
             32_u8,
             BigUint::from_bytes_be(&[
@@ -1345,15 +1359,15 @@ fn test_extcodesize() {
             ]),
         )),
         Operation::Push((1_u8, BigUint::from(32_u8))),
-        Operation::Mstore,
+        Operation::MStore,
         Operation::Push((1_u8, BigUint::from(41_u8))),
         Operation::Push((1_u8, BigUint::from(0_u8))),
         Operation::Push((1_u8, BigUint::from(0_u8))),
         Operation::Create,
-        Operation::ExtcodeSize,
+        Operation::ExtCodeSize,
         // Return result
         Operation::Push0,
-        Operation::Mstore,
+        Operation::MStore,
         Operation::Push((1, 32_u8.into())),
         Operation::Push0,
         Operation::Return,
@@ -1370,10 +1384,10 @@ fn test_extcodesize() {
 fn extcodesize_nonexistent_address() {
     let operations = vec![
         Operation::Push((20_u8, BigUint::from_bytes_be(&[0xde, 0xad, 0xbe, 0xef]))),
-        Operation::ExtcodeSize,
+        Operation::ExtCodeSize,
         // Return result
         Operation::Push0,
-        Operation::Mstore,
+        Operation::MStore,
         Operation::Push((1, 32_u8.into())),
         Operation::Push0,
         Operation::Return,
@@ -1386,10 +1400,10 @@ fn extcodesize_nonexistent_address() {
 fn extcodesize_zero_address() {
     let operations = vec![
         Operation::Push((20_u8, BigUint::from_bytes_be(&[0x00, 0x00, 0x00, 0x00]))),
-        Operation::ExtcodeSize,
+        Operation::ExtCodeSize,
         // Return result
         Operation::Push0,
-        Operation::Mstore,
+        Operation::MStore,
         Operation::Push((1, 32_u8.into())),
         Operation::Push0,
         Operation::Return,
@@ -1409,7 +1423,7 @@ fn extcodecopy_full() {
             ]),
         )),
         Operation::Push((1_u8, BigUint::from(0_u8))),
-        Operation::Mstore,
+        Operation::MStore,
         Operation::Push((
             32_u8,
             BigUint::from_bytes_be(&[
@@ -1418,26 +1432,26 @@ fn extcodecopy_full() {
             ]),
         )),
         Operation::Push((1_u8, BigUint::from(32_u8))),
-        Operation::Mstore,
+        Operation::MStore,
         Operation::Push((1_u8, BigUint::from(41_u8))),
         Operation::Push((1_u8, BigUint::from(0_u8))),
         Operation::Push((1_u8, BigUint::from(0_u8))),
         Operation::Create,
         Operation::Push((1_u8, BigUint::from(0_u8))),
         Operation::Push((1_u8, BigUint::from(0_u8))),
-        Operation::Mstore,
+        Operation::MStore,
         Operation::Push((1_u8, BigUint::from(0_u8))),
         Operation::Push((1_u8, BigUint::from(32_u8))),
-        Operation::Mstore,
+        Operation::MStore,
         Operation::Push((1_u8, BigUint::from(32_u8))),
         Operation::Push((1_u8, BigUint::from(0_u8))),
         Operation::Push((1_u8, BigUint::from(0_u8))),
         // Dup the created contract address value
         Operation::Dup(4),
-        Operation::ExtcodeCopy,
+        Operation::ExtCodeCopy,
         // Return result, the top of stack top is the created contract address
         Operation::Push0,
-        Operation::Mstore,
+        Operation::MStore,
         Operation::Push((1, 32_u8.into())),
         Operation::Push0,
         Operation::Return,
@@ -1454,7 +1468,7 @@ fn extcodecopy_specific_length() {
         Operation::Push((1_u8, BigUint::from(0_u8))),
         Operation::Push((20_u8, BigUint::from_bytes_be(&[0xde, 0xad, 0xbe, 0xef]))),
         Operation::Push((1_u8, BigUint::from(10_u8))),
-        Operation::ExtcodeCopy,
+        Operation::ExtCodeCopy,
         // Return result
         Operation::Push((1, 32_u8.into())),
         Operation::Push0,
@@ -1471,10 +1485,10 @@ fn extcodecopy_partial() {
         Operation::Push((1_u8, BigUint::from(5_u8))),
         Operation::Push((20_u8, BigUint::from_bytes_be(&[0xde, 0xad, 0xbe, 0xef]))),
         Operation::Push((1_u8, BigUint::from(5_u8))),
-        Operation::ExtcodeCopy,
+        Operation::ExtCodeCopy,
         // Return result
         Operation::Push0,
-        Operation::Mstore,
+        Operation::MStore,
         Operation::Push((1, 32_u8.into())),
         Operation::Push0,
         Operation::Return,
@@ -1494,7 +1508,7 @@ fn extcodecopy_out_of_bounds() {
         Operation::Push((1_u8, BigUint::from(10_u8))),
         // extcodecopy address
         Operation::Push((20_u8, BigUint::from_bytes_be(&[0xde, 0xad, 0xbe, 0xef]))),
-        Operation::ExtcodeCopy,
+        Operation::ExtCodeCopy,
         // Return result
         Operation::Push((1, 32_u8.into())),
         Operation::Push0,
@@ -1517,7 +1531,7 @@ fn returndatasize() {
         Operation::ReturnDataSize,
         // Return result
         Operation::Push0,
-        Operation::Mstore,
+        Operation::MStore,
         Operation::Push((1, 32_u8.into())),
         Operation::Push0,
         Operation::Return,
@@ -1534,7 +1548,7 @@ fn returndataload() {
         Operation::ReturnDataLoad,
         // Return result
         Operation::Push0,
-        Operation::Mstore,
+        Operation::MStore,
         Operation::Push((1, 32_u8.into())),
         Operation::Push0,
         Operation::Return,
@@ -1556,10 +1570,10 @@ fn returndatacopy() {
         Operation::Push((1_u8, BigUint::from(0_u8))),
         Operation::ReturnDataCopy,
         Operation::Push((1_u8, BigUint::from(0_u8))),
-        Operation::Mload,
+        Operation::MLoad,
         // Return result
         Operation::Push0,
-        Operation::Mstore,
+        Operation::MStore,
         Operation::Push((1, 32_u8.into())),
         Operation::Push0,
         Operation::Return,
@@ -1589,10 +1603,10 @@ fn returndatacopy_offset_size_adjustments() {
         Operation::Push((1_u8, BigUint::from(0_u8))),
         Operation::ReturnDataCopy,
         Operation::Push((1_u8, BigUint::from(0_u8))),
-        Operation::Mload,
+        Operation::MLoad,
         // Return result
         Operation::Push0,
-        Operation::Mstore,
+        Operation::MStore,
         Operation::Push((1, 32_u8.into())),
         Operation::Push0,
         Operation::Return,
@@ -1609,10 +1623,10 @@ fn returndatacopy_out_of_bounds_with_empty_call_data() {
         Operation::Push((1_u8, BigUint::from(10_u8))),
         Operation::ReturnDataCopy,
         Operation::Push((1_u8, BigUint::from(0_u8))),
-        Operation::Mload,
+        Operation::MLoad,
         // Return result
         Operation::Push0,
-        Operation::Mstore,
+        Operation::MStore,
         Operation::Push((1, 32_u8.into())),
         Operation::Push0,
         Operation::Return,
@@ -1633,10 +1647,10 @@ fn returndatacopy_out_of_bounds() {
         Operation::Push((1_u8, BigUint::from(0_u8))),
         Operation::ReturnDataCopy,
         Operation::Push((1_u8, BigUint::from(0_u8))),
-        Operation::Mload,
+        Operation::MLoad,
         // Return result
         Operation::Push0,
-        Operation::Mstore,
+        Operation::MStore,
         Operation::Push((1, 32_u8.into())),
         Operation::Push0,
         Operation::Return,
@@ -1667,15 +1681,15 @@ fn extcodehash() {
             ]),
         )),
         Operation::Push((1_u8, BigUint::from(0_u8))),
-        Operation::Mstore,
+        Operation::MStore,
         Operation::Push((1_u8, BigUint::from(13_u8))),
         Operation::Push((1_u8, BigUint::from(0_u8))),
         Operation::Push((1_u8, BigUint::from(0_u8))),
         Operation::Create,
-        Operation::ExtcodeHash,
+        Operation::ExtCodeHash,
         // Return result
         Operation::Push0,
-        Operation::Mstore,
+        Operation::MStore,
         Operation::Push((1, 32_u8.into())),
         Operation::Push0,
         Operation::Return,
@@ -1695,10 +1709,10 @@ fn extcodehash() {
 fn extcodehash_nonexistent_address() {
     let operations = vec![
         Operation::Push((20_u8, BigUint::from_bytes_be(&[0xde, 0xad, 0xbe, 0xef]))),
-        Operation::ExtcodeHash,
+        Operation::ExtCodeHash,
         // Return result
         Operation::Push0,
-        Operation::Mstore,
+        Operation::MStore,
         Operation::Push((1, 32_u8.into())),
         Operation::Push0,
         Operation::Return,
@@ -1711,10 +1725,10 @@ fn extcodehash_nonexistent_address() {
 fn extcodehash_empty_address() {
     let operations = vec![
         Operation::Push((20_u8, BigUint::from_bytes_be(&[0x00, 0x00, 0x00, 0x00]))),
-        Operation::ExtcodeHash,
+        Operation::ExtCodeHash,
         // Return result
         Operation::Push0,
-        Operation::Mstore,
+        Operation::MStore,
         Operation::Push((1, 32_u8.into())),
         Operation::Push0,
         Operation::Return,
@@ -1730,7 +1744,7 @@ fn blockhash_invalid_block_number() {
         Operation::BlockHash,
         // Return result
         Operation::Push0,
-        Operation::Mstore,
+        Operation::MStore,
         Operation::Push((1, 32_u8.into())),
         Operation::Push0,
         Operation::Return,
@@ -1750,7 +1764,7 @@ fn blockhash_previous_block() {
         Operation::BlockHash,
         // Return result
         Operation::Push0,
-        Operation::Mstore,
+        Operation::MStore,
         Operation::Push((1, 32_u8.into())),
         Operation::Push0,
         Operation::Return,
@@ -1767,7 +1781,7 @@ fn coinbase() {
         Operation::Coinbase,
         // Return result
         Operation::Push0,
-        Operation::Mstore,
+        Operation::MStore,
         Operation::Push((1, 32_u8.into())),
         Operation::Push0,
         Operation::Return,
@@ -1782,7 +1796,7 @@ fn timestamp() {
         Operation::Timestamp,
         // Return result
         Operation::Push0,
-        Operation::Mstore,
+        Operation::MStore,
         Operation::Push((1, 32_u8.into())),
         Operation::Push0,
         Operation::Return,
@@ -1797,7 +1811,7 @@ fn number() {
         Operation::Number,
         // Return result
         Operation::Push0,
-        Operation::Mstore,
+        Operation::MStore,
         Operation::Push((1, 32_u8.into())),
         Operation::Push0,
         Operation::Return,
@@ -1812,7 +1826,7 @@ fn prevrandao() {
         Operation::Prevrandao,
         // Return result
         Operation::Push0,
-        Operation::Mstore,
+        Operation::MStore,
         Operation::Push((1, 32_u8.into())),
         Operation::Push0,
         Operation::Return,
@@ -1827,7 +1841,7 @@ fn gaslimit() {
         Operation::Gaslimit,
         // Return result
         Operation::Push0,
-        Operation::Mstore,
+        Operation::MStore,
         Operation::Push((1, 32_u8.into())),
         Operation::Push0,
         Operation::Return,
@@ -1842,7 +1856,7 @@ fn chainid() {
         Operation::Chainid,
         // Return result
         Operation::Push0,
-        Operation::Mstore,
+        Operation::MStore,
         Operation::Push((1, 32_u8.into())),
         Operation::Push0,
         Operation::Return,
@@ -1857,7 +1871,7 @@ fn selfbalance() {
         Operation::SelfBalance,
         // Return result
         Operation::Push0,
-        Operation::Mstore,
+        Operation::MStore,
         Operation::Push((1, 32_u8.into())),
         Operation::Push0,
         Operation::Return,
@@ -1869,10 +1883,10 @@ fn selfbalance() {
 #[test]
 fn basefee() {
     let operations = vec![
-        Operation::Basefee,
+        Operation::BaseFee,
         // Return result
         Operation::Push0,
-        Operation::Mstore,
+        Operation::MStore,
         Operation::Push((1, 32_u8.into())),
         Operation::Push0,
         Operation::Return,
@@ -1888,7 +1902,7 @@ fn blobhash() {
         Operation::BlobHash,
         // Return result
         Operation::Push0,
-        Operation::Mstore,
+        Operation::MStore,
         Operation::Push((1, 32_u8.into())),
         Operation::Push0,
         Operation::Return,
@@ -1903,7 +1917,7 @@ fn blobbasefee() {
         Operation::BlobBaseFee,
         // Return result
         Operation::Push0,
-        Operation::Mstore,
+        Operation::MStore,
         Operation::Push((1, 32_u8.into())),
         Operation::Push0,
         Operation::Return,
@@ -1920,7 +1934,7 @@ fn push_pop() {
         Operation::Push((3_u8, 125986_u32.into())),
         // Return result
         Operation::Push0,
-        Operation::Mstore,
+        Operation::MStore,
         Operation::Push((1, 32_u8.into())),
         Operation::Push0,
         Operation::Return,
@@ -1937,7 +1951,7 @@ fn push_pop_1() {
         Operation::Push((1_u8, BigUint::from(24_u8))),
         // Return result
         Operation::Push0,
-        Operation::Mstore,
+        Operation::MStore,
         Operation::Push((1, 32_u8.into())),
         Operation::Push0,
         Operation::Return,
@@ -1956,7 +1970,7 @@ fn push_multiple_pop() {
         Operation::Pop,
         // Return result
         Operation::Push0,
-        Operation::Mstore,
+        Operation::MStore,
         Operation::Push((1, 32_u8.into())),
         Operation::Push0,
         Operation::Return,
@@ -1976,7 +1990,7 @@ fn push_stack_depth() {
         Operation::Pop,
         // Return result
         Operation::Push0,
-        Operation::Mstore,
+        Operation::MStore,
         Operation::Push((1, 32_u8.into())),
         Operation::Push0,
         Operation::Return,
@@ -1992,7 +2006,7 @@ fn push_dup1() {
         Operation::Dup(1),
         // Return result
         Operation::Push0,
-        Operation::Mstore,
+        Operation::MStore,
         Operation::Push((1, 32_u8.into())),
         Operation::Push0,
         Operation::Return,
@@ -2009,7 +2023,7 @@ fn push_dup2() {
         Operation::Dup(2),
         // Return result
         Operation::Push0,
-        Operation::Mstore,
+        Operation::MStore,
         Operation::Push((1, 32_u8.into())),
         Operation::Push0,
         Operation::Return,
@@ -2029,12 +2043,12 @@ fn mstore_mload() {
             ]),
         )),
         Operation::Push((1_u8, BigUint::from(0_u8))),
-        Operation::Mstore,
+        Operation::MStore,
         Operation::Push((1_u8, BigUint::from(0_u8))),
-        Operation::Mload,
+        Operation::MLoad,
         // Return result
         Operation::Push0,
-        Operation::Mstore,
+        Operation::MStore,
         Operation::Push((1, 32_u8.into())),
         Operation::Push0,
         Operation::Return,
@@ -2054,13 +2068,13 @@ fn mstore_mload() {
 fn mstore_mload_1() {
     let operations = vec![
         Operation::Push((32_u8, BigUint::from(1024_u64))),
-        Operation::Push((32_u8, BigUint::from(987654321_u64))),
-        Operation::Mstore,
-        Operation::Push((32_u8, BigUint::from(987654321_u64))),
-        Operation::Mload,
+        Operation::Push((32_u8, BigUint::from(321_u64))),
+        Operation::MStore,
+        Operation::Push((32_u8, BigUint::from(321_u64))),
+        Operation::MLoad,
         // Return result
         Operation::Push0,
-        Operation::Mstore,
+        Operation::MStore,
         Operation::Push((1, 32_u8.into())),
         Operation::Push0,
         Operation::Return,
@@ -2074,7 +2088,7 @@ fn mstore_1() {
     let operations = vec![
         Operation::Push((1_u8, BigUint::from(0_u8))),
         Operation::Push((32_u8, BigUint::from(42_u64))),
-        Operation::Mstore,
+        Operation::MStore,
         // Return result
         Operation::Push((1, 32_u8.into())),
         Operation::Push0,
@@ -2089,10 +2103,10 @@ fn mstore_2() {
     let operations = vec![
         Operation::Push((1_u8, BigUint::from(0_u8))),
         Operation::Push((32_u8, BigUint::from(42_u64))),
-        Operation::Mstore,
+        Operation::MStore,
         Operation::Push((1_u8, BigUint::from(0_u8))),
         Operation::Push((32_u8, BigUint::from(99_u64))),
-        Operation::Mstore,
+        Operation::MStore,
         // Return result
         Operation::Push((1, 32_u8.into())),
         Operation::Push0,
@@ -2113,7 +2127,7 @@ fn mstore() {
             ]),
         )),
         Operation::Push((1_u8, BigUint::from(0_u8))),
-        Operation::Mstore,
+        Operation::MStore,
         // Return result
         Operation::Push((1, 32_u8.into())),
         Operation::Push0,
@@ -2135,7 +2149,7 @@ fn mstore_high_address() {
     let operations = vec![
         Operation::Push((32_u8, BigUint::from(1024_u64))),
         Operation::Push((32_u8, BigUint::from(123_u64))),
-        Operation::Mstore,
+        Operation::MStore,
         // Return result
         Operation::Push((1, 32_u8.into())),
         Operation::Push0,
@@ -2150,12 +2164,12 @@ fn mload_1() {
     let operations = vec![
         Operation::Push((1_u8, BigUint::from(0_u8))),
         Operation::Push((32_u8, BigUint::from(42_u64))),
-        Operation::Mstore,
+        Operation::MStore,
         Operation::Push((1_u8, BigUint::from(0_u8))),
-        Operation::Mload,
+        Operation::MLoad,
         // Return result
         Operation::Push0,
-        Operation::Mstore,
+        Operation::MStore,
         Operation::Push((1, 32_u8.into())),
         Operation::Push0,
         Operation::Return,
@@ -2168,10 +2182,10 @@ fn mload_1() {
 fn mload_uninitialized() {
     let operations = vec![
         Operation::Push((1_u8, BigUint::from(0_u8))),
-        Operation::Mload,
+        Operation::MLoad,
         // Return result
         Operation::Push0,
-        Operation::Mstore,
+        Operation::MStore,
         Operation::Push((1, 32_u8.into())),
         Operation::Push0,
         Operation::Return,
@@ -2186,12 +2200,12 @@ fn mstore8() {
         // Note only one 0xFF will be stored into the memory
         Operation::Push((32_u8, BigUint::from_bytes_be(&[0xFF; 32]))),
         Operation::Push((1_u8, BigUint::from(0_u8))),
-        Operation::Mstore8,
+        Operation::MStore8,
         Operation::Push((1_u8, BigUint::from(0_u8))),
-        Operation::Mload,
+        Operation::MLoad,
         // Return result
         Operation::Push0,
-        Operation::Mstore,
+        Operation::MStore,
         Operation::Push((1, 32_u8.into())),
         Operation::Push0,
         Operation::Return,
@@ -2209,19 +2223,19 @@ fn mstore_mcopy_mload_with_zero_address_arbitrary_size() {
     let operations = vec![
         Operation::Push((32_u8, value1)),
         Operation::Push((1_u8, BigUint::from(32_u8))),
-        Operation::Mstore,
+        Operation::MStore,
         Operation::Push((32_u8, value)),
         Operation::Push0,
-        Operation::Mstore,
+        Operation::MStore,
         Operation::Push((1_u8, BigUint::from(4_u8))),
         Operation::Push((1_u8, BigUint::from(32_u8))),
         Operation::Push0,
-        Operation::Mcopy,
+        Operation::MCopy,
         Operation::Push((1_u8, BigUint::from(32_u8))),
-        Operation::Mload,
+        Operation::MLoad,
         // Return result
         Operation::Push0,
-        Operation::Mstore,
+        Operation::MStore,
         Operation::Push((1, 32_u8.into())),
         Operation::Push0,
         Operation::Return,
@@ -2241,12 +2255,12 @@ fn sload() {
     let operations = vec![
         Operation::Push((1_u8, BigUint::from(46_u8))),
         Operation::Push((1_u8, BigUint::from(0_u8))),
-        Operation::Sstore,
+        Operation::SStore,
         Operation::Push((1_u8, BigUint::from(0_u8))),
-        Operation::Sload,
+        Operation::SLoad,
         // Return result
         Operation::Push0,
-        Operation::Mstore,
+        Operation::MStore,
         Operation::Push((1, 32_u8.into())),
         Operation::Push0,
         Operation::Return,
@@ -2260,12 +2274,12 @@ fn sload_1() {
     let operations = vec![
         Operation::Push((32_u8, BigUint::from(0_u64))),
         Operation::Push((32_u8, BigUint::from(400_u64))),
-        Operation::Sstore,
+        Operation::SStore,
         Operation::Push((32_u8, BigUint::from(0_u64))),
-        Operation::Sload,
+        Operation::SLoad,
         // Return result
         Operation::Push0,
-        Operation::Mstore,
+        Operation::MStore,
         Operation::Push((1, 32_u8.into())),
         Operation::Push0,
         Operation::Return,
@@ -2279,12 +2293,12 @@ fn sstore() {
     let operations = vec![
         Operation::Push((32_u8, BigUint::from(100_u64))),
         Operation::Push((32_u8, BigUint::from(0_u64))),
-        Operation::Sstore,
+        Operation::SStore,
         Operation::Push((32_u8, BigUint::from(0_u64))),
-        Operation::Sload,
+        Operation::SLoad,
         // Return result
         Operation::Push0,
-        Operation::Mstore,
+        Operation::MStore,
         Operation::Push((1, 32_u8.into())),
         Operation::Push0,
         Operation::Return,
@@ -2298,12 +2312,12 @@ fn sstore_1() {
     let operations = vec![
         Operation::Push((2_u8, BigUint::from_bytes_be(&[0xFF, 0xFF]))),
         Operation::Push((1_u8, BigUint::from(0_u8))),
-        Operation::Sstore,
+        Operation::SStore,
         Operation::Push((1_u8, BigUint::from(0_u8))),
-        Operation::Sload,
+        Operation::SLoad,
         // Return result
         Operation::Push0,
-        Operation::Mstore,
+        Operation::MStore,
         Operation::Push((1, 32_u8.into())),
         Operation::Push0,
         Operation::Return,
@@ -2317,18 +2331,18 @@ fn sstore_multiple_slots() {
     let operations = vec![
         Operation::Push((32_u8, BigUint::from(1_u64))),
         Operation::Push((32_u8, BigUint::from(500_u64))),
-        Operation::Sstore,
+        Operation::SStore,
         Operation::Push((32_u8, BigUint::from(2_u64))),
         Operation::Push((32_u8, BigUint::from(600_u64))),
-        Operation::Sstore,
+        Operation::SStore,
         Operation::Push((32_u8, BigUint::from(600_u64))),
-        Operation::Sload,
+        Operation::SLoad,
         Operation::Push((32_u8, BigUint::from(500_u64))),
-        Operation::Sload,
+        Operation::SLoad,
         Operation::Add,
         // Return result
         Operation::Push0,
-        Operation::Mstore,
+        Operation::MStore,
         Operation::Push((1, 32_u8.into())),
         Operation::Push0,
         Operation::Return,
@@ -2344,12 +2358,12 @@ fn sstore_high_slot() {
     let operations = vec![
         Operation::Push((32_u8, BigUint::from(777_u64))),
         Operation::Push((32_u8, key.clone())),
-        Operation::Sstore,
+        Operation::SStore,
         Operation::Push((32_u8, key)),
-        Operation::Sload,
+        Operation::SLoad,
         // Return result
         Operation::Push0,
-        Operation::Mstore,
+        Operation::MStore,
         Operation::Push((1, 32_u8.into())),
         Operation::Push0,
         Operation::Return,
@@ -2362,10 +2376,10 @@ fn sstore_high_slot() {
 fn sload_uninitialized() {
     let operations = vec![
         Operation::Push((32_u8, BigUint::from(0_u64))),
-        Operation::Sload,
+        Operation::SLoad,
         // Return result
         Operation::Push0,
-        Operation::Mstore,
+        Operation::MStore,
         Operation::Push((1, 32_u8.into())),
         Operation::Push0,
         Operation::Return,
@@ -2380,12 +2394,12 @@ fn sload_high_slot() {
     let operations = vec![
         Operation::Push((32_u8, key.clone())),
         Operation::Push((32_u8, BigUint::from(123_u64))),
-        Operation::Sstore,
+        Operation::SStore,
         Operation::Push((32_u8, key)),
-        Operation::Sload,
+        Operation::SLoad,
         // Return result
         Operation::Push0,
-        Operation::Mstore,
+        Operation::MStore,
         Operation::Push((1, 32_u8.into())),
         Operation::Push0,
         Operation::Return,
@@ -2399,17 +2413,17 @@ fn sload_multiple_slots() {
     let operations = vec![
         Operation::Push((32_u8, BigUint::from(0_u64))),
         Operation::Push((32_u8, BigUint::from(100_u64))),
-        Operation::Sstore,
+        Operation::SStore,
         Operation::Push((32_u8, BigUint::from(1_u64))),
         Operation::Push((32_u8, BigUint::from(200_u64))),
-        Operation::Sstore,
+        Operation::SStore,
         Operation::Push((32_u8, BigUint::from(0_u64))),
-        Operation::Sload,
+        Operation::SLoad,
         Operation::Push((32_u8, BigUint::from(1_u64))),
-        Operation::Sload,
+        Operation::SLoad,
         // Return result
         Operation::Push0,
-        Operation::Mstore,
+        Operation::MStore,
         Operation::Push((1, 32_u8.into())),
         Operation::Push0,
         Operation::Return,
@@ -2430,7 +2444,7 @@ fn jump() {
         Operation::Jumpdest { pc },
         // Return result
         Operation::Push0,
-        Operation::Mstore,
+        Operation::MStore,
         Operation::Push((1, 32_u8.into())),
         Operation::Push0,
         Operation::Return,
@@ -2453,7 +2467,7 @@ fn jumpi_with_false_condition() {
         Operation::Jumpdest { pc },
         // Return result
         Operation::Push0,
-        Operation::Mstore,
+        Operation::MStore,
         Operation::Push((1, 32_u8.into())),
         Operation::Push0,
         Operation::Return,
@@ -2476,7 +2490,7 @@ fn jumpi_does_not_revert_if_pc_is_wrong_but_branch_is_not_taken() {
         Operation::Jumpdest { pc },
         // Return result
         Operation::Push0,
-        Operation::Mstore,
+        Operation::MStore,
         Operation::Push((1, 32_u8.into())),
         Operation::Push0,
         Operation::Return,
@@ -2494,7 +2508,7 @@ fn jumpdest() {
         Operation::Jumpdest { pc: 34 },
         // Return result
         Operation::Push0,
-        Operation::Mstore,
+        Operation::MStore,
         Operation::Push((1, 32_u8.into())),
         Operation::Push0,
         Operation::Return,
@@ -2514,7 +2528,7 @@ fn pc() {
         Operation::PC { pc: 6 },
         // Return result
         Operation::Push0,
-        Operation::Mstore,
+        Operation::MStore,
         Operation::Push((1, 32_u8.into())),
         Operation::Push0,
         Operation::Return,
@@ -2526,18 +2540,18 @@ fn pc() {
 #[test]
 fn mload_misze() {
     let operations = vec![
-        Operation::Msize,
+        Operation::MSize,
         Operation::Push((1_u8, BigUint::from(0_u8))),
-        Operation::Mload,
+        Operation::MLoad,
         Operation::Pop,
-        Operation::Msize,
+        Operation::MSize,
         Operation::Push((1_u8, BigUint::from(39_u8))),
-        Operation::Mload,
+        Operation::MLoad,
         Operation::Pop,
-        Operation::Msize,
+        Operation::MSize,
         // Return result
         Operation::Push0,
-        Operation::Mstore,
+        Operation::MStore,
         Operation::Push((1, 32_u8.into())),
         Operation::Push0,
         Operation::Return,
@@ -2555,7 +2569,7 @@ fn gas() {
         Operation::Sub,
         // Return result
         Operation::Push0,
-        Operation::Mstore,
+        Operation::MStore,
         Operation::Push((1, 32_u8.into())),
         Operation::Push0,
         Operation::Return,
@@ -2569,12 +2583,12 @@ fn tstore_tload() {
     let operations = vec![
         Operation::Push((1_u8, BigUint::from(46_u8))),
         Operation::Push((1_u8, BigUint::from(0_u8))),
-        Operation::Tstore,
+        Operation::TStore,
         Operation::Push((1_u8, BigUint::from(0_u8))),
-        Operation::Tload,
+        Operation::TLoad,
         // Return result
         Operation::Push0,
-        Operation::Mstore,
+        Operation::MStore,
         Operation::Push((1, 32_u8.into())),
         Operation::Push0,
         Operation::Return,
@@ -2588,12 +2602,12 @@ fn tstore_0() {
     let operations = vec![
         Operation::Push((2_u8, BigUint::from_bytes_be(&[0xFF, 0xFF]))),
         Operation::Push0,
-        Operation::Tstore,
+        Operation::TStore,
         Operation::Push0,
-        Operation::Tload,
+        Operation::TLoad,
         // Return result
         Operation::Push0,
-        Operation::Mstore,
+        Operation::MStore,
         Operation::Push((1, 32_u8.into())),
         Operation::Push0,
         Operation::Return,
@@ -2607,12 +2621,12 @@ fn tstore_1() {
     let operations = vec![
         Operation::Push((2_u8, BigUint::from_bytes_be(&[0xFF, 0xFF]))),
         Operation::Push((2_u8, BigUint::from(8965u32))),
-        Operation::Tstore,
+        Operation::TStore,
         Operation::Push((2_u8, BigUint::from(8965u32))),
-        Operation::Tload,
+        Operation::TLoad,
         // Return result
         Operation::Push0,
-        Operation::Mstore,
+        Operation::MStore,
         Operation::Push((1, 32_u8.into())),
         Operation::Push0,
         Operation::Return,
@@ -2632,16 +2646,16 @@ fn mstore_mcopy() {
             ]),
         )),
         Operation::Push((1_u8, BigUint::from(32_u8))),
-        Operation::Mstore,
+        Operation::MStore,
         Operation::Push((1_u8, BigUint::from(32_u8))),
         Operation::Push((1_u8, BigUint::from(32_u8))),
         Operation::Push((1_u8, BigUint::from(0_u8))),
-        Operation::Mcopy,
+        Operation::MCopy,
         Operation::Push((1_u8, BigUint::from(0_u8))),
-        Operation::Mload,
+        Operation::MLoad,
         // Return result
         Operation::Push0,
-        Operation::Mstore,
+        Operation::MStore,
         Operation::Push((1, 32_u8.into())),
         Operation::Push0,
         Operation::Return,
@@ -2655,23 +2669,23 @@ fn mcopy_large_size_overflow() {
     let operations = vec![
         Operation::Push((1, 1_u8.into())),
         Operation::Push0,
-        Operation::Sstore,
+        Operation::SStore,
         Operation::Push((1, 17_u8.into())),
         Operation::Push((1, 64_u8.into())),
-        Operation::CalldataLoad,
+        Operation::CallDataLoad,
         Operation::Push((1, 32_u8.into())),
-        Operation::CalldataLoad,
+        Operation::CallDataLoad,
         Operation::Push0,
-        Operation::CalldataLoad,
+        Operation::CallDataLoad,
         Operation::Push((1, 22_u8.into())),
         Operation::Jump,
         Operation::Jumpdest { pc: 17 },
-        Operation::Msize,
+        Operation::MSize,
         Operation::Push0,
-        Operation::Sstore,
+        Operation::SStore,
         Operation::Stop,
         Operation::Jumpdest { pc: 22 },
-        Operation::Mcopy,
+        Operation::MCopy,
         Operation::Jump,
     ];
     let (mut env, db) = default_env_and_db_setup(operations);
@@ -2688,7 +2702,7 @@ fn swap() {
         Operation::Swap(1),
         // Return result
         Operation::Push0,
-        Operation::Mstore,
+        Operation::MStore,
         Operation::Push((1, 32_u8.into())),
         Operation::Push0,
         Operation::Return,
@@ -2705,7 +2719,7 @@ fn swap_1() {
         Operation::Swap(1),
         // Return result
         Operation::Push0,
-        Operation::Mstore,
+        Operation::MStore,
         Operation::Push((1, 32_u8.into())),
         Operation::Push0,
         Operation::Return,
@@ -2723,7 +2737,7 @@ fn create() {
         Operation::Create,
         // Return result
         Operation::Push0,
-        Operation::Mstore,
+        Operation::MStore,
         Operation::Push((1, 32_u8.into())),
         Operation::Push0,
         Operation::Return,
@@ -2743,7 +2757,7 @@ fn create_1() {
         Operation::Create,
         // Return result
         Operation::Push0,
-        Operation::Mstore,
+        Operation::MStore,
         Operation::Push((1, 32_u8.into())),
         Operation::Push0,
         Operation::Return,
@@ -2764,7 +2778,7 @@ fn create_2() {
         Operation::Create,
         // Return result
         Operation::Push0,
-        Operation::Mstore,
+        Operation::MStore,
         Operation::Push((1, 32_u8.into())),
         Operation::Push0,
         Operation::Return,
@@ -2784,14 +2798,14 @@ fn create_3() {
             ]),
         )),
         Operation::Push((1_u8, BigUint::from(0_u8))),
-        Operation::Mstore,
+        Operation::MStore,
         Operation::Push((1_u8, BigUint::from(32_u8))),
         Operation::Push((1_u8, BigUint::from(0_u8))),
         Operation::Push((1_u8, BigUint::from(0_u8))),
         Operation::Create,
         // Return result
         Operation::Push0,
-        Operation::Mstore,
+        Operation::MStore,
         Operation::Push((1, 32_u8.into())),
         Operation::Push0,
         Operation::Return,
@@ -2810,7 +2824,7 @@ fn create_with_value() {
         Operation::Create,
         // Return result
         Operation::Push0,
-        Operation::Mstore,
+        Operation::MStore,
         Operation::Push((1, 32_u8.into())),
         Operation::Push0,
         Operation::Return,
@@ -2823,13 +2837,13 @@ fn create_with_value() {
 fn create2_with_salt() {
     let operations = vec![
         Operation::Push((32_u8, BigUint::from(0x1234_u16))),
-        Operation::Push((1_u8, BigUint::from(0_u8))),
+        Operation::Push((1_u8, BigUint::from(1_u8))),
         Operation::Push((1_u8, BigUint::from(20_u8))),
         Operation::Push((1_u8, BigUint::from(10_u8))),
         Operation::Create2,
         // Return result
         Operation::Push0,
-        Operation::Mstore,
+        Operation::MStore,
         Operation::Push((1, 32_u8.into())),
         Operation::Push0,
         Operation::Return,
@@ -2838,7 +2852,7 @@ fn create2_with_salt() {
     run_program_assert_num_result(
         env,
         db,
-        BigUint::from_str("603501459724177619068228368451474163543628990102").unwrap(),
+        BigUint::from_str("1298672851206845405429649291545422093257887715444").unwrap(),
     );
 }
 
@@ -2853,13 +2867,13 @@ fn create2_with_large_salt() {
                 0xFF, 0xFF, 0xFF, 0xFF,
             ]),
         )),
-        Operation::Push((1_u8, BigUint::from(0_u8))),
+        Operation::Push((1_u8, BigUint::from(1_u8))),
         Operation::Push((1_u8, BigUint::from(64_u8))),
         Operation::Push((1_u8, BigUint::from(50_u8))),
         Operation::Create2,
         // Return result
         Operation::Push0,
-        Operation::Mstore,
+        Operation::MStore,
         Operation::Push((1, 32_u8.into())),
         Operation::Push0,
         Operation::Return,
@@ -2877,7 +2891,7 @@ fn create_too_init_code_size_limit_halt() {
         Operation::Create,
         // Return result
         Operation::Push0,
-        Operation::Mstore,
+        Operation::MStore,
         Operation::Push((1, 32_u8.into())),
         Operation::Push0,
         Operation::Return,
@@ -2984,7 +2998,7 @@ fn call() {
         Operation::Call,
         // Return result
         Operation::Push0,
-        Operation::Mstore,
+        Operation::MStore,
         Operation::Push((1, 32_u8.into())),
         Operation::Push0,
         Operation::Return,
@@ -3004,7 +3018,7 @@ fn call_1() {
             ]),
         )),
         Operation::Push((1_u8, BigUint::from(0_u8))),
-        Operation::Mstore,
+        Operation::MStore,
         Operation::Push((1_u8, BigUint::from(17_u8))),
         Operation::Push((1_u8, BigUint::from(15_u8))),
         Operation::Push((1_u8, BigUint::from(0_u8))),
@@ -3019,7 +3033,7 @@ fn call_1() {
         Operation::Call,
         // Return result
         Operation::Push0,
-        Operation::Mstore,
+        Operation::MStore,
         Operation::Push((1, 32_u8.into())),
         Operation::Push0,
         Operation::Return,
@@ -3039,7 +3053,7 @@ fn call_2() {
             ]),
         )),
         Operation::Push((1_u8, BigUint::from(0_u8))),
-        Operation::Mstore,
+        Operation::MStore,
         Operation::Push((1_u8, BigUint::from(17_u8))),
         Operation::Push((1_u8, BigUint::from(15_u8))),
         Operation::Push((1_u8, BigUint::from(0_u8))),
@@ -3062,7 +3076,7 @@ fn call_2() {
         Operation::Call,
         // Return result
         Operation::Push0,
-        Operation::Mstore,
+        Operation::MStore,
         Operation::Push((1, 32_u8.into())),
         Operation::Push0,
         Operation::Return,
@@ -3082,7 +3096,7 @@ fn call_insufficient_value() {
             ]),
         )),
         Operation::Push((1_u8, BigUint::from(0_u8))),
-        Operation::Mstore,
+        Operation::MStore,
         Operation::Push((1_u8, BigUint::from(17_u8))),
         Operation::Push((1_u8, BigUint::from(15_u8))),
         Operation::Push((1_u8, BigUint::from(0_u8))),
@@ -3105,7 +3119,7 @@ fn call_insufficient_value() {
         Operation::Call,
         // Return result
         Operation::Push0,
-        Operation::Mstore,
+        Operation::MStore,
         Operation::Push((1, 32_u8.into())),
         Operation::Push0,
         Operation::Return,
@@ -3127,7 +3141,7 @@ fn callcode() {
         Operation::CallCode,
         // Return result
         Operation::Push0,
-        Operation::Mstore,
+        Operation::MStore,
         Operation::Push((1, 32_u8.into())),
         Operation::Push0,
         Operation::Return,
@@ -3147,7 +3161,7 @@ fn callcode_1() {
             ]),
         )),
         Operation::Push((1_u8, BigUint::from(0_u8))),
-        Operation::Mstore,
+        Operation::MStore,
         Operation::Push((1_u8, BigUint::from(17_u8))),
         Operation::Push((1_u8, BigUint::from(15_u8))),
         Operation::Push((1_u8, BigUint::from(0_u8))),
@@ -3162,7 +3176,7 @@ fn callcode_1() {
         Operation::CallCode,
         Operation::Push((1_u8, BigUint::from(1_u8))),
         Operation::Push((1_u8, BigUint::from(0_u8))),
-        Operation::Sstore,
+        Operation::SStore,
         Operation::Push((1_u8, BigUint::from(0_u8))),
         Operation::Push((1_u8, BigUint::from(0_u8))),
         Operation::Push((1_u8, BigUint::from(32_u8))),
@@ -3173,7 +3187,7 @@ fn callcode_1() {
         Operation::CallCode,
         // Return result
         Operation::Push0,
-        Operation::Mstore,
+        Operation::MStore,
         Operation::Push((1, 32_u8.into())),
         Operation::Push0,
         Operation::Return,
@@ -3215,7 +3229,7 @@ fn store_return() {
             ]),
         )),
         Operation::Push((1_u8, BigUint::from(0_u8))),
-        Operation::Mstore,
+        Operation::MStore,
         Operation::Push((1_u8, BigUint::from(2_u8))),
         Operation::Push((1_u8, BigUint::from(0_u8))),
         Operation::Return,
@@ -3236,7 +3250,7 @@ fn delegatecall() {
         Operation::DelegateCall,
         // Return result
         Operation::Push0,
-        Operation::Mstore,
+        Operation::MStore,
         Operation::Push((1, 32_u8.into())),
         Operation::Push0,
         Operation::Return,
@@ -3256,7 +3270,7 @@ fn delegatecall_1() {
             ]),
         )),
         Operation::Push((1_u8, BigUint::from(0_u8))),
-        Operation::Mstore,
+        Operation::MStore,
         Operation::Push((1_u8, BigUint::from(17_u8))),
         Operation::Push((1_u8, BigUint::from(15_u8))),
         Operation::Push((1_u8, BigUint::from(0_u8))),
@@ -3271,7 +3285,7 @@ fn delegatecall_1() {
         Operation::DelegateCall,
         Operation::Push((1_u8, BigUint::from(1_u8))),
         Operation::Push((1_u8, BigUint::from(0_u8))),
-        Operation::Sstore,
+        Operation::SStore,
         Operation::Push((1_u8, BigUint::from(0_u8))),
         Operation::Push((1_u8, BigUint::from(0_u8))),
         Operation::Push((1_u8, BigUint::from(32_u8))),
@@ -3281,7 +3295,7 @@ fn delegatecall_1() {
         Operation::DelegateCall,
         // Return result
         Operation::Push0,
-        Operation::Mstore,
+        Operation::MStore,
         Operation::Push((1, 32_u8.into())),
         Operation::Push0,
         Operation::Return,
@@ -3302,7 +3316,7 @@ fn staticcall() {
         Operation::StaticCall,
         // Return result
         Operation::Push0,
-        Operation::Mstore,
+        Operation::MStore,
         Operation::Push((1, 32_u8.into())),
         Operation::Push0,
         Operation::Return,
@@ -3344,7 +3358,7 @@ fn mstore_revert() {
             ]),
         )),
         Operation::Push((32_u8, BigUint::from(0_u8))),
-        Operation::Mstore,
+        Operation::MStore,
         Operation::Push((1_u8, BigUint::from(2_u8))),
         Operation::Push((1_u8, BigUint::from(0_u8))),
         Operation::Revert,
@@ -3381,7 +3395,7 @@ fn selfdestruct() {
         Operation::Push0,
         // Return result
         Operation::Push0,
-        Operation::Mstore,
+        Operation::MStore,
         Operation::Push((1, 32_u8.into())),
         Operation::Push0,
         Operation::Return,
@@ -3398,56 +3412,11 @@ fn selfdestruct_zero_address() {
         Operation::Push0,
         // Return result
         Operation::Push0,
-        Operation::Mstore,
+        Operation::MStore,
         Operation::Push((1, 32_u8.into())),
         Operation::Push0,
         Operation::Return,
     ];
     let (env, mut db) = default_env_and_db_setup(operations);
     run_program_assert_num_result(env, db, 0_u8.into());
-}
-
-fn biguint_256_from_bigint(value: BigInt) -> BigUint {
-    if value >= BigInt::ZERO {
-        value.magnitude().clone()
-    } else {
-        let bytes = value.to_signed_bytes_be();
-        let mut buffer: Vec<u8> = vec![255_u8; 32];
-        let finish = 32;
-        let start = finish - bytes.len();
-        buffer[start..finish].copy_from_slice(&bytes);
-        BigUint::from_bytes_be(&buffer)
-    }
-}
-
-pub(crate) fn default_env_and_db_setup(operations: Vec<Operation>) -> (Env, MemoryDB) {
-    let mut env = Env::default();
-    env.tx.gas_limit = INIT_GAS;
-    let program = Program::from(operations);
-    let (address, bytecode) = (
-        Address::from_low_u64_be(40),
-        Bytecode::from(program.to_opcode()),
-    );
-    env.tx.transact_to = address;
-    env.block.coinbase = Address::from_low_u64_be(80);
-    let mut db = MemoryDB::new().with_contract(address, bytecode);
-    db.set_balance(address, U256::from(10));
-    (env, db)
-}
-
-fn run_program_assert_num_result(env: Env, db: MemoryDB, expected_result: BigUint) {
-    let result = run_evm(env, db, SpecId::CANCUN).unwrap().result;
-    assert!(result.is_success(), "{:?}", result);
-    let result_data = BigUint::from_bytes_be(result.output().unwrap_or(&Bytes::new()));
-    assert_eq!(result_data, expected_result);
-}
-
-fn run_program_assert_halt(env: Env, db: MemoryDB) {
-    let result = run_evm(env, db, SpecId::CANCUN).unwrap().result;
-    assert!(result.is_halt());
-}
-
-fn run_program_assert_revert(env: Env, db: MemoryDB) {
-    let result = run_evm(env, db, SpecId::CANCUN).unwrap().result;
-    assert!(result.is_revert());
 }

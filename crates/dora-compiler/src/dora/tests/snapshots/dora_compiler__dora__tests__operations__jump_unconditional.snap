@@ -14,7 +14,7 @@ module {
   llvm.mlir.global external @dora_global_ctx_is_static() {addr_space = 0 : i32} : !llvm.ptr
   func.func private @dora_fn_debug_print(i32)
   func.func private @dora_fn_write_result(!llvm.ptr, i64, i64, i64, i8) -> !llvm.ptr
-  func.func private @dora_fn_keccak256_hasher(!llvm.ptr, i64, i64, !llvm.ptr) -> !llvm.ptr
+  func.func private @dora_fn_keccak256_hasher(!llvm.ptr, i64, i64, !llvm.ptr)
   func.func private @dora_fn_calldata(!llvm.ptr) -> !llvm.ptr
   func.func private @dora_fn_calldata_size(!llvm.ptr) -> i64
   func.func private @dora_fn_chainid(!llvm.ptr) -> !llvm.ptr
@@ -84,7 +84,7 @@ module {
     %c89_i8 = arith.constant 89 : i8
     cf.switch %13 : i256, [
       default: ^bb1(%c89_i8 : i8),
-      4: ^bb20
+      4: ^bb22
     ]
   ^bb3:  // pred: ^bb4
     %c4_i256 = arith.constant 4 : i256
@@ -204,7 +204,7 @@ module {
     %58 = arith.subi %56, %c3_i64_13 : i64
     llvm.store %58, %55 : i64, !llvm.ptr
     cf.br ^bb17
-  ^bb20:  // 2 preds: ^bb2, ^bb21
+  ^bb20:  // pred: ^bb21
     cf.br ^bb24
   ^bb21:  // pred: ^bb23
     %59 = llvm.mlir.addressof @dora_global_stack_length : !llvm.ptr
@@ -214,7 +214,7 @@ module {
     %61 = arith.addi %60, %c0_i64_16 : i64
     llvm.store %61, %59 : i64, !llvm.ptr
     cf.br ^bb20
-  ^bb22:  // pred: ^bb16
+  ^bb22:  // 2 preds: ^bb2, ^bb16
     %62 = llvm.mlir.addressof @dora_global_gas_counter : !llvm.ptr
     %63 = llvm.load %62 : !llvm.ptr -> i64
     %c1_i64_17 = arith.constant 1 : i64

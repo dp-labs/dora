@@ -1,7 +1,7 @@
 use crate::backend::IntCC;
-use crate::ensure_non_staticcall;
+use crate::dora::gas::{compute_copy_cost, compute_log_dynamic_cost};
 use crate::{
-    arith_constant, check_op_oog, check_u256_to_u64_overflow,
+    arith_constant, check_op_oog,
     conversion::builder::OpBuilder,
     conversion::rewriter::{DeferredRewriter, Rewriter},
     create_var,
@@ -9,6 +9,8 @@ use crate::{
     errors::{CompileError, Result},
     load_var, maybe_revert_here, operands, rewrite_ctx, syscall_ctx, u256_to_64,
 };
+use crate::{ensure_non_staticcall, gas_or_fail, if_here};
+use dora_runtime::constants::GAS_COUNTER_GLOBAL;
 use dora_runtime::symbols::{self, CTX_IS_STATIC};
 use dora_runtime::ExitStatusCode;
 use melior::{
@@ -16,37 +18,40 @@ use melior::{
         arith::{self},
         cf, func,
         llvm::{self, AllocaOptions, LoadStoreOptions},
+        scf,
     },
     ir::{
         attribute::{FlatSymbolRefAttribute, IntegerAttribute, TypeAttribute},
         operation::OperationRef,
-        Value,
+        Block, Region, Value,
     },
     Context,
 };
-use num_bigint::BigUint;
 use std::mem::offset_of;
 
 impl<'c> ConversionPass<'c> {
     pub(crate) fn balance(context: &Context, op: &OperationRef<'_, '_>) -> Result<()> {
         operands!(op, account);
         syscall_ctx!(op, syscall_ctx);
-        rewrite_ctx!(context, op, rewriter, location);
+        rewrite_ctx!(context, op, rewriter, location, NoDefer);
 
         let address_ptr =
             memory::allocate_u256_and_assign_value(context, &rewriter, account, location)?;
-        load_var!(
-            rewriter,
+        let result_ptr = rewriter.make(func::call(
             context,
-            syscall_ctx,
-            symbols::STORE_IN_BALANCE,
-            &[address_ptr],
-            [rewriter.intrinsics.ptr_ty],
-            address_ptr,
-            rewriter.intrinsics.i256_ty,
-            location
-        );
-
+            FlatSymbolRefAttribute::new(context, symbols::STORE_IN_BALANCE),
+            &[syscall_ctx.into(), address_ptr],
+            &[rewriter.ptr_ty()],
+            location,
+        ))?;
+        let gas = rewriter.get_field_value(
+            result_ptr,
+            offset_of!(dora_runtime::context::Result<()>, gas_used),
+            rewriter.intrinsics.i64_ty,
+        )?;
+        gas_or_fail!(op, rewriter, gas);
+        rewrite_ctx!(context, op, rewriter, _location);
+        rewriter.make(rewriter.load(address_ptr, rewriter.intrinsics.i256_ty))?;
         Ok(())
     }
 
@@ -70,8 +75,7 @@ impl<'c> ConversionPass<'c> {
     pub(crate) fn extcodesize(context: &Context, op: &OperationRef<'_, '_>) -> Result<()> {
         operands!(op, address);
         syscall_ctx!(op, syscall_ctx);
-        rewrite_ctx!(context, op, rewriter, location);
-
+        rewrite_ctx!(context, op, rewriter, location, NoDefer);
         let ptr_type = rewriter.ptr_ty();
         let codesize_ptr =
             memory::allocate_u256_and_assign_value(context, &rewriter, address, location)?;
@@ -88,6 +92,13 @@ impl<'c> ConversionPass<'c> {
             offset_of!(dora_runtime::context::Result<u64>, value),
             rewriter.intrinsics.i64_ty,
         )?;
+        let gas = rewriter.get_field_value(
+            result_ptr,
+            offset_of!(dora_runtime::context::Result<u64>, gas_used),
+            rewriter.intrinsics.i64_ty,
+        )?;
+        gas_or_fail!(op, rewriter, gas);
+        rewrite_ctx!(context, op, rewriter, location);
         rewriter.make(arith::extui(
             codesize,
             rewriter.intrinsics.i256_ty,
@@ -99,19 +110,24 @@ impl<'c> ConversionPass<'c> {
     pub(crate) fn extcodehash(context: &Context, op: &OperationRef<'_, '_>) -> Result<()> {
         operands!(op, address);
         syscall_ctx!(op, syscall_ctx);
-        rewrite_ctx!(context, op, rewriter, location);
-
+        rewrite_ctx!(context, op, rewriter, location, NoDefer);
         let code_hash_ptr =
             memory::allocate_u256_and_assign_value(context, &rewriter, address, location)?;
-        load_var!(
-            rewriter,
+        let result_ptr = rewriter.make(func::call(
             context,
-            syscall_ctx,
-            symbols::EXT_CODE_HASH,
-            &[code_hash_ptr],
-            rewriter.intrinsics.i256_ty,
-            location
-        );
+            FlatSymbolRefAttribute::new(context, symbols::EXT_CODE_HASH),
+            &[syscall_ctx.into(), code_hash_ptr],
+            &[rewriter.ptr_ty()],
+            location,
+        ))?;
+        let gas = rewriter.get_field_value(
+            result_ptr,
+            offset_of!(dora_runtime::context::Result<()>, gas_used),
+            rewriter.intrinsics.i64_ty,
+        )?;
+        gas_or_fail!(op, rewriter, gas);
+        rewrite_ctx!(context, op, rewriter, _location);
+        rewriter.make(rewriter.load(code_hash_ptr, rewriter.intrinsics.i256_ty))?;
         Ok(())
     }
 
@@ -121,21 +137,29 @@ impl<'c> ConversionPass<'c> {
         let rewriter = Rewriter::new_with_op(context, *op);
         let location = rewriter.get_insert_location();
         let ptr_type = rewriter.ptr_ty();
-
-        u256_to_64!(op, rewriter, offset);
         u256_to_64!(op, rewriter, size);
+        let gas = compute_copy_cost(&rewriter, size)?;
+        gas_or_fail!(op, rewriter, gas);
+        let rewriter = Rewriter::new_with_op(context, *op);
+        u256_to_64!(op, rewriter, offset);
         u256_to_64!(op, rewriter, dest_offset);
         let address_ptr =
             memory::allocate_u256_and_assign_value(context, &rewriter, address, location)?;
         memory::resize_memory(context, op, &rewriter, syscall_ctx, dest_offset, size)?;
         rewrite_ctx!(context, op, rewriter, location);
-        rewriter.create(func::call(
+        let result_ptr = rewriter.make(func::call(
             context,
             FlatSymbolRefAttribute::new(context, symbols::EXT_CODE_COPY),
             &[syscall_ctx.into(), address_ptr, offset, size, dest_offset],
             &[ptr_type],
             location,
-        ));
+        ))?;
+        let gas = rewriter.get_field_value(
+            result_ptr,
+            offset_of!(dora_runtime::context::Result<()>, gas_used),
+            rewriter.intrinsics.i64_ty,
+        )?;
+        gas_or_fail!(op, rewriter, gas);
         Ok(())
     }
 
@@ -161,20 +185,25 @@ impl<'c> ConversionPass<'c> {
     pub(crate) fn sload(context: &Context, op: &OperationRef<'_, '_>) -> Result<()> {
         operands!(op, key);
         syscall_ctx!(op, syscall_ctx);
-        rewrite_ctx!(context, op, rewriter, location);
+        rewrite_ctx!(context, op, rewriter, location, NoDefer);
 
         let key_ptr = memory::allocate_u256_and_assign_value(context, &rewriter, key, location)?;
         let value_ptr = create_var!(rewriter, context, location);
-        load_var!(
-            rewriter,
+        let result_ptr = rewriter.make(func::call(
             context,
-            syscall_ctx,
-            symbols::SLOAD,
-            &[key_ptr, value_ptr],
-            value_ptr,
-            rewriter.intrinsics.i256_ty,
-            location
-        );
+            FlatSymbolRefAttribute::new(context, symbols::SLOAD),
+            &[syscall_ctx.into(), key_ptr, value_ptr],
+            &[rewriter.ptr_ty()],
+            location,
+        ))?;
+        let gas = rewriter.get_field_value(
+            result_ptr,
+            offset_of!(dora_runtime::context::Result<()>, gas_used),
+            rewriter.intrinsics.i64_ty,
+        )?;
+        gas_or_fail!(op, rewriter, gas);
+        rewrite_ctx!(context, op, rewriter, _location);
+        rewriter.make(rewriter.load(value_ptr, rewriter.intrinsics.i256_ty))?;
         Ok(())
     }
 
@@ -191,16 +220,19 @@ impl<'c> ConversionPass<'c> {
         let value_ptr =
             memory::allocate_u256_and_assign_value(context, &rewriter, value, location)?;
 
-        rewriter.make(func::call(
+        let result_ptr = rewriter.make(func::call(
             context,
             FlatSymbolRefAttribute::new(context, symbols::SSTORE),
             &[syscall_ctx.into(), key_ptr, value_ptr],
             &[ptr_type],
             location,
         ))?;
-
-        // Check gas cost in the gas pass.
-
+        let gas = rewriter.get_field_value(
+            result_ptr,
+            offset_of!(dora_runtime::context::Result<()>, gas_used),
+            rewriter.intrinsics.i64_ty,
+        )?;
+        gas_or_fail!(op, rewriter, gas);
         Ok(())
     }
 
@@ -252,22 +284,24 @@ impl<'c> ConversionPass<'c> {
         op: &OperationRef<'_, '_>,
         num_topics: usize,
     ) -> Result<()> {
+        debug_assert!(num_topics <= 4, "invalid log topic count: {num_topics}");
         operands!(op, offset, size);
         syscall_ctx!(op, syscall_ctx);
         let rewriter = Rewriter::new_with_op(context, *op);
         ensure_non_staticcall!(op, rewriter);
         let rewriter = Rewriter::new_with_op(context, *op);
-        let location = rewriter.get_insert_location();
-        let uint64 = rewriter.intrinsics.i64_ty;
-        // Check the log mem offset and size overflow error
-        check_u256_to_u64_overflow!(op, rewriter, size);
-        let rewriter = Rewriter::new_with_op(context, *op);
-        check_u256_to_u64_overflow!(op, rewriter, offset);
-        let rewriter = Rewriter::new_with_op(context, *op);
 
-        let offset = rewriter.make(arith::trunci(offset, uint64, location))?;
-        let size = rewriter.make(arith::trunci(size, uint64, location))?;
-        memory::resize_memory(context, op, &rewriter, syscall_ctx, offset, size)?;
+        // Check the log mem offset and size overflow error
+        u256_to_64!(op, rewriter, size);
+        let gas = compute_log_dynamic_cost(&rewriter, num_topics as u8, size)?;
+        gas_or_fail!(op, rewriter, gas);
+        let rewriter = Rewriter::new_with_op(context, *op);
+        u256_to_64!(op, rewriter, offset);
+
+        let size_is_not_zero = rewriter.make(rewriter.icmp_imm(IntCC::NotEqual, size, 0)?)?;
+        if_here!(op, rewriter, size_is_not_zero, {
+            memory::resize_memory(context, op, &rewriter, syscall_ctx, offset, size)?;
+        });
         rewrite_ctx!(context, op, rewriter, location);
 
         // Handle topics dynamically
@@ -281,7 +315,6 @@ impl<'c> ConversionPass<'c> {
 
         let mut call_args: Vec<Value> = vec![syscall_ctx.into(), offset, size];
         call_args.append(&mut topic_pointers);
-        debug_assert!(num_topics <= 4);
         let symbol = match num_topics {
             0 => symbols::APPEND_LOG,
             1 => symbols::APPEND_LOG_ONE_TOPIC,
@@ -315,16 +348,19 @@ impl<'c> ConversionPass<'c> {
         let ptr_type = rewriter.ptr_ty();
         let address_ptr =
             memory::allocate_u256_and_assign_value(context, &rewriter, address, location)?;
-        rewriter.make(func::call(
+        let result_ptr = rewriter.make(func::call(
             context,
             FlatSymbolRefAttribute::new(context, symbols::SELFDESTRUCT),
             &[syscall_ctx.into(), address_ptr],
             &[ptr_type],
             location,
         ))?;
-
-        // dynamic gas computation in the gas pass
-
+        let gas = rewriter.get_field_value(
+            result_ptr,
+            offset_of!(dora_runtime::context::Result<u64>, gas_used),
+            rewriter.intrinsics.i64_ty,
+        )?;
+        gas_or_fail!(op, rewriter, gas);
         Ok(())
     }
 }

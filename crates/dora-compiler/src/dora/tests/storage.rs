@@ -43,12 +43,12 @@ fn test_storage_pass() {
     let operations = vec![
         Operation::Push((32_u8, BigUint::from(100_u64))),
         Operation::Push((32_u8, BigUint::from(0_u64))),
-        Operation::Sstore,
+        Operation::SStore,
         Operation::Push((32_u8, BigUint::from(0_u64))),
-        Operation::Sload,
+        Operation::SLoad,
         // Return result
         Operation::Push0,
-        Operation::Mstore,
+        Operation::MStore,
         Operation::Push((1, 32_u8.into())),
         Operation::Push0,
         Operation::Return,

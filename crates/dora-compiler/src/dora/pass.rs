@@ -1,7 +1,7 @@
-use self::gas::GasOptions;
-use super::{conversion, gas, storage};
+use super::{conversion, storage};
 use crate::errors::Result;
 use melior::{ir::Module as MLIRModule, Context};
+use revmc::primitives::SpecId;
 
 /// Options for configuring a pass, including program-related settings.
 ///
@@ -13,7 +13,19 @@ use melior::{ir::Module as MLIRModule, Context};
 /// - `program_code_size`: The size of the program code, in bytes.
 #[derive(Debug)]
 pub struct PassOptions {
+    pub spec_id: SpecId,
     pub program_code_size: u32,
+    pub limit_contract_code_size: Option<usize>,
+}
+
+impl Default for PassOptions {
+    fn default() -> Self {
+        Self {
+            spec_id: SpecId::CANCUN,
+            program_code_size: Default::default(),
+            limit_contract_code_size: Default::default(),
+        }
+    }
 }
 
 /// Executes the conversion pass on the given MLIR module.
@@ -43,34 +55,10 @@ pub fn run(ctx: &Context, module: &mut MLIRModule, opts: &PassOptions) -> Result
     let mut conversion_pass = conversion::ConversionPass {
         ctx,
         program_code_size: opts.program_code_size,
+        spec_id: opts.spec_id,
+        limit_contract_code_size: opts.limit_contract_code_size,
     };
     conversion_pass.run(module.as_operation())
-}
-
-/// Executes the gas pass on the given MLIR module.
-///
-/// This function runs a gas pass on the provided `MLIRModule`. The gas pass is responsible for
-/// inserting and managing gas checks within the module's operations. The `GasPass` struct is used
-/// to perform the necessary transformations on the module.
-///
-/// # Parameters
-///
-/// - `_context`: The MLIR `Context` in which the pass is executed. This parameter is not used directly,
-///   but is passed for compatibility with the framework.
-/// - `module`: The `MLIRModule` on which the gas pass will be run.
-///
-/// # Returns
-///
-/// - `Result<()>`: Returns `Ok(())` if the gas pass runs successfully, or an error if the process fails.
-///
-/// # Example
-///
-/// ```no_check
-/// run_gas_pass(&context, &mut mlir_module)?;
-/// ```
-pub fn run_gas_pass(ctx: &Context, module: &mut MLIRModule, options: GasOptions) -> Result<()> {
-    let mut gas_pass = gas::GasPass { ctx, options };
-    gas_pass.run(module.as_operation())
 }
 
 /// Run the storage optimization pass on the given MLIR module

@@ -33,7 +33,7 @@ fn run_bench(c: &mut Criterion, bench: &Bench) {
     } = bench;
 
     let mut g = mk_group(c, name);
-
+    let spec_id = SpecId::CANCUN;
     let context = Context::new();
     let compiler = EVMCompiler::new(&context);
     let program = Program::from_opcode(bytecode);
@@ -42,7 +42,7 @@ fn run_bench(c: &mut Criterion, bench: &Bench) {
             &program,
             &(),
             &CompileOptions {
-                spec_id: SpecId::CANCUN,
+                spec_id,
                 stack_bound_checks: false,
                 gas_metering: false,
             },
@@ -55,6 +55,8 @@ fn run_bench(c: &mut Criterion, bench: &Bench) {
         &mut module.mlir_module,
         &dora::pass::PassOptions {
             program_code_size: program.code_size,
+            spec_id,
+            ..Default::default()
         },
     )
     .unwrap();

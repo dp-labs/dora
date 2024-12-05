@@ -1,6 +1,6 @@
 use crate::backend::IntCC;
 use crate::conversion::builder::OpBuilder;
-use crate::u256_to_64;
+use crate::dora::gas::compute_copy_cost;
 use crate::{
     check_op_oog,
     conversion::rewriter::{DeferredRewriter, Rewriter},
@@ -8,15 +8,19 @@ use crate::{
     errors::Result,
     load_by_addr, maybe_revert_here, operands, rewrite_ctx, syscall_ctx,
 };
+use crate::{gas_or_fail, u256_to_64};
+use dora_runtime::constants::GAS_COUNTER_GLOBAL;
 use dora_runtime::{constants, ExitStatusCode};
 use melior::{
     dialect::{
         arith::{self},
         cf,
         llvm::{self, LoadStoreOptions},
-        ods,
+        ods, scf,
     },
-    ir::{attribute::IntegerAttribute, operation::OperationRef, r#type::IntegerType},
+    ir::{
+        attribute::IntegerAttribute, operation::OperationRef, r#type::IntegerType, Block, Region,
+    },
     Context,
 };
 
@@ -128,10 +132,12 @@ impl<'c> ConversionPass<'c> {
         let rewriter = Rewriter::new_with_op(context, *op);
         let location = rewriter.get_insert_location();
         let uint8 = rewriter.intrinsics.i8_ty;
+        u256_to_64!(op, rewriter, size);
+        let gas = compute_copy_cost(&rewriter, size)?;
+        gas_or_fail!(op, rewriter, gas);
+        let rewriter = Rewriter::new_with_op(context, *op);
         u256_to_64!(op, rewriter, dest_offset);
         u256_to_64!(op, rewriter, offset);
-        u256_to_64!(op, rewriter, size);
-
         let offset = rewriter.make(arith::maxui(dest_offset, offset, location))?;
         memory::resize_memory(context, op, &rewriter, syscall_ctx, offset, size)?;
         rewrite_ctx!(context, op, rewriter, location);

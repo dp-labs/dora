@@ -17,6 +17,8 @@ use rustc_hash::FxHashMap;
 /// ```
 pub const EMPTY_CODE_HASH_STR: &str =
     "0xc5d2460186f7233c927e7db2dcc703c0e500b653ca82273b7bfad8045d85a470";
+pub const EMPTY_CODE_HASH_BYTES: [u8; 32] =
+    hex_literal::hex!("c5d2460186f7233c927e7db2dcc703c0e500b653ca82273b7bfad8045d85a470");
 
 /// Represents the core information of an account, including its balance, nonce, code hash, and optional bytecode.
 ///

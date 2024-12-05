@@ -91,6 +91,16 @@ impl ExecutionResult {
         matches!(self, Self::Halt { .. })
     }
 
+    /// Get the halt reason
+    #[inline]
+    pub fn halt_reason(&self) -> Option<&HaltReason> {
+        if let Self::Halt { reason, .. } = self {
+            Some(reason)
+        } else {
+            None
+        }
+    }
+
     /// Returns the output data produced by the execution, if any.
     ///
     /// This method will return the output from both successful and reverted executions. It filters
@@ -398,6 +408,33 @@ pub enum HaltReason {
     EOFFunctionStackOverflow,
     /// Check for target address validity is only done inside subcall.
     InvalidExtCallTarget,
+}
+
+impl HaltReason {
+    #[inline]
+    pub fn is_stack_overflow(&self) -> bool {
+        matches!(self, HaltReason::StackOverflow)
+    }
+
+    #[inline]
+    pub fn is_stack_underflow(&self) -> bool {
+        matches!(self, HaltReason::StackUnderflow)
+    }
+
+    #[inline]
+    pub fn is_out_of_gas(&self) -> bool {
+        matches!(self, HaltReason::OutOfGas(_))
+    }
+
+    #[inline]
+    pub fn is_opcode_not_found(&self) -> bool {
+        matches!(self, HaltReason::OpcodeNotFound)
+    }
+
+    #[inline]
+    pub fn is_invalid_jump(&self) -> bool {
+        matches!(self, HaltReason::InvalidJump)
+    }
 }
 
 /// Represents out-of-gas errors during EVM execution.

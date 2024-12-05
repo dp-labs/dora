@@ -1,5 +1,5 @@
-use super::utils;
 use crate::backend::IntCC;
+use crate::dora::gas::{memory_gas_cost, num_words};
 use crate::{
     arith_constant,
     conversion::{builder::OpBuilder, rewriter::Rewriter},
@@ -7,15 +7,18 @@ use crate::{
     errors::Result,
     store_var,
 };
-use crate::{check_op_oog, check_runtime_error, maybe_revert_here};
+use crate::{check_op_oog, check_runtime_error, gas_or_fail, maybe_revert_here};
 use block::BlockArgument;
 use dora_runtime::constants;
+use dora_runtime::constants::GAS_COUNTER_GLOBAL;
 use dora_runtime::symbols;
 use dora_runtime::ExitStatusCode;
+use melior::dialect::arith::CmpiPredicate;
 use melior::{
     dialect::{
         arith, cf, func,
         llvm::{self, AllocaOptions, LoadStoreOptions},
+        scf,
     },
     ir::{
         attribute::{FlatSymbolRefAttribute, IntegerAttribute, TypeAttribute},
@@ -101,7 +104,59 @@ pub(crate) fn resize_memory<'c>(
     // Check the memory offset halt error
     check_op_oog!(op, rewriter, required_size);
     let ptr_type = rewriter.ptr_ty();
-    let rounded_required_size = utils::round_up_32(required_size, context, &rewriter, location)?;
+    let required_size_words = num_words(&rewriter, required_size, location)?;
+    let contant_32 = rewriter.make(rewriter.iconst_64(32))?;
+    let rounded_required_size =
+        rewriter.make(arith::muli(required_size_words, contant_32, location))?;
+    // Load memory size
+    let memory_size_ptr =
+        rewriter.make(rewriter.addressof(constants::MEMORY_SIZE_GLOBAL, rewriter.ptr_ty()))?;
+    let memory_size = rewriter.make(llvm::load(
+        context,
+        memory_size_ptr,
+        rewriter.intrinsics.i64_ty,
+        location,
+        LoadStoreOptions::default(),
+    ))?;
+    let memory_size_words = num_words(&rewriter, memory_size, location)?;
+    let rounded_memory_size =
+        rewriter.make(arith::muli(memory_size_words, contant_32, location))?;
+    let extension_flag = rewriter.make(arith::cmpi(
+        context,
+        CmpiPredicate::Ult,
+        rounded_memory_size,
+        rounded_required_size,
+        location,
+    ))?;
+    let gas = rewriter.make(scf::r#if(
+        extension_flag,
+        &[rewriter.intrinsics.i64_ty],
+        {
+            let region = Region::new();
+            let block = region.append_block(Block::new(&[]));
+            let rewriter = Rewriter::new_with_block(context, block);
+            // dynamic gas computation in the gas pass
+            let memory_cost_before = memory_gas_cost(&rewriter, memory_size_words)?;
+            let memory_cost_after = memory_gas_cost(&rewriter, required_size_words)?;
+            let dynamic_gas_value =
+                rewriter.make(arith::subi(memory_cost_after, memory_cost_before, location))?;
+            rewriter.create(scf::r#yield(&[dynamic_gas_value], location));
+            region
+        },
+        {
+            let region = Region::new();
+            let block = region.append_block(Block::new(&[]));
+            let rewriter = Rewriter::new_with_block(context, block);
+            rewriter.create(scf::r#yield(
+                &[rewriter.make(rewriter.iconst_64(0))?],
+                location,
+            ));
+            region
+        },
+        location,
+    ))?;
+    gas_or_fail!(op, rewriter, gas);
+    let rewriter = Rewriter::new_with_op(context, *op);
     let result_ptr = rewriter.make(func::call(
         context,
         FlatSymbolRefAttribute::new(context, symbols::EXTEND_MEMORY),

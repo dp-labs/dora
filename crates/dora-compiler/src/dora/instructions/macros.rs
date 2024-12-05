@@ -31,6 +31,12 @@ macro_rules! rewrite_ctx {
             $rewriter.remove();
         }
     };
+    ($context:expr, $op:expr, $rewriter:ident, $loc:ident, NoDefer) => {
+        let r = Rewriter::new_with_op($context, *$op);
+        let l = r.get_insert_location();
+
+        let ($rewriter, $loc) = (r, l);
+    };
 }
 
 #[macro_export]
@@ -283,21 +289,6 @@ macro_rules! check_runtime_error {
 }
 
 #[macro_export]
-macro_rules! check_u256_to_u64_overflow {
-    ($op:expr, $rewriter:ident, $required_memory_size:expr) => {
-        // Check the memory offset halt error
-        let max_u64 =
-            $rewriter.make($rewriter.iconst_256(BigUint::from(18446744073709551615_u128))?)?;
-        let overflow = $rewriter.make($rewriter.icmp(
-            IntCC::UnsignedGreaterThan,
-            $required_memory_size,
-            max_u64,
-        ))?;
-        maybe_revert_here!($op, $rewriter, overflow, ExitStatusCode::InvalidOperandOOG);
-    };
-}
-
-#[macro_export]
 macro_rules! ensure_non_staticcall {
     ($op:expr, $rewriter:ident) => {
         let ctx_is_static_ptr =
@@ -310,5 +301,85 @@ macro_rules! ensure_non_staticcall {
             ctx_is_static,
             ExitStatusCode::StateChangeDuringStaticCall
         );
+    };
+}
+
+#[macro_export]
+macro_rules! gas_or_fail {
+    ($op:expr, $rewriter:ident, $gas_value:expr) => {
+        let gas_counter_ptr =
+            $rewriter.make($rewriter.addressof(GAS_COUNTER_GLOBAL, $rewriter.ptr_ty()))?;
+        let gas_counter =
+            $rewriter.make($rewriter.load(gas_counter_ptr, $rewriter.intrinsics.i64_ty))?;
+        let out_of_gas = $rewriter.make(arith::cmpi(
+            $rewriter.context(),
+            arith::CmpiPredicate::Ult,
+            gas_counter,
+            $gas_value,
+            $rewriter.get_insert_location(),
+        ))?;
+        $rewriter.create(scf::r#if(
+            out_of_gas,
+            &[],
+            {
+                let region = Region::new();
+                let block = region.append_block(Block::new(&[]));
+                let rewriter = Rewriter::new_with_block($rewriter.context(), block);
+                rewriter.create(scf::r#yield(&[], rewriter.get_insert_location()));
+                region
+            },
+            {
+                let region = Region::new();
+                let block = region.append_block(Block::new(&[]));
+                let rewriter = Rewriter::new_with_block($rewriter.context(), block);
+                let new_gas_counter = rewriter.make(arith::subi(
+                    gas_counter,
+                    $gas_value,
+                    rewriter.get_insert_location(),
+                ))?;
+                rewriter.create(melior::dialect::llvm::store(
+                    rewriter.context(),
+                    new_gas_counter,
+                    gas_counter_ptr,
+                    rewriter.get_insert_location(),
+                    melior::dialect::llvm::LoadStoreOptions::default(),
+                ));
+                rewriter.create(scf::r#yield(&[], rewriter.get_insert_location()));
+                region
+            },
+            $rewriter.get_insert_location(),
+        ));
+        maybe_revert_here!($op, $rewriter, out_of_gas, ExitStatusCode::OutOfGas);
+    };
+}
+
+#[macro_export]
+macro_rules! if_here {
+    ($op:ident, $rewriter:ident, $cond:expr, $block:expr) => {
+        if let Some(block) = $op.block() {
+            if let Some(region) = block.parent_region() {
+                if let Some(insert_point) = $rewriter.get_insert_point() {
+                    let if_block = region.append_block(Block::new(&[]));
+                    let next_block = $rewriter.split_block(block, Some(insert_point))?;
+                    let rewriter = Rewriter::new_with_block($rewriter.context(), block);
+                    rewriter.create(cf::cond_br(
+                        $rewriter.context(),
+                        $cond,
+                        &if_block,
+                        &next_block,
+                        &[],
+                        &[],
+                        $rewriter.get_insert_location(),
+                    ));
+                    let $op = &if_block.append_operation(cf::br(
+                        &next_block,
+                        &[],
+                        $rewriter.get_insert_location(),
+                    ));
+                    let $rewriter = Rewriter::new_with_op(rewriter.context(), *$op);
+                    $block
+                }
+            }
+        }
     };
 }

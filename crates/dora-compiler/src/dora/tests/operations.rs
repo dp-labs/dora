@@ -22,6 +22,7 @@ macro_rules! assert_snapshot {
             &mut module.mlir_module,
             &crate::dora::pass::PassOptions {
                 program_code_size: program.code_size,
+                ..Default::default()
             },
         )
         .unwrap();
@@ -153,7 +154,7 @@ fn push_push_sdiv_0() {
     assert_snapshot!(vec![
         Operation::Push((1_u8, BigUint::from(10_u8))),
         Operation::Push((1_u8, BigUint::from(10_u8))),
-        Operation::Sdiv,
+        Operation::SDiv,
     ]);
 }
 
@@ -174,7 +175,7 @@ fn push_push_sdiv_1() {
                 0xFF,
             ]),
         )),
-        Operation::Sdiv,
+        Operation::SDiv,
     ]);
 }
 
@@ -225,7 +226,7 @@ fn push_push_push_addmod() {
         Operation::Push((1_u8, BigUint::from(b))),
         Operation::Push((1_u8, a.clone())),
         Operation::Push((1_u8, a.clone())),
-        Operation::Addmod,
+        Operation::AddMod,
     ]);
 }
 
@@ -235,7 +236,7 @@ fn push_push_push_addmod_large_mod() {
         Operation::Push((32_u8, BigUint::from(u128::MAX))),
         Operation::Push((32_u8, BigUint::from(u128::MAX))),
         Operation::Push((32_u8, BigUint::from(100_u8))),
-        Operation::Addmod,
+        Operation::AddMod,
     ]);
 }
 
@@ -245,7 +246,7 @@ fn push_push_push_mulmod() {
         Operation::Push((1_u8, BigUint::from(8_u32))),
         Operation::Push((1_u8, BigUint::from(10_u32))),
         Operation::Push((1_u8, BigUint::from(10_u32))),
-        Operation::Mulmod,
+        Operation::MulMod,
     ]);
 }
 
@@ -255,7 +256,7 @@ fn push_push_push_mulmod_zero_mod() {
         Operation::Push((32_u8, BigUint::from(2_u8))),
         Operation::Push((32_u8, BigUint::from(2_u8))),
         Operation::Push((32_u8, BigUint::from(0_u8))), // modulus
-        Operation::Mulmod,
+        Operation::MulMod,
     ]);
 }
 
@@ -505,7 +506,7 @@ fn push_mstore_keccak256() {
             ]),
         )),
         Operation::Push((1_u8, BigUint::from(0_u8))),
-        Operation::Mstore,
+        Operation::MStore,
         Operation::Push((1_u8, BigUint::from(4_u8))),
         Operation::Push((1_u8, BigUint::from(0_u8))),
         Operation::Keccak256,
@@ -534,14 +535,14 @@ fn caller() {
 
 #[test]
 fn callvalue() {
-    assert_snapshot!(vec![Operation::Callvalue]);
+    assert_snapshot!(vec![Operation::CallValue]);
 }
 
 #[test]
 fn push_calldataload() {
     assert_snapshot!(vec![
         Operation::Push((1_u8, BigUint::from(0_u8))),
-        Operation::CalldataLoad,
+        Operation::CallDataLoad,
     ]);
 }
 
@@ -549,7 +550,7 @@ fn push_calldataload() {
 fn push_calldataload_edge_case() {
     assert_snapshot!(vec![
         Operation::Push((1_u8, BigUint::from(100_u8))),
-        Operation::CalldataLoad,
+        Operation::CallDataLoad,
     ]);
 }
 
@@ -593,13 +594,13 @@ fn push_pop_codesize() {
     assert_snapshot!(vec![
         Operation::Push((1_u8, BigUint::from(0_u8))),
         Operation::Pop,
-        Operation::Codesize,
+        Operation::CodeSize,
     ]);
 }
 
 #[test]
 fn codesize_edge_case_empty() {
-    assert_snapshot!(vec![Operation::Codesize,]);
+    assert_snapshot!(vec![Operation::CodeSize,]);
 }
 
 #[test]
@@ -618,7 +619,7 @@ fn push_codecopy() {
         Operation::Push((1_u8, BigUint::from(32_u8))),
         Operation::Push((1_u8, BigUint::from(0_u8))),
         Operation::Push((1_u8, BigUint::from(0_u8))),
-        Operation::Codecopy,
+        Operation::CodeCopy,
     ]);
 }
 
@@ -628,7 +629,7 @@ fn push_codecopy_1() {
         Operation::Push((1_u8, BigUint::from(0_u8))),
         Operation::Push((1_u8, BigUint::from(0_u8))),
         Operation::Push((1_u8, BigUint::from(10_u8))),
-        Operation::Codecopy,
+        Operation::CodeCopy,
     ]);
 }
 
@@ -638,7 +639,7 @@ fn push_codecopy_partial() {
         Operation::Push((1_u8, BigUint::from(0_u8))),
         Operation::Push((1_u8, BigUint::from(5_u8))),
         Operation::Push((1_u8, BigUint::from(5_u8))),
-        Operation::Codecopy,
+        Operation::CodeCopy,
     ]);
 }
 
@@ -648,13 +649,13 @@ fn push_codecopy_out_of_bounds() {
         Operation::Push((1_u8, BigUint::from(0_u8))),
         Operation::Push((1_u8, BigUint::from(50_u8))),
         Operation::Push((1_u8, BigUint::from(10_u8))),
-        Operation::Codecopy,
+        Operation::CodeCopy,
     ]);
 }
 
 #[test]
 fn gasprice() {
-    assert_snapshot!(vec![Operation::Gasprice,]);
+    assert_snapshot!(vec![Operation::GasPrice,]);
 }
 
 #[test]
@@ -668,7 +669,7 @@ fn push_mstore_create_extcodesize() {
             ]),
         )),
         Operation::Push((1_u8, BigUint::from(0_u8))),
-        Operation::Mstore,
+        Operation::MStore,
         Operation::Push((
             32_u8,
             BigUint::from_bytes_be(&[
@@ -677,12 +678,12 @@ fn push_mstore_create_extcodesize() {
             ]),
         )),
         Operation::Push((1_u8, BigUint::from(32_u8))),
-        Operation::Mstore,
+        Operation::MStore,
         Operation::Push((1_u8, BigUint::from(41_u8))),
         Operation::Push((1_u8, BigUint::from(0_u8))),
         Operation::Push((1_u8, BigUint::from(0_u8))),
         Operation::Create,
-        Operation::ExtcodeSize,
+        Operation::ExtCodeSize,
     ]);
 }
 
@@ -690,7 +691,7 @@ fn push_mstore_create_extcodesize() {
 fn push_extcodesize() {
     assert_snapshot!(vec![
         Operation::Push((20_u8, BigUint::from_bytes_be(&[0xde, 0xad, 0xbe, 0xef]))),
-        Operation::ExtcodeSize,
+        Operation::ExtCodeSize,
     ]);
 }
 
@@ -698,7 +699,7 @@ fn push_extcodesize() {
 fn push_extcodesize_nonexistent() {
     assert_snapshot!(vec![
         Operation::Push((20_u8, BigUint::from_bytes_be(&[0x00, 0x00, 0x00, 0x00]))),
-        Operation::ExtcodeSize,
+        Operation::ExtCodeSize,
     ]);
 }
 
@@ -713,7 +714,7 @@ fn test_create_extcodesize() {
             ]),
         )),
         Operation::Push((1_u8, BigUint::from(0_u8))),
-        Operation::Mstore,
+        Operation::MStore,
         Operation::Push((
             32_u8,
             BigUint::from_bytes_be(&[
@@ -722,15 +723,15 @@ fn test_create_extcodesize() {
             ]),
         )),
         Operation::Push((1_u8, BigUint::from(32_u8))),
-        Operation::Mstore,
+        Operation::MStore,
         Operation::Push((1_u8, BigUint::from(41_u8))),
         Operation::Push((1_u8, BigUint::from(0_u8))),
         Operation::Push((1_u8, BigUint::from(0_u8))),
         Operation::Create,
-        Operation::ExtcodeSize,
+        Operation::ExtCodeSize,
         // Return result
         Operation::Push0,
-        Operation::Mstore,
+        Operation::MStore,
         Operation::Push((1, 32_u8.into())),
         Operation::Push0,
         Operation::Return,
@@ -748,7 +749,7 @@ fn push_mstore_create_extcodecopy() {
             ]),
         )),
         Operation::Push((1_u8, BigUint::from(0_u8))),
-        Operation::Mstore,
+        Operation::MStore,
         Operation::Push((
             32_u8,
             BigUint::from_bytes_be(&[
@@ -757,22 +758,22 @@ fn push_mstore_create_extcodecopy() {
             ]),
         )),
         Operation::Push((1_u8, BigUint::from(32_u8))),
-        Operation::Mstore,
+        Operation::MStore,
         Operation::Push((1_u8, BigUint::from(41_u8))),
         Operation::Push((1_u8, BigUint::from(0_u8))),
         Operation::Push((1_u8, BigUint::from(0_u8))),
         Operation::Create,
         Operation::Push((1_u8, BigUint::from(0_u8))),
         Operation::Push((1_u8, BigUint::from(0_u8))),
-        Operation::Mstore,
+        Operation::MStore,
         Operation::Push((1_u8, BigUint::from(0_u8))),
         Operation::Push((1_u8, BigUint::from(32_u8))),
-        Operation::Mstore,
+        Operation::MStore,
         Operation::Push((1_u8, BigUint::from(32_u8))),
         Operation::Push((1_u8, BigUint::from(0_u8))),
         Operation::Push((1_u8, BigUint::from(0_u8))),
         Operation::Dup(4),
-        Operation::ExtcodeCopy,
+        Operation::ExtCodeCopy,
     ]);
 }
 
@@ -783,7 +784,7 @@ fn push_extcodecopy_basic() {
         Operation::Push((1_u8, BigUint::from(0_u8))),
         Operation::Push((20_u8, BigUint::from_bytes_be(&[0xde, 0xad, 0xbe, 0xef]))),
         Operation::Push((1_u8, BigUint::from(10_u8))),
-        Operation::ExtcodeCopy,
+        Operation::ExtCodeCopy,
     ]);
 }
 
@@ -794,7 +795,7 @@ fn push_extcodecopy_partial() {
         Operation::Push((1_u8, BigUint::from(5_u8))),
         Operation::Push((20_u8, BigUint::from_bytes_be(&[0xde, 0xad, 0xbe, 0xef]))),
         Operation::Push((1_u8, BigUint::from(5_u8))),
-        Operation::ExtcodeCopy,
+        Operation::ExtCodeCopy,
     ]);
 }
 
@@ -805,7 +806,7 @@ fn push_extcodecopy_out_of_bounds() {
         Operation::Push((1_u8, BigUint::from(50_u8))),
         Operation::Push((20_u8, BigUint::from_bytes_be(&[0xde, 0xad, 0xbe, 0xef]))),
         Operation::Push((1_u8, BigUint::from(10_u8))),
-        Operation::ExtcodeCopy,
+        Operation::ExtCodeCopy,
     ]);
 }
 
@@ -821,7 +822,7 @@ fn push_mstore_create_returndatasize() {
             ]),
         )),
         Operation::Push((1_u8, BigUint::from(0_u8))),
-        Operation::Mstore,
+        Operation::MStore,
         Operation::Push((
             32_u8,
             BigUint::from_bytes_be(&[
@@ -831,7 +832,7 @@ fn push_mstore_create_returndatasize() {
             ]),
         )),
         Operation::Push((1_u8, BigUint::from(32_u8))),
-        Operation::Mstore,
+        Operation::MStore,
         Operation::Push((
             32_u8,
             BigUint::from_bytes_be(&[
@@ -841,7 +842,7 @@ fn push_mstore_create_returndatasize() {
             ]),
         )),
         Operation::Push((1_u8, BigUint::from(64_u8))),
-        Operation::Mstore,
+        Operation::MStore,
         Operation::Push((1_u8, BigUint::from(77_u8))),
         Operation::Push((1_u8, BigUint::from(0_u8))),
         Operation::Push((1_u8, BigUint::from(0_u8))),
@@ -869,7 +870,7 @@ fn push_mstore_create_returndatacopy() {
             ]),
         )),
         Operation::Push((1_u8, BigUint::from(0_u8))),
-        Operation::Mstore,
+        Operation::MStore,
         Operation::Push((
             32_u8,
             BigUint::from_bytes_be(&[
@@ -879,7 +880,7 @@ fn push_mstore_create_returndatacopy() {
             ]),
         )),
         Operation::Push((1_u8, BigUint::from(32_u8))),
-        Operation::Mstore,
+        Operation::MStore,
         Operation::Push((
             32_u8,
             BigUint::from_bytes_be(&[
@@ -889,7 +890,7 @@ fn push_mstore_create_returndatacopy() {
             ]),
         )),
         Operation::Push((1_u8, BigUint::from(64_u8))),
-        Operation::Mstore,
+        Operation::MStore,
         Operation::Push((1_u8, BigUint::from(77_u8))),
         Operation::Push((1_u8, BigUint::from(0_u8))),
         Operation::Push((1_u8, BigUint::from(0_u8))),
@@ -905,13 +906,13 @@ fn push_mstore_create_returndatacopy() {
         Operation::Pop,
         Operation::Push((1_u8, BigUint::from(0_u8))),
         Operation::Push((1_u8, BigUint::from(0_u8))),
-        Operation::Mstore,
+        Operation::MStore,
         Operation::Push((1_u8, BigUint::from(0_u8))),
         Operation::Push((1_u8, BigUint::from(32_u8))),
-        Operation::Mstore,
+        Operation::MStore,
         Operation::Push((1_u8, BigUint::from(0_u8))),
         Operation::Push((1_u8, BigUint::from(64_u8))),
-        Operation::Mstore,
+        Operation::MStore,
         Operation::Push((1_u8, BigUint::from(32_u8))),
         Operation::Push((1_u8, BigUint::from(0_u8))),
         Operation::Push((1_u8, BigUint::from(0_u8))),
@@ -959,12 +960,12 @@ fn push_mstore_create_extcodehash() {
             ]),
         )),
         Operation::Push((1_u8, BigUint::from(0_u8))),
-        Operation::Mstore,
+        Operation::MStore,
         Operation::Push((1_u8, BigUint::from(13_u8))),
         Operation::Push((1_u8, BigUint::from(0_u8))),
         Operation::Push((1_u8, BigUint::from(0_u8))),
         Operation::Create,
-        Operation::ExtcodeHash,
+        Operation::ExtCodeHash,
     ]);
 }
 
@@ -972,7 +973,7 @@ fn push_mstore_create_extcodehash() {
 fn extcodehash_basic() {
     assert_snapshot!(vec![
         Operation::Push((20_u8, BigUint::from_bytes_be(&[0xde, 0xad, 0xbe, 0xef]))), // External address
-        Operation::ExtcodeHash,
+        Operation::ExtCodeHash,
     ]);
 }
 
@@ -980,7 +981,7 @@ fn extcodehash_basic() {
 fn extcodehash_nonexistent() {
     assert_snapshot!(vec![
         Operation::Push((20_u8, BigUint::from_bytes_be(&[0x00, 0x00, 0x00, 0x00]))), // Nonexistent address
-        Operation::ExtcodeHash,
+        Operation::ExtCodeHash,
     ]);
 }
 
@@ -1035,7 +1036,7 @@ fn selfbalance() {
 
 #[test]
 fn basefee() {
-    assert_snapshot!(vec![Operation::Basefee,]);
+    assert_snapshot!(vec![Operation::BaseFee,]);
 }
 
 #[test]
@@ -1070,9 +1071,9 @@ fn push_mstore_mload() {
             ]),
         )),
         Operation::Push((1_u8, BigUint::from(0_u8))),
-        Operation::Mstore,
+        Operation::MStore,
         Operation::Push((1_u8, BigUint::from(0_u8))),
-        Operation::Mload,
+        Operation::MLoad,
     ]);
 }
 
@@ -1081,7 +1082,7 @@ fn mstore_basic() {
     assert_snapshot!(vec![
         Operation::Push((1_u8, BigUint::from(0_u8))),
         Operation::Push((32_u8, BigUint::from(42_u64))),
-        Operation::Mstore,
+        Operation::MStore,
     ]);
 }
 
@@ -1090,10 +1091,10 @@ fn mstore_overwrite() {
     assert_snapshot!(vec![
         Operation::Push((1_u8, BigUint::from(0_u8))),
         Operation::Push((32_u8, BigUint::from(42_u64))),
-        Operation::Mstore,
+        Operation::MStore,
         Operation::Push((1_u8, BigUint::from(0_u8))),
         Operation::Push((32_u8, BigUint::from(99_u64))),
-        Operation::Mstore,
+        Operation::MStore,
     ]);
 }
 
@@ -1108,7 +1109,7 @@ fn push_mstore() {
             ]),
         )),
         Operation::Push((1_u8, BigUint::from(0_u8))),
-        Operation::Mstore,
+        Operation::MStore,
     ]);
 }
 
@@ -1117,7 +1118,7 @@ fn mstore_high_address() {
     assert_snapshot!(vec![
         Operation::Push((1_u8, BigUint::from(1024_u64))),
         Operation::Push((32_u8, BigUint::from(123_u64))),
-        Operation::Mstore,
+        Operation::MStore,
     ]);
 }
 
@@ -1126,9 +1127,9 @@ fn mload_basic() {
     assert_snapshot!(vec![
         Operation::Push((1_u8, BigUint::from(0_u8))),
         Operation::Push((32_u8, BigUint::from(42_u64))),
-        Operation::Mstore,
+        Operation::MStore,
         Operation::Push((1_u8, BigUint::from(0_u8))),
-        Operation::Mload,
+        Operation::MLoad,
     ]);
 }
 
@@ -1136,7 +1137,7 @@ fn mload_basic() {
 fn mload_uninitialized() {
     assert_snapshot!(vec![
         Operation::Push((1_u8, BigUint::from(0_u8))),
-        Operation::Mload,
+        Operation::MLoad,
     ]);
 }
 
@@ -1145,9 +1146,9 @@ fn mload_high_address() {
     assert_snapshot!(vec![
         Operation::Push((1_u8, BigUint::from(1024_u64))),
         Operation::Push((32_u8, BigUint::from(987654321_u64))),
-        Operation::Mstore,
+        Operation::MStore,
         Operation::Push((1_u8, BigUint::from(1024_u64))),
-        Operation::Mload,
+        Operation::MLoad,
     ]);
 }
 
@@ -1156,7 +1157,7 @@ fn push_mstore8() {
     assert_snapshot!(vec![
         Operation::Push((32_u8, BigUint::from_bytes_be(&[0xFF, 0xFF,]),)),
         Operation::Push((1_u8, BigUint::from(0_u8))),
-        Operation::Mstore8,
+        Operation::MStore8,
     ]);
 }
 
@@ -1165,9 +1166,9 @@ fn push_push_sstore_sload() {
     assert_snapshot!(vec![
         Operation::Push((1_u8, BigUint::from(46_u8))),
         Operation::Push((1_u8, BigUint::from(0_u8))),
-        Operation::Sstore,
+        Operation::SStore,
         Operation::Push((1_u8, BigUint::from(0_u8))),
-        Operation::Sload,
+        Operation::SLoad,
     ]);
 }
 
@@ -1176,7 +1177,7 @@ fn sstore_basic() {
     assert_snapshot!(vec![
         Operation::Push((32_u8, BigUint::from(0_u64))),
         Operation::Push((32_u8, BigUint::from(100_u64))),
-        Operation::Sstore,
+        Operation::SStore,
     ]);
 }
 
@@ -1185,10 +1186,10 @@ fn sstore_overwrite() {
     assert_snapshot!(vec![
         Operation::Push((32_u8, BigUint::from(0_u64))),
         Operation::Push((32_u8, BigUint::from(200_u64))),
-        Operation::Sstore,
+        Operation::SStore,
         Operation::Push((32_u8, BigUint::from(0_u64))),
         Operation::Push((32_u8, BigUint::from(300_u64))),
-        Operation::Sstore,
+        Operation::SStore,
     ]);
 }
 
@@ -1197,10 +1198,10 @@ fn sstore_multiple_slots() {
     assert_snapshot!(vec![
         Operation::Push((32_u8, BigUint::from(0_u64))), // Storage slot 0
         Operation::Push((32_u8, BigUint::from(500_u64))), // Value to store in slot 0
-        Operation::Sstore,
+        Operation::SStore,
         Operation::Push((32_u8, BigUint::from(1_u64))), // Storage slot 1
         Operation::Push((32_u8, BigUint::from(600_u64))), // Value to store in slot 1
-        Operation::Sstore,
+        Operation::SStore,
     ]);
 }
 
@@ -1210,7 +1211,7 @@ fn sstore_high_slot() {
     assert_snapshot!(vec![
         Operation::Push((32_u8, key)), // High storage slot (max slot)
         Operation::Push((32_u8, BigUint::from(777_u64))), // Value to store
-        Operation::Sstore,
+        Operation::SStore,
     ]);
 }
 
@@ -1219,9 +1220,9 @@ fn sload_basic() {
     assert_snapshot!(vec![
         Operation::Push((32_u8, BigUint::from(0_u64))), // Storage slot
         Operation::Push((32_u8, BigUint::from(400_u64))), // Value to store
-        Operation::Sstore,
+        Operation::SStore,
         Operation::Push((32_u8, BigUint::from(0_u64))), // Same slot
-        Operation::Sload,
+        Operation::SLoad,
     ]);
 }
 
@@ -1229,7 +1230,7 @@ fn sload_basic() {
 fn sload_uninitialized() {
     assert_snapshot!(vec![
         Operation::Push((32_u8, BigUint::from(0_u64))), // Attempt to load from uninitialized slot
-        Operation::Sload,
+        Operation::SLoad,
     ]);
 }
 
@@ -1239,9 +1240,9 @@ fn sload_high_slot() {
     assert_snapshot!(vec![
         Operation::Push((32_u8, key.clone())), // High storage slot (max slot)
         Operation::Push((32_u8, BigUint::from(123_u64))), // Value to store
-        Operation::Sstore,
+        Operation::SStore,
         Operation::Push((32_u8, key)), // Same high slot
-        Operation::Sload,
+        Operation::SLoad,
     ]);
 }
 
@@ -1250,14 +1251,14 @@ fn sload_multiple_slots() {
     assert_snapshot!(vec![
         Operation::Push((32_u8, BigUint::from(0_u64))),
         Operation::Push((32_u8, BigUint::from(100_u64))),
-        Operation::Sstore,
+        Operation::SStore,
         Operation::Push((32_u8, BigUint::from(1_u64))),
         Operation::Push((32_u8, BigUint::from(200_u64))),
-        Operation::Sstore,
+        Operation::SStore,
         Operation::Push((32_u8, BigUint::from(0_u64))),
-        Operation::Sload,
+        Operation::SLoad,
         Operation::Push((32_u8, BigUint::from(1_u64))),
-        Operation::Sload,
+        Operation::SLoad,
     ]);
 }
 
@@ -1266,7 +1267,7 @@ fn push_push_sstore() {
     assert_snapshot!(vec![
         Operation::Push((2_u8, BigUint::from_bytes_be(&[0xFF, 0xFF]))),
         Operation::Push((1_u8, BigUint::from(0_u8))),
-        Operation::Sstore,
+        Operation::SStore,
     ]);
 }
 
@@ -1409,15 +1410,15 @@ fn pc() {
 #[test]
 fn push_mload_misze() {
     assert_snapshot!(vec![
-        Operation::Msize,
+        Operation::MSize,
         Operation::Push((1_u8, BigUint::from(0_u8))),
-        Operation::Mload,
+        Operation::MLoad,
         Operation::Pop,
-        Operation::Msize,
+        Operation::MSize,
         Operation::Push((1_u8, BigUint::from(39_u8))),
-        Operation::Mload,
+        Operation::MLoad,
         Operation::Pop,
-        Operation::Msize,
+        Operation::MSize,
     ]);
 }
 
@@ -1437,9 +1438,9 @@ fn push_tstore_tload() {
     assert_snapshot!(vec![
         Operation::Push((1_u8, BigUint::from(46_u8))),
         Operation::Push((1_u8, BigUint::from(0_u8))),
-        Operation::Tstore,
+        Operation::TStore,
         Operation::Push((1_u8, BigUint::from(0_u8))),
-        Operation::Tload,
+        Operation::TLoad,
     ]);
 }
 
@@ -1448,7 +1449,7 @@ fn push_tstore_0() {
     assert_snapshot!(vec![
         Operation::Push((2_u8, BigUint::from_bytes_be(&[0xFF, 0xFF]))),
         Operation::Push((1_u8, BigUint::from(0_u8))),
-        Operation::Tstore,
+        Operation::TStore,
     ]);
 }
 
@@ -1457,7 +1458,7 @@ fn push_tstore_1() {
     assert_snapshot!(vec![
         Operation::Push((2_u8, BigUint::from_bytes_be(&[0xFF, 0xFF]))),
         Operation::Push((2_u8, BigUint::from(8965u32))),
-        Operation::Tstore,
+        Operation::TStore,
     ]);
 }
 
@@ -1472,11 +1473,11 @@ fn push_mstore_mcopy() {
             ]),
         )),
         Operation::Push((1_u8, BigUint::from(32_u8))),
-        Operation::Mstore,
+        Operation::MStore,
         Operation::Push((1_u8, BigUint::from(32_u8))),
         Operation::Push((1_u8, BigUint::from(32_u8))),
         Operation::Push((1_u8, BigUint::from(0_u8))),
-        Operation::Mcopy,
+        Operation::MCopy,
     ]);
 }
 
@@ -1633,7 +1634,7 @@ fn push_create_2() {
             ])
         )),
         Operation::Push((1_u8, BigUint::from(0_u8))),
-        Operation::Mstore,
+        Operation::MStore,
         Operation::Push((1_u8, BigUint::from(13_u8))),
         Operation::Push((1_u8, BigUint::from(19_u8))),
         Operation::Push((1_u8, BigUint::from(0_u8))),
@@ -1721,7 +1722,7 @@ fn push_mstore_create_call_0() {
             ]),
         )),
         Operation::Push((1_u8, BigUint::from(0_u8))),
-        Operation::Mstore,
+        Operation::MStore,
         Operation::Push((1_u8, BigUint::from(17_u8))),
         Operation::Push((1_u8, BigUint::from(15_u8))),
         Operation::Push((1_u8, BigUint::from(0_u8))),
@@ -1748,7 +1749,7 @@ fn push_mstore_create_call_1() {
             ]),
         )),
         Operation::Push((1_u8, BigUint::from(0_u8))),
-        Operation::Mstore,
+        Operation::MStore,
         Operation::Push((1_u8, BigUint::from(17_u8))),
         Operation::Push((1_u8, BigUint::from(15_u8))),
         Operation::Push((1_u8, BigUint::from(0_u8))),
@@ -1797,7 +1798,7 @@ fn push_mstore_create_callcode() {
             ]),
         )),
         Operation::Push((1_u8, BigUint::from(0_u8))),
-        Operation::Mstore,
+        Operation::MStore,
         Operation::Push((1_u8, BigUint::from(17_u8))),
         Operation::Push((1_u8, BigUint::from(15_u8))),
         Operation::Push((1_u8, BigUint::from(0_u8))),
@@ -1812,7 +1813,7 @@ fn push_mstore_create_callcode() {
         Operation::CallCode,
         Operation::Push((1_u8, BigUint::from(1_u8))),
         Operation::Push((1_u8, BigUint::from(0_u8))),
-        Operation::Sstore,
+        Operation::SStore,
         Operation::Push((1_u8, BigUint::from(0_u8))),
         Operation::Push((1_u8, BigUint::from(0_u8))),
         Operation::Push((1_u8, BigUint::from(32_u8))),
@@ -1853,7 +1854,7 @@ fn push_store_return() {
             ]),
         )),
         Operation::Push((1_u8, BigUint::from(0_u8))),
-        Operation::Mstore,
+        Operation::MStore,
         Operation::Push((1_u8, BigUint::from(2_u8))),
         Operation::Push((1_u8, BigUint::from(0_u8))),
         Operation::Return,
@@ -1884,7 +1885,7 @@ fn push_mstore_create_delegatecall() {
             ]),
         )),
         Operation::Push((1_u8, BigUint::from(0_u8))),
-        Operation::Mstore,
+        Operation::MStore,
         Operation::Push((1_u8, BigUint::from(17_u8))),
         Operation::Push((1_u8, BigUint::from(15_u8))),
         Operation::Push((1_u8, BigUint::from(0_u8))),
@@ -1899,7 +1900,7 @@ fn push_mstore_create_delegatecall() {
         Operation::DelegateCall,
         Operation::Push((1_u8, BigUint::from(1_u8))),
         Operation::Push((1_u8, BigUint::from(0_u8))),
-        Operation::Sstore,
+        Operation::SStore,
         Operation::Push((1_u8, BigUint::from(0_u8))),
         Operation::Push((1_u8, BigUint::from(0_u8))),
         Operation::Push((1_u8, BigUint::from(32_u8))),
@@ -1952,7 +1953,7 @@ fn push_mstore_revert() {
             ]),
         )),
         Operation::Push((32_u8, BigUint::from(0_u8))),
-        Operation::Mstore,
+        Operation::MStore,
         Operation::Push((1_u8, BigUint::from(2_u8))),
         Operation::Push((1_u8, BigUint::from(0_u8))),
         Operation::Revert,
