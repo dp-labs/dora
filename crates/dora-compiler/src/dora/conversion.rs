@@ -6,6 +6,7 @@ use melior::{
     pass::{create_external, ExternalPass, Pass, RunExternalPass},
     Context, ContextRef,
 };
+use revmc::primitives::SpecId;
 use tracing::debug;
 
 #[repr(align(8))]
@@ -35,6 +36,8 @@ pub struct ConversionPass<'c> {
     pub ctx: &'c Context,
     /// The size of the program's bytecode (in bytes).
     pub program_code_size: u32,
+    pub spec_id: SpecId,
+    pub limit_contract_code_size: Option<usize>,
 }
 
 impl<'c> ConversionPass<'c> {
@@ -91,7 +94,7 @@ impl<'c> ConversionPass<'c> {
             } else if name == "dora.mulmod" {
                 Self::mulmod(context, op)?
             } else if name == "dora.exp" {
-                Self::exp(context, op)?
+                Self::exp(context, op, &self.spec_id)?
             } else if name == "dora.signextend" {
                 Self::signextend(context, op)?
             } else if name == "dora.lt" {
@@ -209,9 +212,21 @@ impl<'c> ConversionPass<'c> {
             } else if name == "dora.log4" {
                 Self::log(context, op, 4)?;
             } else if name == "dora.create" {
-                Self::create(context, op, false)?;
+                Self::create(
+                    context,
+                    op,
+                    false,
+                    self.spec_id,
+                    self.limit_contract_code_size,
+                )?;
             } else if name == "dora.create2" {
-                Self::create(context, op, true)?;
+                Self::create(
+                    context,
+                    op,
+                    true,
+                    self.spec_id,
+                    self.limit_contract_code_size,
+                )?;
             } else if name == "dora.call" {
                 Self::call(context, op, CallType::Call)?;
             } else if name == "dora.callcode" {

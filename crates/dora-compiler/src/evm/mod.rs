@@ -185,11 +185,11 @@ impl<'c> EVMCompiler<'c> {
             Operation::Push((_, x)) => EVMCompiler::push(ctx, region, x.clone()),
             Operation::Sub => EVMCompiler::sub(ctx, region),
             Operation::Div => EVMCompiler::udiv(ctx, region),
-            Operation::Sdiv => EVMCompiler::sdiv(ctx, region),
+            Operation::SDiv => EVMCompiler::sdiv(ctx, region),
             Operation::Mod => EVMCompiler::umod(ctx, region),
             Operation::SMod => EVMCompiler::smod(ctx, region),
-            Operation::Addmod => EVMCompiler::addmod(ctx, region),
-            Operation::Mulmod => EVMCompiler::mulmod(ctx, region),
+            Operation::AddMod => EVMCompiler::addmod(ctx, region),
+            Operation::MulMod => EVMCompiler::mulmod(ctx, region),
             Operation::Exp => EVMCompiler::exp(ctx, region),
             Operation::SignExtend => EVMCompiler::signextend(ctx, region),
             Operation::Lt => EVMCompiler::lt(ctx, region),
@@ -211,19 +211,19 @@ impl<'c> EVMCompiler<'c> {
             Operation::Balance => EVMCompiler::balance(ctx, region),
             Operation::Origin => EVMCompiler::origin(ctx, region),
             Operation::Caller => EVMCompiler::caller(ctx, region),
-            Operation::Callvalue => EVMCompiler::callvalue(ctx, region),
-            Operation::CalldataLoad => EVMCompiler::calldataload(ctx, region),
+            Operation::CallValue => EVMCompiler::callvalue(ctx, region),
+            Operation::CallDataLoad => EVMCompiler::calldataload(ctx, region),
             Operation::CallDataSize => EVMCompiler::calldatasize(ctx, region),
             Operation::CallDataCopy => EVMCompiler::calldatacopy(ctx, region),
-            Operation::Codesize => EVMCompiler::codesize(ctx, region),
-            Operation::Codecopy => EVMCompiler::codecopy(ctx, region),
-            Operation::Gasprice => EVMCompiler::gasprice(ctx, region),
-            Operation::ExtcodeSize => EVMCompiler::extcodesize(ctx, region),
-            Operation::ExtcodeCopy => EVMCompiler::extcodecopy(ctx, region),
+            Operation::CodeSize => EVMCompiler::codesize(ctx, region),
+            Operation::CodeCopy => EVMCompiler::codecopy(ctx, region),
+            Operation::GasPrice => EVMCompiler::gasprice(ctx, region),
+            Operation::ExtCodeSize => EVMCompiler::extcodesize(ctx, region),
+            Operation::ExtCodeCopy => EVMCompiler::extcodecopy(ctx, region),
             Operation::ReturnDataSize => EVMCompiler::returndatasize(ctx, region),
             Operation::ReturnDataCopy => EVMCompiler::returndatacopy(ctx, region),
             Operation::ReturnDataLoad => EVMCompiler::returndataload(ctx, region),
-            Operation::ExtcodeHash => EVMCompiler::extcodehash(ctx, region),
+            Operation::ExtCodeHash => EVMCompiler::extcodehash(ctx, region),
             Operation::BlockHash => EVMCompiler::blockhash(ctx, region),
             Operation::Coinbase => EVMCompiler::coinbase(ctx, region),
             Operation::Timestamp => EVMCompiler::timestamp(ctx, region),
@@ -232,24 +232,24 @@ impl<'c> EVMCompiler<'c> {
             Operation::Gaslimit => EVMCompiler::gaslimit(ctx, region),
             Operation::Chainid => EVMCompiler::chainid(ctx, region),
             Operation::SelfBalance => EVMCompiler::selfbalance(ctx, region),
-            Operation::Basefee => EVMCompiler::basefee(ctx, region),
+            Operation::BaseFee => EVMCompiler::basefee(ctx, region),
             Operation::BlobHash => EVMCompiler::blobhash(ctx, region),
             Operation::BlobBaseFee => EVMCompiler::blobbasefee(ctx, region),
             Operation::Pop => EVMCompiler::pop(ctx, region),
-            Operation::Mload => EVMCompiler::mload(ctx, region),
-            Operation::Mstore => EVMCompiler::mstore(ctx, region),
-            Operation::Mstore8 => EVMCompiler::mstore8(ctx, region),
-            Operation::Sload => EVMCompiler::sload(ctx, region),
-            Operation::Sstore => EVMCompiler::sstore(ctx, region),
+            Operation::MLoad => EVMCompiler::mload(ctx, region),
+            Operation::MStore => EVMCompiler::mstore(ctx, region),
+            Operation::MStore8 => EVMCompiler::mstore8(ctx, region),
+            Operation::SLoad => EVMCompiler::sload(ctx, region),
+            Operation::SStore => EVMCompiler::sstore(ctx, region),
             Operation::Jump => EVMCompiler::jump(ctx, region),
             Operation::Jumpi => EVMCompiler::jumpi(ctx, region),
             Operation::PC { pc } => EVMCompiler::pc(ctx, region, *pc),
-            Operation::Msize => EVMCompiler::msize(ctx, region),
+            Operation::MSize => EVMCompiler::msize(ctx, region),
             Operation::Gas => EVMCompiler::gas(ctx, region),
             Operation::Jumpdest { pc } => EVMCompiler::jumpdest(ctx, region, *pc),
-            Operation::Tload => EVMCompiler::tload(ctx, region),
-            Operation::Tstore => EVMCompiler::tstore(ctx, region),
-            Operation::Mcopy => EVMCompiler::mcopy(ctx, region),
+            Operation::TLoad => EVMCompiler::tload(ctx, region),
+            Operation::TStore => EVMCompiler::tstore(ctx, region),
+            Operation::MCopy => EVMCompiler::mcopy(ctx, region),
             Operation::Dup(n) => EVMCompiler::dup(ctx, region, (*n).into()),
             Operation::Swap(n) => EVMCompiler::swap(ctx, region, (*n).into()),
             Operation::Log(x) => EVMCompiler::log(ctx, region, *x),
@@ -274,6 +274,10 @@ impl<'c> EVMCompiler<'c> {
         // Static gas metering needs to be done before stack checking.
         if options.gas_metering {
             block_start = Self::gas_metering_block(ctx, region, block_start, &op_info)?;
+        }
+        // Register the jump dest block.
+        if let Operation::Jumpdest { pc } = op {
+            ctx.register_jump_destination(pc, block_start);
         }
         Ok((block_start, block_end))
     }
@@ -733,6 +737,7 @@ impl<'c> CtxType<'c> {
     /// # Parameters
     /// * `pc` - The program counter associated with the jump destination.
     /// * `block` - A reference to the block that acts as the jump destination.
+    #[inline]
     pub fn register_jump_destination(&mut self, pc: usize, block: BlockRef<'c, 'c>) {
         self.jumpdest_blocks.insert(pc, block);
     }

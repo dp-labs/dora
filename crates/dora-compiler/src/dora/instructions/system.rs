@@ -7,11 +7,17 @@ use crate::{
         rewriter::{DeferredRewriter, Rewriter},
     },
     create_var,
-    dora::{conversion::ConversionPass, gas, memory},
+    dora::{
+        conversion::ConversionPass,
+        gas::{self, compute_copy_cost, compute_keccak256_cost},
+        memory,
+    },
     errors::Result,
-    load_by_addr, load_var, maybe_revert_here, operands, rewrite_ctx, syscall_ctx, u256_to_64,
+    gas_or_fail, if_here, load_by_addr, load_var, maybe_revert_here, operands, rewrite_ctx,
+    syscall_ctx, u256_to_64,
 };
 use dora_runtime::constants;
+use dora_runtime::constants::GAS_COUNTER_GLOBAL;
 use dora_runtime::symbols;
 use dora_runtime::ExitStatusCode;
 use melior::{
@@ -36,12 +42,16 @@ impl<'c> ConversionPass<'c> {
         operands!(op, offset, size);
         syscall_ctx!(op, syscall_ctx);
         let rewriter = Rewriter::new_with_op(context, *op);
-
         u256_to_64!(op, rewriter, offset);
         u256_to_64!(op, rewriter, size);
-        memory::resize_memory(context, op, &rewriter, syscall_ctx, offset, size)?;
+        let size_is_not_zero = rewriter.make(rewriter.icmp_imm(IntCC::NotEqual, size, 0)?)?;
+        if_here!(op, rewriter, size_is_not_zero, {
+            let gas = compute_keccak256_cost(&rewriter, size)?;
+            gas_or_fail!(op, rewriter, gas);
+            let rewriter = Rewriter::new_with_op(context, *op);
+            memory::resize_memory(context, op, &rewriter, syscall_ctx, offset, size)?;
+        });
         rewrite_ctx!(context, op, rewriter, location);
-
         let hash_ptr = create_var!(rewriter, context, location);
         load_var!(
             rewriter,
@@ -49,6 +59,7 @@ impl<'c> ConversionPass<'c> {
             syscall_ctx,
             symbols::KECCAK256_HASHER,
             &[offset, size, hash_ptr],
+            [],
             hash_ptr,
             rewriter.intrinsics.i256_ty,
             location
@@ -326,22 +337,25 @@ impl<'c> ConversionPass<'c> {
     }
 
     pub(crate) fn codecopy(context: &Context, op: &OperationRef<'_, '_>) -> Result<()> {
-        operands!(op, dest_offset, offset, length);
+        operands!(op, dest_offset, offset, size);
         syscall_ctx!(op, syscall_ctx);
         let rewriter = Rewriter::new_with_op(context, *op);
         let ptr_type = rewriter.ptr_ty();
 
+        u256_to_64!(op, rewriter, size);
+        let gas = compute_copy_cost(&rewriter, size)?;
+        gas_or_fail!(op, rewriter, gas);
+        let rewriter = Rewriter::new_with_op(context, *op);
         u256_to_64!(op, rewriter, offset);
         u256_to_64!(op, rewriter, dest_offset);
-        u256_to_64!(op, rewriter, length);
 
-        memory::resize_memory(context, op, &rewriter, syscall_ctx, dest_offset, length)?;
+        memory::resize_memory(context, op, &rewriter, syscall_ctx, dest_offset, size)?;
         rewrite_ctx!(context, op, rewriter, location);
 
         rewriter.create(func::call(
             context,
             FlatSymbolRefAttribute::new(context, symbols::CODE_COPY),
-            &[syscall_ctx.into(), offset, length, dest_offset],
+            &[syscall_ctx.into(), offset, size, dest_offset],
             &[ptr_type],
             location,
         ));
@@ -376,11 +390,12 @@ impl<'c> ConversionPass<'c> {
         syscall_ctx!(op, syscall_ctx);
         let rewriter = Rewriter::new_with_op(context, *op);
         let ptr_type = rewriter.ptr_ty();
-
+        u256_to_64!(op, rewriter, size);
+        let gas = compute_copy_cost(&rewriter, size)?;
+        gas_or_fail!(op, rewriter, gas);
+        let rewriter = Rewriter::new_with_op(context, *op);
         u256_to_64!(op, rewriter, dest_offset);
         u256_to_64!(op, rewriter, offset);
-        u256_to_64!(op, rewriter, size);
-
         memory::resize_memory(context, op, &rewriter, syscall_ctx, dest_offset, size)?;
         rewrite_ctx!(context, op, rewriter, location);
         let result_ptr = rewriter.make(func::call(

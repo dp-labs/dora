@@ -102,10 +102,13 @@ pub fn run_with_context<DB: Database>(
                 &mut module.mlir_module,
                 &dora::pass::PassOptions {
                     program_code_size: program.code_size,
+                    spec_id: runtime_context.inner_context.spec_id,
+                    ..Default::default()
                 },
             )?;
             pass::run(&context.mlir_context, &mut module.mlir_module)?;
             debug_assert!(module.mlir_module.as_operation().verify());
+            runtime_context.inner_context.program = opcodes.to_vec();
             let executor = Executor::new(module.module(), runtime_context, Default::default());
             executor.execute(runtime_context, remaining_gas);
             runtime_context

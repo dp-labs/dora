@@ -1,14 +1,17 @@
 use crate::{
     arith_constant,
     backend::IntCC,
+    conversion::builder::OpBuilder,
     conversion::rewriter::{DeferredRewriter, Rewriter},
-    dora::conversion::ConversionPass,
+    dora::{conversion::ConversionPass, gas::compute_exp_cost},
     errors::Result,
-    operands, rewrite_ctx,
+    gas_or_fail, maybe_revert_here, operands, rewrite_ctx,
 };
+use dora_runtime::constants::GAS_COUNTER_GLOBAL;
+use dora_runtime::ExitStatusCode;
 use melior::{
     dialect::{
-        arith,
+        arith, cf,
         ods::{llvm, math},
         scf,
     },
@@ -17,6 +20,7 @@ use melior::{
     },
     Context,
 };
+use revmc::primitives::SpecId;
 
 impl<'c> ConversionPass<'c> {
     pub(crate) fn add(context: &Context, op: &OperationRef<'_, '_>) -> Result<()> {
@@ -142,8 +146,15 @@ impl<'c> ConversionPass<'c> {
         Ok(())
     }
 
-    pub(crate) fn exp(context: &Context, op: &OperationRef<'_, '_>) -> Result<()> {
+    pub(crate) fn exp(
+        context: &Context,
+        op: &OperationRef<'_, '_>,
+        spec_id: &SpecId,
+    ) -> Result<()> {
         operands!(op, l, r);
+        let rewriter = Rewriter::new_with_op(context, *op);
+        let gas = compute_exp_cost(&rewriter, r, spec_id)?;
+        gas_or_fail!(op, rewriter, gas);
         rewrite_ctx!(context, op, rewriter, location);
         rewriter.make(math::ipowi(context, l, r, location).into())?;
         Ok(())

@@ -6,12 +6,17 @@ use crate::{
         builder::OpBuilder,
         rewriter::{DeferredRewriter, Rewriter},
     },
-    dora::{conversion::ConversionPass, gas, memory},
+    dora::{
+        conversion::ConversionPass,
+        gas::{self, compute_create2_cost, compute_initcode_cost},
+        memory,
+    },
     ensure_non_staticcall,
     errors::Result,
-    maybe_revert_here, operands, rewrite_ctx, syscall_ctx, u256_to_64,
+    gas_or_fail, if_here, maybe_revert_here, operands, rewrite_ctx, syscall_ctx, u256_to_64,
 };
-use dora_runtime::constants::CallType;
+use dora_runtime::constants::{gas_cost, GAS_COUNTER_GLOBAL};
+use dora_runtime::constants::{gas_cost::MAX_INITCODE_SIZE, CallType};
 use dora_runtime::symbols;
 use dora_runtime::symbols::CTX_IS_STATIC;
 use dora_runtime::ExitStatusCode;
@@ -19,14 +24,16 @@ use melior::{
     dialect::{
         arith, cf, func,
         llvm::{self, LoadStoreOptions},
+        scf,
     },
     ir::{
         attribute::{FlatSymbolRefAttribute, IntegerAttribute},
         operation::OperationRef,
-        Value,
+        Block, Region, Value,
     },
     Context,
 };
+use revmc::primitives::SpecId;
 use std::mem::offset_of;
 
 impl<'c> ConversionPass<'c> {
@@ -34,6 +41,8 @@ impl<'c> ConversionPass<'c> {
         context: &Context,
         op: &OperationRef<'_, '_>,
         is_create2: bool,
+        spec_id: SpecId,
+        limit_contract_code_size: Option<usize>,
     ) -> Result<()> {
         operands!(op, value, offset, size);
         syscall_ctx!(op, syscall_ctx);
@@ -45,7 +54,38 @@ impl<'c> ConversionPass<'c> {
         let ptr_type = rewriter.ptr_ty();
         u256_to_64!(op, rewriter, offset);
         u256_to_64!(op, rewriter, size);
-        memory::resize_memory(context, op, &rewriter, syscall_ctx, offset, size)?;
+        let size_is_not_zero = rewriter.make(rewriter.icmp_imm(IntCC::NotEqual, size, 0)?)?;
+        if_here!(op, rewriter, size_is_not_zero, {
+            if spec_id.is_enabled_in(SpecId::SHANGHAI) {
+                // Limit is set as double of max contract bytecode size.
+                let max_initcode_size = limit_contract_code_size
+                    .map(|limit| limit.saturating_mul(2))
+                    .unwrap_or(MAX_INITCODE_SIZE);
+                let revert_flag = rewriter.make(rewriter.icmp_imm(
+                    IntCC::UnsignedGreaterThan,
+                    size,
+                    max_initcode_size as i64,
+                )?)?;
+                maybe_revert_here!(
+                    op,
+                    rewriter,
+                    revert_flag,
+                    ExitStatusCode::CreateInitCodeSizeLimit
+                );
+                let rewriter = Rewriter::new_with_op(context, *op);
+                let gas = compute_initcode_cost(&rewriter, size)?;
+                gas_or_fail!(op, rewriter, gas);
+            }
+            let rewriter = Rewriter::new_with_op(context, *op);
+            memory::resize_memory(context, op, &rewriter, syscall_ctx, offset, size)?;
+        });
+        let rewriter = Rewriter::new_with_op(context, *op);
+        let gas = if is_create2 {
+            compute_create2_cost(&rewriter, size)
+        } else {
+            rewriter.make(rewriter.iconst_64(gas_cost::CREATE))
+        }?;
+        gas_or_fail!(op, rewriter, gas);
         let rewriter = Rewriter::new_with_op(context, *op);
         let value_ptr =
             memory::allocate_u256_and_assign_value(context, &rewriter, value, location)?;
@@ -85,15 +125,9 @@ impl<'c> ConversionPass<'c> {
         )?;
         // Check the runtime halt error
         check_runtime_error!(op, rewriter, error);
-        rewrite_ctx!(context, op, rewriter, location);
+        rewrite_ctx!(context, op, rewriter, _location);
         // Deferred rewriter is need to be the op generation scope.
-        rewriter.make(llvm::load(
-            context,
-            value_ptr,
-            uint256,
-            location,
-            LoadStoreOptions::default(),
-        ))?;
+        rewriter.make(rewriter.load(value_ptr, uint256))?;
 
         Ok(())
     }
