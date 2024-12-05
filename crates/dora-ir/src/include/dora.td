@@ -10,21 +10,21 @@ class Dora_Op<string mnemonic, list<Trait> traits = []> :
 
 // Add Operation
 def Dora_Add : Dora_Op<"add"> {
-    let summary = "add two operands of the same type";
-    let description = [{
-        This operation takes two operands of the same type and returns their sum.
-    }];
+  let summary = "add two operands of the same type";
+  let description = [{
+      This operation takes two operands of the same type and returns their sum.
+  }];
 
-    let arguments = (ins
-        AnyTypeOf<[I32, I64, I<128>, I<256>, F32, F64, F128, F<256>]>:$lhs,
-        AnyTypeOf<[I32, I64, I<128>, I<256>, F32, F64, F128, F<256>]>:$rhs
-    );
+  let arguments = (ins
+    AnyTypeOf<[I32, I64, I<128>, I<256>, F32, F64, F128, F<256>]>:$lhs,
+    AnyTypeOf<[I32, I64, I<128>, I<256>, F32, F64, F128, F<256>]>:$rhs
+  );
 
-    let results = (outs AnyTypeOf<[I32, I64, I<128>, I<256>, F32, F64, F128, F<256>]>:$result);
+  let results = (outs AnyTypeOf<[I32, I64, I<128>, I<256>, F32, F64, F128, F<256>]>:$result);
 
-    let assemblyFormat = [{
-        $lhs `,` $rhs `:` type($lhs) `->` type($result)
-    }];
+  let assemblyFormat = [{
+    $lhs `,` $rhs `:` type($lhs) `->` type($result)
+  }];
 }
 
 // Mul Operation
@@ -35,8 +35,8 @@ def Dora_Mul : Dora_Op<"mul"> {
   }];
 
   let arguments = (ins
-      AnyTypeOf<[I32, I64, I<128>, I<256>, F32, F64, F128, F<256>]>:$lhs,
-      AnyTypeOf<[I32, I64, I<128>, I<256>, F32, F64, F128, F<256>]>:$rhs
+    AnyTypeOf<[I32, I64, I<128>, I<256>, F32, F64, F128, F<256>]>:$lhs,
+    AnyTypeOf<[I32, I64, I<128>, I<256>, F32, F64, F128, F<256>]>:$rhs
   );
 
   let results = (outs AnyTypeOf<[I32, I64, I<128>, I<256>, F32, F64, F128, F<256>]>:$result);
@@ -51,10 +51,10 @@ def Dora_Sub : Dora_Op<"sub"> {
     This operation takes two `i256` operands from the stack and returns their difference.
   }];
 
-    let arguments = (ins
-        AnyTypeOf<[I32, I64, I<128>, I<256>, F32, F64, F128, F<256>]>:$lhs,
-        AnyTypeOf<[I32, I64, I<128>, I<256>, F32, F64, F128, F<256>]>:$rhs
-    );
+  let arguments = (ins
+    AnyTypeOf<[I32, I64, I<128>, I<256>, F32, F64, F128, F<256>]>:$lhs,
+    AnyTypeOf<[I32, I64, I<128>, I<256>, F32, F64, F128, F<256>]>:$rhs
+  );
 
     let results = (outs AnyTypeOf<[I32, I64, I<128>, I<256>, F32, F64, F128, F<256>]>:$result);
 
@@ -70,9 +70,9 @@ def Dora_Div : Dora_Op<"div"> {
   }];
 
   let arguments = (ins
-        AnyTypeOf<[I32, I64, I<128>, I<256>, F32, F64, F128, F<256>]>:$lhs,
-        AnyTypeOf<[I32, I64, I<128>, I<256>, F32, F64, F128, F<256>]>:$rhs
-    );
+    AnyTypeOf<[I32, I64, I<128>, I<256>, F32, F64, F128, F<256>]>:$lhs,
+    AnyTypeOf<[I32, I64, I<128>, I<256>, F32, F64, F128, F<256>]>:$rhs
+  );
 
   let results = (outs AnyTypeOf<[I32, I64, I<128>, I<256>, F32, F64, F128, F<256>]>:$result);
 
@@ -87,9 +87,9 @@ def Dora_SDiv : Dora_Op<"sdiv"> {
   }];
 
   let arguments = (ins
-        AnyTypeOf<[I32, I64, I<128>, I<256>, F32, F64, F128, F<256>]>:$lhs,
-        AnyTypeOf<[I32, I64, I<128>, I<256>, F32, F64, F128, F<256>]>:$rhs
-    );
+    AnyTypeOf<[I32, I64, I<128>, I<256>, F32, F64, F128, F<256>]>:$lhs,
+    AnyTypeOf<[I32, I64, I<128>, I<256>, F32, F64, F128, F<256>]>:$rhs
+  );
 
   let results = (outs AnyTypeOf<[I32, I64, I<128>, I<256>, F32, F64, F128, F<256>]>:$result);
 
@@ -103,10 +103,10 @@ def Dora_Mod : Dora_Op<"mod"> {
     This operation takes two `i256` operands from the stack and returns their remainder.
   }];
 
-   let arguments = (ins
-        AnyTypeOf<[I32, I64, I<128>, I<256>, F32, F64, F128, F<256>]>:$lhs,
-        AnyTypeOf<[I32, I64, I<128>, I<256>, F32, F64, F128, F<256>]>:$rhs
-    );
+  let arguments = (ins
+    AnyTypeOf<[I32, I64, I<128>, I<256>, F32, F64, F128, F<256>]>:$lhs,
+    AnyTypeOf<[I32, I64, I<128>, I<256>, F32, F64, F128, F<256>]>:$rhs
+  );
 
   let results = (outs AnyTypeOf<[I32, I64, I<128>, I<256>, F32, F64, F128, F<256>]>:$result);
 
@@ -121,9 +121,9 @@ def Dora_SMod : Dora_Op<"smod"> {
   }];
 
   let arguments = (ins
-        AnyTypeOf<[I32, I64, I<128>, I<256>, F32, F64, F128, F<256>]>:$lhs,
-        AnyTypeOf<[I32, I64, I<128>, I<256>, F32, F64, F128, F<256>]>:$rhs
-    );
+    AnyTypeOf<[I32, I64, I<128>, I<256>, F32, F64, F128, F<256>]>:$lhs,
+    AnyTypeOf<[I32, I64, I<128>, I<256>, F32, F64, F128, F<256>]>:$rhs
+  );
 
   let results = (outs AnyTypeOf<[I32, I64, I<128>, I<256>, F32, F64, F128, F<256>]>:$result);
 
@@ -138,10 +138,10 @@ def Dora_AddMod : Dora_Op<"addmod"> {
   }];
 
   let arguments = (ins
-        AnyTypeOf<[I32, I64, I<128>, I<256>, F32, F64, F128, F<256>]>:$lhs,
-        AnyTypeOf<[I32, I64, I<128>, I<256>, F32, F64, F128, F<256>]>:$rhs,
-        AnyTypeOf<[I32, I64, I<128>, I<256>, F32, F64, F128, F<256>]>:$modulus
-    );
+    AnyTypeOf<[I32, I64, I<128>, I<256>, F32, F64, F128, F<256>]>:$lhs,
+    AnyTypeOf<[I32, I64, I<128>, I<256>, F32, F64, F128, F<256>]>:$rhs,
+    AnyTypeOf<[I32, I64, I<128>, I<256>, F32, F64, F128, F<256>]>:$modulus
+  );
 
   let results = (outs AnyTypeOf<[I32, I64, I<128>, I<256>, F32, F64, F128, F<256>]>:$result);
 
@@ -155,11 +155,11 @@ def Dora_MulMod : Dora_Op<"mulmod"> {
     This operation takes three `i256` operands from the stack, multiplies the first two, and returns the remainder when divided by the third operand.
   }];
 
-   let arguments = (ins
-        AnyTypeOf<[I32, I64, I<128>, I<256>, F32, F64, F128, F<256>]>:$lhs,
-        AnyTypeOf<[I32, I64, I<128>, I<256>, F32, F64, F128, F<256>]>:$rhs,
-        AnyTypeOf<[I32, I64, I<128>, I<256>, F32, F64, F128, F<256>]>:$modulus
-    );
+  let arguments = (ins
+    AnyTypeOf<[I32, I64, I<128>, I<256>, F32, F64, F128, F<256>]>:$lhs,
+    AnyTypeOf<[I32, I64, I<128>, I<256>, F32, F64, F128, F<256>]>:$rhs,
+    AnyTypeOf<[I32, I64, I<128>, I<256>, F32, F64, F128, F<256>]>:$modulus
+  );
 
   let results = (outs AnyTypeOf<[I32, I64, I<128>, I<256>, F32, F64, F128, F<256>]>:$result);
 
@@ -174,9 +174,9 @@ def Dora_Exp : Dora_Op<"exp"> {
   }];
 
   let arguments = (ins
-        AnyTypeOf<[I32, I64, I<128>, I<256>, F32, F64, F128, F<256>]>:$lhs,
-        AnyTypeOf<[I32, I64, I<128>, I<256>, F32, F64, F128, F<256>]>:$rhs
-    );
+    AnyTypeOf<[I32, I64, I<128>, I<256>, F32, F64, F128, F<256>]>:$lhs,
+    AnyTypeOf<[I32, I64, I<128>, I<256>, F32, F64, F128, F<256>]>:$rhs
+  );
 
   let results = (outs AnyTypeOf<[I32, I64, I<128>, I<256>, F32, F64, F128, F<256>]>:$result);
 
@@ -190,10 +190,10 @@ def Dora_SignExtend : Dora_Op<"signextend"> {
     This operation takes two `i256` operands from the stack. The first operand specifies the byte position to extend from, and the second operand is the value whose sign is extended.
   }];
 
- let arguments = (ins
-        AnyTypeOf<[I32, I64, I<128>, I<256>, F32, F64, F128, F<256>]>:$lhs,
-        AnyTypeOf<[I32, I64, I<128>, I<256>, F32, F64, F128, F<256>]>:$rhs
-    );
+  let arguments = (ins
+    AnyTypeOf<[I32, I64, I<128>, I<256>, F32, F64, F128, F<256>]>:$lhs,
+    AnyTypeOf<[I32, I64, I<128>, I<256>, F32, F64, F128, F<256>]>:$rhs
+  );
 
   let results = (outs AnyTypeOf<[I32, I64, I<128>, I<256>, F32, F64, F128, F<256>]>:$result);
 
@@ -207,10 +207,10 @@ def Dora_Lt : Dora_Op<"lt"> {
     This operation takes two `i256` operands from the stack and returns `1` if the first is less than the second, otherwise `0`.
   }];
 
-   let arguments = (ins
-        AnyTypeOf<[I32, I64, I<128>, I<256>, F32, F64, F128, F<256>]>:$lhs,
-        AnyTypeOf<[I32, I64, I<128>, I<256>, F32, F64, F128, F<256>]>:$rhs
-    );
+  let arguments = (ins
+    AnyTypeOf<[I32, I64, I<128>, I<256>, F32, F64, F128, F<256>]>:$lhs,
+    AnyTypeOf<[I32, I64, I<128>, I<256>, F32, F64, F128, F<256>]>:$rhs
+  );
 
   let results = (outs AnyTypeOf<[I32, I64, I<128>, I<256>, F32, F64, F128, F<256>]>:$result);
 
@@ -225,9 +225,9 @@ def Dora_Gt : Dora_Op<"gt"> {
   }];
 
   let arguments = (ins
-        AnyTypeOf<[I32, I64, I<128>, I<256>, F32, F64, F128, F<256>]>:$lhs,
-        AnyTypeOf<[I32, I64, I<128>, I<256>, F32, F64, F128, F<256>]>:$rhs
-    );
+    AnyTypeOf<[I32, I64, I<128>, I<256>, F32, F64, F128, F<256>]>:$lhs,
+    AnyTypeOf<[I32, I64, I<128>, I<256>, F32, F64, F128, F<256>]>:$rhs
+  );
 
   let results = (outs AnyTypeOf<[I32, I64, I<128>, I<256>, F32, F64, F128, F<256>]>:$result);
 
@@ -242,9 +242,9 @@ def Dora_Slt : Dora_Op<"slt"> {
   }];
 
   let arguments = (ins
-        AnyTypeOf<[I32, I64, I<128>, I<256>, F32, F64, F128, F<256>]>:$lhs,
-        AnyTypeOf<[I32, I64, I<128>, I<256>, F32, F64, F128, F<256>]>:$rhs
-    );
+    AnyTypeOf<[I32, I64, I<128>, I<256>, F32, F64, F128, F<256>]>:$lhs,
+    AnyTypeOf<[I32, I64, I<128>, I<256>, F32, F64, F128, F<256>]>:$rhs
+  );
 
   let results = (outs AnyTypeOf<[I32, I64, I<128>, I<256>, F32, F64, F128, F<256>]>:$result);
 
@@ -259,9 +259,9 @@ def Dora_Sgt : Dora_Op<"sgt"> {
   }];
 
   let arguments = (ins
-        AnyTypeOf<[I32, I64, I<128>, I<256>, F32, F64, F128, F<256>]>:$lhs,
-        AnyTypeOf<[I32, I64, I<128>, I<256>, F32, F64, F128, F<256>]>:$rhs
-    );
+    AnyTypeOf<[I32, I64, I<128>, I<256>, F32, F64, F128, F<256>]>:$lhs,
+    AnyTypeOf<[I32, I64, I<128>, I<256>, F32, F64, F128, F<256>]>:$rhs
+  );
 
   let results = (outs AnyTypeOf<[I32, I64, I<128>, I<256>, F32, F64, F128, F<256>]>:$result);
 
@@ -276,9 +276,9 @@ def Dora_Eq : Dora_Op<"eq"> {
   }];
 
   let arguments = (ins
-        AnyTypeOf<[I32, I64, I<128>, I<256>, F32, F64, F128, F<256>]>:$lhs,
-        AnyTypeOf<[I32, I64, I<128>, I<256>, F32, F64, F128, F<256>]>:$rhs
-    );
+    AnyTypeOf<[I32, I64, I<128>, I<256>, F32, F64, F128, F<256>]>:$lhs,
+    AnyTypeOf<[I32, I64, I<128>, I<256>, F32, F64, F128, F<256>]>:$rhs
+  );
 
   let results = (outs AnyTypeOf<[I32, I64, I<128>, I<256>, F32, F64, F128, F<256>]>:$result);
 
@@ -293,8 +293,8 @@ def Dora_IsZero : Dora_Op<"iszero"> {
   }];
 
   let arguments = (ins
-        AnyTypeOf<[I32, I64, I<128>, I<256>, F32, F64, F128, F<256>]>:$value
-    );
+    AnyTypeOf<[I32, I64, I<128>, I<256>, F32, F64, F128, F<256>]>:$value
+  );
 
   let results = (outs AnyTypeOf<[I32, I64, I<128>, I<256>, F32, F64, F128, F<256>]>:$result);
 
@@ -309,9 +309,9 @@ def Dora_And : Dora_Op<"and"> {
   }];
 
   let arguments = (ins
-        AnyTypeOf<[I32, I64, I<128>, I<256>, F32, F64, F128, F<256>]>:$lhs,
-        AnyTypeOf<[I32, I64, I<128>, I<256>, F32, F64, F128, F<256>]>:$rhs
-    );
+    AnyTypeOf<[I32, I64, I<128>, I<256>, F32, F64, F128, F<256>]>:$lhs,
+    AnyTypeOf<[I32, I64, I<128>, I<256>, F32, F64, F128, F<256>]>:$rhs
+  );
 
   let results = (outs AnyTypeOf<[I32, I64, I<128>, I<256>, F32, F64, F128, F<256>]>:$result);
 
@@ -326,9 +326,9 @@ def Dora_Or : Dora_Op<"or"> {
   }];
 
   let arguments = (ins
-        AnyTypeOf<[I32, I64, I<128>, I<256>, F32, F64, F128, F<256>]>:$lhs,
-        AnyTypeOf<[I32, I64, I<128>, I<256>, F32, F64, F128, F<256>]>:$rhs
-    );
+    AnyTypeOf<[I32, I64, I<128>, I<256>, F32, F64, F128, F<256>]>:$lhs,
+    AnyTypeOf<[I32, I64, I<128>, I<256>, F32, F64, F128, F<256>]>:$rhs
+  );
 
   let results = (outs AnyTypeOf<[I32, I64, I<128>, I<256>, F32, F64, F128, F<256>]>:$result);
 
@@ -343,9 +343,9 @@ def Dora_Xor : Dora_Op<"xor"> {
   }];
 
   let arguments = (ins
-        AnyTypeOf<[I32, I64, I<128>, I<256>, F32, F64, F128, F<256>]>:$lhs,
-        AnyTypeOf<[I32, I64, I<128>, I<256>, F32, F64, F128, F<256>]>:$rhs
-    );
+    AnyTypeOf<[I32, I64, I<128>, I<256>, F32, F64, F128, F<256>]>:$lhs,
+    AnyTypeOf<[I32, I64, I<128>, I<256>, F32, F64, F128, F<256>]>:$rhs
+  );
 
   let results = (outs AnyTypeOf<[I32, I64, I<128>, I<256>, F32, F64, F128, F<256>]>:$result);
 
@@ -360,8 +360,8 @@ def Dora_Not : Dora_Op<"not"> {
   }];
 
   let arguments = (ins
-        AnyTypeOf<[I32, I64, I<128>, I<256>, F32, F64, F128, F<256>]>:$value
-    );
+    AnyTypeOf<[I32, I64, I<128>, I<256>, F32, F64, F128, F<256>]>:$value
+  );
 
   let results = (outs AnyTypeOf<[I32, I64, I<128>, I<256>, F32, F64, F128, F<256>]>:$result);
 
@@ -375,10 +375,10 @@ def Dora_Byte : Dora_Op<"byte"> {
     This operation takes two `i256` operands from the stack: an index and a value. It returns the byte at the specified index from the 256-bit integer.
   }];
 
-let arguments = (ins
-        AnyTypeOf<[I32, I64, I<128>, I<256>, F32, F64, F128, F<256>]>:$index,
-        AnyTypeOf<[I32, I64, I<128>, I<256>, F32, F64, F128, F<256>]>:$value
-    );
+  let arguments = (ins
+    AnyTypeOf<[I32, I64, I<128>, I<256>, F32, F64, F128, F<256>]>:$index,
+    AnyTypeOf<[I32, I64, I<128>, I<256>, F32, F64, F128, F<256>]>:$value
+  );
 
   let results = (outs AnyTypeOf<[I32, I64, I<128>, I<256>, F32, F64, F128, F<256>]>:$result);
 
@@ -393,9 +393,9 @@ def Dora_Shl : Dora_Op<"shl"> {
   }];
 
   let arguments = (ins
-        AnyTypeOf<[I32, I64, I<128>, I<256>, F32, F64, F128, F<256>]>:$shift,
-        AnyTypeOf<[I32, I64, I<128>, I<256>, F32, F64, F128, F<256>]>:$value
-    );
+    AnyTypeOf<[I32, I64, I<128>, I<256>, F32, F64, F128, F<256>]>:$shift,
+    AnyTypeOf<[I32, I64, I<128>, I<256>, F32, F64, F128, F<256>]>:$value
+  );
 
   let results = (outs AnyTypeOf<[I32, I64, I<128>, I<256>, F32, F64, F128, F<256>]>:$result);
 
@@ -410,9 +410,9 @@ def Dora_Shr : Dora_Op<"shr"> {
   }];
 
   let arguments = (ins
-        AnyTypeOf<[I32, I64, I<128>, I<256>, F32, F64, F128, F<256>]>:$shift,
-        AnyTypeOf<[I32, I64, I<128>, I<256>, F32, F64, F128, F<256>]>:$value
-    );
+    AnyTypeOf<[I32, I64, I<128>, I<256>, F32, F64, F128, F<256>]>:$shift,
+    AnyTypeOf<[I32, I64, I<128>, I<256>, F32, F64, F128, F<256>]>:$value
+  );
 
   let results = (outs AnyTypeOf<[I32, I64, I<128>, I<256>, F32, F64, F128, F<256>]>:$result);
 
@@ -426,10 +426,10 @@ def Dora_Sar : Dora_Op<"sar"> {
     This operation takes two `i256` operands from the stack: the shift amount and the value. It shifts the value right arithmetically (preserving the sign) by the specified number of bits.
   }];
 
-    let arguments = (ins
-        AnyTypeOf<[I32, I64, I<128>, I<256>, F32, F64, F128, F<256>]>:$shift,
-        AnyTypeOf<[I32, I64, I<128>, I<256>, F32, F64, F128, F<256>]>:$value
-    );
+  let arguments = (ins
+    AnyTypeOf<[I32, I64, I<128>, I<256>, F32, F64, F128, F<256>]>:$shift,
+    AnyTypeOf<[I32, I64, I<128>, I<256>, F32, F64, F128, F<256>]>:$value
+  );
 
   let results = (outs AnyTypeOf<[I32, I64, I<128>, I<256>, F32, F64, F128, F<256>]>:$result);
 
@@ -444,9 +444,9 @@ def Dora_Keccak256 : Dora_Op<"keccak256"> {
   }];
 
   let arguments = (ins
-        AnyTypeOf<[I32, I64, I<128>, I<256>, F32, F64, F128, F<256>]>:$start,
-        AnyTypeOf<[I32, I64, I<128>, I<256>, F32, F64, F128, F<256>]>:$length
-    );
+    AnyTypeOf<[I32, I64, I<128>, I<256>, F32, F64, F128, F<256>]>:$start,
+    AnyTypeOf<[I32, I64, I<128>, I<256>, F32, F64, F128, F<256>]>:$length
+  );
 
   let results = (outs AnyTypeOf<[I32, I64, I<128>, I<256>, F32, F64, F128, F<256>]>:$hash);
 
@@ -474,8 +474,8 @@ def Dora_Balance : Dora_Op<"balance"> {
   }];
 
   let arguments = (ins
-        AnyTypeOf<[I32, I64, I<128>, I<256>, F32, F64, F128, F<256>]>:$account
-    );
+    AnyTypeOf<[I32, I64, I<128>, I<256>, F32, F64, F128, F<256>]>:$account
+  );
 
   let results = (outs AnyTypeOf<[I32, I64, I<128>, I<256>, F32, F64, F128, F<256>]>:$balance);
 
@@ -521,24 +521,24 @@ def Dora_CallValue : Dora_Op<"callvalue"> {
   let assemblyFormat = "`->` type($value)";
 }
 
-// CallDataLoad Operation
-def Dora_CallDataLoad : Dora_Op<"calldataload"> {
-  let summary = "Loads a word of input data.";
+// CalldataLoad Operation
+def Dora_CalldataLoad : Dora_Op<"calldataload"> {
+  let summary = "Loads a word of the input data.";
   let description = [{
     This operation takes one `i256` operand from the stack, which is the byte offset in the input data, and returns the 256-bit word at that offset.
   }];
 
   let arguments = (ins
-        AnyTypeOf<[I32, I64, I<128>, I<256>, F32, F64, F128, F<256>]>:$offset
-    );
+    AnyTypeOf<[I32, I64, I<128>, I<256>, F32, F64, F128, F<256>]>:$offset
+  );
 
   let results = (outs I<256>:$value);
 
   let assemblyFormat = "$offset `:` type($offset) `->` type($data)";
 }
 
-// CallDataSize Operation
-def Dora_CallDataSize : Dora_Op<"calldatasize"> {
+// CalldataSize Operation
+def Dora_CalldataSize : Dora_Op<"calldatasize"> {
   let summary = "Gets the size of the input data.";
   let description = [{
     This operation returns the size of the input data for the current call.
@@ -550,18 +550,18 @@ def Dora_CallDataSize : Dora_Op<"calldatasize"> {
   let assemblyFormat = "`->` type($size)";
 }
 
-// CallDataCopy Operation
-def Dora_CallDataCopy : Dora_Op<"calldatacopy"> {
+// CalldataCopy Operation
+def Dora_CalldataCopy : Dora_Op<"calldatacopy"> {
   let summary = "Copies a portion of the input data to memory.";
   let description = [{
     This operation takes three `i256` operands from the stack: the destination memory offset, the source offset in the input data, and the number of bytes to copy.
   }];
 
   let arguments = (ins
-        AnyTypeOf<[I32, I64, I<128>, I<256>, F32, F64, F128, F<256>]>:$destOffset,
-        AnyTypeOf<[I32, I64, I<128>, I<256>, F32, F64, F128, F<256>]>:$dataOffset,
-        AnyTypeOf<[I32, I64, I<128>, I<256>, F32, F64, F128, F<256>]>:$length
-    );
+    AnyTypeOf<[I32, I64, I<128>, I<256>, F32, F64, F128, F<256>]>:$destOffset,
+    AnyTypeOf<[I32, I64, I<128>, I<256>, F32, F64, F128, F<256>]>:$dataOffset,
+    AnyTypeOf<[I32, I64, I<128>, I<256>, F32, F64, F128, F<256>]>:$length
+  );
   let results = (outs);
 
   let assemblyFormat = "$destOffset `,` $dataOffset `,` $length `:` type($destOffset)";
@@ -588,10 +588,10 @@ def Dora_CodeCopy : Dora_Op<"codecopy"> {
   }];
 
   let arguments = (ins
-        AnyTypeOf<[I32, I64, I<128>, I<256>, F32, F64, F128, F<256>]>:$destOffset,
-        AnyTypeOf<[I32, I64, I<128>, I<256>, F32, F64, F128, F<256>]>:$codeOffset,
-        AnyTypeOf<[I32, I64, I<128>, I<256>, F32, F64, F128, F<256>]>:$length
-    );
+    AnyTypeOf<[I32, I64, I<128>, I<256>, F32, F64, F128, F<256>]>:$destOffset,
+    AnyTypeOf<[I32, I64, I<128>, I<256>, F32, F64, F128, F<256>]>:$codeOffset,
+    AnyTypeOf<[I32, I64, I<128>, I<256>, F32, F64, F128, F<256>]>:$length
+  );
   let results = (outs);
 
   let assemblyFormat = "$destOffset `,` $codeOffset `,` $length `:` type($destOffset)";
@@ -618,9 +618,9 @@ def Dora_ExtCodeSize : Dora_Op<"extcodesize"> {
   }];
 
   let arguments = (ins
-        AnyTypeOf<[I32, I64, I<128>, I<256>, F32, F64, F128, F<256>]>:$account
-    );
-    let results = (outs AnyTypeOf<[I32, I64, I<128>, I<256>, F32, F64, F128, F<256>]>:$size);
+    AnyTypeOf<[I32, I64, I<128>, I<256>, F32, F64, F128, F<256>]>:$account
+  );
+  let results = (outs AnyTypeOf<[I32, I64, I<128>, I<256>, F32, F64, F128, F<256>]>:$size);
 
   let assemblyFormat = "$account `:` type($account) `->` type($size)";
 }
@@ -633,12 +633,12 @@ def Dora_ExtCodeCopy : Dora_Op<"extcodecopy"> {
   }];
 
   let arguments = (ins
-        AnyTypeOf<[I32, I64, I<128>, I<256>, F32, F64, F128, F<256>]>:$account,
-         AnyTypeOf<[I32, I64, I<128>, I<256>, F32, F64, F128, F<256>]>:$destOffset,
-         AnyTypeOf<[I32, I64, I<128>, I<256>, F32, F64, F128, F<256>]>:$codeOffset,
-         AnyTypeOf<[I32, I64, I<128>, I<256>, F32, F64, F128, F<256>]>:$length
-    );
-    let results = (outs);
+    AnyTypeOf<[I32, I64, I<128>, I<256>, F32, F64, F128, F<256>]>:$account,
+    AnyTypeOf<[I32, I64, I<128>, I<256>, F32, F64, F128, F<256>]>:$destOffset,
+    AnyTypeOf<[I32, I64, I<128>, I<256>, F32, F64, F128, F<256>]>:$codeOffset,
+    AnyTypeOf<[I32, I64, I<128>, I<256>, F32, F64, F128, F<256>]>:$length
+  );
+  let results = (outs);
 
   let assemblyFormat = "$account `,` $destOffset `,` $codeOffset `,` $length `:` type($account)";
 }
@@ -656,8 +656,8 @@ def Dora_Stop : Dora_Op<"stop"> {
   let assemblyFormat = "";
 }
 
-// ReturnDataSize Operation
-def Dora_ReturnDataSize : Dora_Op<"returndatasize"> {
+// ReturndataSize Operation
+def Dora_ReturndataSize : Dora_Op<"returndatasize"> {
   let summary = "Gets the size of the returned data from the last external call.";
   let description = [{
     This operation returns the size of the data returned by the last external call.
@@ -669,34 +669,21 @@ def Dora_ReturnDataSize : Dora_Op<"returndatasize"> {
   let assemblyFormat = "`->` type($size)";
 }
 
-// ReturnDataCopy Operation
-def Dora_ReturnDataCopy : Dora_Op<"returndatacopy"> {
+// ReturndataCopy Operation
+def Dora_ReturndataCopy : Dora_Op<"returndatacopy"> {
   let summary = "Copies the returned data from the last external call to memory.";
   let description = [{
     This operation takes three `i256` operands from the stack: the destination memory offset, the source offset in the returned data, and the number of bytes to copy.
   }];
 
   let arguments = (ins
-        AnyTypeOf<[I32, I64, I<128>, I<256>, F32, F64, F128, F<256>]>:$destOffset,
-         AnyTypeOf<[I32, I64, I<128>, I<256>, F32, F64, F128, F<256>]>:$dataOffset,
-         AnyTypeOf<[I32, I64, I<128>, I<256>, F32, F64, F128, F<256>]>:$length
-    );
+    AnyTypeOf<[I32, I64, I<128>, I<256>, F32, F64, F128, F<256>]>:$destOffset,
+    AnyTypeOf<[I32, I64, I<128>, I<256>, F32, F64, F128, F<256>]>:$dataOffset,
+    AnyTypeOf<[I32, I64, I<128>, I<256>, F32, F64, F128, F<256>]>:$length
+  );
   let results = (outs);
 
   let assemblyFormat = "$destOffset `,` $dataOffset `,` $length `:` type($destOffset)";
-}
-
-// ReturnDataLoad Operation
-def Dora_ReturnDataLoad : Dora_Op<"returndataload"> {
-  let summary = "Loads a word from the returned data from the last external call.";
-  let description = [{
-    This operation takes one `i256` operand from the stack: the offset in the returned data, and pushes the loaded word onto the stack.
-  }];
-
-  let arguments = (ins I<256>:$dataOffset);
-  let results = (outs I<256>:$dataWord);
-
-  let assemblyFormat = "$dataOffset `:` type($dataOffset)";
 }
 
 // ExtCodeHash Operation
@@ -707,9 +694,9 @@ def Dora_ExtCodeHash : Dora_Op<"extcodehash"> {
   }];
 
   let arguments = (ins
-        AnyTypeOf<[I32, I64, I<128>, I<256>, F32, F64, F128, F<256>]>:$account
-    );
-   let results = (outs AnyTypeOf<[I32, I64, I<128>, I<256>, F32, F64, F128, F<256>]>:$hash); 
+    AnyTypeOf<[I32, I64, I<128>, I<256>, F32, F64, F128, F<256>]>:$account
+  );
+  let results = (outs AnyTypeOf<[I32, I64, I<128>, I<256>, F32, F64, F128, F<256>]>:$hash); 
 
   let assemblyFormat = "$account `:` type($account) `->` type($hash)";
 }
@@ -721,10 +708,10 @@ def Dora_BlockHash : Dora_Op<"blockhash"> {
     This operation takes one `i256` operand from the stack, which is the block number, and returns the hash of the specified block. Only the most recent 256 blocks are accessible.
   }];
 
-   let arguments = (ins
-        AnyTypeOf<[I32, I64, I<128>, I<256>, F32, F64, F128, F<256>]>:$blockNumber
-    );
-   let results = (outs AnyTypeOf<[I32, I64, I<128>, I<256>, F32, F64, F128, F<256>]>:$hash); 
+  let arguments = (ins
+    AnyTypeOf<[I32, I64, I<128>, I<256>, F32, F64, F128, F<256>]>:$blockNumber
+  );
+  let results = (outs AnyTypeOf<[I32, I64, I<128>, I<256>, F32, F64, F128, F<256>]>:$hash); 
 
   let assemblyFormat = "$blockNumber `:` type($blockNumber) `->` type($hash)";
 }
@@ -737,7 +724,7 @@ def Dora_Coinbase : Dora_Op<"coinbase"> {
   }];
 
   let arguments = (ins);
-   let results = (outs AnyTypeOf<[I32, I64, I<128>, I<256>, F32, F64, F128, F<256>]>:$minerAddress); 
+  let results = (outs AnyTypeOf<[I32, I64, I<128>, I<256>, F32, F64, F128, F<256>]>:$minerAddress); 
 
   let assemblyFormat = "`->` type($minerAddress)";
 }
@@ -750,7 +737,7 @@ def Dora_Timestamp : Dora_Op<"timestamp"> {
   }];
 
   let arguments = (ins);
-   let results = (outs AnyTypeOf<[I32, I64, I<128>, I<256>, F32, F64, F128, F<256>]>:$timestamp); 
+  let results = (outs AnyTypeOf<[I32, I64, I<128>, I<256>, F32, F64, F128, F<256>]>:$timestamp); 
 
   let assemblyFormat = "`->` type($timestamp)";
 }
@@ -763,7 +750,7 @@ def Dora_Number : Dora_Op<"number"> {
   }];
 
   let arguments = (ins);
-   let results = (outs AnyTypeOf<[I32, I64, I<128>, I<256>, F32, F64, F128, F<256>]>:$blockNumber); 
+  let results = (outs AnyTypeOf<[I32, I64, I<128>, I<256>, F32, F64, F128, F<256>]>:$blockNumber); 
 
   let assemblyFormat = "`->` type($blockNumber)";
 }
@@ -776,7 +763,7 @@ def Dora_PrevRandao : Dora_Op<"prevrandao"> {
   }];
 
   let arguments = (ins);
-   let results = (outs AnyTypeOf<[I32, I64, I<128>, I<256>, F32, F64, F128, F<256>]>:$randao); 
+  let results = (outs AnyTypeOf<[I32, I64, I<128>, I<256>, F32, F64, F128, F<256>]>:$randao); 
 
   let assemblyFormat = "`->` type($randao)";
 }
@@ -788,8 +775,8 @@ def Dora_GasLimit : Dora_Op<"gaslimit"> {
     This operation returns the gas limit of the block currently being mined.
   }];
 
-   let arguments = (ins);
-   let results = (outs AnyTypeOf<[I32, I64, I<128>, I<256>, F32, F64, F128, F<256>]>:$gasLimit); 
+  let arguments = (ins);
+  let results = (outs AnyTypeOf<[I32, I64, I<128>, I<256>, F32, F64, F128, F<256>]>:$gasLimit); 
 
   let assemblyFormat = "`->` type($gasLimit)";
 }
@@ -802,7 +789,7 @@ def Dora_ChainId : Dora_Op<"chainid"> {
   }];
 
   let arguments = (ins);
-   let results = (outs AnyTypeOf<[I32, I64, I<128>, I<256>, F32, F64, F128, F<256>]>:$chainId); 
+  let results = (outs AnyTypeOf<[I32, I64, I<128>, I<256>, F32, F64, F128, F<256>]>:$chainId); 
 
   let assemblyFormat = "`->` type($chainId)";
 }
@@ -814,8 +801,8 @@ def Dora_SelfBalance : Dora_Op<"selfbalance"> {
     This operation returns the balance of the contract currently executing.
   }];
 
-   let arguments = (ins);
-   let results = (outs AnyTypeOf<[I32, I64, I<128>, I<256>, F32, F64, F128, F<256>]>:$balance); 
+  let arguments = (ins);
+  let results = (outs AnyTypeOf<[I32, I64, I<128>, I<256>, F32, F64, F128, F<256>]>:$balance); 
 
   let assemblyFormat = "`->` type($balance)";
 }
@@ -828,7 +815,7 @@ def Dora_BaseFee : Dora_Op<"basefee"> {
   }];
 
   let arguments = (ins);
-   let results = (outs AnyTypeOf<[I32, I64, I<128>, I<256>, F32, F64, F128, F<256>]>:$baseFee); 
+  let results = (outs AnyTypeOf<[I32, I64, I<128>, I<256>, F32, F64, F128, F<256>]>:$baseFee); 
 
   let assemblyFormat = "`->` type($baseFee)";
 }
@@ -840,10 +827,10 @@ def Dora_BlobHash : Dora_Op<"blobhash"> {
     This operation takes one `i256` operand from the stack, which is the index of the blob, and returns the hash of that blob.
   }];
 
-    let arguments = (ins
-        AnyTypeOf<[I32, I64, I<128>, I<256>, F32, F64, F128, F<256>]>:$index
-    );
-   let results = (outs AnyTypeOf<[I32, I64, I<128>, I<256>, F32, F64, F128, F<256>]>:$hash); 
+  let arguments = (ins
+    AnyTypeOf<[I32, I64, I<128>, I<256>, F32, F64, F128, F<256>]>:$index
+  );
+  let results = (outs AnyTypeOf<[I32, I64, I<128>, I<256>, F32, F64, F128, F<256>]>:$hash); 
 
   let assemblyFormat = "$index `:` type($index) `->` type($hash)";
 }
@@ -856,7 +843,7 @@ def Dora_BlobBaseFee : Dora_Op<"blobbasefee"> {
   }];
 
   let arguments = (ins);
-   let results = (outs AnyTypeOf<[I32, I64, I<128>, I<256>, F32, F64, F128, F<256>]>:$baseFee); 
+  let results = (outs AnyTypeOf<[I32, I64, I<128>, I<256>, F32, F64, F128, F<256>]>:$baseFee); 
 
   let assemblyFormat = "`->` type($baseFee)";
 }
@@ -868,10 +855,10 @@ def Dora_MLoad : Dora_Op<"mload"> {
     This operation takes one `i256` operand from the stack, which is the memory offset, and returns the 256-bit word stored at that memory location.
   }];
 
-   let arguments = (ins
-        AnyTypeOf<[I32, I64, I<128>, I<256>, F32, F64, F128, F<256>]>:$offset
-    );
-   let results = (outs AnyTypeOf<[I32, I64, I<128>, I<256>, F32, F64, F128, F<256>]>:$data); 
+  let arguments = (ins
+    AnyTypeOf<[I32, I64, I<128>, I<256>, F32, F64, F128, F<256>]>:$offset
+  );
+  let results = (outs AnyTypeOf<[I32, I64, I<128>, I<256>, F32, F64, F128, F<256>]>:$data); 
 
   let assemblyFormat = "$offset `:` type($offset) `->` type($data)";
 }
@@ -884,10 +871,10 @@ def Dora_MStore : Dora_Op<"mstore"> {
   }];
 
   let arguments = (ins
-        AnyTypeOf<[I32, I64, I<128>, I<256>, F32, F64, F128, F<256>]>:$offset,
-        AnyTypeOf<[I32, I64, I<128>, I<256>, F32, F64, F128, F<256>]>:$data
-    );
-   let results = (outs); 
+    AnyTypeOf<[I32, I64, I<128>, I<256>, F32, F64, F128, F<256>]>:$offset,
+    AnyTypeOf<[I32, I64, I<128>, I<256>, F32, F64, F128, F<256>]>:$data
+  );
+  let results = (outs); 
 
   let assemblyFormat = "$offset `,` $data `:` type($offset)";
 }
@@ -899,11 +886,11 @@ def Dora_MStore8 : Dora_Op<"mstore8"> {
     This operation takes two `i256` operands from the stack: the memory offset and the 8-bit byte to store at that memory location.
   }];
 
-   let arguments = (ins
-        AnyTypeOf<[I32, I64, I<128>, I<256>, F32, F64, F128, F<256>]>:$offset,
-        AnyTypeOf<[I32, I64, I<128>, I<256>, F32, F64, F128, F<256>]>:$data
-    );
-   let results = (outs); 
+  let arguments = (ins
+    AnyTypeOf<[I32, I64, I<128>, I<256>, F32, F64, F128, F<256>]>:$offset,
+    AnyTypeOf<[I32, I64, I<128>, I<256>, F32, F64, F128, F<256>]>:$data
+  );
+  let results = (outs); 
 
   let assemblyFormat = "$offset `,` $data `:` type($offset)";
 }
@@ -916,8 +903,8 @@ def Dora_SLoad : Dora_Op<"sload"> {
   }];
 
   let arguments = (ins
-        AnyTypeOf<[I32, I64, I<128>, I<256>, F32, F64, F128, F<256>]>:$offset
-    );
+    AnyTypeOf<[I32, I64, I<128>, I<256>, F32, F64, F128, F<256>]>:$offset
+  );
   let results = (outs AnyTypeOf<[I32, I64, I<128>, I<256>, F32, F64, F128, F<256>]>:$data); 
 
   let assemblyFormat = "$key `:` type($key) `->` type($value)";
@@ -931,10 +918,10 @@ def Dora_SStore : Dora_Op<"sstore"> {
   }];
 
   let arguments = (ins
-        AnyTypeOf<[I32, I64, I<128>, I<256>, F32, F64, F128, F<256>]>:$key,
-        AnyTypeOf<[I32, I64, I<128>, I<256>, F32, F64, F128, F<256>]>:$value
-    );
-   let results = (outs); 
+    AnyTypeOf<[I32, I64, I<128>, I<256>, F32, F64, F128, F<256>]>:$key,
+    AnyTypeOf<[I32, I64, I<128>, I<256>, F32, F64, F128, F<256>]>:$value
+  );
+  let results = (outs); 
 
   let assemblyFormat = "$key `,` $value `:` type($key)";
 }
@@ -947,7 +934,7 @@ def Dora_MSize : Dora_Op<"msize"> {
   }];
 
   let arguments = (ins);
-   let results = (outs AnyTypeOf<[I32, I64, I<128>, I<256>, F32, F64, F128, F<256>]>:$size); 
+  let results = (outs AnyTypeOf<[I32, I64, I<128>, I<256>, F32, F64, F128, F<256>]>:$size); 
 
   let assemblyFormat = "`->` type($size)";
 }
@@ -960,7 +947,7 @@ def Dora_Gas : Dora_Op<"gas"> {
   }];
 
   let arguments = (ins);
-   let results = (outs AnyTypeOf<[I32, I64, I<128>, I<256>, F32, F64, F128, F<256>]>:$gas); 
+  let results = (outs AnyTypeOf<[I32, I64, I<128>, I<256>, F32, F64, F128, F<256>]>:$gas); 
 
   let assemblyFormat = "`->` type($gas)";
 }
@@ -973,9 +960,9 @@ def Dora_TLoad : Dora_Op<"tload"> {
   }];
 
   let arguments = (ins
-        AnyTypeOf<[I32, I64, I<128>, I<256>, F32, F64, F128, F<256>]>:$key
-    );
-   let results = (outs AnyTypeOf<[I32, I64, I<128>, I<256>, F32, F64, F128, F<256>]>:$value); 
+    AnyTypeOf<[I32, I64, I<128>, I<256>, F32, F64, F128, F<256>]>:$key
+  );
+  let results = (outs AnyTypeOf<[I32, I64, I<128>, I<256>, F32, F64, F128, F<256>]>:$value); 
 
   let assemblyFormat = "$key `:` type($key) `->` type($value)";
 }
@@ -988,10 +975,10 @@ def Dora_TStore : Dora_Op<"tstore"> {
   }];
 
   let arguments = (ins
-        AnyTypeOf<[I32, I64, I<128>, I<256>, F32, F64, F128, F<256>]>:$key,
-         AnyTypeOf<[I32, I64, I<128>, I<256>, F32, F64, F128, F<256>]>:$value
-    );
-   let results = (outs); 
+    AnyTypeOf<[I32, I64, I<128>, I<256>, F32, F64, F128, F<256>]>:$key,
+    AnyTypeOf<[I32, I64, I<128>, I<256>, F32, F64, F128, F<256>]>:$value
+  );
+  let results = (outs); 
 
   let assemblyFormat = "$key `,` $value `:` type($key)";
 }
@@ -1004,11 +991,11 @@ def Dora_MCopy : Dora_Op<"mcopy"> {
   }];
 
   let arguments = (ins
-        AnyTypeOf<[I32, I64, I<128>, I<256>, F32, F64, F128, F<256>]>:$destOffset,
-         AnyTypeOf<[I32, I64, I<128>, I<256>, F32, F64, F128, F<256>]>:$srcOffset,
-         AnyTypeOf<[I32, I64, I<128>, I<256>, F32, F64, F128, F<256>]>:$length
-    );
-   let results = (outs); 
+    AnyTypeOf<[I32, I64, I<128>, I<256>, F32, F64, F128, F<256>]>:$destOffset,
+    AnyTypeOf<[I32, I64, I<128>, I<256>, F32, F64, F128, F<256>]>:$srcOffset,
+    AnyTypeOf<[I32, I64, I<128>, I<256>, F32, F64, F128, F<256>]>:$length
+  );
+  let results = (outs); 
 
   let assemblyFormat = "$destOffset `,` $srcOffset `,` $length `:` type($destOffset)";
 }
@@ -1021,10 +1008,10 @@ def Dora_Log0 : Dora_Op<"log0"> {
   }];
 
   let arguments = (ins
-        AnyTypeOf<[I32, I64, I<128>, I<256>, F32, F64, F128, F<256>]>:$offset,
-         AnyTypeOf<[I32, I64, I<128>, I<256>, F32, F64, F128, F<256>]>:$length
-    );
-   let results = (outs); 
+    AnyTypeOf<[I32, I64, I<128>, I<256>, F32, F64, F128, F<256>]>:$offset,
+    AnyTypeOf<[I32, I64, I<128>, I<256>, F32, F64, F128, F<256>]>:$length
+  );
+  let results = (outs); 
 
   let assemblyFormat = "$offset `,` $length `:` type($offset)";
 }
@@ -1037,10 +1024,10 @@ def Dora_Log1 : Dora_Op<"log1"> {
   }];
 
   let arguments = (ins
-        AnyTypeOf<[I32, I64, I<128>, I<256>, F32, F64, F128, F<256>]>:$offset,
-         AnyTypeOf<[I32, I64, I<128>, I<256>, F32, F64, F128, F<256>]>:$length,
-         AnyTypeOf<[I32, I64, I<128>, I<256>, F32, F64, F128, F<256>]>:$topic
-    );
+    AnyTypeOf<[I32, I64, I<128>, I<256>, F32, F64, F128, F<256>]>:$offset,
+    AnyTypeOf<[I32, I64, I<128>, I<256>, F32, F64, F128, F<256>]>:$length,
+    AnyTypeOf<[I32, I64, I<128>, I<256>, F32, F64, F128, F<256>]>:$topic
+  );
   let results = (outs);
 
   let assemblyFormat = "$offset `,` $length `,` $topic `:` type($offset)";
@@ -1054,11 +1041,11 @@ def Dora_Log2 : Dora_Op<"log2"> {
   }];
 
   let arguments = (ins
-        AnyTypeOf<[I32, I64, I<128>, I<256>, F32, F64, F128, F<256>]>:$offset,
-         AnyTypeOf<[I32, I64, I<128>, I<256>, F32, F64, F128, F<256>]>:$length,
-         AnyTypeOf<[I32, I64, I<128>, I<256>, F32, F64, F128, F<256>]>:$topic1,
-         AnyTypeOf<[I32, I64, I<128>, I<256>, F32, F64, F128, F<256>]>:$topic2
-    );
+    AnyTypeOf<[I32, I64, I<128>, I<256>, F32, F64, F128, F<256>]>:$offset,
+    AnyTypeOf<[I32, I64, I<128>, I<256>, F32, F64, F128, F<256>]>:$length,
+    AnyTypeOf<[I32, I64, I<128>, I<256>, F32, F64, F128, F<256>]>:$topic1,
+    AnyTypeOf<[I32, I64, I<128>, I<256>, F32, F64, F128, F<256>]>:$topic2
+  );
   let results = (outs);
 
   let assemblyFormat = "$offset `,` $length `,` $topic1 `,` $topic2 `:` type($offset)";
@@ -1071,13 +1058,13 @@ def Dora_Log3 : Dora_Op<"log3"> {
     This operation takes four `i256` operands from the stack: the memory offset, the length, and three topics, and logs an event with three additional topics.
   }];
 
-   let arguments = (ins
-        AnyTypeOf<[I32, I64, I<128>, I<256>, F32, F64, F128, F<256>]>:$offset,
-         AnyTypeOf<[I32, I64, I<128>, I<256>, F32, F64, F128, F<256>]>:$length,
-         AnyTypeOf<[I32, I64, I<128>, I<256>, F32, F64, F128, F<256>]>:$topic1,
-         AnyTypeOf<[I32, I64, I<128>, I<256>, F32, F64, F128, F<256>]>:$topic2,
-         AnyTypeOf<[I32, I64, I<128>, I<256>, F32, F64, F128, F<256>]>:$topic3
-    );
+  let arguments = (ins
+    AnyTypeOf<[I32, I64, I<128>, I<256>, F32, F64, F128, F<256>]>:$offset,
+    AnyTypeOf<[I32, I64, I<128>, I<256>, F32, F64, F128, F<256>]>:$length,
+    AnyTypeOf<[I32, I64, I<128>, I<256>, F32, F64, F128, F<256>]>:$topic1,
+    AnyTypeOf<[I32, I64, I<128>, I<256>, F32, F64, F128, F<256>]>:$topic2,
+    AnyTypeOf<[I32, I64, I<128>, I<256>, F32, F64, F128, F<256>]>:$topic3
+  );
   let results = (outs);
 
   let assemblyFormat = "$offset `,` $length `,` $topic1 `,` $topic2 `,` $topic3 `:` type($offset)";
@@ -1091,16 +1078,136 @@ def Dora_Log4 : Dora_Op<"log4"> {
   }];
 
   let arguments = (ins
-        AnyTypeOf<[I32, I64, I<128>, I<256>, F32, F64, F128, F<256>]>:$offset,
-         AnyTypeOf<[I32, I64, I<128>, I<256>, F32, F64, F128, F<256>]>:$length,
-         AnyTypeOf<[I32, I64, I<128>, I<256>, F32, F64, F128, F<256>]>:$topic1,
-         AnyTypeOf<[I32, I64, I<128>, I<256>, F32, F64, F128, F<256>]>:$topic2,
-         AnyTypeOf<[I32, I64, I<128>, I<256>, F32, F64, F128, F<256>]>:$topic3,
-         AnyTypeOf<[I32, I64, I<128>, I<256>, F32, F64, F128, F<256>]>:$topic4
-    );
+    AnyTypeOf<[I32, I64, I<128>, I<256>, F32, F64, F128, F<256>]>:$offset,
+    AnyTypeOf<[I32, I64, I<128>, I<256>, F32, F64, F128, F<256>]>:$length,
+    AnyTypeOf<[I32, I64, I<128>, I<256>, F32, F64, F128, F<256>]>:$topic1,
+    AnyTypeOf<[I32, I64, I<128>, I<256>, F32, F64, F128, F<256>]>:$topic2,
+    AnyTypeOf<[I32, I64, I<128>, I<256>, F32, F64, F128, F<256>]>:$topic3,
+    AnyTypeOf<[I32, I64, I<128>, I<256>, F32, F64, F128, F<256>]>:$topic4
+  );
   let results = (outs);
 
   let assemblyFormat = "$offset `,` $length `,` $topic1 `,` $topic2 `,` $topic3 `,` $topic4 `:` type($offset)";
+}
+
+// DataLoad Operation
+def Dora_DataLoad : Dora_Op<"dataload"> {
+  let summary = "Load a word of the data section.";
+  let description = [{
+    This operation takes one `i256` operand from the stack, which is the byte offset in the data section of EOF container, and returns the 256-bit word at that offset.
+  }];
+
+  let arguments = (ins AnyTypeOf<[I32, I64, I<128>, I<256>, F32, F64, F128, F<256>]>:$offset);
+
+  let results = (outs I<256>:$value);
+
+  let assemblyFormat = "$offset `:` type($offset) `->` type($data)";
+}
+
+// DataLoadN Operation
+def Dora_DataLoadN : Dora_Op<"dataloadn"> {
+  let summary = "Load a word of the data section.";
+  let description = [{
+    This operation takes one `i128` operand from the stack, which is the byte offset in the data section of EOF container, and returns the 256-bit word at that offset.
+  }];
+
+  let arguments = (ins I<128>:$offset);
+
+  let results = (outs I<256>:$value);
+
+  let assemblyFormat = "$offset `:` type($offset) `->` type($data)";
+}
+
+// DataSize Operation
+def Dora_DataSize : Dora_Op<"datasize"> {
+  let summary = "Gets the size of the data section.";
+  let description = [{
+    This operation returns the size of the data section for the current call.
+  }];
+
+  let arguments = (ins);
+  let results = (outs AnyTypeOf<[I32, I64, I<128>, I<256>, F32, F64, F128, F<256>]>:$size);
+
+  let assemblyFormat = "`->` type($size)";
+}
+
+// DataCopy Operation
+def Dora_DataCopy : Dora_Op<"datacopy"> {
+  let summary = "Copies a portion of the data section to memory.";
+  let description = [{
+    This operation takes three `i256` operands from the stack: the destination memory offset, the source offset in the input data, and the number of bytes to copy.
+  }];
+
+  let arguments = (ins
+      AnyTypeOf<[I32, I64, I<128>, I<256>, F32, F64, F128, F<256>]>:$destOffset,
+      AnyTypeOf<[I32, I64, I<128>, I<256>, F32, F64, F128, F<256>]>:$dataOffset,
+      AnyTypeOf<[I32, I64, I<128>, I<256>, F32, F64, F128, F<256>]>:$length
+    );
+  let results = (outs);
+
+  let assemblyFormat = "$destOffset `,` $dataOffset `,` $length `:` type($destOffset)";
+}
+
+// CallF Operation
+def Dora_CallF : Dora_Op<"callf"> {
+  let summary = "Calls a function.";
+  let description = [{
+    This operation takes one `i16` argument, which is the metadata index in the type section, and call into a function or subroutine, then push an execution state onto the return stack.
+  }];
+
+  let arguments = (ins I16:$target_section_index);
+  let results = (outs);
+
+  let assemblyFormat = "$target_section_index `:` type($target_section_index)";
+}
+
+// RetF Operation
+def Dora_RetF : Dora_Op<"retf"> {
+  let summary = "Returns data from the function execution.";
+  let description = [{
+    This operations returns value from a function or subroutine, which is Context from CALLF, and which pop an execution state from return stack and set to corresponding values (current section index, program counter).
+  }];
+
+  let arguments = (ins);
+  let results = (outs);
+
+  let assemblyFormat = "";
+}
+
+// EofCreate Operation
+def Dora_EofCreate : Dora_Op<"eofcreate"> {
+  let summary = "Creates a new contract with a deterministic address.";
+  let description = [{
+    This operation takes one `i64` argument, which is the index of EOF subcontainer in the containers, and four `i256` operands from the stack: the amount of Ether to send, a salt value, the memory offset of the initialization code and the length of the initialization code, and It returns the address of the created contract, which is determined using the salt and the caller's address.
+  }];
+
+  let arguments = (ins
+    I64:$initcontainer_index,
+    AnyTypeOf<[I32, I64, I<128>, I<256>, F32, F64, F128, F<256>]>:$value,
+    AnyTypeOf<[I32, I64, I<128>, I<256>, F32, F64, F128, F<256>]>:$salt,
+    AnyTypeOf<[I32, I64, I<128>, I<256>, F32, F64, F128, F<256>]>:$input_offset,
+    AnyTypeOf<[I32, I64, I<128>, I<256>, F32, F64, F128, F<256>]>:$input_size
+  );
+  let results = (outs AnyTypeOf<[I32, I64, I<128>, I<256>, F32, F64, F128, F<256>]>:$address);
+
+  let assemblyFormat = "initcontainer_index `,` $value `,` $salt `,` $input_offset `,` $input_size `:` type($value) `->` type($address)";
+}
+
+// ReturnContract Operation
+def Dora_ReturnContract : Dora_Op<"returncontract"> {
+  let summary = "Deploys container to an address";
+  let description = [{
+    This operation takes one `i8` argument, which is the index of EOF containers and two `i256` operand from the stack:  the memory offset of the auxiliary data and the length of the auxiliary data to copy, and It appended to deployed container's data.
+  }];
+
+  let arguments = (ins
+    I8:$deploy_container_index,
+    AnyTypeOf<[I32, I64, I<128>, I<256>, F32, F64, F128, F<256>]>:$aux_data_offset,
+    AnyTypeOf<[I32, I64, I<128>, I<256>, F32, F64, F128, F<256>]>:$aux_data_size
+  );
+  let results = (outs);
+
+  let assemblyFormat = "$aux_data_offset `,` $aux_data_size `:` type($aux_data_offset)";
 }
 
 // Create Operation
@@ -1111,11 +1218,11 @@ def Dora_Create : Dora_Op<"create"> {
   }];
 
   let arguments = (ins
-        AnyTypeOf<[I32, I64, I<128>, I<256>, F32, F64, F128, F<256>]>:$value,
-        AnyTypeOf<[I32, I64, I<128>, I<256>, F32, F64, F128, F<256>]>:$offset,
-        AnyTypeOf<[I32, I64, I<128>, I<256>, F32, F64, F128, F<256>]>:$length
-    );
-     let results = (outs AnyTypeOf<[I32, I64, I<128>, I<256>, F32, F64, F128, F<256>]>:$address);
+    AnyTypeOf<[I32, I64, I<128>, I<256>, F32, F64, F128, F<256>]>:$value,
+    AnyTypeOf<[I32, I64, I<128>, I<256>, F32, F64, F128, F<256>]>:$offset,
+    AnyTypeOf<[I32, I64, I<128>, I<256>, F32, F64, F128, F<256>]>:$length
+  );
+  let results = (outs AnyTypeOf<[I32, I64, I<128>, I<256>, F32, F64, F128, F<256>]>:$address);
 
   let assemblyFormat = "$value `,` $offset `,` $length `:` type($value) `->` type($address)";
 }
@@ -1128,15 +1235,15 @@ def Dora_Call : Dora_Op<"call"> {
   }];
 
   let arguments = (ins
-        AnyTypeOf<[I32, I64, I<128>, I<256>, F32, F64, F128, F<256>]>:$gas,
-         AnyTypeOf<[I32, I64, I<128>, I<256>, F32, F64, F128, F<256>]>:$address,
-        AnyTypeOf<[I32, I64, I<128>, I<256>, F32, F64, F128, F<256>]>:$value,
-        AnyTypeOf<[I32, I64, I<128>, I<256>, F32, F64, F128, F<256>]>:$inputOffset,
-        AnyTypeOf<[I32, I64, I<128>, I<256>, F32, F64, F128, F<256>]>:$inputLength,
-        AnyTypeOf<[I32, I64, I<128>, I<256>, F32, F64, F128, F<256>]>:$outputOffset,
-        AnyTypeOf<[I32, I64, I<128>, I<256>, F32, F64, F128, F<256>]>:$outputLength
-    );
-     let results = (outs AnyTypeOf<[I32, I64, I<128>, I<256>, F32, F64, F128, F<256>]>:$success);
+    AnyTypeOf<[I32, I64, I<128>, I<256>, F32, F64, F128, F<256>]>:$gas,
+    AnyTypeOf<[I32, I64, I<128>, I<256>, F32, F64, F128, F<256>]>:$address,
+    AnyTypeOf<[I32, I64, I<128>, I<256>, F32, F64, F128, F<256>]>:$value,
+    AnyTypeOf<[I32, I64, I<128>, I<256>, F32, F64, F128, F<256>]>:$inputOffset,
+    AnyTypeOf<[I32, I64, I<128>, I<256>, F32, F64, F128, F<256>]>:$inputLength,
+    AnyTypeOf<[I32, I64, I<128>, I<256>, F32, F64, F128, F<256>]>:$outputOffset,
+    AnyTypeOf<[I32, I64, I<128>, I<256>, F32, F64, F128, F<256>]>:$outputLength
+  );
+  let results = (outs AnyTypeOf<[I32, I64, I<128>, I<256>, F32, F64, F128, F<256>]>:$success);
 
   let assemblyFormat = "$gas `,` $address `,` $value `,` $inputOffset `,` $inputLength `,` $outputOffset `,` $outputLength `:` type($gas) `->` type($success)";
 }
@@ -1149,15 +1256,15 @@ def Dora_CallCode : Dora_Op<"callcode"> {
   }];
 
   let arguments = (ins
-        AnyTypeOf<[I32, I64, I<128>, I<256>, F32, F64, F128, F<256>]>:$gas,
-         AnyTypeOf<[I32, I64, I<128>, I<256>, F32, F64, F128, F<256>]>:$address,
-        AnyTypeOf<[I32, I64, I<128>, I<256>, F32, F64, F128, F<256>]>:$value,
-        AnyTypeOf<[I32, I64, I<128>, I<256>, F32, F64, F128, F<256>]>:$inputOffset,
-        AnyTypeOf<[I32, I64, I<128>, I<256>, F32, F64, F128, F<256>]>:$inputLength,
-        AnyTypeOf<[I32, I64, I<128>, I<256>, F32, F64, F128, F<256>]>:$outputOffset,
-        AnyTypeOf<[I32, I64, I<128>, I<256>, F32, F64, F128, F<256>]>:$outputLength
-    );
-     let results = (outs AnyTypeOf<[I32, I64, I<128>, I<256>, F32, F64, F128, F<256>]>:$success);
+    AnyTypeOf<[I32, I64, I<128>, I<256>, F32, F64, F128, F<256>]>:$gas,
+    AnyTypeOf<[I32, I64, I<128>, I<256>, F32, F64, F128, F<256>]>:$address,
+    AnyTypeOf<[I32, I64, I<128>, I<256>, F32, F64, F128, F<256>]>:$value,
+    AnyTypeOf<[I32, I64, I<128>, I<256>, F32, F64, F128, F<256>]>:$inputOffset,
+    AnyTypeOf<[I32, I64, I<128>, I<256>, F32, F64, F128, F<256>]>:$inputLength,
+    AnyTypeOf<[I32, I64, I<128>, I<256>, F32, F64, F128, F<256>]>:$outputOffset,
+    AnyTypeOf<[I32, I64, I<128>, I<256>, F32, F64, F128, F<256>]>:$outputLength
+  );
+  let results = (outs AnyTypeOf<[I32, I64, I<128>, I<256>, F32, F64, F128, F<256>]>:$success);
 
   let assemblyFormat = "$gas `,` $address `,` $value `,` $inputOffset `,` $inputLength `,` $outputOffset `,` $outputLength `:` type($gas) `->` type($success)";
 }
@@ -1173,30 +1280,30 @@ def Dora_Return : Dora_Op<"return"> {
   let results = (outs);
 
   let arguments = (ins
-        AnyTypeOf<[I32, I64, I<128>, I<256>, F32, F64, F128, F<256>]>:$offset,
-         AnyTypeOf<[I32, I64, I<128>, I<256>, F32, F64, F128, F<256>]>:$length
-    );
-    let results = (outs);
+    AnyTypeOf<[I32, I64, I<128>, I<256>, F32, F64, F128, F<256>]>:$offset,
+    AnyTypeOf<[I32, I64, I<128>, I<256>, F32, F64, F128, F<256>]>:$length
+  );
+  let results = (outs);
 
   let assemblyFormat = "$offset `,` $length `:` type($offset)";
 }
 
-// DelegateCall Operation
-def Dora_DelegateCall : Dora_Op<"delegatecall"> {
+// Delegatecall Operation
+def Dora_Delegatecall : Dora_Op<"delegatecall"> {
   let summary = "Calls a contract while keeping the caller's context.";
   let description = [{
     This operation is similar to `callcode`, but it also keeps the caller's sender and value.
   }];
 
   let arguments = (ins
-        AnyTypeOf<[I32, I64, I<128>, I<256>, F32, F64, F128, F<256>]>:$gas,
-         AnyTypeOf<[I32, I64, I<128>, I<256>, F32, F64, F128, F<256>]>:$address,
-        AnyTypeOf<[I32, I64, I<128>, I<256>, F32, F64, F128, F<256>]>:$inputOffset,
-        AnyTypeOf<[I32, I64, I<128>, I<256>, F32, F64, F128, F<256>]>:$inputLength,
-        AnyTypeOf<[I32, I64, I<128>, I<256>, F32, F64, F128, F<256>]>:$outputOffset,
-        AnyTypeOf<[I32, I64, I<128>, I<256>, F32, F64, F128, F<256>]>:$outputLength
-    );
-     let results = (outs AnyTypeOf<[I32, I64, I<128>, I<256>, F32, F64, F128, F<256>]>:$success);
+    AnyTypeOf<[I32, I64, I<128>, I<256>, F32, F64, F128, F<256>]>:$gas,
+    AnyTypeOf<[I32, I64, I<128>, I<256>, F32, F64, F128, F<256>]>:$address,
+    AnyTypeOf<[I32, I64, I<128>, I<256>, F32, F64, F128, F<256>]>:$inputOffset,
+    AnyTypeOf<[I32, I64, I<128>, I<256>, F32, F64, F128, F<256>]>:$inputLength,
+    AnyTypeOf<[I32, I64, I<128>, I<256>, F32, F64, F128, F<256>]>:$outputOffset,
+    AnyTypeOf<[I32, I64, I<128>, I<256>, F32, F64, F128, F<256>]>:$outputLength
+  );
+  let results = (outs AnyTypeOf<[I32, I64, I<128>, I<256>, F32, F64, F128, F<256>]>:$success);
 
   let assemblyFormat = "$gas `,` $address `,` $inputOffset `,` $inputLength `,` $outputOffset `,` $outputLength `:` type($gas) `->` type($success)";
 }
@@ -1209,34 +1316,99 @@ def Dora_Create2 : Dora_Op<"create2"> {
   }];
 
   let arguments = (ins
-        AnyTypeOf<[I32, I64, I<128>, I<256>, F32, F64, F128, F<256>]>:$value,
-         AnyTypeOf<[I32, I64, I<128>, I<256>, F32, F64, F128, F<256>]>:$offset,
-        AnyTypeOf<[I32, I64, I<128>, I<256>, F32, F64, F128, F<256>]>:$length,
-        AnyTypeOf<[I32, I64, I<128>, I<256>, F32, F64, F128, F<256>]>:$salt
-    );
-     let results = (outs AnyTypeOf<[I32, I64, I<128>, I<256>, F32, F64, F128, F<256>]>:$address);
+    AnyTypeOf<[I32, I64, I<128>, I<256>, F32, F64, F128, F<256>]>:$value,
+    AnyTypeOf<[I32, I64, I<128>, I<256>, F32, F64, F128, F<256>]>:$offset,
+    AnyTypeOf<[I32, I64, I<128>, I<256>, F32, F64, F128, F<256>]>:$length,
+    AnyTypeOf<[I32, I64, I<128>, I<256>, F32, F64, F128, F<256>]>:$salt
+  );
+  let results = (outs AnyTypeOf<[I32, I64, I<128>, I<256>, F32, F64, F128, F<256>]>:$address);
 
   let assemblyFormat = "$value `,` $offset `,` $length `,` $salt `:` type($value) `->` type($address)";
 }
 
-// StaticCall Operation
-def Dora_StaticCall : Dora_Op<"staticcall"> {
+// ReturndataLoad Operation
+def Dora_ReturndataLoad : Dora_Op<"returndataload"> {
+  let summary = "Loads a word from the returned data from the last external call.";
+  let description = [{
+    This operation takes one `i16` operand from the stack: the offset in the returned data, and pushes the loaded word onto the stack.
+  }];
+
+  let arguments = (ins I16:$offset);
+  let results = (outs I<256>:$value);
+
+  let assemblyFormat = "$offset `:` type($offset) `->` type($value)";
+}
+
+// ExtCall Operation
+def Dora_ExtCall : Dora_Op<"extcall"> {
+  let summary = "Similar to Call.";
+  let description = [{
+    This operation takes four `i256` operands from the stack: the target address, the memory offset of the input data, the length of the input data to copy, the amount of Ether to send, and It returns 0 if the call succeeds, 1 for revert if sub context reverted and 2 if it fails.
+  }];
+
+  let arguments = (ins
+    AnyTypeOf<[I32, I64, I<128>, I<256>, F32, F64, F128, F<256>]>:$target_address,
+    AnyTypeOf<[I32, I64, I<128>, I<256>, F32, F64, F128, F<256>]>:$input_offset,
+    AnyTypeOf<[I32, I64, I<128>, I<256>, F32, F64, F128, F<256>]>:$input_size,
+    AnyTypeOf<[I32, I64, I<128>, I<256>, F32, F64, F128, F<256>]>:$value
+  );
+  let results = (outs AnyTypeOf<[I32, I64, I<128>, I<256>, F32, F64, F128, F<256>]>:$status);
+
+  let assemblyFormat = "$target_address `,` $input_offset `,` $input_size `,` $value `:` type($target_address) `->` type($status)";
+}
+
+// ExtDelegatecall Operation
+def Dora_ExtDelegatecall : Dora_Op<"extdelegatecall"> {
+  let summary = "Similar to Delegatecall.";
+  let description = [{
+    This operation is similar to `extcall`, but it also keeps the caller's sender and value.
+  }];
+
+  let arguments = (ins
+    AnyTypeOf<[I32, I64, I<128>, I<256>, F32, F64, F128, F<256>]>:$target_address,
+    AnyTypeOf<[I32, I64, I<128>, I<256>, F32, F64, F128, F<256>]>:$input_offset,
+    AnyTypeOf<[I32, I64, I<128>, I<256>, F32, F64, F128, F<256>]>:$input_size
+  );
+  let results = (outs AnyTypeOf<[I32, I64, I<128>, I<256>, F32, F64, F128, F<256>]>:$status);
+
+  let assemblyFormat = "$target_address `,` $input_offset `,` $input_size `:` type($target_address) `->` type($status)";
+}
+
+// Staticcall Operation
+def Dora_Staticcall : Dora_Op<"staticcall"> {
   let summary = "Calls a contract in a static context.";
   let description = [{
     This operation is similar to `call`, but it does not allow state modifications.
   }];
 
-   let arguments = (ins
-        AnyTypeOf<[I32, I64, I<128>, I<256>, F32, F64, F128, F<256>]>:$gas,
-        AnyTypeOf<[I32, I64, I<128>, I<256>, F32, F64, F128, F<256>]>:$address,
-        AnyTypeOf<[I32, I64, I<128>, I<256>, F32, F64, F128, F<256>]>:$inputOffset,
-        AnyTypeOf<[I32, I64, I<128>, I<256>, F32, F64, F128, F<256>]>:$inputLength,
-        AnyTypeOf<[I32, I64, I<128>, I<256>, F32, F64, F128, F<256>]>:$outputOffset,
-        AnyTypeOf<[I32, I64, I<128>, I<256>, F32, F64, F128, F<256>]>:$outputLength
-    );
-     let results = (outs AnyTypeOf<[I32, I64, I<128>, I<256>, F32, F64, F128, F<256>]>:$success);
+  let arguments = (ins
+    AnyTypeOf<[I32, I64, I<128>, I<256>, F32, F64, F128, F<256>]>:$gas,
+    AnyTypeOf<[I32, I64, I<128>, I<256>, F32, F64, F128, F<256>]>:$address,
+    AnyTypeOf<[I32, I64, I<128>, I<256>, F32, F64, F128, F<256>]>:$inputOffset,
+    AnyTypeOf<[I32, I64, I<128>, I<256>, F32, F64, F128, F<256>]>:$inputLength,
+    AnyTypeOf<[I32, I64, I<128>, I<256>, F32, F64, F128, F<256>]>:$outputOffset,
+    AnyTypeOf<[I32, I64, I<128>, I<256>, F32, F64, F128, F<256>]>:$outputLength
+  );
+  let results = (outs AnyTypeOf<[I32, I64, I<128>, I<256>, F32, F64, F128, F<256>]>:$success);
 
   let assemblyFormat = "$gas `,` $address `,` $inputOffset `,` $inputLength `,` $outputOffset `,` $outputLength `:` type($gas) `->` type($success)";
+}
+
+// ExtStaticcall Operation
+def Dora_ExtStaticcall : Dora_Op<"extstaticcall"> {
+  let summary = "Similar to Staticcall.";
+  let description = [{
+    This operation is similar to `extcall`, but it does not allow state modifications.
+  }];
+
+  let arguments = (ins
+    AnyTypeOf<[I32, I64, I<128>, I<256>, F32, F64, F128, F<256>]>:$target_address,
+    AnyTypeOf<[I32, I64, I<128>, I<256>, F32, F64, F128, F<256>]>:$input_offset,
+    AnyTypeOf<[I32, I64, I<128>, I<256>, F32, F64, F128, F<256>]>:$input_size
+  );
+  let results = (outs AnyTypeOf<[I32, I64, I<128>, I<256>, F32, F64, F128, F<256>]>:$status);
+
+  let assemblyFormat = "$target_address `,` $input_offset `,` $input_size `:` type($target_address) `->` type($status)";
 }
 
 // Revert Operation
@@ -1246,11 +1418,11 @@ def Dora_Revert : Dora_Op<"revert"> {
     This operation takes two `i256` operands from the stack: the memory offset of the return data and the length of the return data, and reverts the execution, returning the specified data.
   }];
 
-   let arguments = (ins
-        AnyTypeOf<[I32, I64, I<128>, I<256>, F32, F64, F128, F<256>]>:$offset,
-        AnyTypeOf<[I32, I64, I<128>, I<256>, F32, F64, F128, F<256>]>:$length
-    );
-     let results = (outs);
+  let arguments = (ins
+    AnyTypeOf<[I32, I64, I<128>, I<256>, F32, F64, F128, F<256>]>:$offset,
+    AnyTypeOf<[I32, I64, I<128>, I<256>, F32, F64, F128, F<256>]>:$length
+  );
+  let results = (outs);
 
   let assemblyFormat = "$offset `,` $length `:` type($offset)";
 }
@@ -1275,10 +1447,8 @@ def Dora_SelfDestruct : Dora_Op<"selfdestruct"> {
     This operation takes one `i256` operand from the stack, which is the address to send the remaining balance to, and terminates the contract, removing it from the blockchain.
   }];
 
-  let arguments = (ins
-        AnyTypeOf<[I32, I64, I<128>, I<256>, F32, F64, F128, F<256>]>:$recipient
-    );
-     let results = (outs);
+  let arguments = (ins AnyTypeOf<[I32, I64, I<128>, I<256>, F32, F64, F128, F<256>]>:$recipient);
+  let results = (outs);
 
   let assemblyFormat = "$recipient `:` type($recipient)";
 }

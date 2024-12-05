@@ -325,9 +325,9 @@ pub enum CallType {
     /// `CALL`.
     Call,
     /// `STATICCALL`.
-    StaticCall,
+    Staticcall,
     /// `DELEGATECALL`.
-    DelegateCall,
+    Delegatecall,
     /// `CALLCODE`.
     CallCode,
 }
@@ -339,9 +339,9 @@ pub enum ExtCallType {
     /// `EXTCALL`.
     Call,
     /// `EXTDELEGATECALL`.
-    DelegateCall,
+    Delegatecall,
     /// `EXTSTATICCALL`.
-    StaticCall,
+    Staticcall,
 }
 
 #[derive(Error, Debug)]
@@ -354,8 +354,8 @@ impl TryFrom<u8> for CallType {
     fn try_from(value: u8) -> Result<Self, Self::Error> {
         match value {
             x if x == CallType::Call as u8 => Ok(CallType::Call),
-            x if x == CallType::StaticCall as u8 => Ok(CallType::StaticCall),
-            x if x == CallType::DelegateCall as u8 => Ok(CallType::DelegateCall),
+            x if x == CallType::Staticcall as u8 => Ok(CallType::Staticcall),
+            x if x == CallType::Delegatecall as u8 => Ok(CallType::Delegatecall),
             x if x == CallType::CallCode as u8 => Ok(CallType::CallCode),
             _ => Err(CallTypeParseError),
         }
@@ -368,8 +368,8 @@ impl TryFrom<u8> for ExtCallType {
     fn try_from(value: u8) -> Result<Self, Self::Error> {
         match value {
             x if x == ExtCallType::Call as u8 => Ok(ExtCallType::Call),
-            x if x == ExtCallType::StaticCall as u8 => Ok(ExtCallType::StaticCall),
-            x if x == ExtCallType::DelegateCall as u8 => Ok(ExtCallType::DelegateCall),
+            x if x == ExtCallType::Staticcall as u8 => Ok(ExtCallType::Staticcall),
+            x if x == ExtCallType::Delegatecall as u8 => Ok(ExtCallType::Delegatecall),
             _ => Err(CallTypeParseError),
         }
     }

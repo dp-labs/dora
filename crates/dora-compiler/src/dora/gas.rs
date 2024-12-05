@@ -288,7 +288,7 @@ impl<'c> GasPass<'c> {
                                                 },
                                             )?;
                                         }
-                                        dora_ir::Operation::CallDataCopy => {
+                                        dora_ir::Operation::CalldataCopy => {
                                             self.insert_dynamic_gas_check_block_before_op_block(
                                                 op,
                                                 revert_block,
@@ -426,7 +426,7 @@ impl<'c> GasPass<'c> {
                                                 },
                                             )?;
                                         }
-                                        dora_ir::Operation::ReturnDataCopy => {
+                                        dora_ir::Operation::ReturndataCopy => {
                                             self.insert_dynamic_gas_check_block_before_op_block(
                                                 op,
                                                 revert_block,
@@ -837,7 +837,7 @@ impl<'c> GasPass<'c> {
                                                 op,
                                                 rewriter,
                                                 ctx_is_static,
-                                                ExitStatusCode::StateChangeDuringStaticCall
+                                                ExitStatusCode::StateChangeDuringStaticcall
                                             );
                                             // Limit is set as double of max contract bytecode size.
                                             let max_initcode_size = self
@@ -1069,8 +1069,8 @@ impl<'c> GasPass<'c> {
                                             // TODO: calculate dynamic gas cost from the system call
                                         }
                                         dora_ir::Operation::Call
-                                        | dora_ir::Operation::DelegateCall
-                                        | dora_ir::Operation::StaticCall
+                                        | dora_ir::Operation::Delegatecall
+                                        | dora_ir::Operation::Staticcall
                                         | dora_ir::Operation::CallCode => {
                                             if matches!(
                                                 dora_op,
@@ -1212,7 +1212,7 @@ impl<'c> GasPass<'c> {
                                                 },
                                             )?;
                                         }
-                                        dora_ir::Operation::ReturnDataLoad => unimplemented!(
+                                        dora_ir::Operation::ReturndataLoad => unimplemented!(
                                             "https://github.com/dp-labs/dora/issues/77"
                                         ),
                                         x => unimplemented!("dynamic gas computation for {:?}", x),

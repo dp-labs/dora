@@ -31,7 +31,11 @@ struct RunArgs {
 
     /// Whether the contract file is hex text format (Default is false)
     #[clap(long)]
-    pub hex_file: bool,
+    hex_file: bool,
+
+    /// Skip validating EOF code (Default is true)
+    #[clap(long, default_value = "true")]
+    no_validate: bool,
 
     /// Call data in hex format (0x prefixed)
     #[arg(long)]

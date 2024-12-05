@@ -216,25 +216,25 @@ impl<'c> ConversionPass<'c> {
         rewrite_ctx!(context, op, rewriter, location);
 
         let uint256 = rewriter.intrinsics.i256_ty;
-        let call_data_size = rewriter.make(func::call(
+        let calldata_size = rewriter.make(func::call(
             context,
             FlatSymbolRefAttribute::new(context, symbols::CALLDATA_SIZE),
             &[syscall_ctx.into()],
             &[rewriter.intrinsics.i64_ty],
             location,
         ))?;
-        rewriter.make(arith::extui(call_data_size, uint256, location))?;
+        rewriter.make(arith::extui(calldata_size, uint256, location))?;
         Ok(())
     }
 
     pub(crate) fn calldatacopy(context: &Context, op: &OperationRef<'_, '_>) -> Result<()> {
-        operands!(op, dest_offset, call_data_offset, length);
+        operands!(op, dest_offset, calldata_offset, length);
         syscall_ctx!(op, syscall_ctx);
         let rewriter = Rewriter::new_with_op(context, *op);
         let uint64 = rewriter.intrinsics.i64_ty;
         let ptr_type = rewriter.ptr_ty();
 
-        u256_to_64!(op, rewriter, call_data_offset);
+        u256_to_64!(op, rewriter, calldata_offset);
         u256_to_64!(op, rewriter, dest_offset);
         u256_to_64!(op, rewriter, length);
 
@@ -250,7 +250,7 @@ impl<'c> ConversionPass<'c> {
             rewriter.intrinsics.ptr_ty,
             location,
         ))?;
-        let call_data_size = rewriter.make(func::call(
+        let calldata_size = rewriter.make(func::call(
             context,
             FlatSymbolRefAttribute::new(context, symbols::CALLDATA_SIZE),
             &[syscall_ctx.into()],
@@ -260,8 +260,8 @@ impl<'c> ConversionPass<'c> {
         let flag = rewriter.make(arith::cmpi(
             context,
             CmpiPredicate::Ult,
-            call_data_offset,
-            call_data_size,
+            calldata_offset,
+            calldata_size,
             location,
         ))?;
         rewriter.create(scf::r#if(
@@ -272,7 +272,7 @@ impl<'c> ConversionPass<'c> {
                 let block = region.append_block(Block::new(&[]));
                 let builder = OpBuilder::new_with_block(context, block);
                 let remaining_calldata_size =
-                    builder.make(arith::subi(call_data_size, call_data_offset, location))?;
+                    builder.make(arith::subi(calldata_size, calldata_offset, location))?;
                 let memcpy_len =
                     builder.make(arith::minui(remaining_calldata_size, length, location))?;
                 let calldata_ptr = builder.make(func::call(
@@ -285,7 +285,7 @@ impl<'c> ConversionPass<'c> {
                 let calldata_src = builder.make(llvm::get_element_ptr_dynamic(
                     context,
                     calldata_ptr,
-                    &[call_data_offset],
+                    &[calldata_offset],
                     builder.intrinsics.i8_ty,
                     builder.ptr_ty(),
                     location,
@@ -356,7 +356,7 @@ impl<'c> ConversionPass<'c> {
         let ptr_type = rewriter.ptr_ty();
         let result_ptr = rewriter.make(func::call(
             context,
-            FlatSymbolRefAttribute::new(context, symbols::RETURN_DATA_SIZE),
+            FlatSymbolRefAttribute::new(context, symbols::RETURNDATA_SIZE),
             &[syscall_ctx.into()],
             &[ptr_type],
             location,
@@ -385,7 +385,7 @@ impl<'c> ConversionPass<'c> {
         rewrite_ctx!(context, op, rewriter, location);
         let result_ptr = rewriter.make(func::call(
             context,
-            FlatSymbolRefAttribute::new(context, symbols::RETURN_DATA_COPY),
+            FlatSymbolRefAttribute::new(context, symbols::RETURNDATA_COPY),
             &[syscall_ctx.into(), dest_offset, offset, size],
             &[ptr_type],
             location,

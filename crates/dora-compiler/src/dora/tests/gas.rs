@@ -74,12 +74,12 @@ fn gas_push_push_add_sub() {
 }
 
 #[test]
-fn gas_call_data_copy() {
+fn gas_calldata_copy() {
     let operations = vec![
         Operation::Push((1_u8, BigUint::from(32_u8))),
         Operation::Push((1_u8, BigUint::from(0_u8))),
         Operation::Push((1_u8, BigUint::from(0_u8))),
-        Operation::CallDataCopy,
+        Operation::CalldataCopy,
     ];
     assert_snapshot!(operations);
 }

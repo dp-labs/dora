@@ -1131,7 +1131,7 @@ fn calldataload_non_zero_offset() {
 #[test]
 fn calldatasize() {
     let operations = vec![
-        Operation::CallDataSize,
+        Operation::CalldataSize,
         // Return result
         Operation::Push0,
         Operation::Mstore,
@@ -1149,7 +1149,7 @@ fn calldatacopy() {
         Operation::Push((1_u8, BigUint::from(32_u8))),
         Operation::Push((1_u8, BigUint::from(0_u8))),
         Operation::Push((1_u8, BigUint::from(0_u8))),
-        Operation::CallDataCopy,
+        Operation::CalldataCopy,
         // Return result
         Operation::Push((1, 32_u8.into())),
         Operation::Push0,
@@ -1165,7 +1165,7 @@ fn calldatacopy_small_range() {
         Operation::Push((1_u8, BigUint::from(0_u8))),
         Operation::Push((1_u8, BigUint::from(10_u8))),
         Operation::Push((1_u8, BigUint::from(20_u8))),
-        Operation::CallDataCopy,
+        Operation::CalldataCopy,
         // Return result
         Operation::Push((1, 32_u8.into())),
         Operation::Push0,
@@ -1181,7 +1181,7 @@ fn calldatacopy_large_range() {
         Operation::Push((1_u8, BigUint::from(0_u8))),
         Operation::Push((1_u8, BigUint::from(100_u8))),
         Operation::Push((1_u8, BigUint::from(10_u8))),
-        Operation::CallDataCopy,
+        Operation::CalldataCopy,
         // Return result
         Operation::Push((1, 32_u8.into())),
         Operation::Push0,
@@ -1197,7 +1197,7 @@ fn calldatacopy_out_of_range() {
         Operation::Push((1_u8, BigUint::from(1_u8))),
         Operation::Push((1_u8, BigUint::from(1_u8))),
         Operation::Push((1_u8, BigUint::from(1_u8))),
-        Operation::CallDataCopy,
+        Operation::CalldataCopy,
         // Return result
         Operation::Push((1, 32_u8.into())),
         Operation::Push0,
@@ -1513,8 +1513,8 @@ fn returndatasize() {
         Operation::Push((1_u8, BigUint::from(0_u8))),
         Operation::Push((4_u8, BigUint::from_bytes_be(&[0xFF, 0xFF, 0xFF, 0xFF]))),
         Operation::Push((4_u8, BigUint::from_bytes_be(&[0xFF, 0xFF, 0xFF, 0xFF]))),
-        Operation::StaticCall,
-        Operation::ReturnDataSize,
+        Operation::Staticcall,
+        Operation::ReturndataSize,
         // Return result
         Operation::Push0,
         Operation::Mstore,
@@ -1531,7 +1531,7 @@ fn returndataload() {
     let operations = vec![
         Operation::Push((1_u8, BigUint::from(0_u8))),
         // Note that RETURNDATALOAD is not found in the CANCUN spec.
-        Operation::ReturnDataLoad,
+        Operation::ReturndataLoad,
         // Return result
         Operation::Push0,
         Operation::Mstore,
@@ -1546,15 +1546,15 @@ fn returndataload() {
 
 #[test]
 fn returndatacopy() {
-    let call_data_size = 32_u8;
+    let calldata_size = 32_u8;
     let operations = vec![
         // size
-        Operation::Push((1_u8, BigUint::from(call_data_size))),
+        Operation::Push((1_u8, BigUint::from(calldata_size))),
         // offset
         Operation::Push((1_u8, BigUint::from(0_u8))),
         // Dest offset
         Operation::Push((1_u8, BigUint::from(0_u8))),
-        Operation::ReturnDataCopy,
+        Operation::ReturndataCopy,
         Operation::Push((1_u8, BigUint::from(0_u8))),
         Operation::Mload,
         // Return result
@@ -1565,7 +1565,7 @@ fn returndatacopy() {
         Operation::Return,
     ];
     let (env, mut db) = default_env_and_db_setup(operations);
-    let mut call_frame = CallFrame::new_with_data(env.tx.caller, vec![0; call_data_size as usize]);
+    let mut call_frame = CallFrame::new_with_data(env.tx.caller, vec![0; calldata_size as usize]);
     let mut runtime_context = RuntimeContext::new(
         Arc::new(RwLock::new(db)),
         call_frame,
@@ -1587,7 +1587,7 @@ fn returndatacopy_offset_size_adjustments() {
         Operation::Push((1_u8, BigUint::from(0_u8))),
         // Dest offset
         Operation::Push((1_u8, BigUint::from(0_u8))),
-        Operation::ReturnDataCopy,
+        Operation::ReturndataCopy,
         Operation::Push((1_u8, BigUint::from(0_u8))),
         Operation::Mload,
         // Return result
@@ -1602,12 +1602,12 @@ fn returndatacopy_offset_size_adjustments() {
 }
 
 #[test]
-fn returndatacopy_out_of_bounds_with_empty_call_data() {
+fn returndatacopy_out_of_bounds_with_empty_calldata() {
     let operations = vec![
         Operation::Push((1_u8, BigUint::from(0_u8))),
         Operation::Push((1_u8, BigUint::from(50_u8))),
         Operation::Push((1_u8, BigUint::from(10_u8))),
-        Operation::ReturnDataCopy,
+        Operation::ReturndataCopy,
         Operation::Push((1_u8, BigUint::from(0_u8))),
         Operation::Mload,
         // Return result
@@ -1623,15 +1623,15 @@ fn returndatacopy_out_of_bounds_with_empty_call_data() {
 
 #[test]
 fn returndatacopy_out_of_bounds() {
-    let call_data_size = 32_u8;
+    let calldata_size = 32_u8;
     let operations = vec![
         // size
-        Operation::Push((1_u8, BigUint::from(call_data_size))),
+        Operation::Push((1_u8, BigUint::from(calldata_size))),
         // offset
         Operation::Push((1_u8, BigUint::from(0_u8))),
         // Dest offset
         Operation::Push((1_u8, BigUint::from(0_u8))),
-        Operation::ReturnDataCopy,
+        Operation::ReturndataCopy,
         Operation::Push((1_u8, BigUint::from(0_u8))),
         Operation::Mload,
         // Return result
@@ -1644,7 +1644,7 @@ fn returndatacopy_out_of_bounds() {
     let (env, mut db) = default_env_and_db_setup(operations);
     // Out of offset "size - 10"
     let mut call_frame =
-        CallFrame::new_with_data(env.tx.caller, vec![0; (call_data_size - 10) as usize]);
+        CallFrame::new_with_data(env.tx.caller, vec![0; (calldata_size - 10) as usize]);
     let mut runtime_context = RuntimeContext::new(
         Arc::new(RwLock::new(db)),
         call_frame,
@@ -3233,7 +3233,7 @@ fn delegatecall() {
         Operation::Push((1_u8, BigUint::from(32_u32))),
         Operation::Push((1_u8, BigUint::from(64_u32))),
         Operation::Push((1_u8, BigUint::from(64_u32))),
-        Operation::DelegateCall,
+        Operation::Delegatecall,
         // Return result
         Operation::Push0,
         Operation::Mstore,
@@ -3268,7 +3268,7 @@ fn delegatecall_1() {
         Operation::Push((1_u8, BigUint::from(0_u8))),
         Operation::Dup(5),
         Operation::Push((2_u8, BigUint::from_bytes_be(&[0xFF, 0xFF]))),
-        Operation::DelegateCall,
+        Operation::Delegatecall,
         Operation::Push((1_u8, BigUint::from(1_u8))),
         Operation::Push((1_u8, BigUint::from(0_u8))),
         Operation::Sstore,
@@ -3278,7 +3278,7 @@ fn delegatecall_1() {
         Operation::Push((1_u8, BigUint::from(0_u8))),
         Operation::Dup(6),
         Operation::Push((2_u8, BigUint::from_bytes_be(&[0xFF, 0xFF]))),
-        Operation::DelegateCall,
+        Operation::Delegatecall,
         // Return result
         Operation::Push0,
         Operation::Mstore,
@@ -3299,7 +3299,7 @@ fn staticcall() {
         Operation::Push((1_u8, BigUint::from(32_u32))),
         Operation::Push((1_u8, BigUint::from(64_u32))),
         Operation::Push((1_u8, BigUint::from(64_u32))),
-        Operation::StaticCall,
+        Operation::Staticcall,
         // Return result
         Operation::Push0,
         Operation::Mstore,

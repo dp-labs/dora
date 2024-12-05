@@ -427,8 +427,8 @@ def EVM_CallValue : EVM_Op<"callvalue"> {
   let assemblyFormat = "`->` type($value)";
 }
 
-// CallDataLoad Operation
-def EVM_CallDataLoad : EVM_Op<"calldataload"> {
+// CalldataLoad Operation
+def EVM_CalldataLoad : EVM_Op<"calldataload"> {
   let summary = "Loads a word of input data.";
   let description = [{
     This operation takes one `i256` operand from the stack, which is the byte offset in the input data, and returns the 256-bit word at that offset.
@@ -440,8 +440,8 @@ def EVM_CallDataLoad : EVM_Op<"calldataload"> {
   let assemblyFormat = "$offset `:` type($offset) `->` type($data)";
 }
 
-// CallDataSize Operation
-def EVM_CallDataSize : EVM_Op<"calldatasize"> {
+// CalldataSize Operation
+def EVM_CalldataSize : EVM_Op<"calldatasize"> {
   let summary = "Gets the size of the input data.";
   let description = [{
     This operation returns the size of the input data for the current call.
@@ -453,8 +453,8 @@ def EVM_CallDataSize : EVM_Op<"calldatasize"> {
   let assemblyFormat = "`->` type($size)";
 }
 
-// CallDataCopy Operation
-def EVM_CallDataCopy : EVM_Op<"calldatacopy"> {
+// CalldataCopy Operation
+def EVM_CalldataCopy : EVM_Op<"calldatacopy"> {
   let summary = "Copies a portion of the input data to memory.";
   let description = [{
     This operation takes three `i256` operands from the stack: the destination memory offset, the source offset in the input data, and the number of bytes to copy.
@@ -531,8 +531,8 @@ def EVM_ExtCodeCopy : EVM_Op<"extcodecopy"> {
   let assemblyFormat = "$account `,` $destOffset `,` $codeOffset `,` $length `:` type($account)";
 }
 
-// ReturnDataSize Operation
-def EVM_ReturnDataSize : EVM_Op<"returndatasize"> {
+// ReturndataSize Operation
+def EVM_ReturndataSize : EVM_Op<"returndatasize"> {
   let summary = "Gets the size of the returned data from the last external call.";
   let description = [{
     This operation returns the size of the data returned by the last external call.
@@ -544,8 +544,8 @@ def EVM_ReturnDataSize : EVM_Op<"returndatasize"> {
   let assemblyFormat = "`->` type($size)";
 }
 
-// ReturnDataCopy Operation
-def EVM_ReturnDataCopy : EVM_Op<"returndatacopy"> {
+// ReturndataCopy Operation
+def EVM_ReturndataCopy : EVM_Op<"returndatacopy"> {
   let summary = "Copies the returned data from the last external call to memory.";
   let description = [{
     This operation takes three `i256` operands from the stack: the destination memory offset, the source offset in the returned data, and the number of bytes to copy.
@@ -557,8 +557,8 @@ def EVM_ReturnDataCopy : EVM_Op<"returndatacopy"> {
   let assemblyFormat = "$destOffset `,` $dataOffset `,` $length `:` type($destOffset)";
 }
 
-// ReturnDataLoad Operation
-def EVM_ReturnDataLoad : EVM_Op<"returndataload"> {
+// ReturndataLoad Operation
+def EVM_ReturndataLoad : EVM_Op<"returndataload"> {
   let summary = "Loads a word from the returned data from the last external call.";
   let description = [{
     This operation takes one `i256` operand from the stack: the offset in the returned data, and pushes the loaded word onto the stack.
@@ -973,8 +973,8 @@ def EVM_Return : EVM_Op<"return"> {
   let assemblyFormat = "$offset `,` $length `:` type($offset)";
 }
 
-// DelegateCall Operation
-def EVM_DelegateCall : EVM_Op<"delegatecall"> {
+// Delegatecall Operation
+def EVM_Delegatecall : EVM_Op<"delegatecall"> {
   let summary = "Calls a contract while keeping the caller's context.";
   let description = [{
     This operation is similar to `callcode`, but it also keeps the caller's sender and value.
@@ -999,8 +999,8 @@ def EVM_Create2 : EVM_Op<"create2"> {
   let assemblyFormat = "$value `,` $offset `,` $length `,` $salt `:` type($value) `->` type($address)";
 }
 
-// StaticCall Operation
-def EVM_StaticCall : EVM_Op<"staticcall"> {
+// Staticcall Operation
+def EVM_Staticcall : EVM_Op<"staticcall"> {
   let summary = "Calls a contract in a static context.";
   let description = [{
     This operation is similar to `call`, but it does not allow state modifications.
