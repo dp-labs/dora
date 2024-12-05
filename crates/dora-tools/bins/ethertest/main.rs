@@ -474,7 +474,7 @@ fn execute_test(path: &Path) -> Result<(), TestError> {
                         Address::from_slice(&item.address.0),
                         item.storage_keys
                             .iter()
-                            .map(|key| U256::from_be_bytes(key.0))
+                            .map(|key| B256::from_slice(key.as_bytes()))
                             .collect(),
                     ));
                 }

@@ -17,12 +17,18 @@ pub trait Host: Debug {
     fn env_mut(&mut self) -> &mut Env;
 
     /// Retrieves the storage value for a given account and storage key.
-    fn get_storage(&mut self, addr: &Address, key: &Bytes32) -> GetStorageResult;
+    fn sload(&mut self, addr: &Address, key: &Bytes32) -> SLoadResult;
 
     /// Sets the storage value for a given account and storage key.
-    fn set_storage(&mut self, addr: Address, key: Bytes32, value: Bytes32) -> SetStorageResult;
+    fn sstore(&mut self, addr: Address, key: Bytes32, value: Bytes32) -> SStoreResult;
 
-    /// Access all storage in the journal
+    /// Get the transient storage value of `address` at `key`.
+    fn tload(&mut self, addr: &Address, key: &Bytes32) -> Bytes32;
+
+    /// Set the transient storage value of `address` at `key`.
+    fn tstore(&mut self, addr: &Address, key: Bytes32, value: Bytes32);
+
+    /// Access all storage in the journa that is used to merge into DB.
     fn storage(&self) -> FxHashMap<Bytes32, Bytes32>;
 
     /// Get access status for the specific account
@@ -32,19 +38,13 @@ pub trait Host: Debug {
     fn access_account(&self, addr: Address) -> AccessStatus;
 
     /// Retrieves the balance of a specified account.
-    fn get_balance(&self, addr: &Address) -> GetBalanceResult;
-
-    /// Get the transient storage value of `address` at `key`.
-    fn get_transient_storage(&mut self, addr: &Address, key: &Bytes32) -> Bytes32;
-
-    /// Set the transient storage value of `address` at `key`.
-    fn set_transient_storage(&mut self, addr: &Address, key: Bytes32, value: Bytes32);
+    fn balance(&self, addr: &Address) -> BalanceResult;
 
     /// Retrieves the code deployed at a specified account.
-    fn get_code(&mut self, addr: &Address) -> Bytes32;
+    fn code(&mut self, addr: &Address) -> Bytes32;
 
     /// Retrieves the hash of the code deployed at a specified account.
-    fn code_hash(&mut self, addr: &Address) -> Bytes32;
+    fn code_hash(&self, addr: &Address) -> Bytes32;
 
     /// Mark `address` to be deleted, with funds transferred to `target`.
     fn selfdestruct(&mut self, addr: &Address, target: Address) -> SelfDestructResult;
@@ -53,26 +53,26 @@ pub trait Host: Debug {
     fn block_hash(&mut self, number: u64) -> Bytes32;
 
     /// Emit a log owned by `address` with given `LogData`.
-    fn emit_log(&mut self, log: Log);
+    fn log(&mut self, log: Log);
 }
 
 /// Result of a `get_storage` action.
 #[derive(Debug, Clone, Default, PartialEq, Eq, Hash)]
-pub struct GetStorageResult {
+pub struct SLoadResult {
     pub value: Bytes32,
     pub is_cold: bool,
 }
 
 /// Result of a `get_storage` action.
 #[derive(Debug, Clone, Default, PartialEq, Eq, Hash)]
-pub struct GetBalanceResult {
+pub struct BalanceResult {
     pub value: Bytes32,
     pub is_cold: bool,
 }
 
 /// Result of a `set_storage` action.
 #[derive(Debug, Clone, Default, PartialEq, Eq, Hash)]
-pub struct SetStorageResult {
+pub struct SStoreResult {
     pub original_value: Bytes32,
     pub present_value: Bytes32,
     pub is_cold: bool,
@@ -85,6 +85,26 @@ pub struct SelfDestructResult {
     pub target_exists: bool,
     pub previously_destroyed: bool,
     pub is_cold: bool,
+}
+
+/// Access status per EIP-2929: Gas cost increases for state access opcodes.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[repr(u8)]
+pub enum AccessStatus {
+    Cold = 0,
+    Warm = 1,
+}
+
+impl AccessStatus {
+    #[inline]
+    pub fn is_cold(&self) -> bool {
+        matches!(self, AccessStatus::Cold)
+    }
+
+    #[inline]
+    pub fn is_warm(&self) -> bool {
+        matches!(self, AccessStatus::Warm)
+    }
 }
 
 /// A dummy [Host] implementation for testing.
@@ -118,15 +138,15 @@ impl Host for DummyHost {
     }
 
     #[inline]
-    fn get_storage(&mut self, _addr: &Address, key: &Bytes32) -> GetStorageResult {
+    fn sload(&mut self, _addr: &Address, key: &Bytes32) -> SLoadResult {
         match self.storage.entry(*key) {
-            Entry::Occupied(entry) => GetStorageResult {
+            Entry::Occupied(entry) => SLoadResult {
                 value: *entry.get(),
                 is_cold: false,
             },
             Entry::Vacant(entry) => {
                 entry.insert(Bytes32::ZERO);
-                GetStorageResult {
+                SLoadResult {
                     value: Bytes32::ZERO,
                     is_cold: true,
                 }
@@ -135,9 +155,9 @@ impl Host for DummyHost {
     }
 
     #[inline]
-    fn set_storage(&mut self, _addr: Address, key: Bytes32, value: Bytes32) -> SetStorageResult {
+    fn sstore(&mut self, _addr: Address, key: Bytes32, value: Bytes32) -> SStoreResult {
         let present = self.storage.insert(key, value);
-        SetStorageResult {
+        SStoreResult {
             original_value: Bytes32::ZERO,
             present_value: present.unwrap_or(Bytes32::ZERO),
             is_cold: present.is_none(),
@@ -145,30 +165,30 @@ impl Host for DummyHost {
     }
 
     #[inline]
-    fn get_balance(&self, _addr: &Address) -> GetBalanceResult {
-        GetBalanceResult {
+    fn balance(&self, _addr: &Address) -> BalanceResult {
+        BalanceResult {
             value: Bytes32::ZERO,
             is_cold: true,
         }
     }
 
     #[inline]
-    fn get_transient_storage(&mut self, _addr: &Address, key: &Bytes32) -> Bytes32 {
+    fn tload(&mut self, _addr: &Address, key: &Bytes32) -> Bytes32 {
         self.transient_storage.get(key).copied().unwrap_or_default()
     }
 
     #[inline]
-    fn set_transient_storage(&mut self, _addr: &Address, key: Bytes32, value: Bytes32) {
+    fn tstore(&mut self, _addr: &Address, key: Bytes32, value: Bytes32) {
         self.transient_storage.insert(key, value);
     }
 
     #[inline]
-    fn get_code(&mut self, _addr: &Address) -> Bytes32 {
+    fn code(&mut self, _addr: &Address) -> Bytes32 {
         Bytes32::ZERO
     }
 
     #[inline]
-    fn code_hash(&mut self, _addr: &Address) -> Bytes32 {
+    fn code_hash(&self, _addr: &Address) -> Bytes32 {
         Bytes32::from_be_bytes(
             *B256::from_str(EMPTY_CODE_HASH_STR)
                 .unwrap_or_default()
@@ -187,7 +207,7 @@ impl Host for DummyHost {
     }
 
     #[inline]
-    fn emit_log(&mut self, log: Log) {
+    fn log(&mut self, log: Log) {
         self.logs.push(log)
     }
 
@@ -204,25 +224,5 @@ impl Host for DummyHost {
     #[inline]
     fn access_account(&self, _addr: Address) -> AccessStatus {
         AccessStatus::Cold
-    }
-}
-
-/// Access status per EIP-2929: Gas cost increases for state access opcodes.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-#[repr(u8)]
-pub enum AccessStatus {
-    Cold = 0,
-    Warm = 1,
-}
-
-impl AccessStatus {
-    #[inline]
-    pub fn is_cold(&self) -> bool {
-        matches!(self, AccessStatus::Cold)
-    }
-
-    #[inline]
-    pub fn is_warm(&self) -> bool {
-        matches!(self, AccessStatus::Warm)
     }
 }
