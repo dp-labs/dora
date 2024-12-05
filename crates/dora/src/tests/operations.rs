@@ -1107,7 +1107,7 @@ fn callvalue() {
 fn calldataload_zero_offset() {
     let operations = vec![
         Operation::Push((1_u8, BigUint::from(0_u8))),
-        Operation::CallDataLoad,
+        Operation::CalldataLoad,
         // Return result
         Operation::Push0,
         Operation::MStore,
@@ -1123,7 +1123,7 @@ fn calldataload_zero_offset() {
 fn calldataload_non_zero_offset() {
     let operations = vec![
         Operation::Push((1_u8, BigUint::from(100_u8))),
-        Operation::CallDataLoad,
+        Operation::CalldataLoad,
         // Return result
         Operation::Push0,
         Operation::MStore,
@@ -1838,7 +1838,7 @@ fn prevrandao() {
 #[test]
 fn gaslimit() {
     let operations = vec![
-        Operation::Gaslimit,
+        Operation::GasLimit,
         // Return result
         Operation::Push0,
         Operation::MStore,
@@ -2565,7 +2565,7 @@ fn gas() {
     let operations = vec![
         Operation::Gas,
         Operation::Push((4_u8, BigUint::from(21000_u32))),
-        Operation::Gaslimit,
+        Operation::GasLimit,
         Operation::Sub,
         // Return result
         Operation::Push0,
@@ -2672,11 +2672,11 @@ fn mcopy_large_size_overflow() {
         Operation::SStore,
         Operation::Push((1, 17_u8.into())),
         Operation::Push((1, 64_u8.into())),
-        Operation::CallDataLoad,
+        Operation::CalldataLoad,
         Operation::Push((1, 32_u8.into())),
-        Operation::CallDataLoad,
+        Operation::CalldataLoad,
         Operation::Push0,
-        Operation::CallDataLoad,
+        Operation::CalldataLoad,
         Operation::Push((1, 22_u8.into())),
         Operation::Jump,
         Operation::Jumpdest { pc: 17 },

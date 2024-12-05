@@ -542,7 +542,7 @@ fn callvalue() {
 fn push_calldataload() {
     assert_snapshot!(vec![
         Operation::Push((1_u8, BigUint::from(0_u8))),
-        Operation::CallDataLoad,
+        Operation::CalldataLoad,
     ]);
 }
 
@@ -550,7 +550,7 @@ fn push_calldataload() {
 fn push_calldataload_edge_case() {
     assert_snapshot!(vec![
         Operation::Push((1_u8, BigUint::from(100_u8))),
-        Operation::CallDataLoad,
+        Operation::CalldataLoad,
     ]);
 }
 
@@ -1018,7 +1018,7 @@ fn push_gas_gaslimit() {
     assert_snapshot!(vec![
         Operation::Gas,
         Operation::Push((3_u8, BigUint::from(21000u32))),
-        Operation::Gaslimit,
+        Operation::GasLimit,
         Operation::Sub,
         Operation::Sub,
     ]);
@@ -1427,7 +1427,7 @@ fn push_gas() {
     assert_snapshot!(vec![
         Operation::Gas,
         Operation::Push((3_u8, BigUint::from(21000_u32))),
-        Operation::Gaslimit,
+        Operation::GasLimit,
         Operation::Sub,
         Operation::Sub,
     ]);

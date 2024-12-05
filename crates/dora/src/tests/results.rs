@@ -537,7 +537,7 @@ fn callvalue() {
 
 #[test]
 fn calldataload() {
-    let operations = vec![Operation::Push0, Operation::CallDataLoad];
+    let operations = vec![Operation::Push0, Operation::CalldataLoad];
     let result = run_result(operations);
     assert!(result.is_success());
     assert_eq!(result.output(), None);
@@ -546,7 +546,7 @@ fn calldataload() {
 
 #[test]
 fn calldatasize() {
-    let operations = vec![Operation::CallDataSize, Operation::CallDataSize];
+    let operations = vec![Operation::CalldataSize, Operation::CalldataSize];
     let result = run_result(operations);
     assert!(result.is_success());
     assert_eq!(result.output(), None);
@@ -559,7 +559,7 @@ fn calldatacopy() {
         Operation::Push((1, 32_u8.into())),
         Operation::Push0,
         Operation::Push0,
-        Operation::CallDataCopy,
+        Operation::CalldataCopy,
     ];
     let result = run_result(operations);
     assert!(result.is_success());
@@ -673,8 +673,8 @@ fn keccak256_2() {
 #[test]
 fn returndatasize() {
     let operations = vec![
-        Operation::ReturnDataSize,
-        Operation::ReturnDataSize,
+        Operation::ReturndataSize,
+        Operation::ReturndataSize,
         Operation::Push0,
         Operation::MStore,
     ];
@@ -691,7 +691,7 @@ fn returndatacopy() {
         Operation::Push((1, 32_u8.into())),
         Operation::Push0,
         Operation::Push0,
-        Operation::ReturnDataCopy,
+        Operation::ReturndataCopy,
     ];
     let result = run_result(operations);
     assert!(result.is_success());
@@ -759,7 +759,7 @@ fn gasprice() {
 
 #[test]
 fn gaslimit() {
-    let operations = vec![Operation::Gaslimit, Operation::Gaslimit];
+    let operations = vec![Operation::GasLimit, Operation::GasLimit];
     let result = run_result(operations);
     assert!(result.is_success());
     assert_eq!(result.output(), None);
