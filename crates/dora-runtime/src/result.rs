@@ -372,7 +372,7 @@ pub enum SuccessReason {
 /// - `CreateContractStartingWithEF`: Contract starts with an invalid byte.
 /// - `CreateInitCodeSizeLimit`: Init code size exceeds limit.
 /// - `OverflowPayment`: Overflow occurred during payment.
-/// - `StateChangeDuringStaticCall`: State change attempted during a static call.
+/// - `StateChangeDuringStaticcall`: State change attempted during a static call.
 /// - `CallNotAllowedInsideStatic`: Call attempted inside a static call.
 /// - `OutOfFunds`: Insufficient funds for execution.
 /// - `CallTooDeep`: Call stack exceeded the depth limit.
@@ -396,7 +396,7 @@ pub enum HaltReason {
     /// EIP-3860: Limit and meter initcode. Initcode size limit exceeded.
     CreateInitCodeSizeLimit,
     OverflowPayment,
-    StateChangeDuringStaticCall,
+    StateChangeDuringStaticcall,
     CallNotAllowedInsideStatic,
     OutOfFunds,
     CallTooDeep,
@@ -485,7 +485,7 @@ impl fmt::Display for HaltReason {
             }
             HaltReason::CreateInitCodeSizeLimit => write!(f, "Initcode size limit exceeded"),
             HaltReason::OverflowPayment => write!(f, "Overflow payment"),
-            HaltReason::StateChangeDuringStaticCall => {
+            HaltReason::StateChangeDuringStaticcall => {
                 write!(f, "State change during static call")
             }
             HaltReason::CallNotAllowedInsideStatic => {
@@ -525,6 +525,6 @@ pub enum InternalResult {
     InternalCallOrCreate,
     /// Internal CREATE/CREATE starts with 0xEF00
     CreateInitCodeStartingEF00,
-    /// Internal to ExtDelegateCall
-    InvalidExtDelegateCallTarget,
+    /// Internal to ExtDelegatecall
+    InvalidExtDelegatecallTarget,
 }

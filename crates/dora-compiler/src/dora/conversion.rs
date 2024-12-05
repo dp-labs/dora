@@ -234,9 +234,9 @@ impl<'c> ConversionPass<'c> {
             } else if name == "dora.return" {
                 Self::creturn(context, op)?;
             } else if name == "dora.delegatecall" {
-                Self::call(context, op, CallType::DelegateCall)?;
+                Self::call(context, op, CallType::Delegatecall)?;
             } else if name == "dora.staticcall" {
-                Self::call(context, op, CallType::StaticCall)?;
+                Self::call(context, op, CallType::Staticcall)?;
             } else if name == "dora.revert" {
                 Self::revert(context, op)?;
             } else if name == "dora.invalid" {
