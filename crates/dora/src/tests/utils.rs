@@ -5,9 +5,9 @@ use std::{
 
 use bytes::Bytes;
 use dora_compiler::evm::{program::Operation, Program};
-use dora_primitives::{spec::SpecId, Address, Bytecode, U256};
+use dora_primitives::{spec::SpecId, Address, Bytecode, Bytes32, U256};
 use dora_runtime::{
-    context::{CallFrame, RuntimeContext},
+    context::{CallFrame, RuntimeContext, RuntimeHost},
     db::MemoryDB,
     env::Env,
     host::DummyHost,
@@ -19,10 +19,11 @@ use crate::{run_evm, run_with_context, EVMTransaction};
 
 use super::INIT_GAS;
 
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone)]
 pub(crate) struct TestResult {
     pub result: ExecutionResult,
     pub memory: Vec<u8>,
+    pub host: RuntimeHost,
 }
 
 impl Deref for TestResult {
@@ -30,6 +31,20 @@ impl Deref for TestResult {
 
     fn deref(&self) -> &Self::Target {
         &self.result
+    }
+}
+
+impl TestResult {
+    pub fn sload(&self, key: U256) -> U256 {
+        let mut host = self.host.write().unwrap();
+        let result = host.sload(&Address::default(), &Bytes32::from_u256(key));
+        result.value.to_u256()
+    }
+
+    pub fn tload(&self, key: U256) -> U256 {
+        let mut host = self.host.write().unwrap();
+        let result = host.tload(&Address::default(), &Bytes32::from_u256(key));
+        result.to_u256()
     }
 }
 
@@ -66,6 +81,7 @@ pub(crate) fn run_result_with_spec(operations: Vec<Operation>, spec_id: SpecId) 
     TestResult {
         result,
         memory: runtime_context.memory().to_owned(),
+        host: runtime_context.host.clone(),
     }
 }
 

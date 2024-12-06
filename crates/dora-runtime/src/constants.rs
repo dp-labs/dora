@@ -159,7 +159,7 @@ pub mod gas_cost {
     pub const ACCESS_LIST_STORAGE_KEY: u64 = 1900;
     pub const COLD_SLOAD_COST: u64 = 2100;
     pub const COLD_ACCOUNT_ACCESS_COST: u64 = 2600;
-    pub const WARM_STORAGE_READ_COST: u64 = 100;
+    pub const WARM_SLOAD_COST: u64 = 100;
     pub const WARM_SSTORE_RESET: u64 = SSTORE_RESET - COLD_SLOAD_COST;
 
     pub const CALL_STIPEND: u64 = 2300;

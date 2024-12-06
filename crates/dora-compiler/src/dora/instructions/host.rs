@@ -1,5 +1,5 @@
 use crate::backend::IntCC;
-use crate::dora::gas::{compute_copy_cost, compute_log_dynamic_cost};
+use crate::dora::gas::{compute_copy_cost, compute_log_dynamic_cost, get_gas_counter};
 use crate::{
     arith_constant, check_op_oog,
     conversion::builder::OpBuilder,
@@ -9,7 +9,7 @@ use crate::{
     errors::{CompileError, Result},
     load_var, maybe_revert_here, operands, rewrite_ctx, syscall_ctx, u256_to_64,
 };
-use crate::{ensure_non_staticcall, gas_or_fail, if_here};
+use crate::{check_runtime_error, ensure_non_staticcall, gas_or_fail, if_here};
 use dora_runtime::constants::GAS_COUNTER_GLOBAL;
 use dora_runtime::symbols::{self, CTX_IS_STATIC};
 use dora_runtime::ExitStatusCode;
@@ -212,7 +212,7 @@ impl<'c> ConversionPass<'c> {
         syscall_ctx!(op, syscall_ctx);
         let rewriter = Rewriter::new_with_op(context, *op);
         ensure_non_staticcall!(op, rewriter);
-        rewrite_ctx!(context, op, rewriter, location);
+        rewrite_ctx!(context, op, rewriter, location, NoDefer);
 
         let ptr_type = rewriter.ptr_ty();
         // Allocate and store the key and value
@@ -223,10 +223,23 @@ impl<'c> ConversionPass<'c> {
         let result_ptr = rewriter.make(func::call(
             context,
             FlatSymbolRefAttribute::new(context, symbols::SSTORE),
-            &[syscall_ctx.into(), key_ptr, value_ptr],
+            &[
+                syscall_ctx.into(),
+                key_ptr,
+                value_ptr,
+                get_gas_counter(&rewriter)?,
+            ],
             &[ptr_type],
             location,
         ))?;
+        let error = rewriter.get_field_value(
+            result_ptr,
+            offset_of!(dora_runtime::context::Result<*mut u8>, error),
+            rewriter.intrinsics.i8_ty,
+        )?;
+        // Check the runtime sstore halt error
+        check_runtime_error!(op, rewriter, error);
+        rewrite_ctx!(context, op, rewriter, _location);
         let gas = rewriter.get_field_value(
             result_ptr,
             offset_of!(dora_runtime::context::Result<()>, gas_used),
@@ -293,7 +306,7 @@ impl<'c> ConversionPass<'c> {
 
         // Check the log mem offset and size overflow error
         u256_to_64!(op, rewriter, size);
-        let gas = compute_log_dynamic_cost(&rewriter, num_topics as u8, size)?;
+        let gas = compute_log_dynamic_cost(&rewriter, size)?;
         gas_or_fail!(op, rewriter, gas);
         let rewriter = Rewriter::new_with_op(context, *op);
         u256_to_64!(op, rewriter, offset);

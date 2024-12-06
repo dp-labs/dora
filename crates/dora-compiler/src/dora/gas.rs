@@ -210,20 +210,16 @@ pub(crate) fn compute_create2_cost<'c>(
 }
 
 /// This function computes LOG opcode cost, which is given by the following equations
-/// computes dynamic_gas = 375 * topic_count + 8 * size
+/// computes dynamic_gas = 8 * size
+/// Note: 375 * topic_count is the static gas
 pub(crate) fn compute_log_dynamic_cost<'c>(
     rewriter: &'c Rewriter,
-    nth: u8,
     size: Value<'c, 'c>,
 ) -> Result<Value<'c, 'c>> {
     let location = rewriter.get_insert_location();
-    let constant_375 = rewriter.make(rewriter.iconst_64(375))?;
     let constant_8 = rewriter.make(rewriter.iconst_64(8))?;
-    let topic_count = rewriter.make(rewriter.iconst_64(nth as i64))?;
-    let topic_count_x_375 = rewriter.make(arith::muli(topic_count, constant_375, location))?;
     let size_x_8 = rewriter.make(arith::muli(size, constant_8, location))?;
-    let dynamic_gas = rewriter.make(arith::addi(topic_count_x_375, size_x_8, location))?;
-    Ok(dynamic_gas)
+    Ok(size_x_8)
 }
 
 // This function computes memory gas cost, which is given by the following equations.

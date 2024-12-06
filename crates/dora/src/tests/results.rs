@@ -1,6 +1,10 @@
+use bytes::Bytes;
 use dora_compiler::evm::program::Operation;
-use dora_primitives::{spec::SpecId, Bytes32};
-use dora_runtime::constants::MAX_STACK_SIZE;
+use dora_primitives::{spec::SpecId, Address, Bytes32, B256, U256};
+use dora_runtime::{
+    constants::MAX_STACK_SIZE,
+    context::{Log, LogData},
+};
 
 use crate::tests::utils::{run_result, run_result_with_spec};
 
@@ -1036,4 +1040,350 @@ fn mcopy_1() {
     assert_eq!(result.output(), None);
     assert_eq!(result.gas_used(), 3 + 2 + 3 + 3 + 3 + 3 * 2);
     assert_eq!(result.memory, vec![0x00; 64]);
+}
+
+#[test]
+fn mcopy_2() {
+    let operations = vec![
+        Operation::Push((2, 0xABCD_u16.into())),
+        Operation::Push0,
+        Operation::MStore,
+        Operation::Push((1, 2_u8.into())),
+        Operation::Push((1, 30_u8.into())),
+        Operation::Push((1, 1_u8.into())),
+        Operation::MCopy,
+    ];
+    let result = run_result(operations);
+    assert!(result.is_success());
+    assert_eq!(result.output(), None);
+    assert_eq!(result.gas_used(), 3 + 2 + 3 + 3 + 3 + 3 + 3 + 3 * 2);
+    assert_eq!(result.memory, {
+        let mut mem = [0; 32];
+        mem[30] = 0xAB;
+        mem[31] = 0xCD;
+        mem[1] = 0xAB;
+        mem[2] = 0xCD;
+        mem
+    });
+}
+
+#[test]
+fn balance() {
+    let operations = vec![Operation::Push0, Operation::Balance, Operation::Balance];
+    let result = run_result(operations);
+    assert!(result.is_success());
+    assert_eq!(result.output(), None);
+    // 2600 is the cold account access cost
+    assert_eq!(result.gas_used(), 2 + 2600 + 2600);
+    assert_eq!(result.memory, vec![0x00; 0]);
+}
+
+#[test]
+fn sload_1() {
+    let operations = vec![Operation::Push0, Operation::SLoad];
+    let result = run_result(operations);
+    assert!(result.is_success());
+    assert_eq!(result.output(), None);
+    // 2100 is the cold storage cost
+    assert_eq!(result.gas_used(), 2 + 2100);
+    assert_eq!(result.memory, vec![0x00; 0]);
+}
+
+#[test]
+fn sstore_1() {
+    let operations = vec![
+        Operation::Push((1, 200_u8.into())),
+        Operation::SLoad,
+        Operation::Push((1, 100_u8.into())),
+        Operation::Push((1, 200_u8.into())),
+        Operation::SStore,
+        Operation::Push((1, 200_u8.into())),
+        Operation::SLoad,
+    ];
+    let result = run_result(operations);
+    assert!(result.is_success());
+    assert_eq!(result.output(), None);
+    // 2100 is the cold storage cost
+    // 20000 is the new value is set from zero cost
+    assert_eq!(result.gas_used(), 3 + 2100 + 3 + 3 + 20000 + 3 + 100);
+    assert_eq!(result.memory, vec![0x00; 0]);
+    assert_eq!(result.sload(U256::from(200)), U256::from(100));
+}
+
+#[test]
+fn tload_1() {
+    let operations = vec![Operation::Push0, Operation::TLoad];
+    let result = run_result(operations);
+    assert!(result.is_success());
+    assert_eq!(result.output(), None);
+    assert_eq!(result.gas_used(), 2 + 100);
+    assert_eq!(result.memory, vec![0x00; 0]);
+}
+
+#[test]
+fn tstore_1() {
+    let operations = vec![
+        Operation::Push((1, 200_u8.into())),
+        Operation::TLoad,
+        Operation::Push((1, 100_u8.into())),
+        Operation::Push((1, 200_u8.into())),
+        Operation::TStore,
+        Operation::Push((1, 200_u8.into())),
+        Operation::TLoad,
+    ];
+    let result = run_result(operations);
+    assert!(result.is_success());
+    assert_eq!(result.output(), None);
+    assert_eq!(result.gas_used(), 3 + 100 + 3 + 3 + 100 + 3 + 100);
+    assert_eq!(result.memory, vec![0x00; 0]);
+    assert_eq!(result.tload(U256::from(200)), U256::from(100));
+}
+
+#[test]
+fn log0() {
+    let operations = vec![Operation::Push0, Operation::Push0, Operation::Log(0)];
+    let result = run_result(operations);
+    assert!(result.is_success());
+    assert_eq!(result.output(), None);
+    // 375 is the log0 cost
+    assert_eq!(result.gas_used(), 2 + 2 + 375);
+    assert_eq!(result.memory, vec![0x00; 0]);
+    assert_eq!(
+        result.logs(),
+        &[Log {
+            address: Address::default(),
+            data: LogData::default()
+        }]
+    );
+}
+
+#[test]
+fn log0_data() {
+    let operations = vec![
+        Operation::Push((2, 0xAABB_u16.into())),
+        Operation::Push0,
+        Operation::MStore,
+        Operation::Push((1, 32_u8.into())),
+        Operation::Push0,
+        Operation::Log(0),
+    ];
+    let result = run_result(operations);
+    assert!(result.is_success());
+    assert_eq!(result.output(), None);
+    // 375 + 8 * 32 is the log0 with 32 length cost
+    assert_eq!(result.gas_used(), 3 + 2 + (3 + 3) + 3 + 2 + 375 + 8 * 32);
+    assert_eq!(
+        result.memory,
+        Bytes32::from(0xAABB_u16).to_be_bytes().to_vec()
+    );
+    assert_eq!(
+        result.logs(),
+        &[Log {
+            address: Address::default(),
+            data: LogData::new_unchecked(vec![], Bytes32::from(0xAABB_u16).to_be_bytes().to_vec()),
+        }]
+    );
+}
+
+#[test]
+fn log1_1() {
+    let operations = vec![
+        Operation::Push0,
+        Operation::Push0,
+        Operation::Push0,
+        Operation::Log(1),
+    ];
+    let result = run_result(operations);
+    assert!(result.is_success());
+    assert_eq!(result.output(), None);
+    assert_eq!(result.gas_used(), 2 + 2 + 2 + 375 * 2);
+    assert_eq!(result.memory, vec![0x00; 0]);
+    assert_eq!(
+        result.logs(),
+        &[Log {
+            address: Address::default(),
+            data: LogData::new_unchecked(vec![B256::zero()], vec![]),
+        }]
+    );
+}
+
+#[test]
+fn log1_2() {
+    let operations = vec![
+        Operation::Push((32, 0xFFFFFFFF_FFFFFFFF_FFFFFFFF_u128.into())),
+        Operation::Push((32, 50_u8.into())),
+        Operation::Push0,
+        Operation::Log(1),
+    ];
+    let result = run_result(operations);
+    assert!(result.is_success());
+    assert_eq!(result.output(), None);
+    assert_eq!(result.gas_used(), 3 + 3 + 2 + 3 * 2 + 375 * 2 + 8 * 50);
+    assert_eq!(result.memory, vec![0x00; 64]);
+    assert_eq!(
+        result.logs(),
+        &[Log {
+            address: Address::default(),
+            data: LogData::new_unchecked(
+                vec![Bytes32::from(0xFFFFFFFF_FFFFFFFF_FFFFFFFF_u128).to_b256()],
+                vec![0; 50]
+            ),
+        }]
+    );
+}
+
+#[test]
+fn log2_1() {
+    let operations = vec![
+        Operation::Push0,
+        Operation::Push0,
+        Operation::Push0,
+        Operation::Push0,
+        Operation::Log(2),
+    ];
+    let result = run_result(operations);
+    assert!(result.is_success());
+    assert_eq!(result.output(), None);
+    assert_eq!(result.gas_used(), 2 + 2 + 2 + 2 + 375 * 3);
+    assert_eq!(result.memory, vec![0x00; 0]);
+    assert_eq!(
+        result.logs(),
+        &[Log {
+            address: Address::default(),
+            data: LogData::new_unchecked(vec![B256::zero(); 2], vec![]),
+        }]
+    );
+}
+
+#[test]
+fn log3_1() {
+    let operations = vec![
+        Operation::Push0,
+        Operation::Push0,
+        Operation::Push0,
+        Operation::Push0,
+        Operation::Push0,
+        Operation::Log(3),
+    ];
+    let result = run_result(operations);
+    assert!(result.is_success());
+    assert_eq!(result.output(), None);
+    assert_eq!(result.gas_used(), 2 + 2 + 2 + 2 + 2 + 375 * 4);
+    assert_eq!(result.memory, vec![0x00; 0]);
+    assert_eq!(
+        result.logs(),
+        &[Log {
+            address: Address::default(),
+            data: LogData::new_unchecked(vec![B256::zero(); 3], vec![]),
+        }]
+    );
+}
+
+#[test]
+fn log4_1() {
+    let operations = vec![
+        Operation::Push0,
+        Operation::Push0,
+        Operation::Push0,
+        Operation::Push0,
+        Operation::Push0,
+        Operation::Push0,
+        Operation::Log(4),
+    ];
+    let result = run_result(operations);
+    assert!(result.is_success());
+    assert_eq!(result.output(), None);
+    assert_eq!(result.gas_used(), 2 + 2 + 2 + 2 + 2 + 2 + 375 * 5);
+    assert_eq!(result.memory, vec![0x00; 0]);
+    assert_eq!(
+        result.logs(),
+        &[Log {
+            address: Address::default(),
+            data: LogData::new_unchecked(vec![B256::zero(); 4], vec![]),
+        }]
+    );
+}
+
+#[test]
+fn call_1() {
+    let operations = vec![
+        Operation::Push((1, 1_u32.into())), // ret length
+        Operation::Push((1, 2_u32.into())), // ret offset
+        Operation::Push((1, 3_u32.into())), // args length
+        Operation::Push((1, 4_u32.into())), // args offset
+        Operation::Push((1, 5_u32.into())), // value
+        Operation::Push((1, 6_u32.into())), // address
+        Operation::Push((1, 7_u32.into())), // gas
+        Operation::Call,
+    ];
+    let result = run_result(operations);
+    assert!(result.is_success());
+    assert_eq!(result.output(), None);
+    assert_eq!(result.memory, vec![0x00; 32]);
+}
+
+#[test]
+fn delegatecall_1() {
+    let operations = vec![
+        Operation::Push((1, 1_u32.into())), // ret length
+        Operation::Push((1, 2_u32.into())), // ret offset
+        Operation::Push((1, 3_u32.into())), // args length
+        Operation::Push((1, 4_u32.into())), // args offset
+        Operation::Push((1, 5_u32.into())), // address
+        Operation::Push((1, 6_u32.into())), // gas
+        Operation::DelegateCall,
+    ];
+    let result = run_result(operations);
+    assert!(result.is_success());
+    assert_eq!(result.output(), None);
+    assert_eq!(result.memory, vec![0x00; 32]);
+}
+
+#[test]
+fn staticcall_1() {
+    let operations = vec![
+        Operation::Push((1, 1_u32.into())), // ret length
+        Operation::Push((1, 2_u32.into())), // ret offset
+        Operation::Push((1, 3_u32.into())), // args length
+        Operation::Push((1, 4_u32.into())), // args offset
+        Operation::Push((1, 5_u32.into())), // address
+        Operation::Push((1, 6_u32.into())), // gas
+        Operation::StaticCall,
+    ];
+    let result = run_result(operations);
+    assert!(result.is_success());
+    assert_eq!(result.output(), None);
+    assert_eq!(result.memory, vec![0x00; 32]);
+}
+
+#[test]
+fn revert() {
+    let operations = vec![
+        Operation::Push((1, 0xAA_u8.into())),
+        Operation::Push0,
+        Operation::MStore,
+        Operation::Push((1, 32_u8.into())),
+        Operation::Push0,
+        Operation::Revert,
+    ];
+    let result = run_result(operations);
+    assert!(result.is_revert());
+    assert_eq!(result.gas_used(), 3 + 2 + 3 + 3 + 3 + 2);
+    assert_eq!(
+        result.output(),
+        Some(&Bytes::from(Bytes32::from(0xAA_u32).to_be_bytes().to_vec()))
+    );
+}
+
+#[test]
+fn selfdestruct() {
+    let operations = vec![
+        Operation::Push((1, 0xAA_u8.into())),
+        Operation::SelfDestruct,
+    ];
+    let result = run_result(operations);
+    assert!(result.is_success());
+    assert_eq!(result.gas_used(), 3 + 5000);
+    assert_eq!(result.output(), None);
+    assert_eq!(result.memory, vec![0x00; 0]);
 }

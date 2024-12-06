@@ -218,7 +218,7 @@ fn log_rlp_hash(logs: &[Log]) -> B256 {
                 l.data
                     .topics
                     .iter()
-                    .map(|t| revm_primitives::FixedBytes::<32>(t.to_le_bytes()))
+                    .map(|t| revm_primitives::FixedBytes::<32>(t.to_fixed_bytes()))
                     .collect(),
                 revm_primitives::Bytes(Bytes::from(l.data.data.clone())),
             ),
