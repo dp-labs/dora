@@ -1,4 +1,5 @@
 use melior::ir::{Block, BlockRef, Region};
+use num_bigint::BigUint;
 
 use crate::backend::{Builder, EVMBuilder};
 use crate::errors::Result;
@@ -85,6 +86,43 @@ impl<'c> EVMCompiler<'c> {
         let data_offset = builder.stack_pop()?;
         let length = builder.stack_pop()?;
         builder.calldatacopy(dest_offset, data_offset, length)?;
+        Ok((start_block, start_block))
+    }
+
+    pub(crate) fn dataload<'r>(
+        ctx: &mut CtxType<'c>,
+        region: &'r Region<'c>,
+    ) -> Result<(BlockRef<'r, 'c>, BlockRef<'r, 'c>)> {
+        let start_block = region.append_block(Block::new(&[]));
+        // TODO : Needs EVMBuilder complete
+        Ok((start_block, start_block))
+    }
+
+    pub(crate) fn dataloadn<'r>(
+        ctx: &mut CtxType<'c>,
+        region: &'r Region<'c>,
+        offset: u16,
+    ) -> Result<(BlockRef<'r, 'c>, BlockRef<'r, 'c>)> {
+        let start_block = region.append_block(Block::new(&[]));
+        // TODO : Needs EVMBuilder complete
+        Ok((start_block, start_block))
+    }
+
+    pub(crate) fn datasize<'r>(
+        ctx: &mut CtxType<'c>,
+        region: &'r Region<'c>,
+    ) -> Result<(BlockRef<'r, 'c>, BlockRef<'r, 'c>)> {
+        let start_block = region.append_block(Block::new(&[]));
+        // TODO : Needs EVMBuilder complete
+        Ok((start_block, start_block))
+    }
+
+    pub(crate) fn datacopy<'r>(
+        ctx: &mut CtxType<'c>,
+        region: &'r Region<'c>,
+    ) -> Result<(BlockRef<'r, 'c>, BlockRef<'r, 'c>)> {
+        let start_block = region.append_block(Block::new(&[]));
+        // TODO : Needs EVMBuilder complete
         Ok((start_block, start_block))
     }
 

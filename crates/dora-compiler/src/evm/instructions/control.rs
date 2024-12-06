@@ -12,6 +12,21 @@ use crate::evm::CtxType;
 use crate::evm::EVMCompiler;
 
 impl<'c> EVMCompiler<'c> {
+    pub(crate) fn jump<'r>(
+        ctx: &mut CtxType<'c>,
+        region: &'r Region<'c>,
+    ) -> Result<(BlockRef<'r, 'c>, BlockRef<'r, 'c>)> {
+        let start_block = region.append_block(Block::new(&[]));
+        let mut builder = Self::make_builder(ctx, start_block);
+        let pc = builder.stack_pop()?;
+        // Appends operation to ok_block to jump to the `jump table block`
+        // in the jump table block the pc is checked and if its ok
+        // then it jumps to the block associated with that pc
+        builder.ctx.add_jump_op(start_block, pc, builder.location());
+        let empty_block = region.append_block(Block::new(&[]));
+        Ok((start_block, empty_block))
+    }
+
     pub(crate) fn jumpi<'r>(
         ctx: &mut CtxType<'c>,
         region: &'r Region<'c>,
@@ -27,19 +42,53 @@ impl<'c> EVMCompiler<'c> {
         Ok((start_block, false_block))
     }
 
-    pub(crate) fn jump<'r>(
+    pub(crate) fn jumpf<'r>(
         ctx: &mut CtxType<'c>,
         region: &'r Region<'c>,
+        target_section_index: u16,
     ) -> Result<(BlockRef<'r, 'c>, BlockRef<'r, 'c>)> {
         let start_block = region.append_block(Block::new(&[]));
-        let mut builder = Self::make_builder(ctx, start_block);
-        let pc = builder.stack_pop()?;
-        // Appends operation to ok_block to jump to the `jump table block`
-        // in the jump table block the pc is checked and if its ok
-        // then it jumps to the block associated with that pc
-        builder.ctx.add_jump_op(start_block, pc, builder.location());
+
+        let false_block = region.append_block(Block::new(&[]));
+        // TODO : Needs EVMBuilder complete
+        Ok((start_block, false_block))
+    }
+
+    pub(crate) fn rjump<'r>(
+        ctx: &mut CtxType<'c>,
+        region: &'r Region<'c>,
+        relative_offset: u16,
+    ) -> Result<(BlockRef<'r, 'c>, BlockRef<'r, 'c>)> {
+        let start_block = region.append_block(Block::new(&[]));
+
         let empty_block = region.append_block(Block::new(&[]));
+        // TODO : Needs EVMBuilder complete
         Ok((start_block, empty_block))
+    }
+
+    pub(crate) fn rjumpi<'r>(
+        ctx: &mut CtxType<'c>,
+        region: &'r Region<'c>,
+        relative_offset: u16,
+    ) -> Result<(BlockRef<'r, 'c>, BlockRef<'r, 'c>)> {
+        let start_block = region.append_block(Block::new(&[]));
+
+        let false_block = region.append_block(Block::new(&[]));
+        // TODO : Needs EVMBuilder complete
+        Ok((start_block, false_block))
+    }
+
+    pub(crate) fn rjumpv<'r>(
+        ctx: &mut CtxType<'c>,
+        region: &'r Region<'c>,
+        max_index: u8,
+        relative_offsets: Vec<u16>,
+    ) -> Result<(BlockRef<'r, 'c>, BlockRef<'r, 'c>)> {
+        let start_block = region.append_block(Block::new(&[]));
+
+        let false_block = region.append_block(Block::new(&[]));
+        // TODO : Needs EVMBuilder complete
+        Ok((start_block, false_block))
     }
 
     pub(crate) fn pc<'r>(

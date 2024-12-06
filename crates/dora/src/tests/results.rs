@@ -211,7 +211,7 @@ fn jump_stack_underflow() {
 
 #[test]
 fn jumpi_stack_underflow() {
-    let operations = vec![Operation::Jumpi];
+    let operations = vec![Operation::JumpI];
     let result = run_result(operations);
     assert!(result.halt_reason().unwrap().is_stack_underflow());
     assert_eq!(result.output(), None);
@@ -220,7 +220,7 @@ fn jumpi_stack_underflow() {
 
 #[test]
 fn push0_jumpi_stack_underflow() {
-    let operations = vec![Operation::Push0, Operation::Jumpi];
+    let operations = vec![Operation::Push0, Operation::JumpI];
     let result = run_result(operations);
     assert!(result.halt_reason().unwrap().is_stack_underflow());
     assert_eq!(result.output(), None);
@@ -378,7 +378,7 @@ fn basic_jumpi() {
         Operation::Jumpdest { pc: 1 },
         Operation::Push0,
         Operation::Push0,
-        Operation::Jumpi,
+        Operation::JumpI,
         Operation::Push((1, 1_u8.into())),
     ];
     let result = run_result(operations);
@@ -392,7 +392,7 @@ fn basic_jumpi_2() {
     let operations = vec![
         Operation::Push((1, 1_u8.into())),
         Operation::Push((1, 5_u8.into())),
-        Operation::Jumpi,
+        Operation::JumpI,
         Operation::Jumpdest { pc: 4 },
         Operation::Push((1, 6_u8.into())),
     ];
@@ -407,7 +407,7 @@ fn jumpi_invalid_target() {
     let operations = vec![
         Operation::Push0,
         Operation::Push0,
-        Operation::Jumpi,
+        Operation::JumpI,
         Operation::Push((1, 1_u8.into())),
     ];
     let result = run_result(operations);
@@ -421,7 +421,7 @@ fn jumpi_invalid_target_2() {
     let operations = vec![
         Operation::Push((1, 1_u8.into())),
         Operation::Push0,
-        Operation::Jumpi,
+        Operation::JumpI,
         Operation::Jumpdest { pc: 4 },
         Operation::Push((1, 6_u8.into())),
     ];
@@ -456,7 +456,7 @@ fn basic_loop() {
         Operation::Sub,
         Operation::Dup(1),                 // i = i - 1
         Operation::Push((1, 2_u8.into())), // 2; jump dest
-        Operation::Jumpi,
+        Operation::JumpI,
         Operation::Pop,
         Operation::Push((1, 6_u8.into())),
     ];

@@ -1388,7 +1388,7 @@ fn push_jumpi_valid_jumpdest() {
     assert_snapshot!(vec![
         Operation::Push((1_u8, BigUint::from(5_u8))),
         Operation::Push((1_u8, BigUint::from(1_u8))),
-        Operation::Jumpi,
+        Operation::JumpI,
         Operation::Invalid,
         Operation::Jumpdest { pc: (5) },
         Operation::Push((1_u8, BigUint::from(2_u8))),

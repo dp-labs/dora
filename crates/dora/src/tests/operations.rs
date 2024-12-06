@@ -2462,7 +2462,7 @@ fn jumpi_with_false_condition() {
         Operation::Push((1_u8, BigUint::from(a))),
         Operation::Push((1_u8, condition)),
         Operation::Push((1_u8, BigUint::from(pc as u8))),
-        Operation::Jumpi,
+        Operation::JumpI,
         Operation::Push((1_u8, BigUint::from(b))),
         Operation::Jumpdest { pc },
         // Return result
@@ -2485,7 +2485,7 @@ fn jumpi_does_not_revert_if_pc_is_wrong_but_branch_is_not_taken() {
         Operation::Push((1_u8, BigUint::from(a))),
         Operation::Push((1_u8, condition)),
         Operation::Push((1_u8, BigUint::from(pc as u8))),
-        Operation::Jumpi,
+        Operation::JumpI,
         Operation::Push((1_u8, BigUint::from(b))),
         Operation::Jumpdest { pc },
         // Return result
