@@ -256,19 +256,17 @@ pub trait Builder: IRTypes + TypeMethods {
     /// Unconditionally branch to the specified destination block.
     ///
     /// # Arguments
-    ///
-    /// * `dest` - The basic block to branch to.
+    /// - `dest` - The basic block to branch to.
     fn br(&mut self, dest: Self::BasicBlock);
 
     /// Conditionally branch to either the `then_block` or the `else_block` based on the value of `cond`.
     ///
     /// # Arguments
-    ///
-    /// * `cond` - The condition to evaluate.
-    /// * `then_block` - The basic block to branch to if the condition is true.
-    /// * `else_block` - The basic block to branch to if the condition is false.
-    /// * `then_values` - The values to pass to `then_block`.
-    /// * `else_values` - The values to pass to `else_block`.
+    /// - `cond` - The condition to evaluate.
+    /// - `then_block` - The basic block to branch to if the condition is true.
+    /// - `else_block` - The basic block to branch to if the condition is false.
+    /// - `then_values` - The values to pass to `then_block`.
+    /// - `else_values` - The values to pass to `else_block`.
     fn brif(
         &mut self,
         cond: Self::Value,
@@ -283,11 +281,10 @@ pub trait Builder: IRTypes + TypeMethods {
     /// This is an optimization hint where cold blocks are less likely to be executed.
     ///
     /// # Arguments
-    ///
-    /// * `cond` - The condition to evaluate.
-    /// * `then_block` - The basic block to branch to if the condition is true.
-    /// * `else_block` - The basic block to branch to if the condition is false.
-    /// * `then_is_cold` - Whether the `then_block` is cold (unlikely to be executed).
+    /// - `cond` - The condition to evaluate.
+    /// - `then_block` - The basic block to branch to if the condition is true.
+    /// - `else_block` - The basic block to branch to if the condition is false.
+    /// - `then_is_cold` - Whether the `then_block` is cold (unlikely to be executed).
     fn brif_cold(
         &mut self,
         cond: Self::Value,
@@ -299,15 +296,14 @@ pub trait Builder: IRTypes + TypeMethods {
         self.brif(cond, then_block, else_block, &[], &[]);
     }
 
-    /// Create a `switch` statement that jumps to different blocks based on `index`.
+    /// Creates a `switch` statement that jumps to different blocks based on `index`.
     ///
     /// # Arguments
-    ///
-    /// * `default` - The default basic block if no cases match.
-    /// * `targets` - Pairs of target values and basic blocks to jump to.
-    /// * `flag` - A flag value that affects the switch.
-    /// * `flag_type` - The type of the flag.
-    /// * `default_is_cold` - Indicates if the default case is cold.
+    /// - `default` - The default basic block if no cases match.
+    /// - `targets` - Pairs of target values and basic blocks to jump to.
+    /// - `flag` - A flag value that affects the switch.
+    /// - `flag_type` - The type of the flag.
+    /// - `default_is_cold` - Indicates if the default case is cold.
     fn switch(
         &mut self,
         default: Self::BasicBlock,
@@ -320,17 +316,15 @@ pub trait Builder: IRTypes + TypeMethods {
     /// Indirect branch to the `successor` basic block.
     ///
     /// # Arguments
-    ///
-    /// * `successor` - The basic block to branch to indirectly.
+    /// - `successor` - The basic block to branch to indirectly.
     fn br_indirect(&mut self, successor: Self::BasicBlock);
 
-    /// Create a select operation, which chooses between two values based on a condition.
+    /// Creates a select operation, which chooses between two values based on a condition.
     ///
     /// # Arguments
-    ///
-    /// * `cond` - The condition to evaluate.
-    /// * `then_value` - The value to choose if the condition is true.
-    /// * `else_value` - The value to choose if the condition is false.
+    /// - `cond` - The condition to evaluate.
+    /// - `then_value` - The value to choose if the condition is true.
+    /// - `else_value` - The value to choose if the condition is false.
     fn select(
         &mut self,
         cond: Self::Value,
@@ -338,69 +332,61 @@ pub trait Builder: IRTypes + TypeMethods {
         else_value: Self::Value,
     ) -> Result<Self::Value>;
 
-    /// Perform an integer addition of `lhs` and `rhs`.
+    /// Performs an integer addition of `lhs` and `rhs`.
     ///
-    /// # Arguments
-    ///
-    /// * `lhs` - The left-hand side operand.
-    /// * `rhs` - The right-hand side operand.
+    /// # Parameters
+    /// - `lhs` - The left-hand side operand.
+    /// - `rhs` - The right-hand side operand.
     fn iadd(&mut self, lhs: Self::Value, rhs: Self::Value) -> Result<Self::Value>;
 
-    /// Perform an integer subtraction of `lhs` and `rhs`.
+    /// Performs an integer subtraction of `lhs` and `rhs`.
     ///
-    /// # Arguments
-    ///
-    /// * `lhs` - The left-hand side operand.
-    /// * `rhs` - The right-hand side operand.
+    /// # Parameters
+    /// - `lhs` - The left-hand side operand.
+    /// - `rhs` - The right-hand side operand.
     fn isub(&mut self, lhs: Self::Value, rhs: Self::Value) -> Result<Self::Value>;
 
-    /// Perform an integer multiplication of `lhs` and `rhs`.
+    /// Performs an integer multiplication of `lhs` and `rhs`.
     ///
-    /// # Arguments
-    ///
-    /// * `lhs` - The left-hand side operand.
-    /// * `rhs` - The right-hand side operand.
+    /// # Parameters
+    /// - `lhs` - The left-hand side operand.
+    /// - `rhs` - The right-hand side operand.
     fn imul(&mut self, lhs: Self::Value, rhs: Self::Value) -> Result<Self::Value>;
 
-    /// Perform an unsigned integer division of `lhs` by `rhs`.
+    /// Performs an unsigned integer division of `lhs` by `rhs`.
     ///
-    /// # Arguments
-    ///
-    /// * `lhs` - The dividend.
-    /// * `rhs` - The divisor.
+    /// # Parameters
+    /// - `lhs` - The dividend.
+    /// - `rhs` - The divisor.
     fn udiv(&mut self, lhs: Self::Value, rhs: Self::Value) -> Result<Self::Value>;
 
-    /// Perform a signed integer division of `lhs` by `rhs`.
+    /// Performs a signed integer division of `lhs` by `rhs`.
     ///
-    /// # Arguments
-    ///
-    /// * `lhs` - The dividend.
-    /// * `rhs` - The divisor.
+    /// # Parameters
+    /// - `lhs` - The dividend.
+    /// - `rhs` - The divisor.
     fn sdiv(&mut self, lhs: Self::Value, rhs: Self::Value) -> Result<Self::Value>;
 
-    /// Perform an unsigned modulo operation (`lhs % rhs`).
+    /// Performs an unsigned modulo operation (`lhs % rhs`).
     ///
-    /// # Arguments
-    ///
-    /// * `lhs` - The left-hand side operand.
-    /// * `rhs` - The right-hand side operand.
+    /// # Parameters
+    /// - `lhs` - The left-hand side operand.
+    /// - `rhs` - The right-hand side operand.
     fn umod(&mut self, lhs: Self::Value, rhs: Self::Value) -> Result<Self::Value>;
 
-    /// Perform a signed modulo operation (`lhs % rhs`).
+    /// Performs a signed modulo operation (`lhs % rhs`).
     ///
-    /// # Arguments
-    ///
-    /// * `lhs` - The left-hand side operand.
-    /// * `rhs` - The right-hand side operand.
+    /// # Parameters
+    /// - `lhs` - The left-hand side operand.
+    /// - `rhs` - The right-hand side operand.
     fn smod(&mut self, lhs: Self::Value, rhs: Self::Value) -> Result<Self::Value>;
 
-    /// Perform an addition modulo `modulus`.
+    /// Performs an addition modulo `modulus`.
     ///
-    /// # Arguments
-    ///
-    /// * `lhs` - The first operand.
-    /// * `rhs` - The second operand.
-    /// * `modulus` - The modulus.
+    /// # Parameters
+    /// - `lhs` - The first operand.
+    /// - `rhs` - The second operand.
+    /// - `modulus` - The modulus.
     fn addmod(
         &mut self,
         lhs: Self::Value,
@@ -408,13 +394,12 @@ pub trait Builder: IRTypes + TypeMethods {
         modulus: Self::Value,
     ) -> Result<Self::Value>;
 
-    /// Perform a multiplication modulo `modulus`.
+    /// Performs a multiplication modulo `modulus`.
     ///
-    /// # Arguments
-    ///
-    /// * `lhs` - The first operand.
-    /// * `rhs` - The second operand.
-    /// * `modulus` - The modulus.
+    /// # Parameters
+    /// - `lhs` - The first operand.
+    /// - `rhs` - The second operand.
+    /// - `modulus` - The modulus.
     fn mulmod(
         &mut self,
         lhs: Self::Value,
@@ -422,189 +407,166 @@ pub trait Builder: IRTypes + TypeMethods {
         modulus: Self::Value,
     ) -> Result<Self::Value>;
 
-    /// Perform exponentiation of `base` raised to the power of `exponent`.
+    /// Performs exponentiation of `base` raised to the power of `exponent`.
     ///
-    /// # Arguments
-    ///
-    /// * `base` - The base value.
-    /// * `exponent` - The exponent value.
+    /// # Parameters
+    /// - `base` - The base value.
+    /// - `exponent` - The exponent value.
     fn exp(&mut self, base: Self::Value, exponent: Self::Value) -> Result<Self::Value>;
 
-    /// Perform a sign extension of `value`, extending from the specified `byte`.
+    /// Performs a sign extension of `value`, extending from the specified `byte`.
     ///
-    /// # Arguments
-    ///
-    /// * `byte` - The byte to extend from.
-    /// * `value` - The value to extend.
+    /// # Parameters
+    /// - `byte` - The byte to extend from.
+    /// - `value` - The value to extend.
     fn signextend(&mut self, byte: Self::Value, value: Self::Value) -> Result<Self::Value>;
 
-    /// Compare if `lhs` is less than `rhs` (unsigned).
+    /// Compares if `lhs` is less than `rhs` (unsigned).
     ///
-    /// # Arguments
-    ///
-    /// * `lhs` - The left-hand side operand.
-    /// * `rhs` - The right-hand side operand.
+    /// # Parameters
+    /// - `lhs` - The left-hand side operand.
+    /// - `rhs` - The right-hand side operand.
     fn lt(&mut self, lhs: Self::Value, rhs: Self::Value) -> Result<Self::Value>;
 
-    /// Compare if `lhs` is greater than `rhs` (unsigned).
+    /// Compares if `lhs` is greater than `rhs` (unsigned).
     ///
-    /// # Arguments
-    ///
-    /// * `lhs` - The left-hand side operand.
-    /// * `rhs` - The right-hand side operand.
+    /// # Parameters
+    /// - `lhs` - The left-hand side operand.
+    /// - `rhs` - The right-hand side operand.
     fn gt(&mut self, lhs: Self::Value, rhs: Self::Value) -> Result<Self::Value>;
 
-    /// Compare if `lhs` is less than `rhs` (signed).
+    /// Compares if `lhs` is less than `rhs` (signed).
     ///
-    /// # Arguments
-    ///
-    /// * `lhs` - The left-hand side operand.
-    /// * `rhs` - The right-hand side operand.
+    /// # Parameters
+    /// - `lhs` - The left-hand side operand.
+    /// - `rhs` - The right-hand side operand.
     fn slt(&mut self, lhs: Self::Value, rhs: Self::Value) -> Result<Self::Value>;
 
-    /// Compare if `lhs` is greater than `rhs` (signed).
+    /// Compares if `lhs` is greater than `rhs` (signed).
     ///
-    /// # Arguments
-    ///
-    /// * `lhs` - The left-hand side operand.
-    /// * `rhs` - The right-hand side operand.
+    /// # Parameters
+    /// - `lhs` - The left-hand side operand.
+    /// - `rhs` - The right-hand side operand.
     fn sgt(&mut self, lhs: Self::Value, rhs: Self::Value) -> Result<Self::Value>;
 
-    /// Compare if `lhs` is equal to `rhs`.
+    /// Compares if `lhs` is equal to `rhs`.
     ///
-    /// # Arguments
-    ///
-    /// * `lhs` - The left-hand side operand.
-    /// * `rhs` - The right-hand side operand.
+    /// # Parameters
+    /// - `lhs` - The left-hand side operand.
+    /// - `rhs` - The right-hand side operand.
     fn eq(&mut self, lhs: Self::Value, rhs: Self::Value) -> Result<Self::Value>;
 
-    /// Check if a value is zero.
+    /// Checks if a value is zero.
     ///
-    /// # Arguments
-    ///
-    /// * `value` - The value to check.
+    /// # Parameters
+    /// - `value` - The value to check.
     fn iszero(&mut self, value: Self::Value) -> Result<Self::Value>;
 
-    /// Perform a bitwise AND operation on `lhs` and `rhs`.
+    /// Performs a bitwise AND operation on `lhs` and `rhs`.
     ///
-    /// # Arguments
-    ///
-    /// * `lhs` - The left-hand side operand.
-    /// * `rhs` - The right-hand side operand.
+    /// # Parameters
+    /// - `lhs` - The left-hand side operand.
+    /// - `rhs` - The right-hand side operand.
     fn and(&mut self, lhs: Self::Value, rhs: Self::Value) -> Result<Self::Value>;
 
-    /// Perform a bitwise OR operation on `lhs` and `rhs`.
+    /// Performs a bitwise OR operation on `lhs` and `rhs`.
     ///
-    /// # Arguments
-    ///
-    /// * `lhs` - The left-hand side operand.
-    /// * `rhs` - The right-hand side operand.
+    /// # Parameters
+    /// - `lhs` - The left-hand side operand.
+    /// - `rhs` - The right-hand side operand.
     fn or(&mut self, lhs: Self::Value, rhs: Self::Value) -> Result<Self::Value>;
 
-    /// Perform a bitwise XOR operation on `lhs` and `rhs`.
+    /// Performs a bitwise XOR operation on `lhs` and `rhs`.
     ///
-    /// # Arguments
-    ///
-    /// * `lhs` - The left-hand side operand.
-    /// * `rhs` - The right-hand side operand.
+    /// # Parameters
+    /// - `lhs` - The left-hand side operand.
+    /// - `rhs` - The right-hand side operand.
     fn xor(&mut self, lhs: Self::Value, rhs: Self::Value) -> Result<Self::Value>;
 
-    /// Perform a bitwise NOT operation on `value`.
+    /// Performs a bitwise NOT operation on `value`.
     ///
-    /// # Arguments
-    ///
-    /// * `value` - The value to negate.
+    /// # Parameters
+    /// - `value` - The value to negate.
     fn not(&mut self, value: Self::Value) -> Result<Self::Value>;
 
-    /// Extract a byte from `value` at the given `index`.
+    /// Extracts a byte from `value` at the given `index`.
     ///
-    /// # Arguments
-    ///
-    /// * `index` - The index of the byte.
-    /// * `value` - The value to extract from.
+    /// # Parameters
+    /// - `index` - The index of the byte.
+    /// - `value` - The value to extract from.
     fn byte(&mut self, index: Self::Value, value: Self::Value) -> Result<Self::Value>;
 
-    /// Perform a left shift on `value` by `shift`.
+    /// Performs a left shift on `value` by `shift`.
     ///
-    /// # Arguments
-    ///
-    /// * `shift` - The amount to shift.
-    /// * `value` - The value to shift.
+    /// # Parameters
+    /// - `shift` - The amount to shift.
+    /// - `value` - The value to shift.
     fn shl(&mut self, shift: Self::Value, value: Self::Value) -> Result<Self::Value>;
 
-    /// Perform a logical right shift on `value` by `shift`.
+    /// Performs a logical right shift on `value` by `shift`.
     ///
-    /// # Arguments
-    ///
-    /// * `shift` - The amount to shift.
-    /// * `value` - The value to shift.
+    /// # Parameters
+    /// - `shift` - The amount to shift.
+    /// - `value` - The value to shift.
     fn shr(&mut self, shift: Self::Value, value: Self::Value) -> Result<Self::Value>;
 
-    /// Perform an arithmetic right shift on `value` by `shift`.
+    /// Performs an arithmetic right shift on `value` by `shift`.
     ///
-    /// # Arguments
-    ///
-    /// * `shift` - The amount to shift.
-    /// * `value` - The value to shift.
+    /// # Parameters
+    /// - `shift` - The amount to shift.
+    /// - `value` - The value to shift.
     fn sar(&mut self, shift: Self::Value, value: Self::Value) -> Result<Self::Value>;
 
-    /// Perform an unsigned remainder operation (`lhs % rhs`).
+    /// Performs an unsigned remainder operation (`lhs % rhs`).
     ///
     /// # Arguments
-    ///
-    /// * `lhs` - The left-hand side operand.
-    /// * `rhs` - The right-hand side operand.
+    /// - `lhs` - The left-hand side operand.
+    /// - `rhs` - The right-hand side operand.
     fn urem(&mut self, lhs: Self::Value, rhs: Self::Value) -> Result<Self::Value>;
 
-    /// Perform a signed remainder operation (`lhs % rhs`).
+    /// Performs a signed remainder operation (`lhs % rhs`).
     ///
     /// # Arguments
-    ///
-    /// * `lhs` - The left-hand side operand.
-    /// * `rhs` - The right-hand side operand.
+    /// - `lhs` - The left-hand side operand.
+    /// - `rhs` - The right-hand side operand.
     fn srem(&mut self, lhs: Self::Value, rhs: Self::Value) -> Result<Self::Value>;
 
-    /// Perform an integer addition of `lhs` and an immediate value `rhs`.
+    /// Performs an integer addition of `lhs` and an immediate value `rhs`.
     ///
     /// # Arguments
-    ///
-    /// * `lhs` - The left-hand side operand.
-    /// * `rhs` - The immediate value.
+    /// - `lhs` - The left-hand side operand.
+    /// - `rhs` - The immediate value.
     fn iadd_imm(&mut self, lhs: Self::Value, rhs: i64) -> Result<Self::Value>;
 
-    /// Perform an integer subtraction of `lhs` and an immediate value `rhs`.
+    /// Performs an integer subtraction of `lhs` and an immediate value `rhs`.
     ///
     /// # Arguments
-    ///
-    /// * `lhs` - The left-hand side operand.
-    /// * `rhs` - The immediate value.
+    /// - `lhs` - The left-hand side operand.
+    /// - `rhs` - The immediate value.
     fn isub_imm(&mut self, lhs: Self::Value, rhs: i64) -> Result<Self::Value>;
 
     /// Perform an integer multiplication of `lhs` and an immediate value `rhs`.
     ///
     /// # Arguments
-    ///
-    /// * `lhs` - The left-hand side operand.
-    /// * `rhs` - The immediate value.
+    /// - `lhs` - The left-hand side operand.
+    /// - `rhs` - The immediate value.
     fn imul_imm(&mut self, lhs: Self::Value, rhs: i64) -> Result<Self::Value>;
 
-    /// Truncate or reduce the integer value.
+    /// Truncates or reduces the integer value.
     ///
     /// # Arguments
-    ///
-    /// * `to` - The target type to reduce to.
-    /// * `value` - The value to reduce.
+    /// - `to` - The target type to reduce to.
+    /// - `value` - The value to reduce.
     #[doc(alias = "trunc")]
     fn ireduce(&mut self, to: Self::Type, value: Self::Value) -> Result<Self::Value>;
 
-    /// Perform a get element pointer (GEP) operation, calculating the address of an element.
+    /// Performs a get element pointer (GEP) operation, calculating the address of an element.
     ///
     /// # Arguments
-    ///
-    /// * `ptr` - The base pointer.
-    /// * `indices` - The indices to offset the pointer.
-    /// * `element_ty` - The element type.
-    /// * `result_ty` - The result type (calculated pointer type).
+    /// - `ptr` - The base pointer.
+    /// - `indices` - The indices to offset the pointer.
+    /// - `element_ty` - The element type.
+    /// - `result_ty` - The result type (calculated pointer type).
     fn gep(
         &mut self,
         ptr: Self::Value,
@@ -613,28 +575,26 @@ pub trait Builder: IRTypes + TypeMethods {
         result_ty: Self::Type,
     ) -> Result<Self::Value>;
 
-    /// Perform a memory copy from `src` to `dst` for `len` bytes.
+    /// Performs a memory copy from `src` to `dst` for `len` bytes.
     ///
     /// # Arguments
-    ///
-    /// * `dst` - The destination address.
-    /// * `src` - The source address.
-    /// * `len` - The number of bytes to copy.
+    /// - `dst` - The destination address.
+    /// - `src` - The source address.
+    /// - `len` - The number of bytes to copy.
     fn memcpy(&mut self, dst: Self::Value, src: Self::Value, len: Self::Value) -> Result<()>;
 
-    /// Perform an inline memory copy from `src` to `dst` for `len` bytes (immediate length).
+    /// Performs an inline memory copy from `src` to `dst` for `len` bytes (immediate length).
     ///
     /// # Arguments
-    ///
-    /// * `dst` - The destination address.
-    /// * `src` - The source address.
-    /// * `len` - The number of bytes to copy.
+    /// - `dst` - The destination address.
+    /// - `src` - The source address.
+    /// - `len` - The number of bytes to copy.
     fn memcpy_inline(&mut self, dst: Self::Value, src: Self::Value, len: i64) -> Result<()> {
         let len = self.iconst(self.type_int(64), len)?;
         self.memcpy(dst, src, len)
     }
 
-    /// Mark a location in the code as unreachable.
+    /// Marks a location in the code as unreachable.
     fn unreachable(&mut self);
 }
 
@@ -644,123 +604,151 @@ pub trait Builder: IRTypes + TypeMethods {
 ///
 /// The trait inherits from the `Builder` trait and is expected to be implemented by types that generate EVM-related code.
 pub trait EVMBuilder: Builder {
-    /// Calculate the Keccak-256 hash of a memory range.
+    /// Calculates the Keccak-256 hash of a memory range.
     ///
-    /// # Arguments
-    ///
-    /// * `start` - The starting offset of the memory.
-    /// * `length` - The number of bytes to hash.
+    /// # Parameters
+    /// - `start` - The starting offset of the memory.
+    /// - `length` - The number of bytes to hash.
     fn keccak256(&mut self, start: Self::Value, length: Self::Value) -> Result<Self::Value>;
 
-    /// Retrieve the address of the contract currently executing.
+    /// Retrieves the address of the contract currently executing.
     fn address(&mut self) -> Result<Self::Value>;
 
-    /// Retrieve the address of the caller (sender of the transaction or message).
+    /// Retrieves the address of the caller (sender of the transaction or message).
     fn caller(&mut self) -> Result<Self::Value>;
 
-    /// Retrieve the amount of Ether sent with the current call.
+    /// Retrieves the amount of Ether sent with the current call.
     fn callvalue(&mut self) -> Result<Self::Value>;
 
-    /// Load data from the call's input data starting at `offset`.
+    /// Loads data from the call's input data starting at `offset`.
     ///
-    /// # Arguments
-    ///
-    /// * `offset` - The offset in the call data to start loading from.
+    /// # Parameters
+    /// - `offset` - The offset in the call data to start loading from.
     fn calldataload(&mut self, offset: Self::Value) -> Result<Self::Value>;
 
     /// Retrieve the size of the input data.
     fn calldatasize(&mut self) -> Result<Self::Value>;
 
-    /// Copy data from the call input to memory.
+    /// Copies data from the call input to memory.
     ///
-    /// # Arguments
-    ///
-    /// * `dest_offset` - Memory offset to copy to.
-    /// * `data_offset` - Offset in the call data to start copying from.
-    /// * `length` - Number of bytes to copy.
+    /// # Parameters
+    /// - `dest_offset` - Memory offset to copy to.
+    /// - `data_offset` - Offset in the call data to start copying from.
+    /// - `length` - Number of bytes to copy.
     fn calldatacopy(
         &mut self,
         dest_offset: Self::Value,
         data_offset: Self::Value,
         length: Self::Value,
-    ) -> Result<()>;
+    );
+
+    /// -*EOF**
+    ///
+    /// Loads a value at `offset` from the data section.
+    ///
+    /// # Parameters:
+    /// - `offset`: Offset in the data section.
+    ///
+    /// # Returns:
+    /// Value of the data section.
+    ///
+    /// All bytes after the end of the data section are set to 0.
+    fn dataload(&mut self, offset: Self::Value) -> Result<Self::Value>;
+
+    /// -*EOF**
+    ///
+    /// Loads a value at `offset` from the data section.
+    ///
+    /// # Arguments:
+    /// - `offset`: Offset in the data section.
+    ///
+    /// # Returns:
+    /// Value of the data section.
+    ///
+    /// All bytes after the end of the data section are set to 0.
+    fn dataloadn(&mut self, offset: Self::Value) -> Result<Self::Value>;
+
+    /// -*EOF**
+    ///
+    /// Retrieves the size of the data section.
+    fn datasize(&mut self) -> Result<Self::Value>;
+
+    /// -*EOF**
+    ///
+    /// Copies data from the data section to memory.
+    ///
+    /// # Parameters
+    /// - `mem_offset` - Memory offset to copy to.
+    /// - `offset` - Offset in the data section to start copying from.
+    /// - `size` - Number of bytes to copy.
+    fn datacopy(&mut self, mem_offset: Self::Value, offset: Self::Value, size: Self::Value);
 
     /// Retrieve the size of the contract's code.
     fn codesize(&mut self) -> Result<Self::Value>;
 
-    /// Copy data from the contract's code to memory.
+    /// Copies data from the contract's code to memory.
     ///
-    /// # Arguments
+    /// # Parameters
+    /// - `dest_offset` - Memory offset to copy to.
+    /// - `data_offset` - Offset in the contract code to start copying from.
+    /// - `length` - Number of bytes to copy.
+    fn codecopy(&mut self, dest_offset: Self::Value, data_offset: Self::Value, length: Self::Value);
+
+    /// **EOF***
     ///
-    /// * `dest_offset` - Memory offset to copy to.
-    /// * `data_offset` - Offset in the contract code to start copying from.
-    /// * `length` - Number of bytes to copy.
-    fn codecopy(
-        &mut self,
-        dest_offset: Self::Value,
-        data_offset: Self::Value,
-        length: Self::Value,
-    ) -> Result<()>;
+    /// Loads a value from the last call's return data at `offset`.
+    ///
+    /// # Parameters
+    /// - `offset` - Offset in the return data to start loading from.
+    fn returndataload(&mut self, offset: Self::Value) -> Result<Self::Value>;
 
     /// Retrieve the size of the return data from the last call.
     fn returndatasize(&mut self) -> Result<Self::Value>;
 
-    /// Copy data from the last call's return data to memory.
+    /// Copies data from the last call's return data to memory.
     ///
-    /// # Arguments
-    ///
-    /// * `dest_offset` - Memory offset to copy to.
-    /// * `data_offset` - Offset in the return data to start copying from.
-    /// * `length` - Number of bytes to copy.
+    /// # Parameters
+    /// - `dest_offset` - Memory offset to copy to.
+    /// - `data_offset` - Offset in the return data to start copying from.
+    /// - `length` - Number of bytes to copy.
     fn returndatacopy(
         &mut self,
         dest_offset: Self::Value,
         data_offset: Self::Value,
         length: Self::Value,
-    ) -> Result<()>;
+    );
 
-    /// Load a value from the last call's return data at `data_offset`.
-    ///
-    /// # Arguments
-    ///
-    /// * `data_offset` - Offset in the return data to start loading from.
-    fn returndataload(&mut self, data_offset: Self::Value) -> Result<Self::Value>;
-
-    /// Retrieve the amount of gas remaining for execution.
+    /// Retrieves the amount of gas remaining for execution.
     fn gas(&mut self) -> Result<Self::Value>;
 
-    /// Retrieve the balance of the account at `account`.
+    /// Retrieves the balance of the account at `account`.
     ///
-    /// # Arguments
-    ///
-    /// * `account` - The account whose balance to retrieve.
+    /// # Parameters
+    /// - `account` - The account whose balance to retrieve.
     fn balance(&mut self, account: Self::Value) -> Result<Self::Value>;
 
     /// Retrieve the balance of the current contract.
     fn selfbalance(&mut self) -> Result<Self::Value>;
 
-    /// Retrieve the size of the code at `account`.
+    /// Retrieves the size of the code at `account`.
     ///
-    /// # Arguments
-    ///
-    /// * `account` - The account whose code size to retrieve.
+    /// # Parameters
+    /// - `account` - The account whose code size to retrieve.
     fn extcodesize(&mut self, account: Self::Value) -> Result<Self::Value>;
 
-    /// Retrieve the hash of the code at `account`.
+    /// Retrieves the hash of the code at `account`.
     ///
-    /// # Arguments
-    ///
-    /// * `account` - The account whose code hash to retrieve.
+    /// # Parameters
+    /// - `account` - The account whose code hash to retrieve.
     fn extcodehash(&mut self, account: Self::Value) -> Result<Self::Value>;
 
-    /// Copy code from `account` to memory.
+    /// Copies code from `account` to memory.
     ///
-    /// # Arguments
-    ///
-    /// * `account` - The account whose code to copy.
-    /// * `dest_offset` - Memory offset to copy to.
-    /// * `code_offset` - Offset in the code to start copying from.
-    /// * `length` - Number of bytes to copy.
+    /// # Parameters
+    /// - `account` - The account whose code to copy.
+    /// - `dest_offset` - Memory offset to copy to.
+    /// - `code_offset` - Offset in the code to start copying from.
+    /// - `length` - Number of bytes to copy.
     fn extcodecopy(
         &mut self,
         account: Self::Value,
@@ -769,41 +757,36 @@ pub trait EVMBuilder: Builder {
         length: Self::Value,
     );
 
-    /// Retrieve the hash of the given block.
+    /// Retrieves the hash of the given block.
     ///
-    /// # Arguments
-    ///
-    /// * `block_number` - The block number to retrieve the hash of.
+    /// # Parameters
+    /// - `block_number` - The block number to retrieve the hash of.
     fn blockhash(&mut self, block_number: Self::Value) -> Result<Self::Value>;
 
-    /// Load a value from storage at `key`.
+    /// Loads a value from storage at `key`.
     ///
-    /// # Arguments
-    ///
-    /// * `key` - The storage key to load from.
+    /// # Parameters
+    /// - `key` - The storage key to load from.
     fn sload(&mut self, key: Self::Value) -> Result<Self::Value>;
 
-    /// Store a value in storage at `key`.
+    /// Stores a value in storage at `key`.
     ///
-    /// # Arguments
-    ///
-    /// * `key` - The storage key to store to.
-    /// * `value` - The value to store.
-    fn sstore(&mut self, key: Self::Value, value: Self::Value) -> Result<()>;
+    /// # Parameters
+    /// - `key` - The storage key to store to.
+    /// - `value` - The value to store.
+    fn sstore(&mut self, key: Self::Value, value: Self::Value);
 
-    /// Store a value in transient storage at `key`.
+    /// Stores a value in transient storage at `key`.
     ///
-    /// # Arguments
-    ///
-    /// * `key` - The transient storage key.
-    /// * `value` - The value to store.
-    fn tstore(&mut self, key: Self::Value, value: Self::Value) -> Result<()>;
+    /// # Parameters
+    /// - `key` - The transient storage key.
+    /// - `value` - The value to store.
+    fn tstore(&mut self, key: Self::Value, value: Self::Value);
 
-    /// Perform a load operation on transient storage.
+    /// Performs a load operation on transient storage.
     ///
-    /// # Arguments
-    ///
-    /// * `key` - The transient storage key.
+    /// # Parameters
+    /// - `key` - The transient storage key.
     fn tload(&mut self, key: Self::Value) -> Result<Self::Value>;
 
     /// Emits a log entry with data but no topics.
@@ -878,40 +861,40 @@ pub trait EVMBuilder: Builder {
     /// - `recipient`: The address that will receive the remaining balance of the contract.
     fn selfdestruct(&mut self, recipient: Self::Value);
 
-    /// Returns the chain ID of the network.
+    /// Retrieves the chain ID of the network.
     fn chainid(&mut self) -> Result<Self::Value>;
 
-    /// Returns the address of the current block's miner (coinbase).
+    /// Retrieves the address of the current block's miner (coinbase).
     fn coinbase(&mut self) -> Result<Self::Value>;
 
-    /// Returns the current block's timestamp.
+    /// Retrieves the current block's timestamp.
     fn timestamp(&mut self) -> Result<Self::Value>;
 
-    /// Returns the current block number.
+    /// Retrieves the current block number.
     fn number(&mut self) -> Result<Self::Value>;
 
-    /// Returns the randomness value (prevrandao) of the previous block.
+    /// Retrieves the randomness value (prevrandao) of the previous block.
     fn prevrandao(&mut self) -> Result<Self::Value>;
 
-    /// Returns the gas limit for the current block.
+    /// Retrieves the gas limit for the current block.
     fn gaslimit(&mut self) -> Result<Self::Value>;
 
-    /// Returns the gas price for the current transaction.
+    /// Retrieves the gas price for the current transaction.
     fn gasprice(&mut self) -> Result<Self::Value>;
 
-    /// Returns the base fee of the current block.
+    /// Retrieves the base fee of the current block.
     fn basefee(&mut self) -> Result<Self::Value>;
 
-    /// Returns the transaction origin's address.
+    /// Retrieves the transaction origin's address.
     fn origin(&mut self) -> Result<Self::Value>;
 
-    /// Returns the hash of a blob at a specified index.
+    /// Retrieves the hash of a blob at a specified index.
     ///
     /// # Parameters:
     /// - `index`: The index of the blob.
     fn blobhash(&mut self, index: Self::Value) -> Result<Self::Value>;
 
-    /// Returns the base fee for a blob transaction.
+    /// Retrieves the base fee for a blob transaction.
     fn blobbasefee(&mut self) -> Result<Self::Value>;
 
     /// Loads a word from memory at the given offset.
@@ -973,6 +956,51 @@ pub trait EVMBuilder: Builder {
         salt: Self::Value,
     ) -> Result<Self::Value>;
 
+    /// **EOF
+    ///
+    /// Creates a new contract using `EOFCREATE` with a salt value for deterministic address generation.
+    ///
+    /// The destination address is calculated as follows:
+    ///
+    /// ```no_check
+    ///     initialisation_code = eof_container[initcontainer_index]
+    ///     address = keccak256(0xff + sender_address + salt + keccak256(initialisation_code))[12:]
+    /// ```
+    ///
+    /// # Arguments:
+    /// - `initcontainer_index`: The index of EOF subcontainer in the containers.
+    ///
+    /// # Parameters:
+    /// - `value`: The amount of Ether to send to the new contract.
+    /// - `salt`: The salt value used for address generation.
+    /// - `input_offset`: The memory offset where the contract code begins.
+    /// - `input_size`: The size of the contract code to copy.
+    fn eofcreate(
+        &mut self,
+        initcontainer_index: Self::Value,
+        value: Self::Value,
+        salt: Self::Value,
+        input_offset: Self::Value,
+        input_size: Self::Value,
+    ) -> Result<Self::Value>;
+
+    /// **EOF
+    ///
+    /// Appends data at `aux_data_offset` to deployed contract at `deploy_container_index` using `RETURNCONTRACT`.
+    ///
+    /// # Arguments:
+    /// - `deploy_container_index`: The index of EOF subcontainer in the containers.
+    ///
+    /// # Parameters:
+    /// - `aux_data_offset`: The memory offset of the contract.
+    /// - `aux_data_size`: The size of the data to copy.
+    fn returncontract(
+        &mut self,
+        deploy_container_index: Self::Value,
+        aux_data_offset: Self::Value,
+        aux_data_size: Self::Value,
+    );
+
     /// Performs a function call on a contract.
     ///
     /// # Parameters:
@@ -983,6 +1011,9 @@ pub trait EVMBuilder: Builder {
     /// - `input_length`: The length of the input data.
     /// - `output_offset`: The memory offset where the output data will be stored.
     /// - `output_length`: The length of the output data.
+    ///
+    /// # Returns:
+    /// 0 if revert, 1 otherwise
     #[allow(clippy::too_many_arguments)]
     fn call(
         &mut self,
@@ -995,7 +1026,32 @@ pub trait EVMBuilder: Builder {
         output_length: Self::Value,
     ) -> Result<Self::Value>;
 
+    /// **EOF**
+    ///
+    /// Performs a function or subroutine call at `target_section_index` in the type section.
+    ///
+    /// # Arguments:
+    /// - `target_section_index`: The metadata index in the type section of EOF container corresponds to a code section index.
+    fn callf(&mut self, target_section_index: Self::Value);
+
+    /// **EOF**
+    ///
+    /// Set the execution state in return stack into the corresponding values.
+    fn retf(&mut self);
+
     /// Performs a function call on a contract, but the calling contract's code is executed in the context of the callee contract.
+    ///
+    /// # Parameters:
+    /// - `gas`: The amount of gas to allocate for the call.
+    /// - `address`: The address of the contract to call.
+    /// - `value`: The amount of Ether to send with the call.
+    /// - `input_offset`: The memory offset where the input data begins.
+    /// - `input_length`: The length of the input data.
+    /// - `output_offset`: The memory offset where the output data will be stored.
+    /// - `output_length`: The length of the output data.
+    ///
+    /// # Returns:
+    /// 0 if revert, 1 otherwise
     #[allow(clippy::too_many_arguments)]
     fn callcode(
         &mut self,
@@ -1009,6 +1065,18 @@ pub trait EVMBuilder: Builder {
     ) -> Result<Self::Value>;
 
     /// Performs a function call where the caller's storage is used instead of the callee's storage.
+    ///
+    /// # Parameters:
+    /// - `gas`: The amount of gas to allocate for the call.
+    /// - `address`: The address of the contract to call.
+    /// - `value`: The amount of Ether to send with the call.
+    /// - `input_offset`: The memory offset where the input data begins.
+    /// - `input_length`: The length of the input data.
+    /// - `output_offset`: The memory offset where the output data will be stored.
+    /// - `output_length`: The length of the output data.
+    ///
+    /// # Returns:
+    /// 0 if revert, 1 otherwise
     fn delegatecall(
         &mut self,
         gas: Self::Value,
@@ -1020,6 +1088,18 @@ pub trait EVMBuilder: Builder {
     ) -> Result<Self::Value>;
 
     /// Performs a function call but does not allow the callee to modify state.
+    ///
+    /// # Parameters:
+    /// - `gas`: The amount of gas to allocate for the call.
+    /// - `address`: The address of the contract to call.
+    /// - `value`: The amount of Ether to send with the call.
+    /// - `input_offset`: The memory offset where the input data begins.
+    /// - `input_length`: The length of the input data.
+    /// - `output_offset`: The memory offset where the output data will be stored.
+    /// - `output_length`: The length of the output data.
+    ///
+    /// # Returns:
+    /// 0 if revert, 1 otherwise
     fn staticcall(
         &mut self,
         gas: Self::Value,
@@ -1032,6 +1112,56 @@ pub trait EVMBuilder: Builder {
 
     /// Returns execution control to the calling contract with return data.
     fn creturn(&mut self, offset: Self::Value, length: Self::Value);
+
+    /// Performs a function call on a contract.
+    ///
+    /// # Parameters:
+    /// - `target_address`: The address of the contract to call.
+    /// - `input_offset`: The memory offset where the input data begins.
+    /// - `input_size`: The size of the input data.
+    /// - `value`: The amount of Ether to send with the call.
+    ///
+    /// # Returns:
+    /// 0 for success, 1 if revert, 2 for failure
+    fn extcall(
+        &mut self,
+        target_address: Self::Value,
+        input_offset: Self::Value,
+        input_size: Self::Value,
+        value: Self::Value,
+    ) -> Result<Self::Value>;
+
+    /// Performs a function call where the caller's storage is used instead of the callee's storage.
+    ///
+    /// # Parameters:
+    /// - `target_address`: The address of the contract to call.
+    /// - `input_offset`: The memory offset where the input data begins.
+    /// - `input_size`: The size of the input data.
+    ///
+    /// # Returns:
+    /// 0 for success, 1 if revert, 2 for failure
+    fn extdelegatecall(
+        &mut self,
+        target_address: Self::Value,
+        input_offset: Self::Value,
+        input_size: Self::Value,
+    ) -> Result<Self::Value>;
+
+    /// Performs a function call but does not allow the callee to modify state.
+    ///
+    /// # Parameters:
+    /// - `target_address`: The address of the contract to call.
+    /// - `input_offset`: The memory offset where the input data begins.
+    /// - `input_size`: The size of the input data.
+    ///
+    /// # Returns:
+    /// 0 for success, 1 if revert, 2 for failure
+    fn extstaticcall(
+        &mut self,
+        target_address: Self::Value,
+        input_offset: Self::Value,
+        input_size: Self::Value,
+    ) -> Result<Self::Value>;
 
     /// Aborts execution and reverts state changes, returning a specified output.
     fn revert(&mut self, offset: Self::Value, length: Self::Value);

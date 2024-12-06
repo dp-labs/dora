@@ -99,7 +99,7 @@ impl<'c> EVMCompiler<'c> {
         let mut builder = Self::make_builder(ctx, start_block);
         let key = builder.stack_pop()?;
         let value = builder.stack_pop()?;
-        builder.sstore(key, value)?;
+        builder.sstore(key, value);
         Ok((start_block, start_block))
     }
 
@@ -123,7 +123,7 @@ impl<'c> EVMCompiler<'c> {
         let mut builder = Self::make_builder(ctx, start_block);
         let key = builder.stack_pop()?;
         let value = builder.stack_pop()?;
-        builder.tstore(key, value)?;
+        builder.tstore(key, value);
         Ok((start_block, start_block))
     }
 

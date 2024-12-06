@@ -557,19 +557,6 @@ def EVM_ReturndataCopy : EVM_Op<"returndatacopy"> {
   let assemblyFormat = "$destOffset `,` $dataOffset `,` $length `:` type($destOffset)";
 }
 
-// ReturndataLoad Operation
-def EVM_ReturndataLoad : EVM_Op<"returndataload"> {
-  let summary = "Loads a word from the returned data from the last external call.";
-  let description = [{
-    This operation takes one `i256` operand from the stack: the offset in the returned data, and pushes the loaded word onto the stack.
-  }];
-
-  let arguments = (ins I<256>:$dataOffset);
-  let results = (outs I<256>:$dataWord);
-
-  let assemblyFormat = "$dataOffset `:` type($dataOffset)";
-}
-
 // ExtCodeHash Operation
 def EVM_ExtCodeHash : EVM_Op<"extcodehash"> {
   let summary = "Gets the hash of another account's code.";
@@ -921,6 +908,112 @@ def EVM_Log4 : EVM_Op<"log4"> {
   let assemblyFormat = "$offset `,` $length `,` $topic1 `,` $topic2 `,` $topic3 `,` $topic4 `:` type($offset)";
 }
 
+// DataLoad Operation
+def EVM_DataLoad : EVM_Op<"dataload"> {
+  let summary = "Load a word of the data section.";
+  let description = [{
+    This operation takes one `i256` operand from the stack, which is the byte offset in the data section of EOF container, and returns the 256-bit word at that offset.
+  }];
+
+  let arguments = (ins I<256>:$offset);
+
+  let results = (outs I<256>:$data);
+
+  let assemblyFormat = "$offset `:` type($offset) `->` type($data)";
+}
+
+// DataLoadN Operation
+def EVM_DataLoadN : EVM_Op<"dataloadn"> {
+  let summary = "Load a word of the data section.";
+  let description = [{
+    This operation takes one `i16` argument, which is the byte offset in the data section of EOF container, and returns the 256-bit word at that offset.
+  }];
+
+  let arguments = (ins I16:$offset);
+
+  let results = (outs I<256>:$data);
+
+  let assemblyFormat = "$offset `:` type($offset) `->` type($data)";
+}
+
+// DataSize Operation
+def EVM_DataSize : EVM_Op<"datasize"> {
+  let summary = "Gets the size of the data section.";
+  let description = [{
+    This operation returns the size of the data section for the current call.
+  }];
+
+  let arguments = (ins);
+  let results = (outs I<256>:$size);
+
+  let assemblyFormat = "`->` type($size)";
+}
+
+// DataCopy Operation
+def EVM_DataCopy : EVM_Op<"datacopy"> {
+  let summary = "Copies a portion of the data section to memory.";
+  let description = [{
+    This operation takes three `i256` operands from the stack: the destination memory offset, the source offset in the data section, and the number of bytes to copy.
+  }];
+
+  let arguments = (ins I<256>:$mem_offset, I<256>:$offset, I<256>:$size);
+  let results = (outs);
+
+  let assemblyFormat = "$mem_offset `,` $offset `,` $size `:` type($mem_offset)";
+}
+
+// CallF Operation
+def EVM_CallF : EVM_Op<"callf"> {
+  let summary = "Calls a function.";
+  let description = [{
+    This operation takes one `i16` argument, which is the metadata index in the type section, and call into a function or subroutine, then push an execution state onto the return stack.
+  }];
+
+  let arguments = (ins I16:$target_section_index);
+  let results = (outs);
+
+  let assemblyFormat = "$target_section_index `:` type($target_section_index)";
+}
+
+// RetF Operation
+def EVM_RetF : EVM_Op<"retf"> {
+  let summary = "Returns data from the function execution.";
+  let description = [{
+    This operations sets the Context from CALLF, a function or subroutine, to corresponding values (current section index, program counter).
+  }];
+
+  let arguments = (ins);
+  let results = (outs);
+
+  let assemblyFormat = "";
+}
+
+// EofCreate Operation
+def EVM_EofCreate : EVM_Op<"eofcreate"> {
+  let summary = "Creates a new contract with a deterministic address.";
+  let description = [{
+    This operation takes one `i8` argument, which is the index of EOF subcontainer in the containers, and four `i256` operands from the stack: the amount of Ether to send, a salt value, the memory offset of the initialization code and the length of the initialization code, and It returns the address of the created contract, which is determined using the salt and the caller's address.
+  }];
+
+  let arguments = (ins I8:$initcontainer_index, I<256>:$value, I<256>:$salt, I<256>:$input_offset, I<256>:$input_size);
+  let results = (outs I<256>:$address);
+
+  let assemblyFormat = "$initcontainer_index `,` $value `,` $salt `,` $input_offset `,` $input_size `:` type($initcontainer_index) `->` type($address)";
+}
+
+// ReturnContract Operation
+def EVM_ReturnContract : EVM_Op<"returncontract"> {
+  let summary = "Appends auxiliary data from memory stack to deployed contract";
+  let description = [{
+    This operation takes one `i8` argument, which is the index of EOF containers and two `i256` operand from the stack:  the memory offset of the auxiliary data and the length of the auxiliary data to copy, and It appended to deployed container's data.
+  }];
+
+  let arguments = (ins I8:$deploy_container_index, I<256>:$aux_data_offset, I<256>:$aux_data_size);
+  let results = (outs);
+
+  let assemblyFormat = "$deploy_container_index `,` $aux_data_offset `,` $aux_data_size `:` type($deploy_container_index)";
+}
+
 // Create Operation
 def EVM_Create : EVM_Op<"create"> {
   let summary = "Creates a new contract.";
@@ -999,6 +1092,45 @@ def EVM_Create2 : EVM_Op<"create2"> {
   let assemblyFormat = "$value `,` $offset `,` $length `,` $salt `:` type($value) `->` type($address)";
 }
 
+// ReturndataLoad Operation
+def EVM_ReturndataLoad : EVM_Op<"returndataload"> {
+  let summary = "Loads a word from the returned data from the last external call.";
+  let description = [{
+    This operation takes one `i256` operand from the stack: the offset in the returned data, and pushes the loaded word onto the stack.
+  }];
+
+  let arguments = (ins I<256>:$offset);
+  let results = (outs I<256>:$data);
+
+  let assemblyFormat = "$offset `:` type($offset) `->` type($data)";
+}
+
+// ExtCall Operation
+def EVM_ExtCall : EVM_Op<"extcall"> {
+  let summary = "Similar to Call.";
+  let description = [{
+    This operation takes four `i256` operands from the stack: the target address, the memory offset of the input data, the length of the input data to copy, the amount of Ether to send, and It returns 0 if the call succeeds, 1 for revert if sub context reverted and 2 if it fails.
+  }];
+
+  let arguments = (ins I<256>:$target_address, I<256>:$input_offset, I<256>:$input_size, I<256>:$value);
+  let results = (outs I<256>:$status);
+
+  let assemblyFormat = "$target_address `,` $input_offset `,` $input_size `,` $value `:` type($target_address) `->` type($status)";
+}
+
+// ExtDelegatecall Operation
+def EVM_ExtDelegatecall : EVM_Op<"extdelegatecall"> {
+  let summary = "Similar to Delegatecall.";
+  let description = [{
+    This operation is similar to `extcall`, but it also keeps the caller's sender and value.
+  }];
+
+  let arguments = (ins I<256>:$target_address, I<256>:$input_offset, I<256>:$input_size);
+  let results = (outs I<256>:$status);
+
+  let assemblyFormat = "$target_address `,` $input_offset `,` $input_size `:` type($target_address) `->` type($status)";
+}
+
 // Staticcall Operation
 def EVM_Staticcall : EVM_Op<"staticcall"> {
   let summary = "Calls a contract in a static context.";
@@ -1010,6 +1142,19 @@ def EVM_Staticcall : EVM_Op<"staticcall"> {
   let results = (outs I<256>:$success);
 
   let assemblyFormat = "$gas `,` $address `,` $inputOffset `,` $inputLength `,` $outputOffset `,` $outputLength `:` type($gas) `->` type($success)";
+}
+
+// ExtStaticcall Operation
+def EVM_ExtStaticcall : EVM_Op<"extstaticcall"> {
+  let summary = "Similar to Staticcall.";
+  let description = [{
+    This operation is similar to `extcall`, but it does not allow state modifications.
+  }];
+
+  let arguments = (ins I<256>:$target_address, I<256>:$input_offset, I<256>:$input_size);
+  let results = (outs I<256>:$status);
+
+  let assemblyFormat = "$target_address `,` $input_offset `,` $input_size `:` type($target_address) `->` type($status)";
 }
 
 // Revert Operation

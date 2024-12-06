@@ -1331,7 +1331,7 @@ fn delegatecall_1() {
         Operation::Push((1, 4_u32.into())), // args offset
         Operation::Push((1, 5_u32.into())), // address
         Operation::Push((1, 6_u32.into())), // gas
-        Operation::DelegateCall,
+        Operation::Delegatecall,
     ];
     let result = run_result(operations);
     assert!(result.is_success());
@@ -1348,7 +1348,7 @@ fn staticcall_1() {
         Operation::Push((1, 4_u32.into())), // args offset
         Operation::Push((1, 5_u32.into())), // address
         Operation::Push((1, 6_u32.into())), // gas
-        Operation::StaticCall,
+        Operation::Staticcall,
     ];
     let result = run_result(operations);
     assert!(result.is_success());

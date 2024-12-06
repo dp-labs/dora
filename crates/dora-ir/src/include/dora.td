@@ -1099,7 +1099,7 @@ def Dora_DataLoad : Dora_Op<"dataload"> {
 
   let arguments = (ins AnyTypeOf<[I32, I64, I<128>, I<256>, F32, F64, F128, F<256>]>:$offset);
 
-  let results = (outs I<256>:$data);
+  let results = (outs AnyTypeOf<[I32, I64, I<128>, I<256>, F32, F64, F128, F<256>]>:$data);
 
   let assemblyFormat = "$offset `:` type($offset) `->` type($data)";
 }
@@ -1108,14 +1108,14 @@ def Dora_DataLoad : Dora_Op<"dataload"> {
 def Dora_DataLoadN : Dora_Op<"dataloadn"> {
   let summary = "Load a word of the data section.";
   let description = [{
-    This operation takes one `i128` argument, which is the byte offset in the data section of EOF container, and returns the 256-bit word at that offset.
+    This operation takes one `16` argument, which is the byte offset in the data section of EOF container, and returns the 256-bit word at that offset.
   }];
 
-  let arguments = (ins);
+  let arguments = (ins AnyTypeOf<[I16, F16]>:$offset);
 
-  let results = (outs I<256>:$data);
+  let results = (outs AnyTypeOf<[I32, I64, I<128>, I<256>, F32, F64, F128, F<256>]>:$data);
 
-  let assemblyFormat = "`->` type($data)";
+  let assemblyFormat = "$offset `:` type($offset) `->` type($data)";
 }
 
 // DataSize Operation
@@ -1155,17 +1155,17 @@ def Dora_CallF : Dora_Op<"callf"> {
     This operation takes one `i16` argument, which is the metadata index in the type section, and call into a function or subroutine, then push an execution state onto the return stack.
   }];
 
-  let arguments = (ins);
+  let arguments = (ins AnyTypeOf<[I16, F16]>:$target_section_index);
   let results = (outs);
 
-  let assemblyFormat = "";
+  let assemblyFormat = "$target_section_index `:` type($target_section_index)";
 }
 
 // RetF Operation
 def Dora_RetF : Dora_Op<"retf"> {
   let summary = "Returns data from the function execution.";
   let description = [{
-    This operations returns value from a function or subroutine, which is Context from CALLF, and which pop an execution state from return stack and set to corresponding values (current section index, program counter).
+    This operations sets the Context from CALLF, a function or subroutine, to corresponding values (current section index, program counter).
   }];
 
   let arguments = (ins);
@@ -1178,34 +1178,36 @@ def Dora_RetF : Dora_Op<"retf"> {
 def Dora_EofCreate : Dora_Op<"eofcreate"> {
   let summary = "Creates a new contract with a deterministic address.";
   let description = [{
-    This operation takes one `i64` argument, which is the index of EOF subcontainer in the containers, and four `i256` operands from the stack: the amount of Ether to send, a salt value, the memory offset of the initialization code and the length of the initialization code, and It returns the address of the created contract, which is determined using the salt and the caller's address.
+    This operation takes one `i8` argument, which is the index of EOF subcontainer in the containers, and four `i256` operands from the stack: the amount of Ether to send, a salt value, the memory offset of the initialization code and the length of the initialization code, and It returns the address of the created contract, which is determined using the salt and the caller's address.
   }];
 
   let arguments = (ins
+    I8:$initcontainer_index,
     AnyTypeOf<[I32, I64, I<128>, I<256>, F32, F64, F128, F<256>]>:$value,
-    AnyTypeOf<[I32, I64, I<128>, I<256>, F32, F64, F128, F<256>]>:$salt,
+    AnyTypeOf<[I<256>, F<256>]>:$salt,
     AnyTypeOf<[I32, I64, I<128>, I<256>, F32, F64, F128, F<256>]>:$input_offset,
     AnyTypeOf<[I32, I64, I<128>, I<256>, F32, F64, F128, F<256>]>:$input_size
   );
   let results = (outs AnyTypeOf<[I32, I64, I<128>, I<256>, F32, F64, F128, F<256>]>:$address);
 
-  let assemblyFormat = "$value `,` $salt `,` $input_offset `,` $input_size `:` type($value) `->` type($address)";
+  let assemblyFormat = "$initcontainer_index `,` $value `,` $salt `,` $input_offset `,` $input_size `:` type($initcontainer_index) `->` type($address)";
 }
 
 // ReturnContract Operation
 def Dora_ReturnContract : Dora_Op<"returncontract"> {
-  let summary = "Deploys container to an address";
+  let summary = "Appends auxiliary data from memory stack to deployed contract";
   let description = [{
     This operation takes one `i8` argument, which is the index of EOF containers and two `i256` operand from the stack:  the memory offset of the auxiliary data and the length of the auxiliary data to copy, and It appended to deployed container's data.
   }];
 
   let arguments = (ins
+    I8:$deploy_container_index,
     AnyTypeOf<[I32, I64, I<128>, I<256>, F32, F64, F128, F<256>]>:$aux_data_offset,
     AnyTypeOf<[I32, I64, I<128>, I<256>, F32, F64, F128, F<256>]>:$aux_data_size
   );
   let results = (outs);
 
-  let assemblyFormat = "$aux_data_offset `,` $aux_data_size `:` type($aux_data_offset)";
+  let assemblyFormat = "$deploy_container_index `,` $aux_data_offset `,` $aux_data_size `:` type($deploy_container_index)";
 }
 
 // Create Operation
@@ -1328,13 +1330,13 @@ def Dora_Create2 : Dora_Op<"create2"> {
 def Dora_ReturndataLoad : Dora_Op<"returndataload"> {
   let summary = "Loads a word from the returned data from the last external call.";
   let description = [{
-    This operation takes one `i16` argument, which is the offset in the returned data, and pushes the loaded word onto the stack.
+    This operation takes one `i256` operand from the stack: the offset in the returned data, and pushes the loaded word onto the stack.
   }];
 
-  let arguments = (ins);
-  let results = (outs I<256>:$value);
+  let arguments = (ins AnyTypeOf<[I32, I64, I<128>, I<256>, F32, F64, F128, F<256>]>:$offset);
+  let results = (outs AnyTypeOf<[I32, I64, I<128>, I<256>, F32, F64, F128, F<256>]>:$data);
 
-  let assemblyFormat = "type($value)";
+  let assemblyFormat = "$offset `:` type($offset) `->` type($data)";
 }
 
 // ExtCall Operation

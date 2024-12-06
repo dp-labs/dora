@@ -1,5 +1,4 @@
 use melior::ir::{Block, BlockRef, Region};
-use num_bigint::BigUint;
 
 use crate::backend::{Builder, EVMBuilder};
 use crate::errors::Result;
@@ -85,7 +84,7 @@ impl<'c> EVMCompiler<'c> {
         let dest_offset = builder.stack_pop()?;
         let data_offset = builder.stack_pop()?;
         let length = builder.stack_pop()?;
-        builder.calldatacopy(dest_offset, data_offset, length)?;
+        builder.calldatacopy(dest_offset, data_offset, length);
         Ok((start_block, start_block))
     }
 
@@ -146,7 +145,19 @@ impl<'c> EVMCompiler<'c> {
         let dest_offset = builder.stack_pop()?;
         let data_offset = builder.stack_pop()?;
         let length = builder.stack_pop()?;
-        builder.codecopy(dest_offset, data_offset, length)?;
+        builder.codecopy(dest_offset, data_offset, length);
+        Ok((start_block, start_block))
+    }
+
+    pub(crate) fn returndataload<'r>(
+        ctx: &mut CtxType<'c>,
+        region: &'r Region<'c>,
+    ) -> Result<(BlockRef<'r, 'c>, BlockRef<'r, 'c>)> {
+        let start_block = region.append_block(Block::new(&[]));
+        let mut builder = Self::make_builder(ctx, start_block);
+        let data_offset = builder.stack_pop()?;
+        let value = builder.returndataload(data_offset)?;
+        builder.stack_push(value)?;
         Ok((start_block, start_block))
     }
 
@@ -170,19 +181,7 @@ impl<'c> EVMCompiler<'c> {
         let dest_offset = builder.stack_pop()?;
         let data_offset = builder.stack_pop()?;
         let length = builder.stack_pop()?;
-        builder.returndatacopy(dest_offset, data_offset, length)?;
-        Ok((start_block, start_block))
-    }
-
-    pub(crate) fn returndataload<'r>(
-        ctx: &mut CtxType<'c>,
-        region: &'r Region<'c>,
-    ) -> Result<(BlockRef<'r, 'c>, BlockRef<'r, 'c>)> {
-        let start_block = region.append_block(Block::new(&[]));
-        let mut builder = Self::make_builder(ctx, start_block);
-        let data_offset = builder.stack_pop()?;
-        let value = builder.returndataload(data_offset)?;
-        builder.stack_push(value)?;
+        builder.returndatacopy(dest_offset, data_offset, length);
         Ok((start_block, start_block))
     }
 

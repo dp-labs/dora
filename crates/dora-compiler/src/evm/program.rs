@@ -380,21 +380,21 @@ macro_rules! operations {
                     }
                     Opcode::RJUMPV => {
                         *pc += 1;
-                        let x1 = opcodes[*pc..(*pc + 1)]
+                        let t1 = opcodes[*pc..(*pc + 1)]
                             .try_into()
                             .unwrap();
-                        let v1 = u8::from_be_bytes(x1);
-                        let mut v2: Vec<u16> = vec![];
+                        let x1 = u8::from_be_bytes(t1);
+                        let mut x2: Vec<u16> = vec![];
                         *pc -= 1;
-                        for _ in 0..v1+1 {
+                        for _ in 0..x1+1 {
                             *pc += 2;
-                            let x2 = opcodes[*pc..(*pc + 2)]
+                            let t2 = opcodes[*pc..(*pc + 2)]
                                 .try_into()
                                 .unwrap();
-                            v2.push(u16::from_be_bytes(x2));
+                            x2.push(u16::from_be_bytes(t2));
                         }
 
-                        Operation::RJumpV((v1, v2))
+                        Operation::RJumpV((x1, x2))
                     }
                     Opcode::CALLF => {
                         *pc += 1;

@@ -1,12 +1,3 @@
-use crate::backend::IntCC;
-use crate::context::Context;
-use crate::conversion::builder::OpBuilder;
-use crate::errors::{Error as CompileError, Result};
-use crate::evm::program::Operation;
-use crate::intrinsics::Intrinsics;
-use crate::module::Module as MLIRModule;
-use crate::symbols as symbols_ctx;
-use crate::Compiler;
 use dora_runtime::constants::STACK_SIZE_GLOBAL;
 use dora_runtime::{constants::STACK_PTR_GLOBAL, ExitStatusCode};
 use dora_runtime::{
@@ -30,18 +21,26 @@ use melior::{
     Context as MLIRContext,
 };
 use num_bigint::BigUint;
-use program::stack_io;
-use revmc::primitives::SpecId;
-use revmc::OpcodeInfo;
+use revmc::{op_info_map, primitives::SpecId, OpcodeInfo};
 use std::collections::BTreeMap;
+
+use crate::backend::IntCC;
+use crate::context::Context;
+use crate::conversion::builder::OpBuilder;
+use crate::errors::{Error as CompileError, Result};
+use crate::evm::program::Operation;
+use crate::intrinsics::Intrinsics;
+use crate::module::Module as MLIRModule;
+use crate::symbols as symbols_ctx;
+use crate::Compiler;
 pub mod backend;
 pub(crate) mod conversion;
 pub(crate) mod instructions;
 pub mod pass;
 pub mod program;
 pub use conversion::ConversionPass;
+use program::stack_io;
 pub use program::Program;
-use revmc::op_info_map;
 
 #[cfg(test)]
 mod tests;
@@ -217,15 +216,15 @@ impl<'c> EVMCompiler<'c> {
             Operation::CalldataSize => EVMCompiler::calldatasize(ctx, region),
             Operation::CalldataCopy => EVMCompiler::calldatacopy(ctx, region),
             Operation::DataLoad => EVMCompiler::dataload(ctx, region),
-            Operation::DataLoadN(x) => EVMCompiler::dataloadn(ctx, region, x.clone()),
+            Operation::DataLoadN(x) => EVMCompiler::dataloadn(ctx, region, *x),
             Operation::DataSize => EVMCompiler::datasize(ctx, region),
             Operation::DataCopy => EVMCompiler::datacopy(ctx, region),
             Operation::CodeSize => EVMCompiler::codesize(ctx, region),
             Operation::CodeCopy => EVMCompiler::codecopy(ctx, region),
             Operation::ExtCodeCopy => EVMCompiler::extcodecopy(ctx, region),
+            Operation::ReturndataLoad => EVMCompiler::returndataload(ctx, region),
             Operation::ReturndataSize => EVMCompiler::returndatasize(ctx, region),
             Operation::ReturndataCopy => EVMCompiler::returndatacopy(ctx, region),
-            Operation::ReturndataLoad => EVMCompiler::returndataload(ctx, region),
             Operation::Gas => EVMCompiler::gas(ctx, region),
             // Host env instructions
             Operation::GasPrice => EVMCompiler::gasprice(ctx, region),
@@ -253,20 +252,20 @@ impl<'c> EVMCompiler<'c> {
             Operation::SelfDestruct => EVMCompiler::selfdestruct(ctx, region),
             // Stack instructions
             Operation::Push0 => EVMCompiler::push(ctx, region, BigUint::ZERO),
-            Operation::Push((_, x)) => EVMCompiler::push(ctx, region, x.clone()),
+            Operation::Push((_, x)) => EVMCompiler::push(ctx, region, (*x).clone()),
             Operation::Pop => EVMCompiler::pop(ctx, region),
             Operation::Dup(n) => EVMCompiler::dup(ctx, region, (*n).into()),
-            Operation::DupN(x) => EVMCompiler::dupn(ctx, region, x.clone()),
+            Operation::DupN(x) => EVMCompiler::dupn(ctx, region, *x),
             Operation::Swap(n) => EVMCompiler::swap(ctx, region, (*n).into()),
-            Operation::SwapN(x) => EVMCompiler::swapn(ctx, region, x.clone()),
-            Operation::Exchange(x) => EVMCompiler::exchange(ctx, region, x.clone()),
+            Operation::SwapN(x) => EVMCompiler::swapn(ctx, region, *x),
+            Operation::Exchange(x) => EVMCompiler::exchange(ctx, region, *x),
             // Control instructions
             Operation::Jump => EVMCompiler::jump(ctx, region),
             Operation::JumpI => EVMCompiler::jumpi(ctx, region),
-            Operation::JumpF(x) => EVMCompiler::jumpf(ctx, region, x.clone()),
-            Operation::RJump(x) => EVMCompiler::rjump(ctx, region, x.clone()),
-            Operation::RJumpI(x) => EVMCompiler::rjumpi(ctx, region, x.clone()),
-            Operation::RJumpV((x1, x2)) => EVMCompiler::rjumpv(ctx, region, x1.clone(), x2.clone()),
+            Operation::JumpF(x) => EVMCompiler::jumpf(ctx, region, *x),
+            Operation::RJump(x) => EVMCompiler::rjump(ctx, region, *x),
+            Operation::RJumpI(x) => EVMCompiler::rjumpi(ctx, region, *x),
+            Operation::RJumpV((x1, x2)) => EVMCompiler::rjumpv(ctx, region, *x1, (*x2).clone()),
             Operation::PC { pc } => EVMCompiler::pc(ctx, region, *pc),
             Operation::Jumpdest { pc } => EVMCompiler::jumpdest(ctx, region, *pc),
             Operation::Revert => EVMCompiler::revert(ctx, region),
@@ -281,10 +280,10 @@ impl<'c> EVMCompiler<'c> {
             // Contract instructions
             Operation::Create => EVMCompiler::create(ctx, region),
             Operation::Create2 => EVMCompiler::create2(ctx, region),
-            Operation::EofCreate(x) => EVMCompiler::eofcreate(ctx, region, x.clone()),
-            Operation::ReturnContract(x) => EVMCompiler::returncontract(ctx, region, x.clone()),
+            Operation::EofCreate(x) => EVMCompiler::eofcreate(ctx, region, *x),
+            Operation::ReturnContract(x) => EVMCompiler::returncontract(ctx, region, *x),
             Operation::Call => EVMCompiler::call(ctx, region),
-            Operation::CallF(x) => EVMCompiler::callf(ctx, region, x.clone()),
+            Operation::CallF(x) => EVMCompiler::callf(ctx, region, *x),
             Operation::RetF => EVMCompiler::retf(ctx, region),
             Operation::CallCode => EVMCompiler::callcode(ctx, region),
             Operation::Delegatecall => EVMCompiler::delegatecall(ctx, region),
