@@ -169,8 +169,40 @@ pub struct RuntimeContext<DB: Database> {
 /// ```
 #[derive(Clone, Debug, Default, Eq, PartialEq, Hash)]
 pub struct LogData {
-    pub topics: Vec<U256>,
+    pub topics: Vec<B256>,
     pub data: Vec<u8>,
+}
+
+impl LogData {
+    /// Creates a new log, without length-checking. This allows creation of
+    /// invalid logs. May be safely used when the length of the topic list is
+    /// known to be 4 or less.
+    #[inline]
+    pub const fn new_unchecked(topics: Vec<B256>, data: Vec<u8>) -> Self {
+        Self { topics, data }
+    }
+
+    /// Creates a new log.
+    #[inline]
+    pub fn new(topics: Vec<B256>, data: Vec<u8>) -> Option<Self> {
+        let this = Self::new_unchecked(topics, data);
+        this.is_valid().then_some(this)
+    }
+
+    /// Creates a new empty log.
+    #[inline]
+    pub const fn empty() -> Self {
+        Self {
+            topics: Vec::new(),
+            data: Vec::new(),
+        }
+    }
+
+    /// True if valid, false otherwise.
+    #[inline]
+    pub fn is_valid(&self) -> bool {
+        self.topics.len() <= 4
+    }
 }
 
 /// Represents a log entry created during contract execution.
@@ -965,7 +997,12 @@ impl<DB: Database> RuntimeContext<DB> {
         Box::into_raw(Box::new(Result::success_with_gas((), gas_cost)))
     }
 
-    pub extern "C" fn sstore(&mut self, stg_key: &Bytes32, stg_value: &Bytes32) -> *mut Result<()> {
+    pub extern "C" fn sstore(
+        &mut self,
+        stg_key: &Bytes32,
+        stg_value: &Bytes32,
+        gas_remaining: u64,
+    ) -> *mut Result<()> {
         let mut host = self.host.write().unwrap();
         let addr = host.env().tx.transact_to;
         let result = host.sstore(addr, *stg_key, *stg_value);
@@ -974,19 +1011,24 @@ impl<DB: Database> RuntimeContext<DB> {
         let current = result.present_value.to_u256();
         let new = stg_value.to_u256();
 
-        let gas_cost = gas::sstore_cost(
+        match gas::sstore_cost(
             self.inner_context.spec_id,
             original,
             current,
             new,
-            self.inner_context.gas_remaining.unwrap_or(0),
+            gas_remaining,
             result.is_cold,
-        )
-        .unwrap_or(0);
-        self.inner_context.gas_refund +=
-            gas::sstore_refund(self.inner_context.spec_id, original, current, new);
-
-        Box::into_raw(Box::new(Result::success_with_gas((), gas_cost)))
+        ) {
+            Some(gas_cost) => {
+                self.inner_context.gas_refund +=
+                    gas::sstore_refund(self.inner_context.spec_id, original, current, new);
+                Box::into_raw(Box::new(Result::success_with_gas((), gas_cost)))
+            }
+            None => Box::into_raw(Box::new(Result::error(
+                ExitStatusCode::OutOfGas.to_u8(),
+                (),
+            ))),
+        }
     }
 
     pub extern "C" fn append_log(&mut self, offset: u64, size: u64) {
@@ -999,7 +1041,7 @@ impl<DB: Database> RuntimeContext<DB> {
         size: u64,
         topic: &Bytes32,
     ) {
-        self.create_log(offset, size, vec![topic.to_u256()]);
+        self.create_log(offset, size, vec![topic.to_b256()]);
     }
 
     pub extern "C" fn append_log_with_two_topics(
@@ -1009,7 +1051,7 @@ impl<DB: Database> RuntimeContext<DB> {
         topic1: &Bytes32,
         topic2: &Bytes32,
     ) {
-        self.create_log(offset, size, vec![topic1.to_u256(), topic2.to_u256()]);
+        self.create_log(offset, size, vec![topic1.to_b256(), topic2.to_b256()]);
     }
 
     pub extern "C" fn append_log_with_three_topics(
@@ -1023,7 +1065,7 @@ impl<DB: Database> RuntimeContext<DB> {
         self.create_log(
             offset,
             size,
-            vec![topic1.to_u256(), topic2.to_u256(), topic3.to_u256()],
+            vec![topic1.to_b256(), topic2.to_b256(), topic3.to_b256()],
         );
     }
 
@@ -1040,10 +1082,10 @@ impl<DB: Database> RuntimeContext<DB> {
             offset,
             size,
             vec![
-                topic1.to_u256(),
-                topic2.to_u256(),
-                topic3.to_u256(),
-                topic4.to_u256(),
+                topic1.to_b256(),
+                topic2.to_b256(),
+                topic3.to_b256(),
+                topic4.to_b256(),
             ],
         );
     }
@@ -1072,7 +1114,7 @@ impl<DB: Database> RuntimeContext<DB> {
         Box::into_raw(Box::new(Result::success(())))
     }
 
-    fn create_log(&mut self, offset: u64, size: u64, topics: Vec<U256>) {
+    fn create_log(&mut self, offset: u64, size: u64, topics: Vec<B256>) {
         let offset = offset as usize;
         let size = size as usize;
         let data: Vec<u8> = self.inner_context.memory[offset..offset + size].into();

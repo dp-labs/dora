@@ -266,6 +266,12 @@ impl Bytes32 {
         return Bytes32::from_be_bytes(self.0);
     }
 
+    /// Converts this value to a [`B256`]. This is a simple copy on little-endian systems.
+    #[inline]
+    pub fn to_b256(&self) -> B256 {
+        B256::from_slice(&self.to_be_bytes())
+    }
+
     /// Converts this value to a [`U256`]. This is a no-op on little-endian systems.
     #[inline]
     pub const fn into_u256(self) -> U256 {

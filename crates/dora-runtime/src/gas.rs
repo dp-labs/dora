@@ -1,7 +1,7 @@
 use crate::constants::gas_cost::{
     ACCESS_LIST_STORAGE_KEY, CALL_STIPEND, COLD_ACCOUNT_ACCESS_COST, COLD_SLOAD_COST,
-    INSTANBUL_SLOAD_GAS, REFUND_SSTORE_CLEARS, SSTORE_RESET, SSTORE_SET, WARM_SSTORE_RESET,
-    WARM_STORAGE_READ_COST,
+    INSTANBUL_SLOAD_GAS, REFUND_SSTORE_CLEARS, SSTORE_RESET, SSTORE_SET, WARM_SLOAD_COST,
+    WARM_SSTORE_RESET,
 };
 use crate::host::SelfDestructResult;
 use dora_primitives::spec::SpecId;
@@ -33,26 +33,20 @@ pub fn sstore_cost(
     if spec_id.is_enabled_in(SpecId::ISTANBUL) && gas <= CALL_STIPEND {
         return None;
     }
-
-    match spec_id {
-        _ if spec_id.is_enabled_in(SpecId::BERLIN) => {
-            // Berlin specification logic
-            let base_cost = calculate_sstore_cost::<WARM_STORAGE_READ_COST, WARM_SSTORE_RESET>(
-                original, current, new,
-            );
-            let additional_cost = if is_cold { COLD_SLOAD_COST } else { 0 };
-            Some(base_cost + additional_cost)
-        }
-        _ if spec_id.is_enabled_in(SpecId::ISTANBUL) => {
-            // Istanbul specification logic
-            Some(calculate_sstore_cost::<INSTANBUL_SLOAD_GAS, SSTORE_RESET>(
-                original, current, new,
-            ))
-        }
-        _ => {
-            // Frontier specification logic
-            Some(frontier_sstore_cost(current, new))
-        }
+    if spec_id.is_enabled_in(SpecId::BERLIN) {
+        // Berlin specification logic
+        let base_cost =
+            calculate_sstore_cost::<WARM_SLOAD_COST, WARM_SSTORE_RESET>(original, current, new);
+        let additional_cost = if is_cold { COLD_SLOAD_COST } else { 0 };
+        Some(base_cost + additional_cost)
+    } else if spec_id.is_enabled_in(SpecId::ISTANBUL) {
+        // Istanbul specification logic
+        Some(calculate_sstore_cost::<INSTANBUL_SLOAD_GAS, SSTORE_RESET>(
+            original, current, new,
+        ))
+    } else {
+        // Frontier specification logic
+        Some(frontier_sstore_cost(current, new))
     }
 }
 
@@ -125,7 +119,7 @@ pub fn sstore_refund(spec_id: SpecId, original: U256, current: U256, new: U256) 
 
     if original == new {
         let (sstore_reset_cost, sload_cost) = if spec_id.is_enabled_in(SpecId::BERLIN) {
-            (SSTORE_RESET - COLD_SLOAD_COST, WARM_STORAGE_READ_COST)
+            (SSTORE_RESET - COLD_SLOAD_COST, WARM_SLOAD_COST)
         } else {
             (SSTORE_RESET, sload_cost(spec_id, false))
         };
@@ -154,7 +148,7 @@ pub const fn sload_cost(spec_id: SpecId, is_cold: bool) -> u64 {
         if is_cold {
             COLD_SLOAD_COST
         } else {
-            WARM_STORAGE_READ_COST
+            WARM_SLOAD_COST
         }
     } else if spec_id.is_enabled_in(SpecId::ISTANBUL) {
         INSTANBUL_SLOAD_GAS
@@ -183,7 +177,7 @@ pub const fn extcodesize_gas_cost(spec_id: SpecId, is_cold: bool) -> u64 {
         if is_cold {
             COLD_ACCOUNT_ACCESS_COST
         } else {
-            WARM_STORAGE_READ_COST
+            WARM_SLOAD_COST
         }
     } else if spec_id.is_enabled_in(SpecId::TANGERINE) {
         700
@@ -213,7 +207,7 @@ pub const fn extcodecopy_gas_cost(spec_id: SpecId, is_cold: bool) -> u64 {
         if is_cold {
             COLD_ACCOUNT_ACCESS_COST
         } else {
-            WARM_STORAGE_READ_COST
+            WARM_SLOAD_COST
         }
     } else if spec_id.is_enabled_in(SpecId::TANGERINE) {
         700
@@ -240,7 +234,7 @@ pub const fn balance_gas_cost(spec_id: SpecId, is_cold: bool) -> u64 {
         if is_cold {
             COLD_ACCOUNT_ACCESS_COST
         } else {
-            WARM_STORAGE_READ_COST
+            WARM_SLOAD_COST
         }
     } else if spec_id.is_enabled_in(SpecId::ISTANBUL) {
         700
@@ -269,7 +263,7 @@ pub const fn extcodehash_gas_cost(spec_id: SpecId, is_cold: bool) -> u64 {
         if is_cold {
             COLD_ACCOUNT_ACCESS_COST
         } else {
-            WARM_STORAGE_READ_COST
+            WARM_SLOAD_COST
         }
     } else if spec_id.is_enabled_in(SpecId::ISTANBUL) {
         700
