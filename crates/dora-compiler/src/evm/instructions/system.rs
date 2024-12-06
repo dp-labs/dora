@@ -89,7 +89,7 @@ impl<'c> EVMCompiler<'c> {
     }
 
     pub(crate) fn dataload<'r>(
-        ctx: &mut CtxType<'c>,
+        _ctx: &mut CtxType<'c>,
         region: &'r Region<'c>,
     ) -> Result<(BlockRef<'r, 'c>, BlockRef<'r, 'c>)> {
         let start_block = region.append_block(Block::new(&[]));
@@ -98,9 +98,9 @@ impl<'c> EVMCompiler<'c> {
     }
 
     pub(crate) fn dataloadn<'r>(
-        ctx: &mut CtxType<'c>,
+        _ctx: &mut CtxType<'c>,
         region: &'r Region<'c>,
-        offset: u16,
+        _offset: u16,
     ) -> Result<(BlockRef<'r, 'c>, BlockRef<'r, 'c>)> {
         let start_block = region.append_block(Block::new(&[]));
         // TODO : Needs EVMBuilder complete
@@ -108,7 +108,7 @@ impl<'c> EVMCompiler<'c> {
     }
 
     pub(crate) fn datasize<'r>(
-        ctx: &mut CtxType<'c>,
+        _ctx: &mut CtxType<'c>,
         region: &'r Region<'c>,
     ) -> Result<(BlockRef<'r, 'c>, BlockRef<'r, 'c>)> {
         let start_block = region.append_block(Block::new(&[]));
@@ -117,7 +117,7 @@ impl<'c> EVMCompiler<'c> {
     }
 
     pub(crate) fn datacopy<'r>(
-        ctx: &mut CtxType<'c>,
+        _ctx: &mut CtxType<'c>,
         region: &'r Region<'c>,
     ) -> Result<(BlockRef<'r, 'c>, BlockRef<'r, 'c>)> {
         let start_block = region.append_block(Block::new(&[]));

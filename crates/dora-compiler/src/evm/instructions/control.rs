@@ -43,9 +43,9 @@ impl<'c> EVMCompiler<'c> {
     }
 
     pub(crate) fn jumpf<'r>(
-        ctx: &mut CtxType<'c>,
+        _ctx: &mut CtxType<'c>,
         region: &'r Region<'c>,
-        target_section_index: u16,
+        _target_section_index: u16,
     ) -> Result<(BlockRef<'r, 'c>, BlockRef<'r, 'c>)> {
         let start_block = region.append_block(Block::new(&[]));
 
@@ -55,9 +55,9 @@ impl<'c> EVMCompiler<'c> {
     }
 
     pub(crate) fn rjump<'r>(
-        ctx: &mut CtxType<'c>,
+        _ctx: &mut CtxType<'c>,
         region: &'r Region<'c>,
-        relative_offset: u16,
+        _relative_offset: u16,
     ) -> Result<(BlockRef<'r, 'c>, BlockRef<'r, 'c>)> {
         let start_block = region.append_block(Block::new(&[]));
 
@@ -67,9 +67,9 @@ impl<'c> EVMCompiler<'c> {
     }
 
     pub(crate) fn rjumpi<'r>(
-        ctx: &mut CtxType<'c>,
+        _ctx: &mut CtxType<'c>,
         region: &'r Region<'c>,
-        relative_offset: u16,
+        _relative_offset: u16,
     ) -> Result<(BlockRef<'r, 'c>, BlockRef<'r, 'c>)> {
         let start_block = region.append_block(Block::new(&[]));
 
@@ -79,10 +79,10 @@ impl<'c> EVMCompiler<'c> {
     }
 
     pub(crate) fn rjumpv<'r>(
-        ctx: &mut CtxType<'c>,
+        _ctx: &mut CtxType<'c>,
         region: &'r Region<'c>,
-        max_index: u8,
-        relative_offsets: Vec<u16>,
+        _max_index: u8,
+        _relative_offsets: Vec<u16>,
     ) -> Result<(BlockRef<'r, 'c>, BlockRef<'r, 'c>)> {
         let start_block = region.append_block(Block::new(&[]));
 

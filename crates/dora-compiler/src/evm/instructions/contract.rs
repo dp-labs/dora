@@ -36,9 +36,9 @@ impl<'c> EVMCompiler<'c> {
     }
 
     pub(crate) fn eofcreate<'r>(
-        ctx: &mut CtxType<'c>,
+        _ctx: &mut CtxType<'c>,
         region: &'r Region<'c>,
-        initcontainer_index: u8,
+        _initcontainer_index: u8,
     ) -> Result<(BlockRef<'r, 'c>, BlockRef<'r, 'c>)> {
         let start_block = region.append_block(Block::new(&[]));
         // TODO : Needs EVMBuilder complete
@@ -46,9 +46,9 @@ impl<'c> EVMCompiler<'c> {
     }
 
     pub(crate) fn returncontract<'r>(
-        ctx: &mut CtxType<'c>,
+        _ctx: &mut CtxType<'c>,
         region: &'r Region<'c>,
-        deploy_container_index: u8,
+        _deploy_container_index: u8,
     ) -> Result<(BlockRef<'r, 'c>, BlockRef<'r, 'c>)> {
         let start_block = region.append_block(Block::new(&[]));
         // TODO : Needs EVMBuilder complete
@@ -82,9 +82,9 @@ impl<'c> EVMCompiler<'c> {
     }
 
     pub(crate) fn callf<'r>(
-        ctx: &mut CtxType<'c>,
+        _ctx: &mut CtxType<'c>,
         region: &'r Region<'c>,
-        target_section_index: u16,
+        _target_section_index: u16,
     ) -> Result<(BlockRef<'r, 'c>, BlockRef<'r, 'c>)> {
         let start_block = region.append_block(Block::new(&[]));
         // TODO : Needs EVMBuilder complete
@@ -92,7 +92,7 @@ impl<'c> EVMCompiler<'c> {
     }
 
     pub(crate) fn retf<'r>(
-        ctx: &mut CtxType<'c>,
+        _ctx: &mut CtxType<'c>,
         region: &'r Region<'c>,
     ) -> Result<(BlockRef<'r, 'c>, BlockRef<'r, 'c>)> {
         let start_block = region.append_block(Block::new(&[]));
@@ -175,7 +175,7 @@ impl<'c> EVMCompiler<'c> {
     }
 
     pub(crate) fn extcall<'r>(
-        ctx: &mut CtxType<'c>,
+        _ctx: &mut CtxType<'c>,
         region: &'r Region<'c>,
     ) -> Result<(BlockRef<'r, 'c>, BlockRef<'r, 'c>)> {
         let start_block = region.append_block(Block::new(&[]));
@@ -184,7 +184,7 @@ impl<'c> EVMCompiler<'c> {
     }
 
     pub(crate) fn extdelegatecall<'r>(
-        ctx: &mut CtxType<'c>,
+        _ctx: &mut CtxType<'c>,
         region: &'r Region<'c>,
     ) -> Result<(BlockRef<'r, 'c>, BlockRef<'r, 'c>)> {
         let start_block = region.append_block(Block::new(&[]));
@@ -193,7 +193,7 @@ impl<'c> EVMCompiler<'c> {
     }
 
     pub(crate) fn extstaticcall<'r>(
-        ctx: &mut CtxType<'c>,
+        _ctx: &mut CtxType<'c>,
         region: &'r Region<'c>,
     ) -> Result<(BlockRef<'r, 'c>, BlockRef<'r, 'c>)> {
         let start_block = region.append_block(Block::new(&[]));
