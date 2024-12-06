@@ -1226,7 +1226,7 @@ fn log1_2() {
             address: Address::default(),
             data: LogData::new_unchecked(
                 vec![Bytes32::from(0xFFFFFFFF_FFFFFFFF_FFFFFFFF_u128).to_b256()],
-                vec![]
+                vec![0; 50]
             ),
         }]
     );
