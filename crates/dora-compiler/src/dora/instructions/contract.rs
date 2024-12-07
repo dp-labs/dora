@@ -161,7 +161,7 @@ impl<'c> ConversionPass<'c> {
                 );
                 Self::intern_call(context, op, value, 3)?;
             }
-            CallType::StaticCall | CallType::DelegateCall => {
+            CallType::Staticcall | CallType::Delegatecall => {
                 Self::intern_call(
                     context,
                     op,

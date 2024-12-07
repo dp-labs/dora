@@ -49,8 +49,8 @@ module {
   func.func private @dora_fn_ext_code_hash(!llvm.ptr, !llvm.ptr) -> !llvm.ptr
   func.func private @dora_fn_create(!llvm.ptr, i64, i64, !llvm.ptr, !llvm.ptr) -> !llvm.ptr
   func.func private @dora_fn_create2(!llvm.ptr, i64, i64, !llvm.ptr, !llvm.ptr, !llvm.ptr) -> !llvm.ptr
-  func.func private @dora_fn_return_data_size(!llvm.ptr) -> !llvm.ptr
-  func.func private @dora_fn_return_data_copy(!llvm.ptr, i64, i64, i64) -> !llvm.ptr
+  func.func private @dora_fn_returndata_size(!llvm.ptr) -> !llvm.ptr
+  func.func private @dora_fn_returndata_copy(!llvm.ptr, i64, i64, i64) -> !llvm.ptr
   func.func private @dora_fn_selfdestruct(!llvm.ptr, !llvm.ptr) -> !llvm.ptr
   func.func private @dora_fn_transient_storage_read(!llvm.ptr, !llvm.ptr, !llvm.ptr) -> !llvm.ptr
   func.func private @dora_fn_transient_storage_write(!llvm.ptr, !llvm.ptr, !llvm.ptr) -> !llvm.ptr
@@ -1182,7 +1182,7 @@ module {
     llvm.store %463, %460 : i64, !llvm.ptr
     cf.br ^bb110
   ^bb113:  // pred: ^bb114
-    %464 = call @dora_fn_return_data_size(%arg0) : (!llvm.ptr) -> !llvm.ptr
+    %464 = call @dora_fn_returndata_size(%arg0) : (!llvm.ptr) -> !llvm.ptr
     %465 = llvm.getelementptr %464[16] : (!llvm.ptr) -> !llvm.ptr, i8
     %466 = llvm.load %465 : !llvm.ptr -> i64
     %467 = arith.extui %466 : i64 to i256

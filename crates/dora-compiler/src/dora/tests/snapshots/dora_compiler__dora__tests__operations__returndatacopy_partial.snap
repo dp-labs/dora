@@ -49,8 +49,8 @@ module {
   func.func private @dora_fn_ext_code_hash(!llvm.ptr, !llvm.ptr) -> !llvm.ptr
   func.func private @dora_fn_create(!llvm.ptr, i64, i64, !llvm.ptr, !llvm.ptr) -> !llvm.ptr
   func.func private @dora_fn_create2(!llvm.ptr, i64, i64, !llvm.ptr, !llvm.ptr, !llvm.ptr) -> !llvm.ptr
-  func.func private @dora_fn_return_data_size(!llvm.ptr) -> !llvm.ptr
-  func.func private @dora_fn_return_data_copy(!llvm.ptr, i64, i64, i64) -> !llvm.ptr
+  func.func private @dora_fn_returndata_size(!llvm.ptr) -> !llvm.ptr
+  func.func private @dora_fn_returndata_copy(!llvm.ptr, i64, i64, i64) -> !llvm.ptr
   func.func private @dora_fn_selfdestruct(!llvm.ptr, !llvm.ptr) -> !llvm.ptr
   func.func private @dora_fn_transient_storage_read(!llvm.ptr, !llvm.ptr, !llvm.ptr) -> !llvm.ptr
   func.func private @dora_fn_transient_storage_write(!llvm.ptr, !llvm.ptr, !llvm.ptr) -> !llvm.ptr
@@ -286,7 +286,7 @@ module {
     llvm.store %88, %92 : !llvm.ptr, !llvm.ptr
     %93 = llvm.mlir.addressof @dora_global_memory_size : !llvm.ptr
     llvm.store %75, %93 : i64, !llvm.ptr
-    %94 = call @dora_fn_return_data_copy(%arg0, %67, %69, %59) : (!llvm.ptr, i64, i64, i64) -> !llvm.ptr
+    %94 = call @dora_fn_returndata_copy(%arg0, %67, %69, %59) : (!llvm.ptr, i64, i64, i64) -> !llvm.ptr
     %95 = llvm.getelementptr %94[0] : (!llvm.ptr) -> !llvm.ptr, i8
     %96 = llvm.load %95 : !llvm.ptr -> i8
     %c0_i8_27 = arith.constant 0 : i8

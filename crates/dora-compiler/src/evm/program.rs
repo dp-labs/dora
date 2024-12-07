@@ -213,17 +213,37 @@ opcodes! {
     LOG2 = 0xA2,
     LOG3 = 0xA3,
     LOG4 = 0xA4,
-    // unused 0xA5-0xEF
+    // unused 0xA5-0xCF
+    DATALOAD = 0xD0,
+    DATALOADN = 0xD1,
+    DATASIZE = 0xD2,
+    DATACOPY = 0xD3,
+    // unused 0xD4-0xDF
+    RJUMP = 0xE0,
+    RJUMPI = 0xE1,
+    RJUMPV = 0xE2,
+    CALLF = 0xE3,
+    RETF = 0xE4,
+    JUMPF = 0xE5,
+    DUPN = 0xE6,
+    SWAPN = 0xE7,
+    EXCHANGE = 0xE8,
+    // unused 0xE9-0xEB
+    EOFCREATE = 0xEC,
+    RETURNCONTRACT = 0xEE,
+    // unused 0xEF
     CREATE = 0xF0,
     CALL = 0xF1,
     CALLCODE = 0xF2,
     RETURN = 0xF3,
     DELEGATECALL = 0xF4,
     CREATE2 = 0xF5,
-    // unused 0xF6-0xF9
     RETURNDATALOAD = 0xF7,
+    EXTCALL = 0xF8,
+    EXTDELEGATECALL = 0xF9,
     STATICCALL = 0xFA,
-    // unused 0xFB-0xFC
+    EXTSTATICCALL = 0xFB,
+    // unused 0xFC
     REVERT = 0xFD,
     INVALID = 0xFE,
     SELFDESTRUCT = 0xFF,
@@ -242,6 +262,17 @@ macro_rules! operations {
             Dup(u8),
             Swap(u8),
             Log(u8),
+            DataLoadN(u16),
+            RJump(u16),
+            RJumpI(u16),
+            RJumpV((u8, Vec<u16>)),
+            CallF(u16),
+            JumpF(u16),
+            DupN(u8),
+            SwapN(u8),
+            Exchange(u8),
+            EofCreate(u8),
+            ReturnContract(u8)
         }
 
         impl Operation {
@@ -280,7 +311,18 @@ macro_rules! operations {
                             panic!("Invalid LOG index: {}", n);
                         }
                         vec![Opcode::LOG0 as u8 + n]
-                    }
+                    },
+                    Operation::DataLoadN(_) => vec![Opcode::DATALOADN as u8],
+                    Operation::RJump(_) => vec![Opcode::RJUMP as u8],
+                    Operation::RJumpI(_) => vec![Opcode::RJUMPI as u8],
+                    Operation::RJumpV(_) => vec![Opcode::RJUMPV as u8],
+                    Operation::CallF(_) => vec![Opcode::CALLF as u8],
+                    Operation::JumpF(_) => vec![Opcode::JUMPF as u8],
+                    Operation::DupN(_) => vec![Opcode::DUPN as u8],
+                    Operation::SwapN(_) => vec![Opcode::SWAPN as u8],
+                    Operation::Exchange(_) => vec![Opcode::EXCHANGE as u8],
+                    Operation::EofCreate(_) => vec![Opcode::EOFCREATE as u8],
+                    Operation::ReturnContract(_) => vec![Opcode::RETURNCONTRACT as u8],
                 }
             }
 
@@ -289,6 +331,8 @@ macro_rules! operations {
                     $(
                         Opcode::$opcode => Operation::$variant,
                     )*
+                    Opcode::PC => Operation::PC { pc: *pc },
+                    Opcode::JUMPDEST => Operation::Jumpdest { pc: *pc },
                     opcode if Opcode::PUSH1 as u8 <= opcode as u8 && opcode as u8 <= Opcode::PUSH32 as u8 => {
                             *pc += 1;
                             let n = (opcode as u8 - Opcode::PUSH0 as u8) as usize;
@@ -310,8 +354,104 @@ macro_rules! operations {
                         let index = (opcode as u8 - Opcode::LOG0 as u8) as u8;
                         Operation::Log(index)
                     }
-                    Opcode::PC => Operation::PC { pc: *pc },
-                    Opcode::JUMPDEST => Operation::Jumpdest { pc: *pc },
+                    Opcode::DATALOADN => {
+                        *pc += 1;
+                        let x = opcodes[*pc..(*pc + 2)]
+                            .try_into()
+                            .unwrap();
+
+                        Operation::DataLoadN(u16::from_be_bytes(x))
+                    }
+                    Opcode::RJUMP => {
+                        *pc += 1;
+                        let x = opcodes[*pc..(*pc + 2)]
+                            .try_into()
+                            .unwrap();
+
+                        Operation::RJump(u16::from_be_bytes(x))
+                    }
+                    Opcode::RJUMPI => {
+                        *pc += 1;
+                        let x = opcodes[*pc..(*pc + 2)]
+                            .try_into()
+                            .unwrap();
+
+                        Operation::RJumpI(u16::from_be_bytes(x))
+                    }
+                    Opcode::RJUMPV => {
+                        *pc += 1;
+                        let t1 = opcodes[*pc..(*pc + 1)]
+                            .try_into()
+                            .unwrap();
+                        let x1 = u8::from_be_bytes(t1);
+                        let mut x2: Vec<u16> = vec![];
+                        *pc -= 1;
+                        for _ in 0..x1+1 {
+                            *pc += 2;
+                            let t2 = opcodes[*pc..(*pc + 2)]
+                                .try_into()
+                                .unwrap();
+                            x2.push(u16::from_be_bytes(t2));
+                        }
+
+                        Operation::RJumpV((x1, x2))
+                    }
+                    Opcode::CALLF => {
+                        *pc += 1;
+                        let x = opcodes[*pc..(*pc + 2)]
+                            .try_into()
+                            .unwrap();
+
+                        Operation::CallF(u16::from_be_bytes(x))
+                    }
+                    Opcode::JUMPF => {
+                        *pc += 1;
+                        let x = opcodes[*pc..(*pc + 2)]
+                            .try_into()
+                            .unwrap();
+
+                        Operation::JumpF(u16::from_be_bytes(x))
+                    }
+                    Opcode::DUPN => {
+                        *pc += 1;
+                        let x = opcodes[*pc..(*pc + 1)]
+                            .try_into()
+                            .unwrap();
+
+                        Operation::DupN(u8::from_be_bytes(x))
+                    }
+                    Opcode::SWAPN => {
+                        *pc += 1;
+                        let x = opcodes[*pc..(*pc + 1)]
+                            .try_into()
+                            .unwrap();
+
+                        Operation::SwapN(u8::from_be_bytes(x))
+                    }
+                    Opcode::EXCHANGE => {
+                        *pc += 1;
+                        let x = opcodes[*pc..(*pc + 1)]
+                            .try_into()
+                            .unwrap();
+
+                        Operation::Exchange(u8::from_be_bytes(x))
+                    }
+                    Opcode::EOFCREATE => {
+                        *pc += 1;
+                        let x = opcodes[*pc..(*pc + 1)]
+                            .try_into()
+                            .unwrap();
+
+                        Operation::EofCreate(u8::from_be_bytes(x))
+                    }
+                    Opcode::RETURNCONTRACT => {
+                        *pc += 1;
+                        let x = opcodes[*pc..(*pc + 1)]
+                            .try_into()
+                            .unwrap();
+
+                        Operation::ReturnContract(u8::from_be_bytes(x))
+                    }
                     _ => return Err(OpcodeParseError(opcode as u8)),
                 };
                 Ok(op)
@@ -328,6 +468,17 @@ macro_rules! operations {
                     Operation::Dup(n) => Opcode::DUP1 as usize + (*n as usize - 1),
                     Operation::Swap(n) => Opcode::SWAP1 as usize + (*n as usize - 1),
                     Operation::Log(n) => Opcode::LOG0 as usize + *n as usize,
+                    Operation::DataLoadN(_) => Opcode::DATALOADN as usize,
+                    Operation::RJump(_) => Opcode::RJUMP as usize,
+                    Operation::RJumpI(_) => Opcode::RJUMPI as usize,
+                    Operation::RJumpV(_) => Opcode::RJUMPV as usize,
+                    Operation::CallF(_) => Opcode::CALLF as usize,
+                    Operation::JumpF(_) => Opcode::JUMPF as usize,
+                    Operation::DupN(_) => Opcode::DUPN as usize,
+                    Operation::SwapN(_) => Opcode::SWAPN as usize,
+                    Operation::Exchange(_) => Opcode::EXCHANGE as usize,
+                    Operation::EofCreate(_) => Opcode::EOFCREATE as usize,
+                    Operation::ReturnContract(_) => Opcode::RETURNCONTRACT as usize,
                 }
             }
         }
@@ -367,16 +518,15 @@ operations!(
     (Origin, ORIGIN),
     (Caller, CALLER),
     (CallValue, CALLVALUE),
-    (CallDataLoad, CALLDATALOAD),
-    (CallDataSize, CALLDATASIZE),
-    (CallDataCopy, CALLDATACOPY),
+    (CalldataLoad, CALLDATALOAD),
+    (CalldataSize, CALLDATASIZE),
+    (CalldataCopy, CALLDATACOPY),
     (CodeSize, CODESIZE),
     (CodeCopy, CODECOPY),
     (GasPrice, GASPRICE),
     (ExtCodeCopy, EXTCODECOPY),
-    (ReturnDataSize, RETURNDATASIZE),
-    (ReturnDataCopy, RETURNDATACOPY),
-    (ReturnDataLoad, RETURNDATALOAD),
+    (ReturndataSize, RETURNDATASIZE),
+    (ReturndataCopy, RETURNDATACOPY),
     (ExtCodeHash, EXTCODEHASH),
     (BlockHash, BLOCKHASH),
     (ExtCodeSize, EXTCODESIZE),
@@ -384,7 +534,7 @@ operations!(
     (Timestamp, TIMESTAMP),
     (Number, NUMBER),
     (Prevrandao, PREVRANDAO),
-    (Gaslimit, GASLIMIT),
+    (GasLimit, GASLIMIT),
     (Chainid, CHAINID),
     (SelfBalance, SELFBALANCE),
     (BaseFee, BASEFEE),
@@ -397,20 +547,28 @@ operations!(
     (SLoad, SLOAD),
     (SStore, SSTORE),
     (Jump, JUMP),
-    (Jumpi, JUMPI),
+    (JumpI, JUMPI),
     (MSize, MSIZE),
     (Gas, GAS),
     (TLoad, TLOAD),
     (TStore, TSTORE),
     (MCopy, MCOPY),
     (Push0, PUSH0),
+    (DataLoad, DATALOAD),
+    (DataSize, DATASIZE),
+    (DataCopy, DATACOPY),
+    (RetF, RETF),
     (Create, CREATE),
     (Call, CALL),
     (CallCode, CALLCODE),
     (Return, RETURN),
-    (DelegateCall, DELEGATECALL),
+    (Delegatecall, DELEGATECALL),
     (Create2, CREATE2),
-    (StaticCall, STATICCALL),
+    (ReturndataLoad, RETURNDATALOAD),
+    (ExtCall, EXTCALL),
+    (ExtDelegatecall, EXTDELEGATECALL),
+    (Staticcall, STATICCALL),
+    (ExtStaticcall, EXTSTATICCALL),
     (Revert, REVERT),
     (Invalid, INVALID),
     (SelfDestruct, SELFDESTRUCT),
@@ -515,7 +673,7 @@ impl Program {
             .collect::<Vec<u8>>()
     }
 
-    /// Returns `true` if the EVM program is EOF.
+    /// FIXME: Alter below that returns `true` if the EVM program is EOF.
     #[inline]
     pub fn is_eof(&self) -> bool {
         false
@@ -526,7 +684,7 @@ impl Program {
         debug_assert!(!self.is_eof());
         for i in 0..self.operations.len() {
             let op = &self.operations[i];
-            let is_jump = matches!(op, Operation::Jump | Operation::Jumpi);
+            let is_jump = matches!(op, Operation::Jump | Operation::JumpI);
             let is_push = i > 0
                 && matches!(
                     self.operations[i - 1],
@@ -627,16 +785,15 @@ pub const fn stack_io(op: &Operation) -> (u8, u8) {
         Operation::Origin => (0, 1),
         Operation::Caller => (0, 1),
         Operation::CallValue => (0, 1),
-        Operation::CallDataLoad => (1, 1),
-        Operation::CallDataSize => (0, 1),
-        Operation::CallDataCopy => (3, 0),
+        Operation::CalldataLoad => (1, 1),
+        Operation::CalldataSize => (0, 1),
+        Operation::CalldataCopy => (3, 0),
         Operation::CodeSize => (0, 1),
         Operation::CodeCopy => (3, 0),
         Operation::GasPrice => (0, 1),
         Operation::ExtCodeCopy => (4, 0),
-        Operation::ReturnDataSize => (0, 1),
-        Operation::ReturnDataCopy => (3, 0),
-        Operation::ReturnDataLoad => (1, 1),
+        Operation::ReturndataSize => (0, 1),
+        Operation::ReturndataCopy => (3, 0),
         Operation::ExtCodeHash => (1, 1),
         Operation::BlockHash => (1, 1),
         Operation::ExtCodeSize => (1, 1),
@@ -644,7 +801,7 @@ pub const fn stack_io(op: &Operation) -> (u8, u8) {
         Operation::Timestamp => (0, 1),
         Operation::Number => (0, 1),
         Operation::Prevrandao => (0, 1),
-        Operation::Gaslimit => (0, 1),
+        Operation::GasLimit => (0, 1),
         Operation::Chainid => (0, 1),
         Operation::SelfBalance => (0, 1),
         Operation::BaseFee => (0, 1),
@@ -657,20 +814,39 @@ pub const fn stack_io(op: &Operation) -> (u8, u8) {
         Operation::SLoad => (1, 1),
         Operation::SStore => (2, 0),
         Operation::Jump => (1, 0),
-        Operation::Jumpi => (2, 0),
+        Operation::JumpI => (2, 0),
         Operation::MSize => (0, 1),
         Operation::Gas => (0, 1),
         Operation::TLoad => (1, 1),
         Operation::TStore => (2, 0),
         Operation::MCopy => (3, 0),
         Operation::Push0 => (0, 1),
+        Operation::DataLoad => (1, 1),
+        Operation::DataLoadN(_) => (0, 1),
+        Operation::DataSize => (0, 1),
+        Operation::DataCopy => (3, 0),
+        Operation::RJump(_) => (0, 0),
+        Operation::RJumpI(_) => (1, 0),
+        Operation::RJumpV((_, _)) => (1, 0),
+        Operation::CallF(_) => (0, 0),
+        Operation::RetF => (0, 0),
+        Operation::JumpF(_) => (0, 0),
+        Operation::DupN(_) => (0, 0),
+        Operation::SwapN(_) => (0, 0),
+        Operation::Exchange(_) => (0, 0),
+        Operation::EofCreate(_) => (4, 1),
+        Operation::ReturnContract(_) => (2, 0),
         Operation::Create => (3, 1),
         Operation::Call => (7, 1),
         Operation::CallCode => (7, 1),
         Operation::Return => (2, 0),
-        Operation::DelegateCall => (6, 1),
+        Operation::Delegatecall => (6, 1),
         Operation::Create2 => (4, 1),
-        Operation::StaticCall => (6, 1),
+        Operation::ReturndataLoad => (1, 1),
+        Operation::ExtCall => (4, 1),
+        Operation::ExtDelegatecall => (3, 1),
+        Operation::Staticcall => (6, 1),
+        Operation::ExtStaticcall => (3, 1),
         Operation::Revert => (2, 0),
         Operation::Invalid => (0, 0),
         Operation::SelfDestruct => (1, 0),

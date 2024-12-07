@@ -99,19 +99,7 @@ impl<'c> EVMCompiler<'c> {
         let mut builder = Self::make_builder(ctx, start_block);
         let key = builder.stack_pop()?;
         let value = builder.stack_pop()?;
-        builder.sstore(key, value)?;
-        Ok((start_block, start_block))
-    }
-
-    pub(crate) fn tstore<'r>(
-        ctx: &mut CtxType<'c>,
-        region: &'r Region<'c>,
-    ) -> Result<(BlockRef<'r, 'c>, BlockRef<'r, 'c>)> {
-        let start_block = region.append_block(Block::new(&[]));
-        let mut builder = Self::make_builder(ctx, start_block);
-        let key = builder.stack_pop()?;
-        let value = builder.stack_pop()?;
-        builder.tstore(key, value)?;
+        builder.sstore(key, value);
         Ok((start_block, start_block))
     }
 
@@ -124,6 +112,18 @@ impl<'c> EVMCompiler<'c> {
         let key = builder.stack_pop()?;
         let value = builder.tload(key)?;
         builder.stack_push(value)?;
+        Ok((start_block, start_block))
+    }
+
+    pub(crate) fn tstore<'r>(
+        ctx: &mut CtxType<'c>,
+        region: &'r Region<'c>,
+    ) -> Result<(BlockRef<'r, 'c>, BlockRef<'r, 'c>)> {
+        let start_block = region.append_block(Block::new(&[]));
+        let mut builder = Self::make_builder(ctx, start_block);
+        let key = builder.stack_pop()?;
+        let value = builder.stack_pop()?;
+        builder.tstore(key, value);
         Ok((start_block, start_block))
     }
 

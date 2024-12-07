@@ -1,12 +1,3 @@
-use crate::backend::IntCC;
-use crate::context::Context;
-use crate::conversion::builder::OpBuilder;
-use crate::errors::{Error as CompileError, Result};
-use crate::evm::program::Operation;
-use crate::intrinsics::Intrinsics;
-use crate::module::Module as MLIRModule;
-use crate::symbols as symbols_ctx;
-use crate::Compiler;
 use dora_runtime::constants::STACK_SIZE_GLOBAL;
 use dora_runtime::{constants::STACK_PTR_GLOBAL, ExitStatusCode};
 use dora_runtime::{
@@ -30,18 +21,26 @@ use melior::{
     Context as MLIRContext,
 };
 use num_bigint::BigUint;
-use program::stack_io;
-use revmc::primitives::SpecId;
-use revmc::OpcodeInfo;
+use revmc::{op_info_map, primitives::SpecId, OpcodeInfo};
 use std::collections::BTreeMap;
+
+use crate::backend::IntCC;
+use crate::context::Context;
+use crate::conversion::builder::OpBuilder;
+use crate::errors::{Error as CompileError, Result};
+use crate::evm::program::Operation;
+use crate::intrinsics::Intrinsics;
+use crate::module::Module as MLIRModule;
+use crate::symbols as symbols_ctx;
+use crate::Compiler;
 pub mod backend;
 pub(crate) mod conversion;
 pub(crate) mod instructions;
 pub mod pass;
 pub mod program;
 pub use conversion::ConversionPass;
+use program::stack_io;
 pub use program::Program;
-use revmc::op_info_map;
 
 #[cfg(test)]
 mod tests;
@@ -173,16 +172,17 @@ impl<'c> EVMCompiler<'c> {
     ) -> Result<(BlockRef<'c, 'c>, BlockRef<'c, 'c>)> {
         let op_infos = op_info_map(options.spec_id);
         let op_info = op_infos[op.opcode()];
+
         // Note: make opcode not found as the runtime halt error,
         // because normal opcodes still consumes GAS during runtime.
         if op_info.is_unknown() || op_info.is_disabled() {
             return Self::invalid_with_error_code(ctx, region, ExitStatusCode::OpcodeNotFound);
         }
+
         let (mut block_start, block_end) = match &op {
+            // Arithmetic instructions
             Operation::Add => EVMCompiler::add(ctx, region),
             Operation::Mul => EVMCompiler::mul(ctx, region),
-            Operation::Push0 => EVMCompiler::push(ctx, region, BigUint::ZERO),
-            Operation::Push((_, x)) => EVMCompiler::push(ctx, region, x.clone()),
             Operation::Sub => EVMCompiler::sub(ctx, region),
             Operation::Div => EVMCompiler::udiv(ctx, region),
             Operation::SDiv => EVMCompiler::sdiv(ctx, region),
@@ -192,6 +192,7 @@ impl<'c> EVMCompiler<'c> {
             Operation::MulMod => EVMCompiler::mulmod(ctx, region),
             Operation::Exp => EVMCompiler::exp(ctx, region),
             Operation::SignExtend => EVMCompiler::signextend(ctx, region),
+            // Bitwise instructions
             Operation::Lt => EVMCompiler::lt(ctx, region),
             Operation::Gt => EVMCompiler::gt(ctx, region),
             Operation::Slt => EVMCompiler::slt(ctx, region),
@@ -206,65 +207,93 @@ impl<'c> EVMCompiler<'c> {
             Operation::Shl => EVMCompiler::shl(ctx, region),
             Operation::Shr => EVMCompiler::shr(ctx, region),
             Operation::Sar => EVMCompiler::sar(ctx, region),
+            // System instructions
             Operation::Keccak256 => EVMCompiler::keccak256(ctx, region),
             Operation::Address => EVMCompiler::address(ctx, region),
-            Operation::Balance => EVMCompiler::balance(ctx, region),
-            Operation::Origin => EVMCompiler::origin(ctx, region),
             Operation::Caller => EVMCompiler::caller(ctx, region),
             Operation::CallValue => EVMCompiler::callvalue(ctx, region),
-            Operation::CallDataLoad => EVMCompiler::calldataload(ctx, region),
-            Operation::CallDataSize => EVMCompiler::calldatasize(ctx, region),
-            Operation::CallDataCopy => EVMCompiler::calldatacopy(ctx, region),
+            Operation::CalldataLoad => EVMCompiler::calldataload(ctx, region),
+            Operation::CalldataSize => EVMCompiler::calldatasize(ctx, region),
+            Operation::CalldataCopy => EVMCompiler::calldatacopy(ctx, region),
+            Operation::DataLoad => EVMCompiler::dataload(ctx, region),
+            Operation::DataLoadN(x) => EVMCompiler::dataloadn(ctx, region, *x),
+            Operation::DataSize => EVMCompiler::datasize(ctx, region),
+            Operation::DataCopy => EVMCompiler::datacopy(ctx, region),
             Operation::CodeSize => EVMCompiler::codesize(ctx, region),
             Operation::CodeCopy => EVMCompiler::codecopy(ctx, region),
-            Operation::GasPrice => EVMCompiler::gasprice(ctx, region),
-            Operation::ExtCodeSize => EVMCompiler::extcodesize(ctx, region),
             Operation::ExtCodeCopy => EVMCompiler::extcodecopy(ctx, region),
-            Operation::ReturnDataSize => EVMCompiler::returndatasize(ctx, region),
-            Operation::ReturnDataCopy => EVMCompiler::returndatacopy(ctx, region),
-            Operation::ReturnDataLoad => EVMCompiler::returndataload(ctx, region),
-            Operation::ExtCodeHash => EVMCompiler::extcodehash(ctx, region),
-            Operation::BlockHash => EVMCompiler::blockhash(ctx, region),
+            Operation::ReturndataLoad => EVMCompiler::returndataload(ctx, region),
+            Operation::ReturndataSize => EVMCompiler::returndatasize(ctx, region),
+            Operation::ReturndataCopy => EVMCompiler::returndatacopy(ctx, region),
+            Operation::Gas => EVMCompiler::gas(ctx, region),
+            // Host env instructions
+            Operation::GasPrice => EVMCompiler::gasprice(ctx, region),
             Operation::Coinbase => EVMCompiler::coinbase(ctx, region),
+            Operation::Origin => EVMCompiler::origin(ctx, region),
             Operation::Timestamp => EVMCompiler::timestamp(ctx, region),
             Operation::Number => EVMCompiler::number(ctx, region),
             Operation::Prevrandao => EVMCompiler::prevrandao(ctx, region),
-            Operation::Gaslimit => EVMCompiler::gaslimit(ctx, region),
+            Operation::GasLimit => EVMCompiler::gaslimit(ctx, region),
             Operation::Chainid => EVMCompiler::chainid(ctx, region),
-            Operation::SelfBalance => EVMCompiler::selfbalance(ctx, region),
             Operation::BaseFee => EVMCompiler::basefee(ctx, region),
-            Operation::BlobHash => EVMCompiler::blobhash(ctx, region),
             Operation::BlobBaseFee => EVMCompiler::blobbasefee(ctx, region),
+            Operation::BlobHash => EVMCompiler::blobhash(ctx, region),
+            // Host instructions
+            Operation::Balance => EVMCompiler::balance(ctx, region),
+            Operation::SelfBalance => EVMCompiler::selfbalance(ctx, region),
+            Operation::ExtCodeSize => EVMCompiler::extcodesize(ctx, region),
+            Operation::ExtCodeHash => EVMCompiler::extcodehash(ctx, region),
+            Operation::BlockHash => EVMCompiler::blockhash(ctx, region),
+            Operation::SLoad => EVMCompiler::sload(ctx, region),
+            Operation::SStore => EVMCompiler::sstore(ctx, region),
+            Operation::TLoad => EVMCompiler::tload(ctx, region),
+            Operation::TStore => EVMCompiler::tstore(ctx, region),
+            Operation::Log(x) => EVMCompiler::log(ctx, region, *x),
+            Operation::SelfDestruct => EVMCompiler::selfdestruct(ctx, region),
+            // Stack instructions
+            Operation::Push0 => EVMCompiler::push(ctx, region, BigUint::ZERO),
+            Operation::Push((_, x)) => EVMCompiler::push(ctx, region, (*x).clone()),
             Operation::Pop => EVMCompiler::pop(ctx, region),
+            Operation::Dup(n) => EVMCompiler::dup(ctx, region, (*n).into()),
+            Operation::DupN(x) => EVMCompiler::dupn(ctx, region, *x),
+            Operation::Swap(n) => EVMCompiler::swap(ctx, region, (*n).into()),
+            Operation::SwapN(x) => EVMCompiler::swapn(ctx, region, *x),
+            Operation::Exchange(x) => EVMCompiler::exchange(ctx, region, *x),
+            // Control instructions
+            Operation::Jump => EVMCompiler::jump(ctx, region),
+            Operation::JumpI => EVMCompiler::jumpi(ctx, region),
+            Operation::JumpF(x) => EVMCompiler::jumpf(ctx, region, *x),
+            Operation::RJump(x) => EVMCompiler::rjump(ctx, region, *x),
+            Operation::RJumpI(x) => EVMCompiler::rjumpi(ctx, region, *x),
+            Operation::RJumpV((x1, x2)) => EVMCompiler::rjumpv(ctx, region, *x1, (*x2).clone()),
+            Operation::PC { pc } => EVMCompiler::pc(ctx, region, *pc),
+            Operation::Jumpdest { pc } => EVMCompiler::jumpdest(ctx, region, *pc),
+            Operation::Revert => EVMCompiler::revert(ctx, region),
+            Operation::Stop => EVMCompiler::stop(ctx, region),
+            Operation::Invalid => EVMCompiler::invalid(ctx, region),
+            // Memory instructions
             Operation::MLoad => EVMCompiler::mload(ctx, region),
             Operation::MStore => EVMCompiler::mstore(ctx, region),
             Operation::MStore8 => EVMCompiler::mstore8(ctx, region),
-            Operation::SLoad => EVMCompiler::sload(ctx, region),
-            Operation::SStore => EVMCompiler::sstore(ctx, region),
-            Operation::Jump => EVMCompiler::jump(ctx, region),
-            Operation::Jumpi => EVMCompiler::jumpi(ctx, region),
-            Operation::PC { pc } => EVMCompiler::pc(ctx, region, *pc),
             Operation::MSize => EVMCompiler::msize(ctx, region),
-            Operation::Gas => EVMCompiler::gas(ctx, region),
-            Operation::Jumpdest { pc } => EVMCompiler::jumpdest(ctx, region, *pc),
-            Operation::TLoad => EVMCompiler::tload(ctx, region),
-            Operation::TStore => EVMCompiler::tstore(ctx, region),
             Operation::MCopy => EVMCompiler::mcopy(ctx, region),
-            Operation::Dup(n) => EVMCompiler::dup(ctx, region, (*n).into()),
-            Operation::Swap(n) => EVMCompiler::swap(ctx, region, (*n).into()),
-            Operation::Log(x) => EVMCompiler::log(ctx, region, *x),
+            // Contract instructions
             Operation::Create => EVMCompiler::create(ctx, region),
-            Operation::Call => EVMCompiler::call(ctx, region),
-            Operation::CallCode => EVMCompiler::callcode(ctx, region),
-            Operation::Return => EVMCompiler::creturn(ctx, region),
-            Operation::DelegateCall => EVMCompiler::delegatecall(ctx, region),
             Operation::Create2 => EVMCompiler::create2(ctx, region),
-            Operation::StaticCall => EVMCompiler::staticcall(ctx, region),
-            Operation::Revert => EVMCompiler::revert(ctx, region),
-            Operation::Invalid => EVMCompiler::invalid(ctx, region),
-            Operation::Stop => EVMCompiler::stop(ctx, region),
-            Operation::SelfDestruct => EVMCompiler::selfdestruct(ctx, region),
+            Operation::EofCreate(x) => EVMCompiler::eofcreate(ctx, region, *x),
+            Operation::ReturnContract(x) => EVMCompiler::returncontract(ctx, region, *x),
+            Operation::Call => EVMCompiler::call(ctx, region),
+            Operation::CallF(x) => EVMCompiler::callf(ctx, region, *x),
+            Operation::RetF => EVMCompiler::retf(ctx, region),
+            Operation::CallCode => EVMCompiler::callcode(ctx, region),
+            Operation::Delegatecall => EVMCompiler::delegatecall(ctx, region),
+            Operation::Staticcall => EVMCompiler::staticcall(ctx, region),
+            Operation::Return => EVMCompiler::creturn(ctx, region),
+            Operation::ExtCall => EVMCompiler::extcall(ctx, region),
+            Operation::ExtDelegatecall => EVMCompiler::extdelegatecall(ctx, region),
+            Operation::ExtStaticcall => EVMCompiler::extstaticcall(ctx, region),
         }?;
+
         // FIXME : alter below hardcoded line with eof checks in Program in the future
         let is_eof = false;
         // Stack overflow/underflow check.

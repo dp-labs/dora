@@ -211,7 +211,7 @@ fn jump_stack_underflow() {
 
 #[test]
 fn jumpi_stack_underflow() {
-    let operations = vec![Operation::Jumpi];
+    let operations = vec![Operation::JumpI];
     let result = run_result(operations);
     assert!(result.halt_reason().unwrap().is_stack_underflow());
     assert_eq!(result.output(), None);
@@ -220,7 +220,7 @@ fn jumpi_stack_underflow() {
 
 #[test]
 fn push0_jumpi_stack_underflow() {
-    let operations = vec![Operation::Push0, Operation::Jumpi];
+    let operations = vec![Operation::Push0, Operation::JumpI];
     let result = run_result(operations);
     assert!(result.halt_reason().unwrap().is_stack_underflow());
     assert_eq!(result.output(), None);
@@ -378,7 +378,7 @@ fn basic_jumpi() {
         Operation::Jumpdest { pc: 1 },
         Operation::Push0,
         Operation::Push0,
-        Operation::Jumpi,
+        Operation::JumpI,
         Operation::Push((1, 1_u8.into())),
     ];
     let result = run_result(operations);
@@ -392,7 +392,7 @@ fn basic_jumpi_2() {
     let operations = vec![
         Operation::Push((1, 1_u8.into())),
         Operation::Push((1, 5_u8.into())),
-        Operation::Jumpi,
+        Operation::JumpI,
         Operation::Jumpdest { pc: 4 },
         Operation::Push((1, 6_u8.into())),
     ];
@@ -407,7 +407,7 @@ fn jumpi_invalid_target() {
     let operations = vec![
         Operation::Push0,
         Operation::Push0,
-        Operation::Jumpi,
+        Operation::JumpI,
         Operation::Push((1, 1_u8.into())),
     ];
     let result = run_result(operations);
@@ -421,7 +421,7 @@ fn jumpi_invalid_target_2() {
     let operations = vec![
         Operation::Push((1, 1_u8.into())),
         Operation::Push0,
-        Operation::Jumpi,
+        Operation::JumpI,
         Operation::Jumpdest { pc: 4 },
         Operation::Push((1, 6_u8.into())),
     ];
@@ -456,7 +456,7 @@ fn basic_loop() {
         Operation::Sub,
         Operation::Dup(1),                 // i = i - 1
         Operation::Push((1, 2_u8.into())), // 2; jump dest
-        Operation::Jumpi,
+        Operation::JumpI,
         Operation::Pop,
         Operation::Push((1, 6_u8.into())),
     ];
@@ -537,7 +537,7 @@ fn callvalue() {
 
 #[test]
 fn calldataload() {
-    let operations = vec![Operation::Push0, Operation::CallDataLoad];
+    let operations = vec![Operation::Push0, Operation::CalldataLoad];
     let result = run_result(operations);
     assert!(result.is_success());
     assert_eq!(result.output(), None);
@@ -546,7 +546,7 @@ fn calldataload() {
 
 #[test]
 fn calldatasize() {
-    let operations = vec![Operation::CallDataSize, Operation::CallDataSize];
+    let operations = vec![Operation::CalldataSize, Operation::CalldataSize];
     let result = run_result(operations);
     assert!(result.is_success());
     assert_eq!(result.output(), None);
@@ -559,7 +559,7 @@ fn calldatacopy() {
         Operation::Push((1, 32_u8.into())),
         Operation::Push0,
         Operation::Push0,
-        Operation::CallDataCopy,
+        Operation::CalldataCopy,
     ];
     let result = run_result(operations);
     assert!(result.is_success());
@@ -673,8 +673,8 @@ fn keccak256_2() {
 #[test]
 fn returndatasize() {
     let operations = vec![
-        Operation::ReturnDataSize,
-        Operation::ReturnDataSize,
+        Operation::ReturndataSize,
+        Operation::ReturndataSize,
         Operation::Push0,
         Operation::MStore,
     ];
@@ -691,7 +691,7 @@ fn returndatacopy() {
         Operation::Push((1, 32_u8.into())),
         Operation::Push0,
         Operation::Push0,
-        Operation::ReturnDataCopy,
+        Operation::ReturndataCopy,
     ];
     let result = run_result(operations);
     assert!(result.is_success());
@@ -759,7 +759,7 @@ fn gasprice() {
 
 #[test]
 fn gaslimit() {
-    let operations = vec![Operation::Gaslimit, Operation::Gaslimit];
+    let operations = vec![Operation::GasLimit, Operation::GasLimit];
     let result = run_result(operations);
     assert!(result.is_success());
     assert_eq!(result.output(), None);
@@ -1331,7 +1331,7 @@ fn delegatecall_1() {
         Operation::Push((1, 4_u32.into())), // args offset
         Operation::Push((1, 5_u32.into())), // address
         Operation::Push((1, 6_u32.into())), // gas
-        Operation::DelegateCall,
+        Operation::Delegatecall,
     ];
     let result = run_result(operations);
     assert!(result.is_success());
@@ -1348,7 +1348,7 @@ fn staticcall_1() {
         Operation::Push((1, 4_u32.into())), // args offset
         Operation::Push((1, 5_u32.into())), // address
         Operation::Push((1, 6_u32.into())), // gas
-        Operation::StaticCall,
+        Operation::Staticcall,
     ];
     let result = run_result(operations);
     assert!(result.is_success());

@@ -95,7 +95,7 @@ pub fn run_with_context<DB: Database>(
                     ..Default::default()
                 },
             )?;
-            // Lowering the EVM dialect to MLIR builtin dialects.
+            // Lowering the EVM dialect to Dora dialect and finally to optimized MLIR builtin dialects.
             evm::pass::run(&context.mlir_context, &mut module.mlir_module)?;
             dora::pass::run(
                 &context.mlir_context,

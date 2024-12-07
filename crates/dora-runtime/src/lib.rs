@@ -31,8 +31,8 @@ pub enum ExitStatusCode {
     CreateInitCodeStartingEF00,
     /// Invalid EVM Object Format (EOF) init code.
     InvalidEOFInitCode,
-    /// `ExtDelegateCall` calling a non EOF contract.
-    InvalidExtDelegateCallTarget,
+    /// `ExtDelegatecall` calling a non EOF contract.
+    InvalidExtDelegatecallTarget,
 
     // Error Codes
     /// Out of gas error.
@@ -50,7 +50,7 @@ pub enum ExitStatusCode {
     /// Invalid `CALL` with value transfer in static context.
     CallNotAllowedInsideStatic,
     /// Invalid state modification in static call.
-    StateChangeDuringStaticCall,
+    StateChangeDuringStaticcall,
     /// An undefined bytecode value encountered during execution.
     InvalidFEOpcode,
     /// Invalid jump destination. Dynamic jumps points to invalid not jumpdest opcode.
@@ -105,8 +105,8 @@ impl ExitStatusCode {
             x if x == Self::OutOfFunds.to_u8() => Self::OutOfFunds,
             x if x == Self::CreateInitCodeStartingEF00.to_u8() => Self::CreateInitCodeStartingEF00,
             x if x == Self::InvalidEOFInitCode.to_u8() => Self::InvalidEOFInitCode,
-            x if x == Self::InvalidExtDelegateCallTarget.to_u8() => {
-                Self::InvalidExtDelegateCallTarget
+            x if x == Self::InvalidExtDelegatecallTarget.to_u8() => {
+                Self::InvalidExtDelegatecallTarget
             }
             x if x == Self::OutOfGas.to_u8() => Self::OutOfGas,
             x if x == Self::MemoryOOG.to_u8() => Self::MemoryOOG,
@@ -115,8 +115,8 @@ impl ExitStatusCode {
             x if x == Self::InvalidOperandOOG.to_u8() => Self::InvalidOperandOOG,
             x if x == Self::OpcodeNotFound.to_u8() => Self::OpcodeNotFound,
             x if x == Self::CallNotAllowedInsideStatic.to_u8() => Self::CallNotAllowedInsideStatic,
-            x if x == Self::StateChangeDuringStaticCall.to_u8() => {
-                Self::StateChangeDuringStaticCall
+            x if x == Self::StateChangeDuringStaticcall.to_u8() => {
+                Self::StateChangeDuringStaticcall
             }
             x if x == Self::InvalidFEOpcode.to_u8() => Self::InvalidFEOpcode,
             x if x == Self::InvalidJump.to_u8() => Self::InvalidJump,

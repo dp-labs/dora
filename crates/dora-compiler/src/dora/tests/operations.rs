@@ -542,7 +542,7 @@ fn callvalue() {
 fn push_calldataload() {
     assert_snapshot!(vec![
         Operation::Push((1_u8, BigUint::from(0_u8))),
-        Operation::CallDataLoad,
+        Operation::CalldataLoad,
     ]);
 }
 
@@ -550,13 +550,13 @@ fn push_calldataload() {
 fn push_calldataload_edge_case() {
     assert_snapshot!(vec![
         Operation::Push((1_u8, BigUint::from(100_u8))),
-        Operation::CallDataLoad,
+        Operation::CalldataLoad,
     ]);
 }
 
 #[test]
 fn push_calldatasize() {
-    assert_snapshot!(vec![Operation::CallDataSize,]);
+    assert_snapshot!(vec![Operation::CalldataSize,]);
 }
 
 #[test]
@@ -565,7 +565,7 @@ fn push_calldatacopy() {
         Operation::Push((1_u8, BigUint::from(32_u8))),
         Operation::Push((1_u8, BigUint::from(0_u8))),
         Operation::Push((1_u8, BigUint::from(0_u8))),
-        Operation::CallDataCopy,
+        Operation::CalldataCopy,
     ]);
 }
 
@@ -575,7 +575,7 @@ fn push_calldatacopy_partial() {
         Operation::Push((1_u8, BigUint::from(0_u8))),
         Operation::Push((1_u8, BigUint::from(10_u8))),
         Operation::Push((1_u8, BigUint::from(20_u8))),
-        Operation::CallDataCopy,
+        Operation::CalldataCopy,
     ]);
 }
 
@@ -585,7 +585,7 @@ fn push_calldatacopy_out_of_bounds() {
         Operation::Push((1_u8, BigUint::from(0_u8))),
         Operation::Push((1_u8, BigUint::from(100_u8))),
         Operation::Push((1_u8, BigUint::from(10_u8))),
-        Operation::CallDataCopy,
+        Operation::CalldataCopy,
     ]);
 }
 
@@ -853,8 +853,8 @@ fn push_mstore_create_returndatasize() {
         Operation::Push((1_u8, BigUint::from(0_u8))),
         Operation::Dup(5),
         Operation::Push((4_u8, BigUint::from_bytes_be(&[0xFF, 0xFF, 0xFF, 0xFF,]),)),
-        Operation::StaticCall,
-        Operation::ReturnDataSize,
+        Operation::Staticcall,
+        Operation::ReturndataSize,
     ]);
 }
 
@@ -901,7 +901,7 @@ fn push_mstore_create_returndatacopy() {
         Operation::Push((1_u8, BigUint::from(0_u8))),
         Operation::Dup(5),
         Operation::Push((4_u8, BigUint::from_bytes_be(&[0xFF, 0xFF, 0xFF, 0xFF,]),)),
-        Operation::StaticCall,
+        Operation::Staticcall,
         Operation::Pop,
         Operation::Pop,
         Operation::Push((1_u8, BigUint::from(0_u8))),
@@ -916,7 +916,7 @@ fn push_mstore_create_returndatacopy() {
         Operation::Push((1_u8, BigUint::from(32_u8))),
         Operation::Push((1_u8, BigUint::from(0_u8))),
         Operation::Push((1_u8, BigUint::from(0_u8))),
-        Operation::ReturnDataCopy,
+        Operation::ReturndataCopy,
     ]);
 }
 
@@ -926,7 +926,7 @@ fn returndatacopy_basic() {
         Operation::Push((1_u8, BigUint::from(0_u8))), // Destination offset in memory
         Operation::Push((1_u8, BigUint::from(0_u8))), // Source offset in returndata
         Operation::Push((1_u8, BigUint::from(32_u8))), // Number of bytes to copy
-        Operation::ReturnDataCopy,
+        Operation::ReturndataCopy,
     ]);
 }
 
@@ -936,7 +936,7 @@ fn returndatacopy_partial() {
         Operation::Push((1_u8, BigUint::from(0_u8))), // Destination offset in memory
         Operation::Push((1_u8, BigUint::from(10_u8))), // Source offset in returndata
         Operation::Push((1_u8, BigUint::from(20_u8))), // Number of bytes to copy
-        Operation::ReturnDataCopy,
+        Operation::ReturndataCopy,
     ]);
 }
 
@@ -946,7 +946,7 @@ fn returndatacopy_out_of_bounds() {
         Operation::Push((1_u8, BigUint::from(0_u8))), // Destination offset in memory
         Operation::Push((1_u8, BigUint::from(50_u8))), // Offset exceeding returndata size
         Operation::Push((1_u8, BigUint::from(10_u8))), // Number of bytes to copy
-        Operation::ReturnDataCopy,
+        Operation::ReturndataCopy,
     ]);
 }
 
@@ -1018,7 +1018,7 @@ fn push_gas_gaslimit() {
     assert_snapshot!(vec![
         Operation::Gas,
         Operation::Push((3_u8, BigUint::from(21000u32))),
-        Operation::Gaslimit,
+        Operation::GasLimit,
         Operation::Sub,
         Operation::Sub,
     ]);
@@ -1388,7 +1388,7 @@ fn push_jumpi_valid_jumpdest() {
     assert_snapshot!(vec![
         Operation::Push((1_u8, BigUint::from(5_u8))),
         Operation::Push((1_u8, BigUint::from(1_u8))),
-        Operation::Jumpi,
+        Operation::JumpI,
         Operation::Invalid,
         Operation::Jumpdest { pc: (5) },
         Operation::Push((1_u8, BigUint::from(2_u8))),
@@ -1427,7 +1427,7 @@ fn push_gas() {
     assert_snapshot!(vec![
         Operation::Gas,
         Operation::Push((3_u8, BigUint::from(21000_u32))),
-        Operation::Gaslimit,
+        Operation::GasLimit,
         Operation::Sub,
         Operation::Sub,
     ]);
@@ -1870,7 +1870,7 @@ fn push_delegatecall() {
         Operation::Push((1_u8, BigUint::from(32_u32))),
         Operation::Push((1_u8, BigUint::from(64_u32))),
         Operation::Push((1_u8, BigUint::from(64_u32))),
-        Operation::DelegateCall,
+        Operation::Delegatecall,
     ]);
 }
 
@@ -1897,7 +1897,7 @@ fn push_mstore_create_delegatecall() {
         Operation::Push((1_u8, BigUint::from(0_u8))),
         Operation::Dup(5),
         Operation::Push((2_u8, BigUint::from_bytes_be(&[0xFF, 0xFF]))),
-        Operation::DelegateCall,
+        Operation::Delegatecall,
         Operation::Push((1_u8, BigUint::from(1_u8))),
         Operation::Push((1_u8, BigUint::from(0_u8))),
         Operation::SStore,
@@ -1907,7 +1907,7 @@ fn push_mstore_create_delegatecall() {
         Operation::Push((1_u8, BigUint::from(0_u8))),
         Operation::Dup(6),
         Operation::Push((2_u8, BigUint::from_bytes_be(&[0xFF, 0xFF]))),
-        Operation::DelegateCall,
+        Operation::Delegatecall,
     ]);
 }
 
@@ -1920,7 +1920,7 @@ fn push_staticcall() {
         Operation::Push((1_u8, BigUint::from(32_u32))),
         Operation::Push((1_u8, BigUint::from(64_u32))),
         Operation::Push((1_u8, BigUint::from(64_u32))),
-        Operation::StaticCall,
+        Operation::Staticcall,
     ]);
 }
 

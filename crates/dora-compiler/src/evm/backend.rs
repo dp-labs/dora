@@ -790,7 +790,7 @@ impl<'a, 'c> crate::backend::EVMBuilder for EVMBuilder<'a, 'c> {
         dest_offset: Self::Value,
         data_offset: Self::Value,
         length: Self::Value,
-    ) -> Result<()> {
+    ) {
         self.builder.create(
             dora_ir::evm::calldatacopy(
                 self.context(),
@@ -801,7 +801,6 @@ impl<'a, 'c> crate::backend::EVMBuilder for EVMBuilder<'a, 'c> {
             )
             .into(),
         );
-        Ok(())
     }
 
     fn codesize(&mut self) -> Result<Self::Value> {
@@ -816,7 +815,7 @@ impl<'a, 'c> crate::backend::EVMBuilder for EVMBuilder<'a, 'c> {
         dest_offset: Self::Value,
         data_offset: Self::Value,
         length: Self::Value,
-    ) -> Result<()> {
+    ) {
         self.builder.create(
             dora_ir::evm::codecopy(
                 self.context(),
@@ -827,7 +826,6 @@ impl<'a, 'c> crate::backend::EVMBuilder for EVMBuilder<'a, 'c> {
             )
             .into(),
         );
-        Ok(())
     }
 
     fn returndatasize(&mut self) -> Result<Self::Value> {
@@ -842,7 +840,7 @@ impl<'a, 'c> crate::backend::EVMBuilder for EVMBuilder<'a, 'c> {
         dest_offset: Self::Value,
         data_offset: Self::Value,
         length: Self::Value,
-    ) -> Result<()> {
+    ) {
         self.builder.create(
             dora_ir::evm::returndatacopy(
                 self.context(),
@@ -853,15 +851,14 @@ impl<'a, 'c> crate::backend::EVMBuilder for EVMBuilder<'a, 'c> {
             )
             .into(),
         );
-        Ok(())
     }
 
-    fn returndataload(&mut self, data_offset: Self::Value) -> Result<Self::Value> {
+    fn returndataload(&mut self, offset: Self::Value) -> Result<Self::Value> {
         let op = self.builder.create(
             dora_ir::evm::returndataload(
                 self.context(),
                 self.uint256_ty(),
-                data_offset,
+                offset,
                 self.location(),
             )
             .into(),
@@ -947,16 +944,14 @@ impl<'a, 'c> crate::backend::EVMBuilder for EVMBuilder<'a, 'c> {
         Ok(op.result(0)?.to_ctx_value())
     }
 
-    fn sstore(&mut self, key: Self::Value, value: Self::Value) -> Result<()> {
+    fn sstore(&mut self, key: Self::Value, value: Self::Value) {
         self.builder
             .create(dora_ir::evm::sstore(self.context(), key, value, self.location()).into());
-        Ok(())
     }
 
-    fn tstore(&mut self, key: Self::Value, value: Self::Value) -> Result<()> {
+    fn tstore(&mut self, key: Self::Value, value: Self::Value) {
         self.builder
             .create(dora_ir::evm::tstore(self.context(), key, value, self.location()).into());
-        Ok(())
     }
 
     fn tload(&mut self, key: Self::Value) -> Result<Self::Value> {
@@ -1040,6 +1035,36 @@ impl<'a, 'c> crate::backend::EVMBuilder for EVMBuilder<'a, 'c> {
                 self.location(),
             )
             .into(),
+        );
+    }
+
+    fn dataload(&mut self, offset: Self::Value) -> Result<Self::Value> {
+        let op = self.builder.create(
+            dora_ir::evm::dataload(self.context(), self.uint256_ty(), offset, self.location())
+                .into(),
+        );
+        Ok(op.result(0)?.to_ctx_value())
+    }
+
+    fn dataloadn(&mut self, offset: Self::Value) -> Result<Self::Value> {
+        let op = self.builder.create(
+            dora_ir::evm::dataloadn(self.context(), self.uint256_ty(), offset, self.location())
+                .into(),
+        );
+        Ok(op.result(0)?.to_ctx_value())
+    }
+
+    fn datasize(&mut self) -> Result<Self::Value> {
+        let op = self.builder.create(
+            dora_ir::evm::datasize(self.context(), self.uint256_ty(), self.location()).into(),
+        );
+        Ok(op.result(0)?.to_ctx_value())
+    }
+
+    fn datacopy(&mut self, mem_offset: Self::Value, offset: Self::Value, size: Self::Value) {
+        self.builder.create(
+            dora_ir::evm::datacopy(self.context(), mem_offset, offset, size, self.location())
+                .into(),
         );
     }
 
@@ -1205,6 +1230,48 @@ impl<'a, 'c> crate::backend::EVMBuilder for EVMBuilder<'a, 'c> {
         Ok(op.result(0)?.to_ctx_value())
     }
 
+    fn eofcreate(
+        &mut self,
+        initcontainer_index: Self::Value,
+        value: Self::Value,
+        salt: Self::Value,
+        input_offset: Self::Value,
+        input_size: Self::Value,
+    ) -> Result<Self::Value> {
+        let op = self.builder.create(
+            dora_ir::evm::eofcreate(
+                self.context(),
+                self.uint256_ty(),
+                initcontainer_index,
+                value,
+                salt,
+                input_offset,
+                input_size,
+                self.location(),
+            )
+            .into(),
+        );
+        Ok(op.result(0)?.to_ctx_value())
+    }
+
+    fn returncontract(
+        &mut self,
+        deploy_container_index: Self::Value,
+        aux_data_offset: Self::Value,
+        aux_data_size: Self::Value,
+    ) {
+        self.builder.create(
+            dora_ir::evm::returncontract(
+                self.context(),
+                deploy_container_index,
+                aux_data_offset,
+                aux_data_size,
+                self.location(),
+            )
+            .into(),
+        );
+    }
+
     fn call(
         &mut self,
         gas: Self::Value,
@@ -1231,6 +1298,17 @@ impl<'a, 'c> crate::backend::EVMBuilder for EVMBuilder<'a, 'c> {
             .into(),
         );
         Ok(op.result(0)?.to_ctx_value())
+    }
+
+    fn callf(&mut self, target_section_index: Self::Value) {
+        self.builder.create(
+            dora_ir::evm::callf(self.context(), target_section_index, self.location()).into(),
+        );
+    }
+
+    fn retf(&mut self) {
+        self.builder
+            .create(dora_ir::evm::retf(self.context(), self.location()).into());
     }
 
     fn callcode(
@@ -1287,6 +1365,48 @@ impl<'a, 'c> crate::backend::EVMBuilder for EVMBuilder<'a, 'c> {
         Ok(op.result(0)?.to_ctx_value())
     }
 
+    fn extcall(
+        &mut self,
+        target_address: Self::Value,
+        input_offset: Self::Value,
+        input_size: Self::Value,
+        value: Self::Value,
+    ) -> Result<Self::Value> {
+        let op = self.builder.create(
+            dora_ir::evm::extcall(
+                self.context(),
+                self.uint256_ty(),
+                target_address,
+                input_offset,
+                input_size,
+                value,
+                self.location(),
+            )
+            .into(),
+        );
+        Ok(op.result(0)?.to_ctx_value())
+    }
+
+    fn extdelegatecall(
+        &mut self,
+        target_address: Self::Value,
+        input_offset: Self::Value,
+        input_size: Self::Value,
+    ) -> Result<Self::Value> {
+        let op = self.builder.create(
+            dora_ir::evm::extdelegatecall(
+                self.context(),
+                self.uint256_ty(),
+                target_address,
+                input_offset,
+                input_size,
+                self.location(),
+            )
+            .into(),
+        );
+        Ok(op.result(0)?.to_ctx_value())
+    }
+
     fn staticcall(
         &mut self,
         gas: Self::Value,
@@ -1316,6 +1436,26 @@ impl<'a, 'c> crate::backend::EVMBuilder for EVMBuilder<'a, 'c> {
     fn creturn(&mut self, offset: Self::Value, length: Self::Value) {
         self.builder
             .create(dora_ir::evm::r#return(self.context(), offset, length, self.location()).into());
+    }
+
+    fn extstaticcall(
+        &mut self,
+        target_address: Self::Value,
+        input_offset: Self::Value,
+        input_size: Self::Value,
+    ) -> Result<Self::Value> {
+        let op = self.builder.create(
+            dora_ir::evm::extstaticcall(
+                self.context(),
+                self.uint256_ty(),
+                target_address,
+                input_offset,
+                input_size,
+                self.location(),
+            )
+            .into(),
+        );
+        Ok(op.result(0)?.to_ctx_value())
     }
 
     fn revert(&mut self, offset: Self::Value, length: Self::Value) {

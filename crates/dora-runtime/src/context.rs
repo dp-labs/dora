@@ -29,7 +29,7 @@ pub type MainFunc<DB> = extern "C" fn(&mut RuntimeContext<DB>, initial_gas: u64)
 ///
 /// # Fields:
 /// - `memory`: A vector representing the contract's memory during execution.
-/// - `return_data`: Optional tuple representing the start and length of the return data.
+/// - `returndata`: Optional tuple representing the start and length of the return data.
 /// - `program`: A vector containing the bytecode of the program being executed.
 /// - `gas_remaining`: The amount of gas remaining for execution, if applicable.
 /// - `gas_refund`: The amount of gas to be refunded after execution.
@@ -40,7 +40,7 @@ pub type MainFunc<DB> = extern "C" fn(&mut RuntimeContext<DB>, initial_gas: u64)
 /// ```no_check
 /// let inner_context = InnerContext {
 ///     memory: vec![0; 1024],
-///     return_data: None,
+///     returndata: None,
 ///     program: vec![0x60, 0x0A, 0x60, 0x00],  // Sample bytecode
 ///     gas_remaining: Some(100000),
 ///     gas_refund: 0,
@@ -56,7 +56,7 @@ pub struct InnerContext {
     /// Contains a tuple with the start index and length of the return data in memory.
     /// This data is returned when a VM operation completes, such as after a `RETURN` or a
     /// contract call, allowing the caller to process the output of the executed contract.
-    return_data: Option<(usize, usize)>,
+    returndata: Option<(usize, usize)>,
     /// The smart contract's bytecode being executed.
     pub program: Vec<u8>,
     /// The remaining gas for the current execution.
@@ -91,20 +91,20 @@ pub struct InnerContext {
 ///
 /// # Fields:
 /// - `caller`: The address of the account that initiated the call.
-/// - `last_call_return_data`: The data returned by the last call executed in the current frame.
+/// - `last_call_returndata`: The data returned by the last call executed in the current frame.
 ///
 /// # Example Usage:
 /// ```no_check
 /// let call_frame = CallFrame {
 ///     caller: Address::from_low_u64_be(0x123),
-///     last_call_return_data: vec![0x01, 0x02, 0x03],
+///     last_call_returndata: vec![0x01, 0x02, 0x03],
 /// };
 /// ```
 #[derive(Debug, Default)]
 pub struct CallFrame {
     pub caller: Address,
     ctx_is_static: bool,
-    last_call_return_data: Vec<u8>,
+    last_call_returndata: Vec<u8>,
 }
 
 impl CallFrame {
@@ -112,7 +112,7 @@ impl CallFrame {
         Self {
             caller,
             ctx_is_static: false,
-            last_call_return_data: Vec::new(),
+            last_call_returndata: Vec::new(),
         }
     }
 
@@ -120,7 +120,7 @@ impl CallFrame {
         Self {
             caller,
             ctx_is_static: false,
-            last_call_return_data: data,
+            last_call_returndata: data,
         }
     }
 }
@@ -326,10 +326,10 @@ impl<DB: Database> RuntimeContext<DB> {
     /// # Example
     ///
     /// ```no_check
-    /// let return_data = context.return_values();
+    /// let returndata = context.return_values();
     /// ```
     pub fn return_values(&self) -> &[u8] {
-        if let Some((offset, size)) = self.inner_context.return_data {
+        if let Some((offset, size)) = self.inner_context.returndata {
             &self.inner_context.memory[offset..offset + size]
         } else {
             &[]
@@ -461,8 +461,8 @@ impl<DB: Database> RuntimeContext<DB> {
                 gas_limit,
                 gas_used,
             },
-            ExitStatusCode::StateChangeDuringStaticCall => ExecutionResult::Halt {
-                reason: HaltReason::StateChangeDuringStaticCall,
+            ExitStatusCode::StateChangeDuringStaticcall => ExecutionResult::Halt {
+                reason: HaltReason::StateChangeDuringStaticcall,
                 gas_limit,
                 gas_used,
             },
@@ -557,8 +557,8 @@ impl<DB: Database> RuntimeContext<DB> {
                 gas_limit,
                 gas_used,
             },
-            ExitStatusCode::InvalidExtDelegateCallTarget => ExecutionResult::Internal {
-                result: InternalResult::InvalidExtDelegateCallTarget,
+            ExitStatusCode::InvalidExtDelegatecallTarget => ExecutionResult::Internal {
+                result: InternalResult::InvalidExtDelegatecallTarget,
                 gas_used,
             },
         };
@@ -586,17 +586,17 @@ impl<DB: Database> RuntimeContext<DB> {
         remaining_gas: u64,
         execution_result: u8,
     ) -> *mut Result<()> {
-        self.inner_context.return_data = Some((offset as usize, bytes_len as usize));
+        self.inner_context.returndata = Some((offset as usize, bytes_len as usize));
         self.inner_context.gas_remaining = Some(remaining_gas);
         self.inner_context.exit_status = Some(ExitStatusCode::from_u8(execution_result));
         Box::into_raw(Box::new(Result::success(())))
     }
 
-    pub extern "C" fn return_data_size(&mut self) -> *mut Result<u64> {
-        uint_result_ptr!(self.call_frame.last_call_return_data.len() as u64)
+    pub extern "C" fn returndata_size(&mut self) -> *mut Result<u64> {
+        uint_result_ptr!(self.call_frame.last_call_returndata.len() as u64)
     }
 
-    pub extern "C" fn return_data_copy(
+    pub extern "C" fn returndata_copy(
         &mut self,
         dest_offset: u64,
         offset: u64,
@@ -604,7 +604,7 @@ impl<DB: Database> RuntimeContext<DB> {
     ) -> *mut Result<()> {
         Self::copy_exact(
             &mut self.inner_context.memory,
-            &self.call_frame.last_call_return_data,
+            &self.call_frame.last_call_returndata,
             dest_offset,
             offset,
             size,
@@ -629,7 +629,7 @@ impl<DB: Database> RuntimeContext<DB> {
         let size = args_size as usize;
         let calldata = Bytes::copy_from_slice(&self.inner_context.memory[off..off + size]);
         let value = value_to_transfer.to_u256();
-        let (return_code, return_data) = match callee_address {
+        let (return_code, returndata) = match callee_address {
             x if x == Address::from_low_u64_be(precompiles::ECRECOVER_ADDRESS) => {
                 ecrecover(&calldata, gas_to_send, consumed_gas).map_or_else(
                     |_err| (call_opcode::REVERT_RETURN_CODE, Bytes::default()),
@@ -735,9 +735,9 @@ impl<DB: Database> RuntimeContext<DB> {
 
                 let this_address = host.env().tx.get_address();
                 let (new_frame_caller, new_value, transact_to) = match call_type {
-                    CallType::Call | CallType::StaticCall => (this_address, value, callee_address),
+                    CallType::Call | CallType::Staticcall => (this_address, value, callee_address),
                     CallType::CallCode => (this_address, value, this_address),
-                    CallType::DelegateCall => (
+                    CallType::Delegatecall => (
                         self.call_frame.caller,
                         Bytes32::from_u256_ref(&host.env().tx.value).to_u256(),
                         this_address,
@@ -760,7 +760,7 @@ impl<DB: Database> RuntimeContext<DB> {
                 };
                 drop(db);
 
-                let is_static = self.call_frame.ctx_is_static || call_type == CallType::StaticCall;
+                let is_static = self.call_frame.ctx_is_static || call_type == CallType::Staticcall;
                 let call_frame = CallFrame {
                     caller: new_frame_caller,
                     ctx_is_static: is_static,
@@ -799,13 +799,13 @@ impl<DB: Database> RuntimeContext<DB> {
             }
         };
 
-        self.call_frame.last_call_return_data.clear();
+        self.call_frame.last_call_returndata.clear();
         self.call_frame
-            .last_call_return_data
-            .clone_from(&return_data.to_vec());
+            .last_call_returndata
+            .clone_from(&returndata.to_vec());
         Self::copy_exact(
             &mut self.inner_context.memory,
-            &return_data,
+            &returndata,
             ret_offset,
             0,
             ret_size,
@@ -1579,12 +1579,12 @@ impl<DB: Database> RuntimeContext<DB> {
                 (symbols::CREATE, RuntimeContext::<DB>::create as *const _),
                 (symbols::CREATE2, RuntimeContext::<DB>::create2 as *const _),
                 (
-                    symbols::RETURN_DATA_SIZE,
-                    RuntimeContext::<DB>::return_data_size as *const _,
+                    symbols::RETURNDATA_SIZE,
+                    RuntimeContext::<DB>::returndata_size as *const _,
                 ),
                 (
-                    symbols::RETURN_DATA_COPY,
-                    RuntimeContext::<DB>::return_data_copy as *const _,
+                    symbols::RETURNDATA_COPY,
+                    RuntimeContext::<DB>::returndata_copy as *const _,
                 ),
                 (
                     symbols::SELFDESTRUCT,

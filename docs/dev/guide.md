@@ -58,12 +58,12 @@ cd llvm-project-19.1.4.src
 mkdir build
 cd build
 
-# The following cmake command configures the build to be installed to /opt/llvm-18
+# The following cmake command configures the build to be installed to /opt/llvm-19
 cmake -G Ninja ../llvm \
    -DLLVM_ENABLE_PROJECTS="mlir;clang;clang-tools-extra;lld;polly" \
    -DLLVM_BUILD_EXAMPLES=OFF \
    -DLLVM_TARGETS_TO_BUILD="Native" \
-   -DCMAKE_INSTALL_PREFIX=/opt/llvm-18 \
+   -DCMAKE_INSTALL_PREFIX=/opt/llvm-19 \
    -DCMAKE_BUILD_TYPE=RelWithDebInfo \
    -DLLVM_PARALLEL_LINK_JOBS=4 \
    -DLLVM_ENABLE_BINDINGS=OFF \
