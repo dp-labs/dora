@@ -1,7 +1,11 @@
 use num_bigint::BigUint;
+use revm_primitives::SpecId;
 pub use revmc::{op_info_map, OpcodeInfo};
 use std::fmt;
 use thiserror::Error;
+
+/// EOF magic number in array form.
+pub const EOF_MAGIC_BYTES: [u8; 2] = hex_literal::hex!("ef00");
 
 /// An error that occurs when an invalid opcode is encountered during parsing.
 /// This struct holds the invalid opcode (as a `u8`) and provides a formatted error message
@@ -326,7 +330,7 @@ macro_rules! operations {
                 }
             }
 
-            pub fn from(opcode: Opcode, opcodes: &[u8], pc: &mut usize) -> Result<Self, OpcodeParseError> {
+            pub fn from(opcode: Opcode, opcodes: &[u8], pc: &mut usize, is_eof: bool) -> Result<Self, OpcodeParseError> {
                 let op = match opcode {
                     $(
                         Opcode::$opcode => Operation::$variant,
@@ -354,7 +358,7 @@ macro_rules! operations {
                         let index = (opcode as u8 - Opcode::LOG0 as u8) as u8;
                         Operation::Log(index)
                     }
-                    Opcode::DATALOADN => {
+                    Opcode::DATALOADN if is_eof => {
                         *pc += 1;
                         let x = opcodes[*pc..(*pc + 2)]
                             .try_into()
@@ -362,7 +366,7 @@ macro_rules! operations {
 
                         Operation::DataLoadN(u16::from_be_bytes(x))
                     }
-                    Opcode::RJUMP => {
+                    Opcode::RJUMP if is_eof => {
                         *pc += 1;
                         let x = opcodes[*pc..(*pc + 2)]
                             .try_into()
@@ -370,7 +374,7 @@ macro_rules! operations {
 
                         Operation::RJump(u16::from_be_bytes(x))
                     }
-                    Opcode::RJUMPI => {
+                    Opcode::RJUMPI if is_eof => {
                         *pc += 1;
                         let x = opcodes[*pc..(*pc + 2)]
                             .try_into()
@@ -378,7 +382,7 @@ macro_rules! operations {
 
                         Operation::RJumpI(u16::from_be_bytes(x))
                     }
-                    Opcode::RJUMPV => {
+                    Opcode::RJUMPV if is_eof => {
                         *pc += 1;
                         let t1 = opcodes[*pc..(*pc + 1)]
                             .try_into()
@@ -396,7 +400,7 @@ macro_rules! operations {
 
                         Operation::RJumpV((x1, x2))
                     }
-                    Opcode::CALLF => {
+                    Opcode::CALLF if is_eof => {
                         *pc += 1;
                         let x = opcodes[*pc..(*pc + 2)]
                             .try_into()
@@ -404,7 +408,7 @@ macro_rules! operations {
 
                         Operation::CallF(u16::from_be_bytes(x))
                     }
-                    Opcode::JUMPF => {
+                    Opcode::JUMPF if is_eof => {
                         *pc += 1;
                         let x = opcodes[*pc..(*pc + 2)]
                             .try_into()
@@ -412,7 +416,7 @@ macro_rules! operations {
 
                         Operation::JumpF(u16::from_be_bytes(x))
                     }
-                    Opcode::DUPN => {
+                    Opcode::DUPN if is_eof => {
                         *pc += 1;
                         let x = opcodes[*pc..(*pc + 1)]
                             .try_into()
@@ -420,7 +424,7 @@ macro_rules! operations {
 
                         Operation::DupN(u8::from_be_bytes(x))
                     }
-                    Opcode::SWAPN => {
+                    Opcode::SWAPN if is_eof => {
                         *pc += 1;
                         let x = opcodes[*pc..(*pc + 1)]
                             .try_into()
@@ -428,7 +432,7 @@ macro_rules! operations {
 
                         Operation::SwapN(u8::from_be_bytes(x))
                     }
-                    Opcode::EXCHANGE => {
+                    Opcode::EXCHANGE if is_eof => {
                         *pc += 1;
                         let x = opcodes[*pc..(*pc + 1)]
                             .try_into()
@@ -436,7 +440,7 @@ macro_rules! operations {
 
                         Operation::Exchange(u8::from_be_bytes(x))
                     }
-                    Opcode::EOFCREATE => {
+                    Opcode::EOFCREATE if is_eof => {
                         *pc += 1;
                         let x = opcodes[*pc..(*pc + 1)]
                             .try_into()
@@ -444,7 +448,7 @@ macro_rules! operations {
 
                         Operation::EofCreate(u8::from_be_bytes(x))
                     }
-                    Opcode::RETURNCONTRACT => {
+                    Opcode::RETURNCONTRACT if is_eof => {
                         *pc += 1;
                         let x = opcodes[*pc..(*pc + 1)]
                             .try_into()
@@ -625,8 +629,9 @@ impl Program {
     /// # Returns
     /// - `Ok(Self)` - If all opcodes are successfully parsed.
     /// - `Err(ParseError)` - If any opcodes fail to parse, containing the list of failed opcodes.
-    pub fn from_opcode_checked(opcodes: &[u8]) -> Result<Self, ParseError> {
-        let (operations, failed_opcodes) = Self::parse_operations(opcodes);
+    pub fn from_opcode_checked(opcodes: &[u8], spec_id: SpecId) -> Result<Self, ParseError> {
+        let is_eof = spec_id.is_enabled_in(SpecId::OSAKA) && opcodes.starts_with(&EOF_MAGIC_BYTES);
+        let (operations, failed_opcodes) = Self::parse_operations(opcodes, is_eof);
         let code_size = Self::calculate_code_size(&operations);
 
         if failed_opcodes.is_empty() {
@@ -649,8 +654,9 @@ impl Program {
     ///
     /// # Returns
     /// A `Program` instance constructed from the parsed operations.
-    pub fn from_opcode(opcodes: &[u8]) -> Self {
-        let (operations, _) = Self::parse_operations(opcodes);
+    pub fn from_opcodes(opcodes: &[u8], spec_id: SpecId) -> Self {
+        let is_eof = spec_id.is_enabled_in(SpecId::OSAKA) && opcodes.starts_with(&EOF_MAGIC_BYTES);
+        let (operations, _) = Self::parse_operations(opcodes, is_eof);
         let code_size = Self::calculate_code_size(&operations);
 
         Self {
@@ -697,13 +703,13 @@ impl Program {
         false
     }
 
-    fn parse_operations(opcodes: &[u8]) -> (Vec<Operation>, Vec<OpcodeParseError>) {
+    fn parse_operations(opcodes: &[u8], is_eof: bool) -> (Vec<Operation>, Vec<OpcodeParseError>) {
         let mut operations = vec![];
         let mut failed_opcodes = vec![];
         let mut pc = 0;
 
         while pc < opcodes.len() {
-            match Self::parse_operation(opcodes, pc) {
+            match Self::parse_operation(opcodes, pc, is_eof) {
                 Ok((op, new_pc)) => {
                     operations.push(op);
                     pc = new_pc;
@@ -722,9 +728,10 @@ impl Program {
     fn parse_operation(
         bytecode: &[u8],
         mut pc: usize,
+        is_eof: bool,
     ) -> Result<(Operation, usize), OpcodeParseError> {
         let opcode = Opcode::try_from(bytecode[pc])?;
-        let op = Operation::from(opcode, bytecode, &mut pc)?;
+        let op = Operation::from(opcode, bytecode, &mut pc, is_eof)?;
         pc += 1;
         Ok((op, pc))
     }

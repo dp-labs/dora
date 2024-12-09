@@ -88,7 +88,10 @@ pub fn run_with_context<DB: Database>(
     initial_gas: u64,
 ) -> anyhow::Result<DB::Artifact> {
     // Compile the contract code
-    let program = Program::from_opcode(&runtime_context.contract.code);
+    let program = Program::from_opcodes(
+        &runtime_context.contract.code,
+        runtime_context.inner.spec_id,
+    );
     let context = Context::new();
     let compiler = EVMCompiler::new(&context);
     let mut module = compiler.compile(
