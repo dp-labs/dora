@@ -42,7 +42,7 @@ struct RunArgs {
     calldata: Option<String>,
 
     /// Gas limit for execution
-    #[arg(long, default_value = "1000000")]
+    #[arg(long, default_value = "2000000")]
     gas_limit: u64,
 
     /// Value to send with call in wei
@@ -50,7 +50,7 @@ struct RunArgs {
     value: String,
 
     /// Address of the sender
-    #[arg(long, default_value = "0x0000000000000000000000000000000000000000")]
+    #[arg(long, default_value = "0x00000000000000000000000000000000000000AA")]
     sender: String,
 
     /// Chain ID

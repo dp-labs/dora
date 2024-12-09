@@ -21,7 +21,9 @@ use melior::{
     Context as MLIRContext,
 };
 use num_bigint::BigUint;
-use revmc::{op_info_map, primitives::SpecId, OpcodeInfo};
+use program::stack_io;
+use revm_primitives::SpecId;
+use revmc::{op_info_map, OpcodeInfo};
 use std::collections::BTreeMap;
 
 use crate::backend::IntCC;
@@ -39,7 +41,6 @@ pub(crate) mod instructions;
 pub mod pass;
 pub mod program;
 pub use conversion::ConversionPass;
-use program::stack_io;
 pub use program::Program;
 
 #[cfg(test)]
@@ -170,7 +171,11 @@ impl<'c> EVMCompiler<'c> {
         op: Operation,
         options: &<EVMCompiler<'c> as Compiler>::Options,
     ) -> Result<(BlockRef<'c, 'c>, BlockRef<'c, 'c>)> {
-        let op_infos = op_info_map(options.spec_id);
+        let op_infos = op_info_map(unsafe {
+            std::mem::transmute::<revm_primitives::SpecId, revmc::primitives::SpecId>(
+                options.spec_id,
+            )
+        });
         let op_info = op_infos[op.opcode()];
 
         // Note: make opcode not found as the runtime halt error,

@@ -1,23 +1,15 @@
-use super::memory;
-use crate::{
-    arith_constant, conversion::rewriter::Rewriter, create_var, errors::Result, load_by_addr,
-};
+use crate::{conversion::rewriter::Rewriter, errors::Result, load_by_addr};
 use dora_primitives::spec::SpecId;
 use dora_runtime::constants::{
     self,
-    gas_cost::{self, COPY_WORD_COST, INIT_WORD_COST, KECCAK256_WORD_COST},
+    gas_cost::{self, COPY_WORD_COST, INITCODE_WORD_COST, KECCAK256_WORD_COST},
 };
 use melior::{
     dialect::{
         arith::{self, CmpiPredicate},
-        llvm::{self, AllocaOptions},
-        scf,
+        llvm, scf,
     },
-    ir::{
-        attribute::{IntegerAttribute, TypeAttribute},
-        Block, Location, Region, Value,
-    },
-    Context,
+    ir::{Block, Location, Region, Value},
 };
 
 pub(crate) fn get_gas_counter<'c>(rewriter: &'c Rewriter) -> Result<Value<'c, 'c>> {
@@ -27,24 +19,6 @@ pub(crate) fn get_gas_counter<'c>(rewriter: &'c Rewriter) -> Result<Value<'c, 'c
         rewriter.intrinsics.i64_ty
     );
     Ok(gas_counter)
-}
-
-pub(crate) fn create_var_with_gas_counter<'c>(
-    context: &'c Context,
-    rewriter: &'c Rewriter,
-    location: Location<'c>,
-) -> Result<Value<'c, 'c>> {
-    let gas_counter = get_gas_counter(rewriter)?;
-    memory::allocate_u64_and_assign_value(context, rewriter, gas_counter, location)
-}
-
-pub(crate) fn create_gas_var<'c>(
-    context: &'c Context,
-    rewriter: &'c Rewriter,
-    location: Location<'c>,
-) -> Result<Value<'c, 'c>> {
-    let gas_ptr = create_var!(rewriter, context, rewriter.intrinsics.i64_ty, location);
-    Ok(gas_ptr)
 }
 
 /// Calculate the cost of the `EXP` opcode.
@@ -190,7 +164,7 @@ pub(crate) fn compute_initcode_cost<'c>(
     rewriter: &'c Rewriter,
     memory_byte_size: Value<'c, 'c>,
 ) -> Result<Value<'c, 'c>> {
-    compute_per_word_cost(rewriter, memory_byte_size, INIT_WORD_COST)
+    compute_per_word_cost(rewriter, memory_byte_size, INITCODE_WORD_COST)
 }
 
 /// This function computes create2 cost, which is given by the following equations

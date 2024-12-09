@@ -1,26 +1,747 @@
-use crate::account::{AccountInfo, EMPTY_CODE_HASH_BYTES};
-use crate::constants::gas_cost::MAX_CODE_SIZE;
-use crate::constants::{call_opcode, gas_cost, precompiles, CallType, CALL_STACK_LIMIT};
-use crate::db::{Database, StorageSlot};
+use std::fmt;
+
+use crate::account::{Account, EMPTY_CODE_HASH_BYTES};
+use crate::call::{CallKind, CallMessage, CallResult};
+use crate::constants::{gas_cost, precompiles, CallType, BLOCK_HASH_HISTORY, CALL_STACK_LIMIT};
+use crate::db::{Database, DatabaseError};
+use crate::env::{CfgEnv, Env};
 use crate::executor::ExecutionEngine;
-use crate::gas;
-use crate::host::Host;
+use crate::handler::{Frame, Handler};
+use crate::host::{AccountLoad, CodeLoad, Host, SStoreResult, SelfDestructResult, StateLoad};
+use crate::journaled_state::{JournalCheckpoint, JournalEntry, JournaledState};
 use crate::precompiles::{blake2f, ecrecover, identity, modexp, ripemd_160, sha2_256};
-use crate::result::{
-    EVMError, ExecutionResult, HaltReason, InternalResult, OutOfGasError, Output, ResultAndState,
-    SuccessReason,
-};
-use crate::transaction::Transaction;
-use crate::{symbols, ExitStatusCode};
+use crate::result::EVMError;
+use crate::{gas, symbols, ExitStatusCode};
 use bytes::Bytes;
 use dora_primitives::spec::SpecId;
-use dora_primitives::{Bytes32, EVMAddress as Address, B256, H160, U256};
+use dora_primitives::{Bytecode, Bytes32, EVMAddress as Address, B256, H160, U256};
+use revm_primitives::PrecompileErrors;
 use sha3::{Digest, Keccak256};
-use std::collections::HashSet;
-use std::sync::{Arc, RwLock};
+
+/// Converts a `U256` value to a `u64`, saturating to `MAX` if the value is too large.
+#[macro_export]
+macro_rules! as_u64_saturated {
+    ($v:expr) => {
+        match $v.as_limbs() {
+            x => {
+                if (x[1] == 0) & (x[2] == 0) & (x[3] == 0) {
+                    x[0]
+                } else {
+                    u64::MAX
+                }
+            }
+        }
+    };
+}
 
 /// Function type for the main entrypoint of the generated code.
-pub type MainFunc<DB> = extern "C" fn(&mut RuntimeContext<DB>, initial_gas: u64) -> u8;
+pub type MainFunc = extern "C" fn(&mut RuntimeContext, initial_gas: u64) -> u8;
+
+/// The main context for smart contract execution environment.
+pub struct VMContext<'a, DB: Database> {
+    /// Environment contains all the information about config, block and transaction.
+    pub env: Box<Env>,
+    /// Database to load data from.
+    pub db: DB,
+    /// Handler is a component of the of VM that contains the execution logic.
+    pub handler: Handler<'a, DB>,
+    /// State with journaling support.
+    pub journaled_state: JournaledState,
+}
+
+impl<'a, DB: Database> VMContext<'a, DB> {
+    /// Creates a new context with the given database.
+    #[inline]
+    pub fn new(db: DB, env: Env, spec_id: SpecId, handler: Handler<'a, DB>) -> Self {
+        Self {
+            db,
+            env: Box::new(env),
+            handler,
+            journaled_state: JournaledState::new(spec_id, Default::default()),
+        }
+    }
+
+    /// Returns the configured EVM spec ID.
+    #[inline]
+    pub const fn spec_id(&self) -> SpecId {
+        self.journaled_state.spec_id
+    }
+
+    /// Load access list for berlin hard fork.
+    ///
+    /// Loading of accounts/storages is needed to make them warm.
+    #[inline]
+    pub fn load_access_list(&mut self) -> Result<(), DB::Error> {
+        for access_list in &self.env.tx.access_list {
+            self.journaled_state.initial_account_load(
+                access_list.0,
+                access_list.1.iter().map(|i| Bytes32::from_be_bytes(i.0)),
+                &mut self.db,
+            )?;
+        }
+        Ok(())
+    }
+
+    /// Load accounts
+    #[inline]
+    pub fn load_accounts(&mut self) -> Result<(), EVMError> {
+        // load coinbase
+        // EIP-3651: Warm COINBASE. Starts the `COINBASE` address warm
+        if self.spec_id().is_enabled_in(SpecId::SHANGHAI) {
+            let coinbase = self.env.block.coinbase;
+            self.journaled_state
+                .warm_preloaded_addresses
+                .insert(coinbase);
+        }
+
+        // Load blockhash storage address
+        // EIP-2935: Serve historical block hashes from state
+        if self.spec_id().is_enabled_in(SpecId::PRAGUE) {
+            self.journaled_state
+                .warm_preloaded_addresses
+                .insert(Address::from_slice(&hex_literal::hex!(
+                    "25a219378dad9b3503c8268c9ca836a52427a4fb"
+                )));
+        }
+
+        // Load access list
+        self.load_access_list()
+            .map_err(|_| EVMError::Database(DatabaseError))?;
+        Ok(())
+    }
+
+    /// Set precompile addresses into the warm preloaded address list.
+    #[inline]
+    pub fn set_precompiles(&mut self) {
+        // Set warm loaded addresses.
+        self.journaled_state.warm_preloaded_addresses.extend(
+            &[
+                precompiles::ECRECOVER_ADDRESS,
+                precompiles::IDENTITY_ADDRESS,
+                precompiles::SHA2_256_ADDRESS,
+                precompiles::RIPEMD_160_ADDRESS,
+                precompiles::MODEXP_ADDRESS,
+                precompiles::BLAKE2F_ADDRESS,
+            ]
+            .map(Address::from_low_u64_be),
+        );
+    }
+
+    /// Deducts the caller balance to the transaction limit.
+    pub fn deduct_caller(&mut self) -> Result<(), EVMError> {
+        let caller = self.env.tx.caller;
+        // load caller's account.
+        let mut caller_account = self
+            .journaled_state
+            .load_account(caller, &mut self.db)
+            .map_err(|_| EVMError::Database(DatabaseError))?;
+
+        let is_call = !self.env.tx.get_address().is_zero();
+
+        // Subtract gas costs from the caller's account.
+        // We need to saturate the gas cost to prevent underflow in case that `disable_balance_check` is enabled.
+        let mut gas_cost =
+            U256::from(self.env.tx.gas_limit).saturating_mul(self.env.effective_gas_price());
+
+        // EIP-4844
+        if let Some(data_fee) = self.env.calc_data_fee() {
+            gas_cost = gas_cost.saturating_add(data_fee);
+        }
+
+        // Set new caller account balance.
+        caller_account.info.balance = caller_account.info.balance.saturating_sub(gas_cost);
+
+        // bump the nonce for calls. Nonce for CREATE will be bumped in `handle_create`.
+        if is_call {
+            // Nonce is already checked
+            caller_account.info.nonce = caller_account.info.nonce.saturating_add(1);
+        }
+        // touch account so we know it is changed.
+        caller_account.mark_touch();
+
+        // Ensure tx kind is call
+        if is_call {
+            // Push NonceChange entry
+            self.journaled_state
+                .journal
+                .last_mut()
+                .unwrap()
+                .push(JournalEntry::NonceChange { address: caller });
+        }
+        Ok(())
+    }
+
+    /// Reimburse the caller with gas that were not used.
+    pub fn reimburse_caller(
+        &mut self,
+        gas_remaining: u64,
+        gas_refunded: i64,
+    ) -> Result<(), EVMError> {
+        let caller = self.env.tx.caller;
+        let effective_gas_price = self.env.effective_gas_price();
+
+        // Return balance of not used gas.
+        let caller_account = self
+            .journaled_state
+            .load_account(caller, &mut self.db)
+            .map_err(|_| EVMError::Database(DatabaseError))?;
+
+        caller_account.data.info.balance =
+            caller_account.data.info.balance.saturating_add(
+                effective_gas_price * U256::from(gas_remaining + gas_refunded as u64),
+            );
+
+        Ok(())
+    }
+
+    /// Reward beneficiary with gas fee.
+    pub fn reward_beneficiary(&mut self, gas_used: u64, gas_refunded: i64) -> Result<(), EVMError> {
+        let beneficiary = self.env.block.coinbase;
+        let effective_gas_price = self.env.effective_gas_price();
+
+        // transfer fee to coinbase/beneficiary.
+        // EIP-1559 discard basefee for coinbase transfer. Basefee amount of gas is discarded.
+        let coinbase_gas_price = if self.spec_id().is_enabled_in(SpecId::LONDON) {
+            effective_gas_price.saturating_sub(self.env.block.basefee)
+        } else {
+            effective_gas_price
+        };
+
+        let coinbase_account = self
+            .journaled_state
+            .load_account(beneficiary, &mut self.db)
+            .map_err(|_| EVMError::Database(DatabaseError))?;
+
+        coinbase_account.data.mark_touch();
+        coinbase_account.data.info.balance = coinbase_account
+            .data
+            .info
+            .balance
+            .saturating_add(coinbase_gas_price * U256::from(gas_used - gas_refunded as u64));
+
+        Ok(())
+    }
+
+    /// Return environment.
+    #[inline]
+    pub fn env(&mut self) -> &mut Env {
+        &mut self.env
+    }
+
+    /// Returns reference to [`CfgEnv`].
+    #[inline]
+    pub fn cfg(&self) -> &CfgEnv {
+        &self.env.cfg
+    }
+
+    /// Fetch block hash from database.
+    #[inline]
+    pub fn block_hash(&mut self, number: u64) -> Result<B256, DB::Error> {
+        self.db.block_hash(U256::from(number))
+    }
+
+    /// Mark account as touched as only touched accounts will be added to state.
+    #[inline]
+    pub fn touch(&mut self, address: &Address) {
+        self.journaled_state.touch(address);
+    }
+
+    /// Loads an account into memory. Returns `true` if it is cold accessed.
+    #[inline]
+    pub fn load_account(&mut self, address: Address) -> Result<StateLoad<&mut Account>, DB::Error> {
+        self.journaled_state.load_account(address, &mut self.db)
+    }
+
+    /// Load account from database to JournaledState.
+    ///
+    /// Return boolean pair where first is `is_cold` second bool `exists`.
+    #[inline]
+    pub fn load_account_delegated(&mut self, address: Address) -> Result<AccountLoad, DB::Error> {
+        self.journaled_state
+            .load_account_delegated(address, &mut self.db)
+    }
+
+    /// Return account balance and is_cold flag.
+    #[inline]
+    pub fn balance(&mut self, address: Address) -> Result<StateLoad<U256>, DB::Error> {
+        self.journaled_state
+            .load_account(address, &mut self.db)
+            .map(|acc| acc.map(|a| a.info.balance))
+    }
+
+    /// Return account code bytes and if address is cold loaded.
+    #[inline]
+    pub fn code(&mut self, address: Address) -> Result<CodeLoad<Bytes>, DB::Error> {
+        let acc = self.journaled_state.load_code(address, &mut self.db)?;
+        Ok(CodeLoad::new_not_delegated(
+            acc.info.code.as_ref().cloned().unwrap_or_else(Bytes::new),
+            acc.is_cold,
+        ))
+    }
+
+    /// Get code hash of address.
+    #[inline]
+    pub fn code_hash(&mut self, address: Address) -> Result<CodeLoad<Bytes32>, DB::Error> {
+        let acc = self.journaled_state.load_code(address, &mut self.db)?;
+        if acc.is_empty() {
+            return Ok(CodeLoad::new_not_delegated(Bytes32::ZERO, acc.is_cold));
+        }
+        Ok(CodeLoad::new_not_delegated(
+            acc.info.code_hash.into(),
+            acc.is_cold,
+        ))
+    }
+
+    /// Load storage slot, if storage is not present inside the account then it will be loaded from database.
+    #[inline]
+    pub fn sload(
+        &mut self,
+        address: Address,
+        index: Bytes32,
+    ) -> Result<StateLoad<Bytes32>, DB::Error> {
+        // account is always warm. reference on that statement https://eips.ethereum.org/EIPS/eip-2929 see `Note 2:`
+        self.journaled_state.sload(address, index, &mut self.db)
+    }
+
+    /// Storage change of storage slot, before storing `sload` will be called for that slot.
+    #[inline]
+    pub fn sstore(
+        &mut self,
+        address: Address,
+        index: Bytes32,
+        value: Bytes32,
+    ) -> Result<StateLoad<SStoreResult>, DB::Error> {
+        self.journaled_state
+            .sstore(address, index, value, &mut self.db)
+    }
+
+    /// Returns the transient storage value.
+    #[inline]
+    pub fn tload(&mut self, address: Address, index: Bytes32) -> Bytes32 {
+        self.journaled_state.tload(address, index)
+    }
+
+    /// Stores the transient storage value.
+    #[inline]
+    pub fn tstore(&mut self, address: Address, index: Bytes32, value: Bytes32) {
+        self.journaled_state.tstore(address, index, value)
+    }
+
+    /// Selfdestructs the account.
+    #[inline]
+    pub fn selfdestruct(
+        &mut self,
+        address: Address,
+        target: Address,
+    ) -> Result<StateLoad<SelfDestructResult>, DB::Error> {
+        self.journaled_state
+            .selfdestruct(address, target, &mut self.db)
+    }
+
+    fn call_frame(&mut self, frame: Frame) -> Result<CallResult, EVMError> {
+        let call_frame_func = self.handler.call_frame.clone();
+        call_frame_func(frame, self)
+    }
+
+    fn is_precompile_address(address: Address) -> bool {
+        match address {
+            x if x == Address::from_low_u64_be(precompiles::ECRECOVER_ADDRESS) => true,
+            x if x == Address::from_low_u64_be(precompiles::IDENTITY_ADDRESS) => true,
+            x if x == Address::from_low_u64_be(precompiles::SHA2_256_ADDRESS) => true,
+            x if x == Address::from_low_u64_be(precompiles::RIPEMD_160_ADDRESS) => true,
+            x if x == Address::from_low_u64_be(precompiles::MODEXP_ADDRESS) => true,
+            x if x == Address::from_low_u64_be(precompiles::BLAKE2F_ADDRESS) => true,
+            _ => false,
+        }
+    }
+
+    /// Call precompile contract
+    #[inline]
+    fn call_precompile(
+        &mut self,
+        address: Address,
+        calldata: &Bytes,
+        gas_limit: u64,
+    ) -> Result<Option<CallResult>, EVMError> {
+        let result = match address {
+            x if x == Address::from_low_u64_be(precompiles::ECRECOVER_ADDRESS) => {
+                ecrecover(calldata, gas_limit)
+            }
+            x if x == Address::from_low_u64_be(precompiles::IDENTITY_ADDRESS) => {
+                identity(calldata, gas_limit)
+            }
+            x if x == Address::from_low_u64_be(precompiles::SHA2_256_ADDRESS) => {
+                sha2_256(calldata, gas_limit)
+            }
+            x if x == Address::from_low_u64_be(precompiles::RIPEMD_160_ADDRESS) => {
+                ripemd_160(calldata, gas_limit)
+            }
+            x if x == Address::from_low_u64_be(precompiles::MODEXP_ADDRESS) => {
+                modexp(calldata, gas_limit)
+            }
+            x if x == Address::from_low_u64_be(precompiles::BLAKE2F_ADDRESS) => {
+                blake2f(calldata, gas_limit)
+            }
+            _ => return Ok(None),
+        };
+        let mut call_result = CallResult::new_with_gas_limit(gas_limit);
+        match result {
+            Ok(output) => {
+                call_result.output = output.bytes.0.to_vec();
+                if !call_result.record_cost(output.gas_used) {
+                    call_result.status = ExitStatusCode::PrecompileOOG;
+                }
+            }
+            Err(PrecompileErrors::Error(e)) => {
+                if e.is_oog() {
+                    call_result.status = ExitStatusCode::PrecompileOOG;
+                } else {
+                    call_result.status = ExitStatusCode::PrecompileError;
+                };
+            }
+            Err(PrecompileErrors::Fatal { msg }) => {
+                return Err(EVMError::Precompile(msg));
+            }
+        }
+        Ok(Some(call_result))
+    }
+
+    /// Handle frame sub call.
+    pub fn call(&mut self, msg: CallMessage) -> Result<CallResult, EVMError> {
+        // Check depth
+        if self.journaled_state.depth() > CALL_STACK_LIMIT {
+            return Ok(CallResult::new_with_gas_limit_and_status(
+                msg.gas_limit,
+                ExitStatusCode::CallTooDeep,
+            ));
+        }
+        match msg.kind {
+            CallKind::Call | CallKind::CallCode | CallKind::Delegatecall | CallKind::Staticcall => {
+                // Make account warm and loaded
+                let _ = self
+                    .journaled_state
+                    .load_account_delegated(msg.code_address, &mut self.db);
+                let checkpoint = self.journaled_state.checkpoint();
+                if !matches!(msg.kind, CallKind::Delegatecall) {
+                    // Create the checkpont for the sub call.
+                    if msg.value.is_zero() {
+                        self.load_account(msg.recipient)
+                            .map_err(|_| EVMError::Database(DatabaseError))?;
+                        self.journaled_state.touch(&msg.recipient);
+                    } else {
+                        // Transfer value from caller to called account. As value get transferred
+                        // target gets touched.
+                        if let Some(status) = self
+                            .journaled_state
+                            .transfer(&msg.caller, &msg.recipient, msg.value, &mut self.db)
+                            .map_err(|_| EVMError::Database(DatabaseError))?
+                        {
+                            self.journaled_state.checkpoint_revert(checkpoint);
+                            return Ok(CallResult::new_with_gas_limit_and_status(
+                                msg.gas_limit,
+                                status,
+                            ));
+                        }
+                    }
+                }
+                if let Some(call_result) = self.call_precompile(
+                    msg.code_address,
+                    &msg.input.clone().into(),
+                    msg.gas_limit,
+                )? {
+                    if call_result.status.is_ok() {
+                        self.journaled_state.checkpoint_commit();
+                    } else {
+                        self.journaled_state.checkpoint_revert(checkpoint);
+                    }
+                    Ok(call_result)
+                } else {
+                    let account = self
+                        .journaled_state
+                        .load_code(msg.code_address, &mut self.db)
+                        .map_err(|_| EVMError::Database(DatabaseError))?;
+                    let code_hash = account.info.code_hash;
+                    let bytecode = account.info.code.clone().unwrap_or_default();
+                    if bytecode.is_empty() {
+                        self.journaled_state.checkpoint_commit();
+                        return Ok(CallResult::new_with_gas_limit_and_status(
+                            msg.gas_limit,
+                            ExitStatusCode::Stop,
+                        ));
+                    }
+                    let contract = Contract::new_with_call_message(
+                        &msg,
+                        msg.input.clone().into(),
+                        bytecode,
+                        Some(code_hash),
+                    );
+                    let call_result = self.call_frame(Frame {
+                        contract,
+                        gas_limit: msg.gas_limit,
+                    })?;
+                    self.call_return(&call_result.status, checkpoint);
+                    Ok(call_result)
+                }
+            }
+            CallKind::Create | CallKind::Create2 => {
+                // Fetch balance of caller.
+                let caller_balance = self
+                    .balance(msg.caller)
+                    .map_err(|_| EVMError::Database(DatabaseError))?;
+                // Check if caller has enough balance to send to the created contract.
+                if caller_balance.data < msg.value {
+                    return Ok(CallResult::new_with_gas_limit_and_status(
+                        msg.gas_limit,
+                        ExitStatusCode::OutOfFunds,
+                    ));
+                }
+                // Increase nonce of caller and check if it overflows
+                let old_nonce;
+                if let Some(nonce) = self.journaled_state.inc_nonce(msg.caller) {
+                    old_nonce = nonce - 1;
+                } else {
+                    return Ok(CallResult::new_with_gas_limit_and_status(
+                        msg.gas_limit,
+                        ExitStatusCode::NonceOverflow,
+                    ));
+                }
+                // Create address
+                let mut init_code_hash = B256::zero();
+                let created_address = match msg.salt {
+                    Some(s) => {
+                        let hash = {
+                            let mut hasher = Keccak256::new();
+                            hasher.update(&msg.input);
+                            hasher.finalize()
+                        };
+                        init_code_hash = B256::from_slice(&hash);
+                        compute_contract_address2_with_init_code_hash(
+                            msg.caller,
+                            s,
+                            init_code_hash.as_fixed_bytes(),
+                        )
+                    }
+                    _ => compute_contract_address(msg.caller, old_nonce),
+                };
+                // Created address is not allowed to be a precompile.
+                if Self::is_precompile_address(created_address) {
+                    return Ok(CallResult::new_with_gas_limit_and_status(
+                        msg.gas_limit,
+                        ExitStatusCode::CreateCollision,
+                    ));
+                }
+                // Warm load account.
+                self.load_account(created_address)
+                    .map_err(|_| EVMError::Database(DatabaseError))?;
+                // Create account, transfer funds and make the journal checkpoint.
+                let checkpoint = match self.journaled_state.create_account_checkpoint(
+                    msg.caller,
+                    created_address,
+                    msg.value,
+                    self.spec_id(),
+                ) {
+                    Ok(checkpoint) => checkpoint,
+                    Err(status) => {
+                        return Ok(CallResult::new_with_gas_limit_and_status(
+                            msg.gas_limit,
+                            status,
+                        ));
+                    }
+                };
+
+                let contract = Contract {
+                    input: Bytes::new(),
+                    code: msg.input.clone().into(),
+                    hash: Some(init_code_hash),
+                    target_address: created_address,
+                    code_address: Address::default(),
+                    caller: msg.caller,
+                    call_value: msg.value,
+                };
+                let mut call_result = self.call_frame(Frame {
+                    contract,
+                    gas_limit: msg.gas_limit,
+                })?;
+                self.create_return(
+                    &mut call_result,
+                    created_address,
+                    msg.input.into(),
+                    checkpoint,
+                );
+                Ok(call_result)
+            }
+            CallKind::ExtCall
+            | CallKind::ExtStaticcall
+            | CallKind::ExtDelegatecall
+            | CallKind::EofCreate => unimplemented!("{:?}", msg.kind),
+        }
+    }
+
+    /// Handles call return.
+    pub fn call_return(
+        &mut self,
+        status_code: &ExitStatusCode,
+        journal_checkpoint: JournalCheckpoint,
+    ) {
+        // revert changes or not.
+        if status_code.is_ok() {
+            self.journaled_state.checkpoint_commit();
+        } else {
+            self.journaled_state.checkpoint_revert(journal_checkpoint);
+        }
+    }
+
+    /// Handles create return.
+    pub fn create_return(
+        &mut self,
+        result: &mut CallResult,
+        address: Address,
+        code: Bytes,
+        journal_checkpoint: JournalCheckpoint,
+    ) {
+        result.create_address = Some(address);
+        // if return is not ok revert and return.
+        if !result.status.is_ok() {
+            self.journaled_state.checkpoint_revert(journal_checkpoint);
+            return;
+        }
+        let spec_id = self.spec_id();
+        // Host error if present on execution
+        // if ok, check contract creation limit and calculate gas deduction on output len.
+        //
+        // EIP-3541: Reject new contract code starting with the 0xEF byte
+        if spec_id.is_enabled_in(SpecId::LONDON) && code.first() == Some(&0xEF) {
+            self.journaled_state.checkpoint_revert(journal_checkpoint);
+            result.status = ExitStatusCode::CreateContractStartingWithEF;
+            return;
+        }
+
+        // EIP-170: Contract code size limit
+        // By default limit is 0x6000 (~25kb)
+        if spec_id.is_enabled_in(SpecId::SPURIOUS_DRAGON) && code.len() > self.cfg().max_code_size()
+        {
+            self.journaled_state.checkpoint_revert(journal_checkpoint);
+            result.status = ExitStatusCode::CreateContractSizeLimit;
+            return;
+        }
+        let gas_for_code = code.len() as u64 * gas_cost::CODEDEPOSIT;
+        if !result.record_cost(gas_for_code) {
+            // record code deposit gas cost and check if we are out of gas.
+            // EIP-2 point 3: If contract creation does not have enough gas to pay for the
+            // final gas fee for adding the contract code to the state, the contract
+            //  creation fails (i.e. goes out-of-gas) rather than leaving an empty contract.
+            if spec_id.is_enabled_in(SpecId::HOMESTEAD) {
+                self.journaled_state.checkpoint_revert(journal_checkpoint);
+                result.status = ExitStatusCode::OutOfGas;
+                return;
+            } else {
+                result.output = Vec::new();
+            }
+        }
+        // if we have enough gas we can commit changes.
+        self.journaled_state.checkpoint_commit();
+
+        // Set the code to the journaled state.
+        self.journaled_state.set_code(address, code);
+
+        result.status = ExitStatusCode::Return;
+    }
+}
+
+impl<'a, DB: Database> Host for VMContext<'a, DB> {
+    #[inline]
+    fn env(&self) -> &Env {
+        &self.env
+    }
+
+    #[inline]
+    fn env_mut(&mut self) -> &mut Env {
+        &mut self.env
+    }
+
+    #[inline]
+    fn sload(&mut self, addr: Address, key: Bytes32) -> Option<StateLoad<Bytes32>> {
+        self.sload(addr, key).ok()
+    }
+
+    #[inline]
+    fn sstore(
+        &mut self,
+        addr: Address,
+        key: Bytes32,
+        value: Bytes32,
+    ) -> Option<StateLoad<SStoreResult>> {
+        self.sstore(addr, key, value).ok()
+    }
+
+    #[inline]
+    fn tload(&mut self, addr: Address, key: Bytes32) -> Bytes32 {
+        self.tload(addr, key)
+    }
+
+    #[inline]
+    fn tstore(&mut self, addr: Address, key: Bytes32, value: Bytes32) {
+        self.tstore(addr, key, value)
+    }
+
+    #[inline]
+    fn load_account_delegated(&mut self, addr: Address) -> Option<AccountLoad> {
+        self.load_account_delegated(addr).ok()
+    }
+
+    #[inline]
+    fn balance(&mut self, addr: Address) -> Option<StateLoad<Bytes32>> {
+        self.journaled_state
+            .load_account(addr, &mut self.db)
+            .map(|acc| acc.map(|a| a.info.balance.into()))
+            .ok()
+    }
+
+    #[inline]
+    fn code(&mut self, addr: Address) -> Option<CodeLoad<Bytes>> {
+        self.code(addr).ok()
+    }
+
+    #[inline]
+    fn code_hash(&mut self, addr: Address) -> Option<CodeLoad<Bytes32>> {
+        self.code_hash(addr).ok()
+    }
+
+    #[inline]
+    fn selfdestruct(
+        &mut self,
+        addr: Address,
+        target: Address,
+    ) -> Option<StateLoad<SelfDestructResult>> {
+        self.journaled_state
+            .selfdestruct(addr, target, &mut self.db)
+            .ok()
+    }
+
+    fn block_hash(&mut self, number: u64) -> Option<Bytes32> {
+        let block_number = as_u64_saturated!(self.env.block.number);
+        let Some(diff) = block_number.checked_sub(number) else {
+            return Some(Bytes32::ZERO);
+        };
+        if diff == 0 {
+            return Some(Bytes32::ZERO);
+        }
+        if diff <= BLOCK_HASH_HISTORY {
+            return self.block_hash(number).map(Bytes32::from).ok();
+        }
+        Some(Bytes32::ZERO)
+    }
+
+    #[inline]
+    fn log(&mut self, log: Log) {
+        self.journaled_state.log(log);
+    }
+
+    #[inline]
+    fn call(&mut self, msg: CallMessage) -> Result<CallResult, EVMError> {
+        self.call(msg)
+    }
+}
 
 /// The internal execution context, which holds the memory, gas, and program state during contract execution.
 ///
@@ -43,7 +764,7 @@ pub type MainFunc<DB> = extern "C" fn(&mut RuntimeContext<DB>, initial_gas: u64)
 ///     returndata: None,
 ///     program: vec![0x60, 0x0A, 0x60, 0x00],  // Sample bytecode
 ///     gas_remaining: Some(100000),
-///     gas_refund: 0,
+///     gas_refunded: 0,
 ///     exit_status: None,
 ///     logs: Vec::new(),
 /// };
@@ -53,101 +774,92 @@ pub struct InnerContext {
     /// Represents the mutable, byte-addressable memory used during contract execution.
     /// This memory is accessible by smart contracts for reading and writing data.
     memory: Vec<u8>,
-    /// Contains a tuple with the start index and length of the return data in memory.
-    /// This data is returned when a VM operation completes, such as after a `RETURN` or a
-    /// contract call, allowing the caller to process the output of the executed contract.
-    returndata: Option<(usize, usize)>,
-    /// The smart contract's bytecode being executed.
-    pub program: Vec<u8>,
+    /// The return data buffer for internal calls.
+    /// It has multi usage:
+    ///
+    /// * It contains the output bytes of call sub call.
+    /// * When this interpreter finishes execution it contains the output bytes of this contract.
+    returndata: Vec<u8>,
     /// The remaining gas for the current execution.
     gas_remaining: Option<u64>,
     /// The total gas to be refunded at the end of execution.
-    gas_refund: u64,
+    gas_refunded: i64,
     /// The exit status code of the VM execution.
     exit_status: Option<ExitStatusCode>,
-    /// Logs captures all log entries emitted by the contract, which can be used for event tracking
-    /// and off-chain data analysis. Logs are essential for notifying external observers about
-    /// significant events that occurred during contract execution.
-    logs: Vec<LogData>,
     /// Depth in the call stack.
     pub depth: usize,
     /// Whether the context is static.
     pub is_static: bool,
     /// Whether the context is EOF init.
-    pub is_eof_init: bool,
+    pub is_eof: bool,
     /// VM spec id
     pub spec_id: SpecId,
-    /// Warm loaded addresses are used to check if loaded address
-    /// should be considered cold or warm loaded when the account
-    /// is first accessed.
-    pub warm_preloaded_addresses: HashSet<Address>,
 }
-
-/// A frame of execution representing a single call within a smart contract execution context.
-///
-/// The `CallFrame` struct holds information about the caller of the contract and the data returned
-/// from the last call made by this contract. It's part of the execution stack that is used to manage
-/// nested contract calls.
-///
-/// # Fields:
-/// - `caller`: The address of the account that initiated the call.
-/// - `last_call_returndata`: The data returned by the last call executed in the current frame.
-///
-/// # Example Usage:
-/// ```no_check
-/// let call_frame = CallFrame {
-///     caller: Address::from_low_u64_be(0x123),
-///     last_call_returndata: vec![0x01, 0x02, 0x03],
-/// };
-/// ```
-#[derive(Debug, Default)]
-pub struct CallFrame {
-    pub caller: Address,
-    ctx_is_static: bool,
-    last_call_returndata: Vec<u8>,
-}
-
-impl CallFrame {
-    pub fn new(caller: Address) -> Self {
-        Self {
-            caller,
-            ctx_is_static: false,
-            last_call_returndata: Vec::new(),
-        }
-    }
-
-    pub fn new_with_data(caller: Address, data: Vec<u8>) -> Self {
-        Self {
-            caller,
-            ctx_is_static: false,
-            last_call_returndata: data,
-        }
-    }
-}
-
-pub type RuntimeTransaction<DB> =
-    Arc<dyn Transaction<Context = RuntimeContext<DB>, Result = anyhow::Result<ResultAndState>>>;
-pub type RuntimeHost = Arc<RwLock<dyn Host>>;
-pub type RuntimeDB<DB> = Arc<RwLock<DB>>;
 
 /// The runtime context for smart contract execution, encapsulating the environment and execution state.
 ///
 /// The `RuntimeContext` struct holds all the necessary information required during the execution of a contract.
 /// It tracks the environment, execution journal, current call frame, inner execution context, and transient storage.
 /// This is a core struct used in contract execution to manage the overall execution state.
-///
-/// # Fields:
-/// - `env`: The execution environment, which contains information such as block number, gas price, and chain ID.
-/// - `journal`: The journal of changes made during contract execution, used for rollback in case of failure.
-/// - `call_frame`: The current call frame representing the contract call stack.
-/// - `inner_context`: The inner execution context that holds memory, gas, logs, and other runtime-specific data.
-/// - `transient_storage`: A temporary storage map used during execution, mapping addresses and keys to values.
-pub struct RuntimeContext<DB: Database> {
-    pub call_frame: CallFrame,
-    pub inner_context: InnerContext,
-    pub transaction: RuntimeTransaction<DB>,
-    pub host: RuntimeHost,
-    pub db: RuntimeDB<DB>,
+pub struct RuntimeContext<'a> {
+    pub inner: InnerContext,
+    pub contract: Contract,
+    pub host: &'a mut dyn Host,
+}
+
+/// VM contract information.
+#[derive(Clone, Debug, Default)]
+pub struct Contract {
+    /// Contracts data
+    pub input: Bytes,
+    /// The smart contract's bytecode being executed.
+    pub code: Bytecode,
+    /// Bytecode hash.
+    pub hash: Option<B256>,
+    /// Target address of the account. Storage of this address is going to be modified.
+    pub target_address: Address,
+    /// Address of the account the bytecode was loaded from. This can be different from target_address
+    /// in the case of DELEGATECALL or CALLCODE
+    pub code_address: Address,
+    /// Caller of the EVM.
+    pub caller: Address,
+    /// Value send to contract from transaction or from CALL opcodes.
+    pub call_value: U256,
+}
+
+impl Contract {
+    /// Creates a new contract from the given [`Env`], [`Bytecode`] and optional bytecode hash [`Option<B256>`].
+    #[inline]
+    pub fn new_with_env(env: &Env, bytecode: Bytecode, hash: Option<B256>) -> Self {
+        Self {
+            input: env.tx.data.clone(),
+            code: bytecode,
+            hash,
+            target_address: env.tx.transact_to,
+            caller: env.tx.caller,
+            code_address: env.tx.caller,
+            call_value: env.tx.value,
+        }
+    }
+
+    /// Creates a new contract from the given [`CallMessage`].
+    #[inline]
+    pub fn new_with_call_message(
+        call_msg: &CallMessage,
+        input: Bytes,
+        bytecode: Bytecode,
+        hash: Option<B256>,
+    ) -> Self {
+        Self {
+            input,
+            code: bytecode,
+            hash,
+            target_address: call_msg.recipient,
+            code_address: call_msg.code_address,
+            caller: call_msg.caller,
+            call_value: call_msg.value,
+        }
+    }
 }
 
 /// Represents log data generated by contract execution, including topics and data.
@@ -167,10 +879,20 @@ pub struct RuntimeContext<DB: Database> {
 ///     data: vec![0xDE, 0xAD, 0xBE, 0xEF],
 /// };
 /// ```
-#[derive(Clone, Debug, Default, Eq, PartialEq, Hash)]
+#[derive(Clone, Default, Eq, PartialEq, Hash)]
 pub struct LogData {
     pub topics: Vec<B256>,
     pub data: Vec<u8>,
+}
+
+impl fmt::Debug for LogData {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        f.debug_struct("LogData")
+            .field("topics", &self.topics)
+            // Use the hex output format
+            .field("data", &hex::encode(&self.data))
+            .finish()
+    }
 }
 
 impl LogData {
@@ -230,7 +952,7 @@ pub struct Log {
 
 /// A generic struct to represent the result of a runtime function call.
 #[repr(C)]
-pub struct Result<T> {
+pub struct RuntimeResult<T> {
     /// The error, if any, encountered during execution.
     pub error: u8,
     /// The gas consumed during the execution of the function call.
@@ -239,7 +961,7 @@ pub struct Result<T> {
     pub value: T,
 }
 
-impl<T> Result<T> {
+impl<T> RuntimeResult<T> {
     /// Creates a new successful result with a value.
     #[inline]
     pub fn success(value: T) -> Self {
@@ -273,12 +995,12 @@ impl<T> Result<T> {
 
 macro_rules! uint_result_ptr {
     ($result:expr) => {
-        Box::into_raw(Box::new(Result::success($result)))
+        Box::into_raw(Box::new(RuntimeResult::success($result)))
     };
 }
 
 /// Accessors for managing and retrieving execution results in a runtime context.
-impl<DB: Database> RuntimeContext<DB> {
+impl<'a> RuntimeContext<'a> {
     /// Creates a new `RuntimeContext` with the given environment, journal, and call frame.
     ///
     /// # Parameters
@@ -296,22 +1018,15 @@ impl<DB: Database> RuntimeContext<DB> {
     /// ```no_check
     /// let context = RuntimeContext::new(env, journal, call_frame);
     /// ```
-    pub fn new(
-        db: RuntimeDB<DB>,
-        call_frame: CallFrame,
-        transaction: RuntimeTransaction<DB>,
-        host: RuntimeHost,
-        spec_id: SpecId,
-    ) -> Self {
+    pub fn new(contract: Contract, host: &'a mut dyn Host, spec_id: SpecId) -> Self {
         Self {
-            db,
-            call_frame,
-            inner_context: InnerContext {
+            inner: InnerContext {
                 spec_id,
+                memory: Vec::with_capacity(4 * 1024),
                 ..Default::default()
             },
-            transaction,
             host,
+            contract,
         }
     }
 
@@ -329,271 +1044,61 @@ impl<DB: Database> RuntimeContext<DB> {
     /// let returndata = context.return_values();
     /// ```
     pub fn return_values(&self) -> &[u8] {
-        if let Some((offset, size)) = self.inner_context.returndata {
-            &self.inner_context.memory[offset..offset + size]
-        } else {
-            &[]
-        }
-    }
-
-    /// Retrieves the logs generated during execution.
-    ///
-    /// This function converts the internal log data into a vector of `Log` objects, associating each log with the transaction caller.
-    ///
-    /// # Returns
-    ///
-    /// - `Vec<Log>`: A vector of logs created during execution, each containing the caller's address and the log data.
-    ///
-    /// # Example
-    ///
-    /// ```no_check
-    /// let logs = context.logs();
-    /// ```
-    pub fn logs(&self) -> Vec<Log> {
-        let host = self.host.read().unwrap();
-        self.inner_context
-            .logs
-            .iter()
-            .map(|logdata| Log {
-                address: host.env().tx.caller,
-                data: logdata.clone(),
-            })
-            .collect()
+        &self.inner.returndata
     }
 
     /// Retrieves the memory used during execution.
     #[inline]
     pub fn memory(&self) -> &[u8] {
-        &self.inner_context.memory
+        &self.inner.memory
     }
 
-    /// Retrieves the result of the execution, including gas usage, return values, and the resulting state changes.
-    ///
-    /// The result depends on the exit status of the execution, which can be a success, revert, or error.
-    ///
-    /// # Returns
-    ///
-    /// - `Result<ResultAndState, EVMError>`: A `Result` containing the execution result and the updated state if successful,
-    ///   or an `EVMError` if the execution fails.
-    ///
-    /// # Example
-    ///
-    /// ```no_check
-    /// let result = context.get_result();
-    /// ```
-    pub fn get_result(&self) -> anyhow::Result<ResultAndState, EVMError> {
-        let host = self.host.read().unwrap();
-        let gas_remaining = self.inner_context.gas_remaining.unwrap_or(0);
-        let gas_limit = host.env().tx.gas_limit;
-        let gas_used = gas_limit.saturating_sub(gas_remaining);
-        let gas_refunded = self.inner_context.gas_refund;
-
-        let return_values = self.return_values().to_vec();
-        let exit_status = self
-            .inner_context
+    /// Retrieves the execution status code.
+    #[inline]
+    pub fn status(&self) -> ExitStatusCode {
+        self.inner
             .exit_status
             .clone()
-            .unwrap_or(ExitStatusCode::Stop);
+            .unwrap_or(ExitStatusCode::Return)
+    }
 
-        let result = match exit_status {
-            ExitStatusCode::Return => ExecutionResult::Success {
-                reason: SuccessReason::Return,
-                gas_used,
-                gas_refunded,
-                output: Output::Call(return_values.into()),
-                logs: self.logs(),
-            },
-            ExitStatusCode::Stop => ExecutionResult::Success {
-                reason: SuccessReason::Stop,
-                gas_used,
-                gas_refunded,
-                output: Output::Call(return_values.into()),
-                logs: self.logs(),
-            },
-            ExitStatusCode::Revert
-            | ExitStatusCode::CreateInitCodeStartingEF00
-            | ExitStatusCode::InvalidEOFInitCode => ExecutionResult::Revert {
-                output: return_values.into(),
-                gas_used,
-            },
-            ExitStatusCode::CallTooDeep => ExecutionResult::Halt {
-                reason: HaltReason::CallTooDeep,
-                gas_limit,
-                gas_used,
-            },
-            ExitStatusCode::OutOfFunds => ExecutionResult::Halt {
-                reason: HaltReason::OutOfFunds,
-                gas_limit,
-                gas_used,
-            },
-            ExitStatusCode::OutOfGas => ExecutionResult::Halt {
-                reason: HaltReason::OutOfGas(OutOfGasError::Basic),
-                gas_limit,
-                gas_used,
-            },
-            ExitStatusCode::MemoryOOG => ExecutionResult::Halt {
-                reason: HaltReason::OutOfGas(OutOfGasError::Memory),
-                gas_limit,
-                gas_used,
-            },
-            ExitStatusCode::MemoryLimitOOG => ExecutionResult::Halt {
-                reason: HaltReason::OutOfGas(OutOfGasError::MemoryLimit),
-                gas_limit,
-                gas_used,
-            },
-            ExitStatusCode::PrecompileOOG => ExecutionResult::Halt {
-                reason: HaltReason::OutOfGas(OutOfGasError::Precompile),
-                gas_limit,
-                gas_used,
-            },
-            ExitStatusCode::InvalidOperandOOG => ExecutionResult::Halt {
-                reason: HaltReason::OutOfGas(OutOfGasError::InvalidOperand),
-                gas_limit,
-                gas_used,
-            },
-            ExitStatusCode::OpcodeNotFound => ExecutionResult::Halt {
-                reason: HaltReason::OpcodeNotFound,
-                gas_limit,
-                gas_used,
-            },
-            ExitStatusCode::CallNotAllowedInsideStatic => ExecutionResult::Halt {
-                reason: HaltReason::CallNotAllowedInsideStatic,
-                gas_limit,
-                gas_used,
-            },
-            ExitStatusCode::StateChangeDuringStaticcall => ExecutionResult::Halt {
-                reason: HaltReason::StateChangeDuringStaticcall,
-                gas_limit,
-                gas_used,
-            },
-            ExitStatusCode::InvalidFEOpcode => ExecutionResult::Halt {
-                reason: HaltReason::InvalidFEOpcode,
-                gas_limit,
-                gas_used,
-            },
-            ExitStatusCode::InvalidJump => ExecutionResult::Halt {
-                reason: HaltReason::InvalidJump,
-                gas_limit,
-                gas_used,
-            },
-            ExitStatusCode::NotActivated => ExecutionResult::Halt {
-                reason: HaltReason::NotActivated,
-                gas_limit,
-                gas_used,
-            },
-            ExitStatusCode::StackUnderflow => ExecutionResult::Halt {
-                reason: HaltReason::StackUnderflow,
-                gas_limit,
-                gas_used,
-            },
-            ExitStatusCode::StackOverflow => ExecutionResult::Halt {
-                reason: HaltReason::StackOverflow,
-                gas_limit,
-                gas_used,
-            },
-            ExitStatusCode::OutOfOffset => ExecutionResult::Halt {
-                reason: HaltReason::OutOfOffset,
-                gas_limit,
-                gas_used,
-            },
-            ExitStatusCode::CreateCollision => ExecutionResult::Halt {
-                reason: HaltReason::CreateCollision,
-                gas_limit,
-                gas_used,
-            },
-            ExitStatusCode::OverflowPayment => ExecutionResult::Halt {
-                reason: HaltReason::OverflowPayment,
-                gas_limit,
-                gas_used,
-            },
-            ExitStatusCode::PrecompileError => ExecutionResult::Halt {
-                reason: HaltReason::PrecompileError,
-                gas_limit,
-                gas_used,
-            },
-            ExitStatusCode::NonceOverflow => ExecutionResult::Halt {
-                reason: HaltReason::NonceOverflow,
-                gas_limit,
-                gas_used,
-            },
-            ExitStatusCode::CreateContractSizeLimit => ExecutionResult::Halt {
-                reason: HaltReason::CreateContractSizeLimit,
-                gas_limit,
-                gas_used,
-            },
-            ExitStatusCode::CreateContractStartingWithEF => ExecutionResult::Halt {
-                reason: HaltReason::CreateContractStartingWithEF,
-                gas_limit,
-                gas_used,
-            },
-            ExitStatusCode::CreateInitCodeSizeLimit => ExecutionResult::Halt {
-                reason: HaltReason::CreateInitCodeSizeLimit,
-                gas_limit,
-                gas_used,
-            },
-            ExitStatusCode::EOFOpcodeDisabledInLegacy
-            | ExitStatusCode::ReturnContractInNotInitEOF => ExecutionResult::Halt {
-                reason: HaltReason::OpcodeNotFound,
-                gas_limit,
-                gas_used,
-            },
-            ExitStatusCode::EOFFunctionStackOverflow => ExecutionResult::Halt {
-                reason: HaltReason::EOFFunctionStackOverflow,
-                gas_limit,
-                gas_used,
-            },
-            ExitStatusCode::EofAuxDataOverflow => ExecutionResult::Halt {
-                reason: HaltReason::EofAuxDataOverflow,
-                gas_limit,
-                gas_used,
-            },
-            ExitStatusCode::EofAuxDataTooSmall => ExecutionResult::Halt {
-                reason: HaltReason::EofAuxDataTooSmall,
-                gas_limit,
-                gas_used,
-            },
-            ExitStatusCode::InvalidExtCallTarget => ExecutionResult::Halt {
-                reason: HaltReason::InvalidExtCallTarget,
-                gas_limit,
-                gas_used,
-            },
-            ExitStatusCode::InvalidExtDelegatecallTarget => ExecutionResult::Internal {
-                result: InternalResult::InvalidExtDelegatecallTarget,
-                gas_used,
-            },
-        };
+    /// The remaining gas at the end of execution.
+    #[inline]
+    pub fn gas_remaining(&self) -> u64 {
+        self.inner.gas_remaining.unwrap_or_default()
+    }
 
-        let host = self.host.read().unwrap();
-        let mut state = self.db.read().unwrap().clone().into_state();
-        let callee_address = host.env().tx.get_address();
+    /// The total gas to be refunded at the end of execution.
+    #[inline]
+    pub fn gas_refunded(&self) -> i64 {
+        self.inner.gas_refunded
+    }
 
-        state.entry(callee_address).or_default().storage.extend(
-            host.storage()
-                .iter()
-                .map(|(k, v)| (k.to_u256(), StorageSlot::from(v.to_u256()))),
-        );
-
-        Ok(ResultAndState { result, state })
+    /// Set the last call return data.
+    #[inline]
+    pub fn set_returndata(&mut self, data: Vec<u8>) {
+        self.inner.returndata = data;
     }
 }
 
 // System call functions
-impl<DB: Database> RuntimeContext<DB> {
+impl<'a> RuntimeContext<'a> {
     pub extern "C" fn write_result(
         &mut self,
         offset: u64,
         bytes_len: u64,
         remaining_gas: u64,
         execution_result: u8,
-    ) -> *mut Result<()> {
-        self.inner_context.returndata = Some((offset as usize, bytes_len as usize));
-        self.inner_context.gas_remaining = Some(remaining_gas);
-        self.inner_context.exit_status = Some(ExitStatusCode::from_u8(execution_result));
-        Box::into_raw(Box::new(Result::success(())))
+    ) -> *mut RuntimeResult<()> {
+        self.inner.returndata =
+            self.inner.memory[offset as usize..offset as usize + bytes_len as usize].to_vec();
+        self.inner.gas_remaining = Some(remaining_gas);
+        self.inner.exit_status = Some(ExitStatusCode::from_u8(execution_result));
+        Box::into_raw(Box::new(RuntimeResult::success(())))
     }
 
-    pub extern "C" fn returndata_size(&mut self) -> *mut Result<u64> {
-        uint_result_ptr!(self.call_frame.last_call_returndata.len() as u64)
+    pub extern "C" fn returndata_size(&mut self) -> *mut RuntimeResult<u64> {
+        uint_result_ptr!(self.inner.returndata.len() as u64)
     }
 
     pub extern "C" fn returndata_copy(
@@ -601,10 +1106,10 @@ impl<DB: Database> RuntimeContext<DB> {
         dest_offset: u64,
         offset: u64,
         size: u64,
-    ) -> *mut Result<()> {
+    ) -> *mut RuntimeResult<()> {
         Self::copy_exact(
-            &mut self.inner_context.memory,
-            &self.call_frame.last_call_returndata,
+            &mut self.inner.memory,
+            &self.inner.returndata,
             dest_offset,
             offset,
             size,
@@ -613,205 +1118,117 @@ impl<DB: Database> RuntimeContext<DB> {
 
     pub extern "C" fn call(
         &mut self,
-        mut gas_to_send: u64,
+        local_gas_limit: u64,
         call_to_address: &Bytes32,
         value_to_transfer: &Bytes32,
         args_offset: u64,
         args_size: u64,
         ret_offset: u64,
         ret_size: u64,
-        available_gas: u64,
-        consumed_gas: &mut u64,
+        original_remaining_gas: u64,
         call_type: u8,
-    ) -> *mut Result<u8> {
-        let callee_address = Address::from(call_to_address);
-        let off = args_offset as usize;
-        let size = args_size as usize;
-        let calldata = Bytes::copy_from_slice(&self.inner_context.memory[off..off + size]);
-        let value = value_to_transfer.to_u256();
-        let (return_code, returndata) = match callee_address {
-            x if x == Address::from_low_u64_be(precompiles::ECRECOVER_ADDRESS) => {
-                ecrecover(&calldata, gas_to_send, consumed_gas).map_or_else(
-                    |_err| (call_opcode::REVERT_RETURN_CODE, Bytes::default()),
-                    |output: Bytes| (call_opcode::SUCCESS_RETURN_CODE, output),
-                )
-            }
-            x if x == Address::from_low_u64_be(precompiles::IDENTITY_ADDRESS) => {
-                identity(&calldata, gas_to_send, consumed_gas).map_or_else(
-                    |_err| (call_opcode::REVERT_RETURN_CODE, Bytes::default()),
-                    |output: Bytes| (call_opcode::SUCCESS_RETURN_CODE, output),
-                )
-            }
-            x if x == Address::from_low_u64_be(precompiles::SHA2_256_ADDRESS) => {
-                sha2_256(&calldata, gas_to_send, consumed_gas).map_or_else(
-                    |_err| (call_opcode::REVERT_RETURN_CODE, Bytes::default()),
-                    |output: Bytes| (call_opcode::SUCCESS_RETURN_CODE, output),
-                )
-            }
-            x if x == Address::from_low_u64_be(precompiles::RIPEMD_160_ADDRESS) => {
-                ripemd_160(&calldata, gas_to_send, consumed_gas).map_or_else(
-                    |_err| (call_opcode::REVERT_RETURN_CODE, Bytes::default()),
-                    |output: Bytes| (call_opcode::SUCCESS_RETURN_CODE, output),
-                )
-            }
-            x if x == Address::from_low_u64_be(precompiles::MODEXP_ADDRESS) => {
-                modexp(&calldata, gas_to_send, consumed_gas).map_or_else(
-                    |_err| (call_opcode::REVERT_RETURN_CODE, Bytes::default()),
-                    |output: Bytes| (call_opcode::SUCCESS_RETURN_CODE, output),
-                )
-            }
-            x if x == Address::from_low_u64_be(precompiles::BLAKE2F_ADDRESS) => {
-                blake2f(&calldata, gas_to_send, consumed_gas).map_or_else(
-                    |_err| (call_opcode::REVERT_RETURN_CODE, Bytes::default()),
-                    |output: Bytes| (call_opcode::SUCCESS_RETURN_CODE, output),
-                )
-            }
-            _ => {
-                let call_type = CallType::try_from(call_type)
-                    .expect("Error while parsing CallType on call syscall");
-
-                // Check the call depth
-                if self.inner_context.depth > CALL_STACK_LIMIT {
-                    *consumed_gas = 0;
-                    return uint_result_ptr!(call_opcode::REVERT_RETURN_CODE);
-                }
-
-                let mut db = self.db.write().unwrap();
-                // Retrieve or create the callee account in journal
-                let callee_account = match db.basic(callee_address) {
-                    Ok(acc) => {
-                        *consumed_gas = call_opcode::WARM_MEMORY_ACCESS_COST;
-                        acc.unwrap_or_else(AccountInfo::empty)
-                    }
-                    Err(_) => {
-                        *consumed_gas = 0;
-                        return uint_result_ptr!(call_opcode::REVERT_RETURN_CODE);
-                    }
-                };
-                let host = self.host.read().unwrap();
-                let caller_address = host.env().tx.get_address();
-                let caller_account = db.basic(caller_address).unwrap().unwrap_or_default();
-
-                let mut stipend = 0;
-                if !value.is_zero() {
-                    if caller_account.balance < value {
-                        return uint_result_ptr!(call_opcode::REVERT_RETURN_CODE);
-                    }
-                    *consumed_gas += call_opcode::NOT_ZERO_VALUE_COST;
-                    if callee_account.is_empty() {
-                        *consumed_gas += call_opcode::EMPTY_CALLEE_COST;
-                    }
-                    if available_gas < *consumed_gas {
-                        return uint_result_ptr!(call_opcode::REVERT_RETURN_CODE);
-                    }
-                    stipend = call_opcode::STIPEND_GAS_ADDITION;
-
-                    let caller_balance = caller_account.balance;
-                    let caller_nonce = caller_account.nonce;
-                    db.set_account(
-                        caller_address,
-                        caller_nonce,
-                        caller_balance - value,
-                        Default::default(),
-                    );
-
-                    let callee_balance = callee_account.balance;
-                    let callee_nonce = callee_account.nonce;
-                    db.set_account(
-                        callee_address,
-                        callee_nonce,
-                        callee_balance + value,
-                        Default::default(),
-                    );
-                }
-
-                let remaining_gas = available_gas - *consumed_gas;
-                gas_to_send = std::cmp::min(
-                    remaining_gas / call_opcode::GAS_CAP_DIVISION_FACTOR,
-                    gas_to_send,
-                );
-                *consumed_gas += gas_to_send;
-                gas_to_send += stipend;
-
-                let this_address = host.env().tx.get_address();
-                let (new_frame_caller, new_value, transact_to) = match call_type {
-                    CallType::Call | CallType::Staticcall => (this_address, value, callee_address),
-                    CallType::CallCode => (this_address, value, this_address),
-                    CallType::Delegatecall => (
-                        self.call_frame.caller,
-                        Bytes32::from_u256_ref(&host.env().tx.value).to_u256(),
-                        this_address,
-                    ),
-                };
-                drop(host);
-                let host = self.host.clone();
-                let mut host_ref = host.write().unwrap();
-                let new_env = host_ref.env_mut();
-                new_env.tx.value = new_value;
-                new_env.tx.transact_to = transact_to;
-                new_env.tx.gas_limit = gas_to_send;
-                let off = args_offset as usize;
-                let size = args_size as usize;
-                new_env.tx.data = Bytes::from(self.inner_context.memory[off..off + size].to_vec());
-                drop(host_ref);
-                let Ok(_) = db.code_by_address(callee_address) else {
-                    *consumed_gas = 0;
-                    return uint_result_ptr!(call_opcode::REVERT_RETURN_CODE);
-                };
-                drop(db);
-
-                let is_static = self.call_frame.ctx_is_static || call_type == CallType::Staticcall;
-                let call_frame = CallFrame {
-                    caller: new_frame_caller,
-                    ctx_is_static: is_static,
-                    ..Default::default()
-                };
-
-                let mut ctx = Self::new(
-                    self.db.clone(),
-                    call_frame,
-                    self.transaction.clone(),
-                    host,
-                    self.inner_context.spec_id,
-                );
-                ctx.inner_context.depth = self.inner_context.depth + 1;
-                let result = self.transaction.run(&mut ctx, gas_to_send).unwrap().result;
-                let unused_gas = gas_to_send - result.gas_used();
-                *consumed_gas -= unused_gas;
-                *consumed_gas -= result.gas_refunded();
-                self.inner_context.depth = ctx.inner_context.depth - 1;
-
-                let return_code = if result.is_success() {
-                    call_opcode::SUCCESS_RETURN_CODE
-                } else {
-                    call_opcode::REVERT_RETURN_CODE
-                };
-
-                // EIP-150: Gas cost changes for IO-heavy operations
-                *consumed_gas = if self.inner_context.spec_id.is_enabled_in(SpecId::TANGERINE) {
-                    (*consumed_gas - *consumed_gas / 64).min(gas_to_send)
-                } else {
-                    gas_to_send
-                };
-
-                let output = result.into_output().unwrap_or_default();
-                (return_code, output)
-            }
+    ) -> *mut RuntimeResult<u8> {
+        let args_offset = args_offset as usize;
+        let args_size = args_size as usize;
+        let call_type =
+            CallType::try_from(call_type).expect("Error while parsing CallType on call syscall");
+        let to = Address::from(call_to_address);
+        // Load account and calculate gas cost.
+        let mut account_load = self.host.load_account_delegated(to).unwrap_or_default();
+        if call_type != CallType::Call {
+            account_load.is_empty = false;
+        }
+        let transfers_value = !value_to_transfer.as_u256().is_zero();
+        let gas_cost = gas::call_cost(self.inner.spec_id, transfers_value, account_load);
+        // original_gas - gas_cost
+        let (gas_remaining, overflow) = original_remaining_gas.overflowing_sub(gas_cost);
+        if overflow {
+            return Box::into_raw(Box::new(RuntimeResult::error(
+                ExitStatusCode::OutOfGas.to_u8(),
+                1,
+            )));
+        }
+        // EIP-150: Gas cost changes for IO-heavy operations
+        let mut gas_limit = if self.inner.spec_id.is_enabled_in(SpecId::TANGERINE) {
+            // take l64 part of gas_limit
+            (gas_remaining - gas_remaining / 64).min(local_gas_limit)
+        } else {
+            local_gas_limit
         };
-
-        self.call_frame.last_call_returndata.clear();
-        self.call_frame
-            .last_call_returndata
-            .clone_from(&returndata.to_vec());
-        Self::copy_exact(
-            &mut self.inner_context.memory,
-            &returndata,
-            ret_offset,
-            0,
-            ret_size,
-        );
-
-        uint_result_ptr!(return_code)
+        // original_gas - gas_cost - gas_limit
+        let (gas_remaining, overflow) = gas_remaining.overflowing_sub(gas_limit);
+        if overflow {
+            return Box::into_raw(Box::new(RuntimeResult::error(
+                ExitStatusCode::OutOfGas.to_u8(),
+                1,
+            )));
+        }
+        // Add call stipend if there is value to be transferred.
+        if matches!(call_type, CallType::Call | CallType::CallCode) && transfers_value {
+            gas_limit = gas_limit.saturating_add(gas_cost::CALL_STIPEND);
+        }
+        let call_msg = CallMessage {
+            input: if args_size != 0 {
+                self.inner.memory[args_offset..args_offset + args_size].to_vec()
+            } else {
+                vec![]
+            },
+            kind: call_type.into(),
+            value: if call_type == CallType::Delegatecall {
+                self.contract.call_value
+            } else {
+                value_to_transfer.to_u256()
+            },
+            depth: self.inner.depth as u32,
+            gas_limit,
+            caller: if call_type == CallType::Delegatecall {
+                self.contract.caller
+            } else {
+                self.contract.target_address
+            },
+            salt: None,
+            recipient: if matches!(call_type, CallType::Delegatecall | CallType::CallCode) {
+                self.contract.target_address
+            } else {
+                to
+            },
+            code_address: to,
+            is_static: self.inner.is_static || call_type == CallType::Staticcall,
+            is_eof: false,
+        };
+        let call_result = self
+            .host
+            .call(call_msg)
+            .unwrap_or_else(|_| CallResult::new_with_gas_limit(gas_limit));
+        self.inner.returndata = call_result.output.clone();
+        // Check the error message.
+        if call_result.status.is_ok() {
+            let gas_remaining = gas_remaining + call_result.gas_remaining;
+            self.inner.gas_refunded += call_result.gas_refunded;
+            // Copy call output to the memory
+            Self::copy_exact(
+                &mut self.inner.memory,
+                &call_result.output,
+                ret_offset,
+                0,
+                ret_size,
+            );
+            Box::into_raw(Box::new(RuntimeResult::success_with_gas(
+                1,
+                original_remaining_gas - gas_remaining,
+            )))
+        } else if call_result.status.is_revert() {
+            let gas_remaining = gas_remaining + call_result.gas_remaining;
+            Box::into_raw(Box::new(RuntimeResult::success_with_gas(
+                0,
+                original_remaining_gas - gas_remaining,
+            )))
+        } else {
+            Box::into_raw(Box::new(RuntimeResult::success_with_gas(
+                0,
+                original_remaining_gas - gas_remaining,
+            )))
+        }
     }
 
     fn copy_exact(
@@ -820,7 +1237,7 @@ impl<DB: Database> RuntimeContext<DB> {
         target_offset: u64,
         source_offset: u64,
         size: u64,
-    ) -> *mut Result<()> {
+    ) -> *mut RuntimeResult<()> {
         let target_offset = target_offset as usize;
         let source_offset = source_offset as usize;
         let size = size as usize;
@@ -828,13 +1245,13 @@ impl<DB: Database> RuntimeContext<DB> {
         let (source_end, overflow) = source_offset.overflowing_add(size);
         // Check bounds
         if overflow || source_end > source.len() {
-            return Box::into_raw(Box::new(Result::error(
+            return Box::into_raw(Box::new(RuntimeResult::error(
                 ExitStatusCode::OutOfOffset.to_u8(),
                 (),
             )));
         }
         if size + source_offset > source.len() {
-            return Box::into_raw(Box::new(Result::error(
+            return Box::into_raw(Box::new(RuntimeResult::error(
                 ExitStatusCode::OutOfOffset.to_u8(),
                 (),
             )));
@@ -849,34 +1266,26 @@ impl<DB: Database> RuntimeContext<DB> {
         target[target_offset..target_offset + bytes_to_copy]
             .copy_from_slice(&source[source_offset..source_offset + bytes_to_copy]);
 
-        Box::into_raw(Box::new(Result::success(())))
+        Box::into_raw(Box::new(RuntimeResult::success(())))
     }
 
     pub extern "C" fn store_in_selfbalance_ptr(
         &mut self,
         balance: &mut Bytes32,
-    ) -> *mut Result<()> {
-        let host = self.host.read().unwrap();
-        let addr = host.env().tx.transact_to;
-        let account = if addr.is_zero() {
-            AccountInfo::default()
-        } else {
-            self.db
-                .read()
-                .unwrap()
-                .basic(addr)
-                .unwrap()
-                .unwrap_or_default()
-        };
-        *balance = Bytes32::from_u256(account.balance);
-        Box::into_raw(Box::new(Result::success(())))
+    ) -> *mut RuntimeResult<()> {
+        let state = self
+            .host
+            .balance(self.contract.target_address)
+            .unwrap_or_default();
+        *balance = state.data;
+        Box::into_raw(Box::new(RuntimeResult::success(())))
     }
 
     pub extern "C" fn keccak256_hasher(&mut self, offset: u64, size: u64, hash_ptr: &mut Bytes32) {
         if size == 0 {
             *hash_ptr = Bytes32::from_be_bytes(EMPTY_CODE_HASH_BYTES);
         } else {
-            let data = &self.inner_context.memory[offset as usize..offset as usize + size as usize];
+            let data = &self.inner.memory[offset as usize..offset as usize + size as usize];
             let mut hasher = Keccak256::new();
             hasher.update(data);
             let result = hasher.finalize();
@@ -884,75 +1293,72 @@ impl<DB: Database> RuntimeContext<DB> {
         }
     }
 
-    pub extern "C" fn callvalue(&self, value: &mut Bytes32) -> *mut Result<()> {
-        let host = self.host.read().unwrap();
-        *value = Bytes32::from_u256(host.env().tx.value);
-        Box::into_raw(Box::new(Result::success(())))
+    pub extern "C" fn callvalue(&self, value: &mut Bytes32) -> *mut RuntimeResult<()> {
+        *value = self.contract.call_value.into();
+        Box::into_raw(Box::new(RuntimeResult::success(())))
     }
 
     pub extern "C" fn store_in_blobbasefee_ptr(&self, value: &mut Bytes32) {
-        let host = self.host.read().unwrap();
-        *value = Bytes32::from(host.env().block.blob_gasprice.unwrap_or_default());
+        *value = self
+            .host
+            .env()
+            .block
+            .blob_gasprice
+            .unwrap_or_default()
+            .into();
     }
 
-    pub extern "C" fn gaslimit(&self) -> *mut Result<u64> {
-        let host = self.host.read().unwrap();
-        uint_result_ptr!(host.env().tx.gas_limit)
+    pub extern "C" fn gaslimit(&self) -> *mut RuntimeResult<u64> {
+        uint_result_ptr!(self.host.env().tx.gas_limit)
     }
 
-    pub extern "C" fn caller(&self, value: &mut Bytes32) -> *mut Result<()> {
-        value.copy_from(&self.call_frame.caller);
-        Box::into_raw(Box::new(Result::success(())))
+    pub extern "C" fn caller(&self, value: &mut Bytes32) {
+        value.copy_from(&self.contract.caller);
     }
 
-    pub extern "C" fn store_in_gasprice_ptr(&self, value: &mut Bytes32) -> *mut Result<()> {
-        let host = self.host.read().unwrap();
-        *value = Bytes32::from(&host.env().tx.gas_price);
-        Box::into_raw(Box::new(Result::success(())))
+    pub extern "C" fn store_in_gasprice_ptr(&self, value: &mut Bytes32) -> *mut RuntimeResult<()> {
+        *value = self.host.env().tx.gas_price.into();
+        Box::into_raw(Box::new(RuntimeResult::success(())))
     }
 
-    pub extern "C" fn chainid(&self) -> *mut Result<u64> {
-        let host = self.host.read().unwrap();
-        uint_result_ptr!(host.env().cfg.chain_id)
+    pub extern "C" fn chainid(&self) -> *mut RuntimeResult<u64> {
+        uint_result_ptr!(self.host.env().cfg.chain_id)
     }
 
-    pub extern "C" fn calldata(&mut self) -> *mut Result<*mut u8> {
-        let host = self.host.read().unwrap();
-        host.env().tx.data.as_ptr() as _
+    pub extern "C" fn calldata(&mut self) -> *mut RuntimeResult<*mut u8> {
+        self.host.env().tx.data.as_ptr() as _
     }
 
     pub extern "C" fn calldata_size(&self) -> u64 {
-        let host = self.host.read().unwrap();
-        host.env().tx.data.len() as u64
+        self.host.env().tx.data.len() as u64
     }
 
-    pub extern "C" fn origin(&self, address: &mut Bytes32) -> *mut Result<()> {
-        let host = self.host.read().unwrap();
-        address.copy_from(&host.env().tx.caller);
-        Box::into_raw(Box::new(Result::success(())))
+    pub extern "C" fn origin(&self, address: &mut Bytes32) -> *mut RuntimeResult<()> {
+        address.copy_from(&self.host.env().tx.caller);
+        Box::into_raw(Box::new(RuntimeResult::success(())))
     }
 
-    pub extern "C" fn extend_memory(&mut self, new_size: u64) -> *mut Result<*mut u8> {
+    pub extern "C" fn extend_memory(&mut self, new_size: u64) -> *mut RuntimeResult<*mut u8> {
         // Note the overflow on the 32-bit machine for the max memory e.g., 4GB
         let new_size = new_size as usize;
-        if new_size <= self.inner_context.memory.len() {
-            return Box::into_raw(Box::new(Result::success(
-                self.inner_context.memory.as_mut_ptr() as _,
+        if new_size <= self.inner.memory.len() {
+            return Box::into_raw(Box::new(RuntimeResult::success(
+                self.inner.memory.as_mut_ptr() as _,
             )));
         }
         // Check the memory usage bound
         match self
-            .inner_context
+            .inner
             .memory
-            .try_reserve(new_size - self.inner_context.memory.len())
+            .try_reserve(new_size - self.inner.memory.len())
         {
             Ok(()) => {
-                self.inner_context.memory.resize(new_size, 0);
-                Box::into_raw(Box::new(Result::success(
-                    self.inner_context.memory.as_mut_ptr() as _,
+                self.inner.memory.resize(new_size, 0);
+                Box::into_raw(Box::new(RuntimeResult::success(
+                    self.inner.memory.as_mut_ptr() as _,
                 )))
             }
-            Err(_) => Box::into_raw(Box::new(Result::error(
+            Err(_) => Box::into_raw(Box::new(RuntimeResult::error(
                 ExitStatusCode::MemoryLimitOOG.to_u8(),
                 std::ptr::null_mut(),
             ))),
@@ -964,8 +1370,8 @@ impl<DB: Database> RuntimeContext<DB> {
         code_offset: u64,
         size: u64,
         dest_offset: u64,
-    ) -> *mut Result<()> {
-        let code = &self.inner_context.program;
+    ) -> *mut RuntimeResult<()> {
+        let code = &self.contract.code;
         let code_size = code.len();
         let code_offset = code_offset as usize;
         let dest_offset = dest_offset as usize;
@@ -974,27 +1380,26 @@ impl<DB: Database> RuntimeContext<DB> {
         let code_end = core::cmp::min(code_offset + size, code_size);
         let code_len: usize = code_end - code_offset;
         let code_slice = &code[code_offset..code_end];
-        self.inner_context.memory[dest_offset..dest_offset + code_len].copy_from_slice(code_slice);
+        self.inner.memory[dest_offset..dest_offset + code_len].copy_from_slice(code_slice);
         // Zero-fill the remaining space
         if size > code_len {
-            self.inner_context.memory[dest_offset + code_len..dest_offset + size].fill(0);
+            self.inner.memory[dest_offset + code_len..dest_offset + size].fill(0);
         }
 
-        Box::into_raw(Box::new(Result::success(())))
+        Box::into_raw(Box::new(RuntimeResult::success(())))
     }
 
     pub extern "C" fn sload(
         &mut self,
         stg_key: &Bytes32,
         stg_value: &mut Bytes32,
-    ) -> *mut Result<()> {
-        let mut host = self.host.write().unwrap();
-        let addr = host.env().tx.transact_to;
-        let result = host.sload(&addr, stg_key);
-        *stg_value = result.value;
+    ) -> *mut RuntimeResult<()> {
+        let addr = self.host.env().tx.transact_to;
+        let result = self.host.sload(addr, *stg_key).unwrap_or_default();
+        *stg_value = result.data;
 
-        let gas_cost = gas::sload_cost(self.inner_context.spec_id, result.is_cold);
-        Box::into_raw(Box::new(Result::success_with_gas((), gas_cost)))
+        let gas_cost = gas::sload_cost(self.inner.spec_id, result.is_cold);
+        Box::into_raw(Box::new(RuntimeResult::success_with_gas((), gas_cost)))
     }
 
     pub extern "C" fn sstore(
@@ -1002,17 +1407,19 @@ impl<DB: Database> RuntimeContext<DB> {
         stg_key: &Bytes32,
         stg_value: &Bytes32,
         gas_remaining: u64,
-    ) -> *mut Result<()> {
-        let mut host = self.host.write().unwrap();
-        let addr = host.env().tx.transact_to;
-        let result = host.sstore(addr, *stg_key, *stg_value);
+    ) -> *mut RuntimeResult<()> {
+        let addr = self.host.env().tx.transact_to;
+        let result = self
+            .host
+            .sstore(addr, *stg_key, *stg_value)
+            .unwrap_or_default();
 
         let original = result.original_value.to_u256();
         let current = result.present_value.to_u256();
         let new = stg_value.to_u256();
 
         match gas::sstore_cost(
-            self.inner_context.spec_id,
+            self.inner.spec_id,
             original,
             current,
             new,
@@ -1020,11 +1427,11 @@ impl<DB: Database> RuntimeContext<DB> {
             result.is_cold,
         ) {
             Some(gas_cost) => {
-                self.inner_context.gas_refund +=
-                    gas::sstore_refund(self.inner_context.spec_id, original, current, new);
-                Box::into_raw(Box::new(Result::success_with_gas((), gas_cost)))
+                self.inner.gas_refunded +=
+                    gas::sstore_refund(self.inner.spec_id, original, current, new);
+                Box::into_raw(Box::new(RuntimeResult::success_with_gas((), gas_cost)))
             }
-            None => Box::into_raw(Box::new(Result::error(
+            None => Box::into_raw(Box::new(RuntimeResult::error(
                 ExitStatusCode::OutOfGas.to_u8(),
                 (),
             ))),
@@ -1090,47 +1497,41 @@ impl<DB: Database> RuntimeContext<DB> {
         );
     }
 
-    pub extern "C" fn block_number(&self, number: &mut Bytes32) -> *mut Result<()> {
-        let host = self.host.read().unwrap();
-        *number = Bytes32::from(host.env().block.number);
-        Box::into_raw(Box::new(Result::success(())))
+    pub extern "C" fn block_number(&self, number: &mut Bytes32) -> *mut RuntimeResult<()> {
+        *number = self.host.env().block.number.into();
+        Box::into_raw(Box::new(RuntimeResult::success(())))
     }
 
-    pub extern "C" fn block_hash(&mut self, number: &mut Bytes32) -> *mut Result<()> {
-        let host = self.host.read().unwrap();
-        let number_as_u256 = number.to_u256();
-        let hash = if number_as_u256 < host.env().block.number.saturating_sub(U256::from(256))
-            || number_as_u256 >= host.env().block.number
-        {
-            B256::zero()
-        } else {
-            self.db
-                .read()
-                .unwrap()
-                .block_hash(number_as_u256)
-                .unwrap_or(B256::zero())
-        };
-        *number = Bytes32::from_be_bytes(hash.to_fixed_bytes());
-        Box::into_raw(Box::new(Result::success(())))
+    pub extern "C" fn block_hash(&mut self, number: &mut Bytes32) -> *mut RuntimeResult<()> {
+        let hash = self
+            .host
+            .block_hash(as_u64_saturated!(number.as_u256()))
+            .unwrap_or_default();
+        *number = hash;
+        Box::into_raw(Box::new(RuntimeResult::success(())))
     }
 
     fn create_log(&mut self, offset: u64, size: u64, topics: Vec<B256>) {
         let offset = offset as usize;
         let size = size as usize;
-        let data: Vec<u8> = self.inner_context.memory[offset..offset + size].into();
-
-        let log = LogData { data, topics };
-        self.inner_context.logs.push(log);
+        let data: Vec<u8> = self.inner.memory[offset..offset + size].into();
+        self.host.log(Log {
+            address: self.contract.target_address,
+            data: LogData { data, topics },
+        });
     }
 
-    pub extern "C" fn extcodesize(&mut self, address: &Bytes32) -> *mut Result<u64> {
-        let addr = Address::from(address);
-        let size = self.db.read().unwrap().code_by_address(addr).unwrap().len();
+    pub extern "C" fn extcodesize(&mut self, address: &Bytes32) -> *mut RuntimeResult<u64> {
+        let (code, load) = self
+            .host
+            .code(address.to_address())
+            .unwrap_or_default()
+            .into_components();
+        let size = code.len();
 
-        let is_cold = self.host.read().unwrap().access_account(addr).is_cold();
-        let gas_cost = gas::extcodesize_gas_cost(self.inner_context.spec_id, is_cold);
+        let gas_cost = gas::extcodesize_gas_cost(self.inner.spec_id, load);
 
-        Box::into_raw(Box::new(Result {
+        Box::into_raw(Box::new(RuntimeResult {
             gas_used: gas_cost,
             error: 0,
             value: size as u64,
@@ -1138,50 +1539,48 @@ impl<DB: Database> RuntimeContext<DB> {
     }
 
     #[allow(clippy::clone_on_copy)]
-    pub extern "C" fn address(&mut self) -> *mut Result<*mut u8> {
-        let host = self.host.read().unwrap();
-        let address = host.env().tx.transact_to.clone();
-        Box::into_raw(Box::new(Result::success(address.as_ptr() as *mut u8)))
+    pub extern "C" fn address(&mut self) -> *mut RuntimeResult<*mut u8> {
+        let address = self.host.env().tx.transact_to.clone();
+        Box::into_raw(Box::new(
+            RuntimeResult::success(address.as_ptr() as *mut u8),
+        ))
     }
 
-    pub extern "C" fn prevrandao(&self, prevrandao: &mut Bytes32) -> *mut Result<()> {
-        let host = self.host.read().unwrap();
-        *prevrandao = if self.inner_context.spec_id.is_enabled_in(SpecId::MERGE) {
-            let randao = host.env().block.prevrandao.unwrap_or_default();
+    pub extern "C" fn prevrandao(&self, prevrandao: &mut Bytes32) -> *mut RuntimeResult<()> {
+        let env = self.host.env();
+        *prevrandao = if self.inner.spec_id.is_enabled_in(SpecId::MERGE) {
+            let randao = env.block.prevrandao.unwrap_or_default();
             Bytes32::from_be_bytes(randao.into())
         } else {
-            host.env().block.difficulty.into()
+            env.block.difficulty.into()
         };
-        Box::into_raw(Box::new(Result::success(())))
+        Box::into_raw(Box::new(RuntimeResult::success(())))
     }
 
-    pub extern "C" fn coinbase(&self) -> *mut Result<*mut u8> {
-        let host = self.host.read().unwrap();
-        Box::into_raw(Box::new(Result::success(
-            host.env().block.coinbase.as_ptr() as *mut u8,
+    pub extern "C" fn coinbase(&self) -> *mut RuntimeResult<*mut u8> {
+        Box::into_raw(Box::new(RuntimeResult::success(
+            self.host.env().block.coinbase.as_ptr() as *mut u8,
         )))
     }
 
-    pub extern "C" fn store_in_timestamp_ptr(&self, value: &mut Bytes32) -> *mut Result<()> {
-        let host = self.host.read().unwrap();
-        *value = Bytes32::from(&host.env().block.timestamp);
-        Box::into_raw(Box::new(Result::success(())))
+    pub extern "C" fn store_in_timestamp_ptr(&self, value: &mut Bytes32) -> *mut RuntimeResult<()> {
+        *value = Bytes32::from(self.host.env().block.timestamp);
+        Box::into_raw(Box::new(RuntimeResult::success(())))
     }
 
-    pub extern "C" fn store_in_basefee_ptr(&self, basefee: &mut Bytes32) -> *mut Result<()> {
-        let host = self.host.read().unwrap();
-        *basefee = Bytes32::from(&host.env().block.basefee);
-        Box::into_raw(Box::new(Result::success(())))
+    pub extern "C" fn store_in_basefee_ptr(&self, basefee: &mut Bytes32) -> *mut RuntimeResult<()> {
+        *basefee = Bytes32::from(&self.host.env().block.basefee);
+        Box::into_raw(Box::new(RuntimeResult::success(())))
     }
 
     /// This function reads an address pointer and set the balance of the address to the same pointer
-    pub extern "C" fn store_in_balance(&mut self, address: &mut Bytes32) -> *mut Result<()> {
+    pub extern "C" fn store_in_balance(&mut self, address: &mut Bytes32) -> *mut RuntimeResult<()> {
         let addr = address.to_address();
-        let result = self.host.read().unwrap().balance(&addr);
-        *address = result.value;
-        let gas_cost = gas::balance_gas_cost(self.inner_context.spec_id, result.is_cold);
+        let result = self.host.balance(addr).unwrap_or_default();
+        *address = result.data;
+        let gas_cost = gas::balance_gas_cost(self.inner.spec_id, result.is_cold);
 
-        Box::into_raw(Box::new(Result {
+        Box::into_raw(Box::new(RuntimeResult {
             gas_used: gas_cost,
             error: 0,
             value: (),
@@ -1198,8 +1597,6 @@ impl<DB: Database> RuntimeContext<DB> {
         let idx = usize::from_be_bytes(index.slice()[12..32].try_into().unwrap_or_default());
         *index = self
             .host
-            .read()
-            .unwrap()
             .env()
             .tx
             .blob_hashes
@@ -1215,14 +1612,9 @@ impl<DB: Database> RuntimeContext<DB> {
         code_offset: u64,
         size: u64,
         dest_offset: u64,
-    ) -> *mut Result<()> {
+    ) -> *mut RuntimeResult<()> {
         let addr = Address::from(address_value);
-        let code = self
-            .db
-            .read()
-            .unwrap()
-            .code_by_address(addr)
-            .unwrap_or_default();
+        let (code, load) = self.host.code(addr).unwrap_or_default().into_components();
         let code_size = code.len();
         let code_offset = code_offset as usize;
         let dest_offset = dest_offset as usize;
@@ -1231,121 +1623,32 @@ impl<DB: Database> RuntimeContext<DB> {
         let code_end = core::cmp::min(code_offset + size, code_size);
         let code_len = code_end - code_offset;
         let code_slice = &code[code_offset..code_end];
-        self.inner_context.memory[dest_offset..dest_offset + code_len].copy_from_slice(code_slice);
+        self.inner.memory[dest_offset..dest_offset + code_len].copy_from_slice(code_slice);
 
-        let is_cold = self.host.read().unwrap().access_account(addr).is_cold();
-        let gas_cost = gas::extcodecopy_gas_cost(self.inner_context.spec_id, is_cold);
+        let gas_cost = gas::extcodecopy_gas_cost(self.inner.spec_id, load);
 
         // Zero-fill the remaining space
         if size > code_len {
-            self.inner_context.memory[dest_offset + code_len..dest_offset + size].fill(0);
+            self.inner.memory[dest_offset + code_len..dest_offset + size].fill(0);
         }
-        Box::into_raw(Box::new(Result::success_with_gas((), gas_cost)))
+        Box::into_raw(Box::new(RuntimeResult::success_with_gas((), gas_cost)))
     }
 
-    pub extern "C" fn ext_code_hash(&mut self, address: &mut Bytes32) -> *mut Result<()> {
+    pub extern "C" fn ext_code_hash(&mut self, address: &mut Bytes32) -> *mut RuntimeResult<()> {
         let addr = Address::from(address as &Bytes32);
-        let hash = match self.db.read().unwrap().basic(addr) {
-            Ok(Some(account_info)) => account_info.code_hash,
-            _ => B256::zero(),
-        };
-        *address = Bytes32::from_be_bytes(hash.to_fixed_bytes());
+        let (hash, load) = self
+            .host
+            .code_hash(addr)
+            .unwrap_or_default()
+            .into_components();
+        *address = hash;
+        let gas_cost = gas::extcodehash_gas_cost(self.inner.spec_id, load);
 
-        let is_cold = self.host.read().unwrap().access_account(addr).is_cold();
-        let gas_cost = gas::extcodehash_gas_cost(self.inner_context.spec_id, is_cold);
-
-        Box::into_raw(Box::new(Result {
+        Box::into_raw(Box::new(RuntimeResult {
             gas_used: gas_cost,
             error: 0,
             value: (),
         }))
-    }
-
-    pub fn create_contract(
-        &mut self,
-        bytecode: &[u8],
-        remaining_gas: &mut u64,
-        value: U256,
-        salt: Option<&Bytes32>,
-    ) -> core::result::Result<Address, ExitStatusCode> {
-        // Check the call depth
-        if self.inner_context.depth > CALL_STACK_LIMIT {
-            self.inner_context.exit_status = Some(ExitStatusCode::CallTooDeep);
-            return Err(ExitStatusCode::CallTooDeep);
-        }
-
-        let host = self.host.read().unwrap();
-        let size = bytecode.len();
-
-        // Check the create init code size limit
-        if size > 2 * MAX_CODE_SIZE {
-            self.inner_context.exit_status = Some(ExitStatusCode::CreateInitCodeSizeLimit);
-            return Err(ExitStatusCode::CreateInitCodeSizeLimit);
-        }
-
-        let sender_address = host.env().tx.get_address();
-        let caller = host.env().tx.caller;
-        let mut db = self.db.write().unwrap();
-        let sender_account = db.basic(sender_address).unwrap().unwrap_or_default();
-
-        let dest_addr = match salt {
-            Some(s) => compute_contract_address2(sender_address, s.to_u256(), bytecode),
-            _ => compute_contract_address(sender_address, sender_account.nonce),
-        };
-        // Check if there is already a contract stored in dest_address
-        if let Ok(Some(_)) = db.basic(dest_addr) {
-            self.inner_context.exit_status = Some(ExitStatusCode::CreateCollision);
-            return Err(ExitStatusCode::CreateCollision);
-        }
-        drop(host);
-        // Create sub context for the initialization code
-        let host = self.host.clone();
-        let mut host_ref = host.write().unwrap();
-        let new_env = host_ref.env_mut();
-        new_env.tx.transact_to = dest_addr;
-        new_env.tx.gas_limit = *remaining_gas;
-        new_env.tx.caller = caller;
-        drop(host_ref);
-        let code = bytecode.to_vec();
-        db.insert_contract(dest_addr, code.into(), U256::ZERO);
-        drop(db);
-        self.call_frame = CallFrame::new(sender_address);
-        self.inner_context.depth += 1;
-        let tx = self.transaction.clone();
-        let code_deposit_cost = (bytecode.len() as u64) * gas_cost::BYTE_DEPOSIT_COST as u64;
-        // Set the gas cost
-        *remaining_gas = match tx.run(self, *remaining_gas) {
-            Ok(result) => {
-                // Contract create success.
-                code_deposit_cost + result.result.gas_used() - result.result.gas_refunded()
-            }
-            Err(_) => {
-                // Contract create failed.
-                code_deposit_cost
-            }
-        };
-        self.inner_context.depth -= 1;
-        // Check if balance is enough
-        let sender_balance = match sender_account.balance.checked_sub(value) {
-            Some(balance) => balance,
-            None => {
-                return Ok(Address::zero());
-            }
-        };
-        // Create new contract and update sender account
-        let mut db = self.db.write().unwrap();
-        db.set_account(
-            sender_address,
-            sender_account.nonce + 1,
-            sender_balance,
-            Default::default(),
-        );
-
-        if self.inner_context.spec_id.is_enabled_in(SpecId::TANGERINE) {
-            *remaining_gas -= *remaining_gas / 64;
-        }
-
-        Ok(dest_addr)
     }
 
     fn create_aux(
@@ -1353,29 +1656,80 @@ impl<DB: Database> RuntimeContext<DB> {
         size: u64,
         offset: u64,
         value: &mut Bytes32,
-        remaining_gas: &mut u64,
+        original_remaining_gas: u64,
         salt: Option<&Bytes32>,
-    ) -> *mut Result<u8> {
+    ) -> *mut RuntimeResult<u8> {
         let offset = offset as usize;
         let size = size as usize;
-        let memory_len = self.inner_context.memory.len();
-        if offset > memory_len {
-            return Box::into_raw(Box::new(Result::success(1)));
-        }
+        let memory_len = self.inner.memory.len();
         let available_size = memory_len - offset;
         let actual_size = size.min(available_size);
         let bytecode = if size == 0 {
             vec![]
         } else {
-            self.inner_context.memory[offset..offset + actual_size].to_vec()
+            self.inner.memory[offset..offset + actual_size].to_vec()
         };
-        let value_u256 = value.to_u256();
-        match self.create_contract(&bytecode, remaining_gas, value_u256, salt) {
-            Ok(addr) => {
-                value.copy_from(&addr);
-                Box::into_raw(Box::new(Result::success(0)))
-            }
-            Err(err_code) => Box::into_raw(Box::new(Result::error(err_code.to_u8(), 1))),
+
+        let mut gas_limit = original_remaining_gas;
+        if self.inner.spec_id.is_enabled_in(SpecId::TANGERINE) {
+            gas_limit -= gas_limit / 64;
+        }
+        // Original remainning gas - sub call gas limit
+        let (gas_remaining, overflow) = original_remaining_gas.overflowing_sub(gas_limit);
+        if overflow {
+            return Box::into_raw(Box::new(RuntimeResult::error(
+                ExitStatusCode::OutOfGas.to_u8(),
+                1,
+            )));
+        }
+
+        let call_msg = CallMessage {
+            input: bytecode,
+            kind: if salt.is_some() {
+                CallKind::Create2
+            } else {
+                CallKind::Create
+            },
+            value: value.to_u256(),
+            depth: self.inner.depth as u32,
+            gas_limit,
+            caller: self.contract.target_address,
+            salt: salt.map(|salt| salt.to_u256()),
+            recipient: Address::default(),
+            code_address: Address::default(),
+            is_static: self.inner.is_static,
+            is_eof: false,
+        };
+        let call_result = self.host.call(call_msg).unwrap_or_default();
+        self.inner.returndata = if call_result.status.is_revert() {
+            call_result.output
+        } else {
+            Vec::new()
+        };
+
+        // Check the error message.
+        if call_result.status.is_ok() {
+            // Set created address to the value.
+            value.copy_from(&call_result.create_address.unwrap_or_default());
+            let gas_remaining = gas_remaining + call_result.gas_remaining;
+            self.inner.gas_refunded += call_result.gas_refunded;
+            Box::into_raw(Box::new(RuntimeResult::success_with_gas(
+                0,
+                original_remaining_gas - gas_remaining,
+            )))
+        } else if call_result.status.is_revert() {
+            *value = Bytes32::ZERO;
+            let gas_remaining = gas_remaining + call_result.gas_remaining;
+            Box::into_raw(Box::new(RuntimeResult::success_with_gas(
+                0,
+                original_remaining_gas - gas_remaining,
+            )))
+        } else {
+            *value = Bytes32::ZERO;
+            Box::into_raw(Box::new(RuntimeResult::success_with_gas(
+                0,
+                original_remaining_gas - gas_remaining,
+            )))
         }
     }
 
@@ -1384,8 +1738,8 @@ impl<DB: Database> RuntimeContext<DB> {
         size: u64,
         offset: u64,
         value: &mut Bytes32,
-        remaining_gas: &mut u64,
-    ) -> *mut Result<u8> {
+        remaining_gas: u64,
+    ) -> *mut RuntimeResult<u8> {
         self.create_aux(size, offset, value, remaining_gas, None)
     }
 
@@ -1394,27 +1748,31 @@ impl<DB: Database> RuntimeContext<DB> {
         size: u64,
         offset: u64,
         value: &mut Bytes32,
-        remaining_gas: &mut u64,
+        remaining_gas: u64,
         salt: &Bytes32,
-    ) -> *mut Result<u8> {
+    ) -> *mut RuntimeResult<u8> {
         self.create_aux(size, offset, value, remaining_gas, Some(salt))
     }
 
-    pub extern "C" fn selfdestruct(&mut self, receiver_address: &Bytes32) -> *mut Result<u64> {
-        let mut host = self.host.write().unwrap();
-        let sender_address = host.env().tx.get_address();
+    pub extern "C" fn selfdestruct(
+        &mut self,
+        receiver_address: &Bytes32,
+    ) -> *mut RuntimeResult<u64> {
+        let sender_address = self.host.env().tx.get_address();
         let receiver_address = Address::from(receiver_address);
-        let result = host.selfdestruct(&sender_address, receiver_address);
+        let result = self
+            .host
+            .selfdestruct(sender_address, receiver_address)
+            .unwrap_or_default();
 
         // EIP-3529: Reduction in refunds
-        if !self.inner_context.spec_id.is_enabled_in(SpecId::LONDON) && !result.previously_destroyed
-        {
-            self.inner_context.gas_refund += gas_cost::SELFDESTRUCT as u64;
+        if !self.inner.spec_id.is_enabled_in(SpecId::LONDON) && !result.previously_destroyed {
+            self.inner.gas_refunded += gas_cost::SELFDESTRUCT;
         }
 
-        Box::into_raw(Box::new(Result {
+        Box::into_raw(Box::new(RuntimeResult {
             error: 0,
-            gas_used: gas::selfdestruct_cost(self.inner_context.spec_id, &result),
+            gas_used: gas::selfdestruct_cost(self.inner.spec_id, &result),
             value: 0,
         }))
     }
@@ -1423,29 +1781,27 @@ impl<DB: Database> RuntimeContext<DB> {
         &mut self,
         stg_key: &Bytes32,
         stg_value: &mut Bytes32,
-    ) -> *mut Result<()> {
-        let mut host = self.host.write().unwrap();
-        let addr = host.env().tx.transact_to;
-        let result = host.tload(&addr, stg_key);
+    ) -> *mut RuntimeResult<()> {
+        let addr = self.host.env().tx.transact_to;
+        let result = self.host.tload(addr, *stg_key);
         *stg_value = result;
-        Box::into_raw(Box::new(Result::success(())))
+        Box::into_raw(Box::new(RuntimeResult::success(())))
     }
 
     pub extern "C" fn write_transient_storage(
         &mut self,
         stg_key: &Bytes32,
         stg_value: &mut Bytes32,
-    ) -> *mut Result<()> {
-        let mut host = self.host.write().unwrap();
-        let addr = host.env().tx.transact_to;
-        host.tstore(&addr, *stg_key, *stg_value);
-        Box::into_raw(Box::new(Result::success(())))
+    ) -> *mut RuntimeResult<()> {
+        let addr = self.host.env().tx.transact_to;
+        self.host.tstore(addr, *stg_key, *stg_value);
+        Box::into_raw(Box::new(RuntimeResult::success(())))
     }
 }
 
 type SymbolSignature = (&'static str, *const fn() -> ());
 
-impl<DB: Database> RuntimeContext<DB> {
+impl<'a> RuntimeContext<'a> {
     /// Registers all the syscalls as symbols in the execution engine.
     pub fn register_symbols(&self, engine: &ExecutionEngine) {
         unsafe {
@@ -1454,7 +1810,7 @@ impl<DB: Database> RuntimeContext<DB> {
                 // Global variables
                 (
                     symbols::CTX_IS_STATIC,
-                    &self.call_frame.ctx_is_static as *const bool as *const _,
+                    &self.inner.is_static as *const bool as *const _,
                 ),
                 // (
                 //     symbols::DEBUG_PRINT,
@@ -1463,140 +1819,113 @@ impl<DB: Database> RuntimeContext<DB> {
                 // Syscalls
                 (
                     symbols::WRITE_RESULT,
-                    RuntimeContext::<DB>::write_result as *const _,
+                    RuntimeContext::write_result as *const _,
                 ),
                 (
                     symbols::KECCAK256_HASHER,
-                    RuntimeContext::<DB>::keccak256_hasher as *const _,
+                    RuntimeContext::keccak256_hasher as *const _,
                 ),
                 (
                     symbols::EXTEND_MEMORY,
-                    RuntimeContext::<DB>::extend_memory as *const _,
+                    RuntimeContext::extend_memory as *const _,
                 ),
-                (symbols::SLOAD, RuntimeContext::<DB>::sload as *const _),
-                (symbols::SSTORE, RuntimeContext::<DB>::sstore as *const _),
-                (
-                    symbols::APPEND_LOG,
-                    RuntimeContext::<DB>::append_log as *const _,
-                ),
+                (symbols::SLOAD, RuntimeContext::sload as *const _),
+                (symbols::SSTORE, RuntimeContext::sstore as *const _),
+                (symbols::APPEND_LOG, RuntimeContext::append_log as *const _),
                 (
                     symbols::APPEND_LOG_ONE_TOPIC,
-                    RuntimeContext::<DB>::append_log_with_one_topic as *const _,
+                    RuntimeContext::append_log_with_one_topic as *const _,
                 ),
                 (
                     symbols::APPEND_LOG_TWO_TOPICS,
-                    RuntimeContext::<DB>::append_log_with_two_topics as *const _,
+                    RuntimeContext::append_log_with_two_topics as *const _,
                 ),
                 (
                     symbols::APPEND_LOG_THREE_TOPICS,
-                    RuntimeContext::<DB>::append_log_with_three_topics as *const _,
+                    RuntimeContext::append_log_with_three_topics as *const _,
                 ),
                 (
                     symbols::APPEND_LOG_FOUR_TOPICS,
-                    RuntimeContext::<DB>::append_log_with_four_topics as *const _,
+                    RuntimeContext::append_log_with_four_topics as *const _,
                 ),
-                (symbols::CALL, RuntimeContext::<DB>::call as *const _),
-                (
-                    symbols::CALLDATA,
-                    RuntimeContext::<DB>::calldata as *const _,
-                ),
+                (symbols::CALL, RuntimeContext::call as *const _),
+                (symbols::CALLDATA, RuntimeContext::calldata as *const _),
                 (
                     symbols::CALLDATA_SIZE,
-                    RuntimeContext::<DB>::calldata_size as *const _,
+                    RuntimeContext::calldata_size as *const _,
                 ),
-                (
-                    symbols::CODE_COPY,
-                    RuntimeContext::<DB>::code_copy as *const _,
-                ),
-                (symbols::ORIGIN, RuntimeContext::<DB>::origin as *const _),
-                (symbols::ADDRESS, RuntimeContext::<DB>::address as *const _),
-                (
-                    symbols::CALLVALUE,
-                    RuntimeContext::<DB>::callvalue as *const _,
-                ),
+                (symbols::CODE_COPY, RuntimeContext::code_copy as *const _),
+                (symbols::ORIGIN, RuntimeContext::origin as *const _),
+                (symbols::ADDRESS, RuntimeContext::address as *const _),
+                (symbols::CALLVALUE, RuntimeContext::callvalue as *const _),
                 (
                     symbols::STORE_IN_BLOBBASEFEE_PTR,
-                    RuntimeContext::<DB>::store_in_blobbasefee_ptr as *const _,
+                    RuntimeContext::store_in_blobbasefee_ptr as *const _,
                 ),
                 (
                     symbols::EXT_CODE_SIZE,
-                    RuntimeContext::<DB>::extcodesize as *const _,
+                    RuntimeContext::extcodesize as *const _,
                 ),
-                (
-                    symbols::COINBASE,
-                    RuntimeContext::<DB>::coinbase as *const _,
-                ),
+                (symbols::COINBASE, RuntimeContext::coinbase as *const _),
                 (
                     symbols::STORE_IN_TIMESTAMP_PTR,
-                    RuntimeContext::<DB>::store_in_timestamp_ptr as *const _,
+                    RuntimeContext::store_in_timestamp_ptr as *const _,
                 ),
                 (
                     symbols::STORE_IN_BASEFEE_PTR,
-                    RuntimeContext::<DB>::store_in_basefee_ptr as *const _,
+                    RuntimeContext::store_in_basefee_ptr as *const _,
                 ),
-                (symbols::CALLER, RuntimeContext::<DB>::caller as *const _),
-                (
-                    symbols::GASLIMIT,
-                    RuntimeContext::<DB>::gaslimit as *const _,
-                ),
+                (symbols::CALLER, RuntimeContext::caller as *const _),
+                (symbols::GASLIMIT, RuntimeContext::gaslimit as *const _),
                 (
                     symbols::STORE_IN_GASPRICE_PTR,
-                    RuntimeContext::<DB>::store_in_gasprice_ptr as *const _,
+                    RuntimeContext::store_in_gasprice_ptr as *const _,
                 ),
                 (
                     symbols::BLOCK_NUMBER,
-                    RuntimeContext::<DB>::block_number as *const _,
+                    RuntimeContext::block_number as *const _,
                 ),
-                (
-                    symbols::PREVRANDAO,
-                    RuntimeContext::<DB>::prevrandao as *const _,
-                ),
-                (
-                    symbols::BLOB_HASH,
-                    RuntimeContext::<DB>::blob_hash as *const _,
-                ),
-                (symbols::CHAINID, RuntimeContext::<DB>::chainid as *const _),
+                (symbols::PREVRANDAO, RuntimeContext::prevrandao as *const _),
+                (symbols::BLOB_HASH, RuntimeContext::blob_hash as *const _),
+                (symbols::CHAINID, RuntimeContext::chainid as *const _),
                 (
                     symbols::STORE_IN_BALANCE,
-                    RuntimeContext::<DB>::store_in_balance as *const _,
+                    RuntimeContext::store_in_balance as *const _,
                 ),
                 (
                     symbols::STORE_IN_SELFBALANCE_PTR,
-                    RuntimeContext::<DB>::store_in_selfbalance_ptr as *const _,
+                    RuntimeContext::store_in_selfbalance_ptr as *const _,
                 ),
                 (
                     symbols::EXT_CODE_COPY,
-                    RuntimeContext::<DB>::ext_code_copy as *const _,
+                    RuntimeContext::ext_code_copy as *const _,
                 ),
-                (
-                    symbols::BLOCK_HASH,
-                    RuntimeContext::<DB>::block_hash as *const _,
-                ),
+                (symbols::BLOCK_HASH, RuntimeContext::block_hash as *const _),
                 (
                     symbols::EXT_CODE_HASH,
-                    RuntimeContext::<DB>::ext_code_hash as *const _,
+                    RuntimeContext::ext_code_hash as *const _,
                 ),
-                (symbols::CREATE, RuntimeContext::<DB>::create as *const _),
-                (symbols::CREATE2, RuntimeContext::<DB>::create2 as *const _),
+                (symbols::CREATE, RuntimeContext::create as *const _),
+                (symbols::CREATE2, RuntimeContext::create2 as *const _),
                 (
                     symbols::RETURNDATA_SIZE,
-                    RuntimeContext::<DB>::returndata_size as *const _,
+                    RuntimeContext::returndata_size as *const _,
                 ),
                 (
                     symbols::RETURNDATA_COPY,
-                    RuntimeContext::<DB>::returndata_copy as *const _,
+                    RuntimeContext::returndata_copy as *const _,
                 ),
                 (
                     symbols::SELFDESTRUCT,
-                    RuntimeContext::<DB>::selfdestruct as *const _,
+                    RuntimeContext::selfdestruct as *const _,
                 ),
                 (
                     symbols::TRANSIENT_STORAGE_READ,
-                    RuntimeContext::<DB>::read_transient_storage as *const _,
+                    RuntimeContext::read_transient_storage as *const _,
                 ),
                 (
                     symbols::TRANSIENT_STORAGE_WRITE,
-                    RuntimeContext::<DB>::write_transient_storage as *const _,
+                    RuntimeContext::write_transient_storage as *const _,
                 ),
             ];
 
@@ -1661,11 +1990,11 @@ pub fn compute_contract_address(address: H160, nonce: u64) -> Address {
 /// ```no_check
 /// let contract_address = RuntimeContext::compute_contract_address2(sender_address, salt, init_code);
 /// ```
-pub fn compute_contract_address2(address: H160, salt: U256, initialization_code: &[u8]) -> Address {
+pub fn compute_contract_address2(address: H160, salt: U256, init_code: &[u8]) -> Address {
     // Compute the destination address using the second method
-    let initialization_code_hash = {
+    let init_code_hash = {
         let mut hasher = Keccak256::new();
-        hasher.update(initialization_code);
+        hasher.update(init_code);
         hasher.finalize()
     };
 
@@ -1674,7 +2003,23 @@ pub fn compute_contract_address2(address: H160, salt: U256, initialization_code:
     hasher.update([0xff]);
     hasher.update(address.as_bytes());
     hasher.update(salt_bytes);
-    hasher.update(initialization_code_hash);
+    hasher.update(init_code_hash);
+
+    Address::from_slice(&hasher.finalize()[12..])
+}
+
+/// Computes the contract address using the CREATE2 opcode, which allows specifying a salt and init code hash
+pub fn compute_contract_address2_with_init_code_hash(
+    address: H160,
+    salt: U256,
+    init_code_hash: &[u8; 32],
+) -> Address {
+    let mut hasher = Keccak256::new();
+    let salt_bytes: [u8; 32] = salt.to_be_bytes();
+    hasher.update([0xff]);
+    hasher.update(address.as_bytes());
+    hasher.update(salt_bytes);
+    hasher.update(init_code_hash);
 
     Address::from_slice(&hasher.finalize()[12..])
 }

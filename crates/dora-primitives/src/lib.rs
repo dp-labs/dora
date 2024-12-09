@@ -129,6 +129,13 @@ impl From<&mut U256> for Bytes32 {
     }
 }
 
+impl From<B256> for Bytes32 {
+    #[inline]
+    fn from(value: B256) -> Self {
+        Self::from_be_bytes(value.to_fixed_bytes())
+    }
+}
+
 impl Bytes32 {
     /// The zero value.
     pub const ZERO: Self = Self([0; 32]);

@@ -20,7 +20,7 @@ use melior::{
     },
     Context,
 };
-use revmc::primitives::SpecId;
+use revm_primitives::SpecId;
 
 impl<'c> ConversionPass<'c> {
     pub(crate) fn add(context: &Context, op: &OperationRef<'_, '_>) -> Result<()> {

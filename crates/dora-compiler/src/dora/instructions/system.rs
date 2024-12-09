@@ -86,7 +86,7 @@ impl<'c> ConversionPass<'c> {
         // We don't need to check for errors here, as no errors will be returned.
         let address_ptr = rewriter.get_field_value(
             result_ptr,
-            offset_of!(dora_runtime::context::Result<*mut u8>, value),
+            offset_of!(dora_runtime::context::RuntimeResult<*mut u8>, value),
             ptr_type,
         )?;
         // Load the address from the pointer
@@ -111,6 +111,8 @@ impl<'c> ConversionPass<'c> {
             syscall_ctx,
             symbols::CALLER,
             &[caller_ptr],
+            [],
+            caller_ptr,
             rewriter.intrinsics.i256_ty,
             location
         );
@@ -127,6 +129,8 @@ impl<'c> ConversionPass<'c> {
             syscall_ctx,
             symbols::CALLVALUE,
             &[callvalue_ptr],
+            [],
+            callvalue_ptr,
             rewriter.intrinsics.i256_ty,
             location
         );
@@ -378,7 +382,7 @@ impl<'c> ConversionPass<'c> {
         // We don't need to check for errors here, as no errors will be returned.
         let data_size = rewriter.get_field_value(
             result_ptr,
-            offset_of!(dora_runtime::context::Result<u64>, value),
+            offset_of!(dora_runtime::context::RuntimeResult<u64>, value),
             rewriter.intrinsics.i64_ty,
         )?;
         rewriter.create(arith::extui(data_size, uint256, location));
@@ -407,7 +411,7 @@ impl<'c> ConversionPass<'c> {
         ))?;
         let error = rewriter.get_field_value(
             result_ptr,
-            offset_of!(dora_runtime::context::Result<()>, error),
+            offset_of!(dora_runtime::context::RuntimeResult<()>, error),
             rewriter.intrinsics.i8_ty,
         )?;
         // Check the runtime memory data copy out of offset halt error
