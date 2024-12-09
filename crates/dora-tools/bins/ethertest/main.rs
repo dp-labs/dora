@@ -379,8 +379,7 @@ fn should_skip(path: &Path) -> bool {
         "ValueOverflowParis.json"
     ) ||// Temporarily skip EOF test suites: https://github.com/dp-labs/dora/issues/5
         path_str.contains("stEOF")
-        // Temporarily skip out of gas error test suites: https://github.com/dp-labs/dora/issues/91
-        || path_str.contains("stRevertTest/costRevert.json")
+        // Temporarily skip stack overflow error test suites
         || path_str.contains("Pyspecs/cancun/eip1153_tstore/run_until_out_of_gas.json")
 }
 
