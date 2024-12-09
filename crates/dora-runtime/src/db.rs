@@ -1,11 +1,11 @@
 use crate::{
-    account::{Account, AccountInfo, AccountStatus, EMPTY_CODE_HASH_STR},
+    account::{Account, AccountInfo, AccountStatus, EMPTY_CODE_HASH_BYTES},
     artifact::{Artifact, SymbolArtifact},
 };
 use dora_primitives::{Address, Bytecode, B256, U256};
 use rustc_hash::FxHashMap;
 use sha3::{Digest, Keccak256};
-use std::{convert::Infallible, fmt::Debug, str::FromStr};
+use std::{convert::Infallible, fmt::Debug};
 use thiserror::Error;
 
 /// The `Database` trait provides an interface for interacting with various on-chain data sources
@@ -610,7 +610,7 @@ impl DbAccount {
             nonce: 0,
             balance: U256::ZERO,
             storage: FxHashMap::default(),
-            bytecode_hash: B256::from_str(EMPTY_CODE_HASH_STR).unwrap(),
+            bytecode_hash: B256::from_slice(&EMPTY_CODE_HASH_BYTES),
             status: AccountStatus::Created,
         }
     }

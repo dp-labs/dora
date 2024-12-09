@@ -1,6 +1,5 @@
 use crate::constants::MAIN_ENTRYPOINT;
 use crate::context::{MainFunc, RuntimeContext};
-use crate::db::Database;
 use dora_primitives::config::OptimizationLevel;
 use melior::ir::Module;
 use melior::StringRef;
@@ -49,9 +48,9 @@ impl Executor {
     /// ```no_check
     /// let executor = Executor::new(&module, &runtime_ctx, OptimizationLevel::Aggressive);
     /// ```
-    pub fn new<DB: Database>(
+    pub fn new(
         module: &Module,
-        runtime_ctx: &RuntimeContext<DB>,
+        runtime_ctx: &RuntimeContext,
         opt_level: OptimizationLevel,
     ) -> Self {
         let engine = ExecutionEngine::new(module, opt_level as usize, &[], false);
@@ -76,7 +75,7 @@ impl Executor {
     /// ```no_check
     /// let result_code = executor.execute(&mut runtime_ctx, initial_gas);
     /// ```
-    pub fn execute<DB: Database>(&self, context: &mut RuntimeContext<DB>, initial_gas: u64) -> u8 {
+    pub fn execute(&self, context: &mut RuntimeContext, initial_gas: u64) -> u8 {
         let main_fn = self.get_main_entrypoint();
         main_fn(context, initial_gas)
     }
@@ -97,7 +96,7 @@ impl Executor {
     /// ```no_check
     /// let main_fn = executor.get_main_entrypoint();
     /// ```
-    pub fn get_main_entrypoint<DB: Database>(&self) -> MainFunc<DB> {
+    pub fn get_main_entrypoint(&self) -> MainFunc {
         let fptr = self.get_main_entrypoint_ptr();
         // SAFETY: We're assuming the function pointer is valid and matches the MainFunc signature.
         unsafe { std::mem::transmute(fptr) }

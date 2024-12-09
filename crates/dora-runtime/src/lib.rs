@@ -1,26 +1,31 @@
 pub mod account;
 pub mod artifact;
+pub mod call;
 pub mod constants;
 pub mod context;
 pub mod db;
 pub mod env;
 pub mod executor;
 pub mod gas;
+pub mod handler;
 pub mod host;
+pub mod journaled_state;
 pub mod precompiles;
 pub mod result;
 pub mod symbols;
 pub mod transaction;
+pub mod vm;
 
 #[repr(u8)]
 #[derive(Debug, Clone)]
 pub enum ExitStatusCode {
-    // Success Codes
+    /* Success Codes */
+    /// Encountered a `RETURN` opcode
     Return = 0,
     /// Encountered a `STOP` opcode
     Stop = 1,
 
-    // Revert Codes
+    /* Revert Codes */
     /// Revert the transaction.
     Revert = 0x10,
     /// Exceeded maximum call depth.
@@ -34,7 +39,7 @@ pub enum ExitStatusCode {
     /// `ExtDelegatecall` calling a non EOF contract.
     InvalidExtDelegatecallTarget,
 
-    // Error Codes
+    /* Error Codes */
     /// Out of gas error.
     OutOfGas = 0x50,
     /// Out of gas error encountered during memory expansion.
@@ -141,5 +146,89 @@ impl ExitStatusCode {
             x if x == Self::InvalidExtCallTarget.to_u8() => Self::InvalidExtCallTarget,
             _ => Self::Return,
         }
+    }
+
+    #[inline]
+    pub fn is_ok(&self) -> bool {
+        matches!(self, ExitStatusCode::Return | ExitStatusCode::Stop)
+    }
+
+    #[inline]
+    pub fn is_revert(&self) -> bool {
+        matches!(
+            self,
+            ExitStatusCode::Revert
+                | ExitStatusCode::CallTooDeep
+                | ExitStatusCode::OutOfFunds
+                | ExitStatusCode::CreateInitCodeStartingEF00
+                | ExitStatusCode::InvalidEOFInitCode
+                | ExitStatusCode::InvalidExtDelegatecallTarget
+        )
+    }
+
+    #[inline]
+    pub fn is_error(&self) -> bool {
+        matches!(
+            self,
+            ExitStatusCode::OutOfGas
+                | ExitStatusCode::MemoryOOG
+                | ExitStatusCode::MemoryLimitOOG
+                | ExitStatusCode::PrecompileOOG
+                | ExitStatusCode::InvalidOperandOOG
+                | ExitStatusCode::OpcodeNotFound
+                | ExitStatusCode::CallNotAllowedInsideStatic
+                | ExitStatusCode::StateChangeDuringStaticcall
+                | ExitStatusCode::InvalidFEOpcode
+                | ExitStatusCode::InvalidJump
+                | ExitStatusCode::NotActivated
+                | ExitStatusCode::StackUnderflow
+                | ExitStatusCode::StackOverflow
+                | ExitStatusCode::OutOfOffset
+                | ExitStatusCode::CreateCollision
+                | ExitStatusCode::OverflowPayment
+                | ExitStatusCode::PrecompileError
+                | ExitStatusCode::NonceOverflow
+                | ExitStatusCode::CreateContractSizeLimit
+                | ExitStatusCode::CreateContractStartingWithEF
+                | ExitStatusCode::CreateInitCodeSizeLimit
+                | ExitStatusCode::ReturnContractInNotInitEOF
+                | ExitStatusCode::EOFOpcodeDisabledInLegacy
+                | ExitStatusCode::EOFFunctionStackOverflow
+                | ExitStatusCode::EofAuxDataOverflow
+                | ExitStatusCode::EofAuxDataTooSmall
+                | ExitStatusCode::InvalidExtCallTarget
+        )
+    }
+
+    #[inline]
+    pub fn is_stack_overflow(&self) -> bool {
+        matches!(self, ExitStatusCode::StackOverflow)
+    }
+
+    #[inline]
+    pub fn is_stack_underflow(&self) -> bool {
+        matches!(self, ExitStatusCode::StackUnderflow)
+    }
+
+    #[inline]
+    pub fn is_out_of_gas(&self) -> bool {
+        matches!(
+            self,
+            ExitStatusCode::OutOfGas
+                | ExitStatusCode::MemoryOOG
+                | ExitStatusCode::PrecompileOOG
+                | ExitStatusCode::MemoryLimitOOG
+                | ExitStatusCode::InvalidOperandOOG
+        )
+    }
+
+    #[inline]
+    pub fn is_opcode_not_found(&self) -> bool {
+        matches!(self, ExitStatusCode::OpcodeNotFound)
+    }
+
+    #[inline]
+    pub fn is_invalid_jump(&self) -> bool {
+        matches!(self, ExitStatusCode::InvalidJump)
     }
 }

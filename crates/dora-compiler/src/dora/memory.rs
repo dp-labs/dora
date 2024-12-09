@@ -29,27 +29,6 @@ use melior::{
 };
 use std::mem::offset_of;
 
-/// Allocates memory for a 64-byte value, stores the value in the memory
-/// and returns a pointer to the memory
-pub(crate) fn allocate_u64_and_assign_value<'c>(
-    context: &'c Context,
-    rewriter: &'c Rewriter,
-    value: Value<'c, '_>,
-    location: Location<'c>,
-) -> Result<Value<'c, 'c>> {
-    let var_ptr = create_var!(rewriter, context, rewriter.intrinsics.i64_ty, location);
-    rewriter.create(store_var!(
-        rewriter,
-        context,
-        value,
-        var_ptr,
-        location,
-        LoadStoreOptions::default()
-            .align(IntegerAttribute::new(IntegerType::new(context, 64).into(), 1).into())
-    ));
-    Ok(var_ptr)
-}
-
 /// Allocates memory for a 256-byte value, stores the value in the memory
 /// and returns a pointer to the memory
 pub(crate) fn allocate_u256_and_assign_value<'c>(
@@ -166,12 +145,12 @@ pub(crate) fn resize_memory<'c>(
     ))?;
     let new_memory_ptr = rewriter.get_field_value(
         result_ptr,
-        offset_of!(dora_runtime::context::Result<*mut u8>, value),
+        offset_of!(dora_runtime::context::RuntimeResult<*mut u8>, value),
         ptr_type,
     )?;
     let error = rewriter.get_field_value(
         result_ptr,
-        offset_of!(dora_runtime::context::Result<*mut u8>, error),
+        offset_of!(dora_runtime::context::RuntimeResult<*mut u8>, error),
         rewriter.intrinsics.i8_ty,
     )?;
     // Check the runtime memory resize halt error

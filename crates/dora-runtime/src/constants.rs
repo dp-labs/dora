@@ -20,6 +20,8 @@ pub const VERSIONED_HASH_VERSION_KZG: u8 = 0x01;
 pub const TARGET_BLOB_NUMBER_PER_BLOCK: u64 = 3;
 /// Max number of blobs per block
 pub const MAX_BLOB_NUMBER_PER_BLOCK: u64 = 2 * TARGET_BLOB_NUMBER_PER_BLOCK;
+/// Number of block hashes that EVM can access in the past (pre-Prague).
+pub const BLOCK_HASH_HISTORY: u64 = 256;
 
 pub mod gas_cost {
     // Gas costs for various operations
@@ -52,7 +54,6 @@ pub mod gas_cost {
     pub const BALANCE: i64 = 100;
     pub const ORIGIN: i64 = 2;
     pub const CALLER: i64 = 2;
-    pub const CALLVALUE: i64 = 2;
     pub const CALLDATALOAD: i64 = 3;
     pub const CALLDATASIZE: i64 = 2;
     pub const CALLDATACOPY: i64 = 3;
@@ -93,6 +94,9 @@ pub mod gas_cost {
     pub const KECCAK256_WORD_COST: u64 = 6;
     pub const COPY_WORD_COST: u64 = 3;
 
+    pub const CALLVALUE: u64 = 9000;
+    pub const NEWACCOUNT: u64 = 25000;
+
     // Logging
     pub const LOG0: i64 = 375;
     pub const LOG1: i64 = 750;
@@ -101,6 +105,7 @@ pub mod gas_cost {
     pub const LOG4: i64 = 1875;
 
     pub const BLOCKHASH: i64 = 20;
+    pub const CODEDEPOSIT: u64 = 200;
 
     // Call and other operations
     pub const CALL: i64 = 100;
@@ -133,7 +138,7 @@ pub mod gas_cost {
 
     pub const BYTE_DEPOSIT_COST: i64 = 200;
     /// EIP-3860 : Limit and meter initcode
-    pub const INIT_WORD_COST: u64 = 2;
+    pub const INITCODE_WORD_COST: u64 = 2;
     pub const HASH_WORD_COST: i64 = 6;
 
     // Transaction costs
@@ -153,7 +158,11 @@ pub mod gas_cost {
     pub const INSTANBUL_SLOAD_GAS: u64 = 800;
     pub const SSTORE_SET: u64 = 20000;
     pub const SSTORE_RESET: u64 = 5000;
-    pub const REFUND_SSTORE_CLEARS: u64 = 15000;
+    pub const REFUND_SSTORE_CLEARS: i64 = 15000;
+
+    pub const TRANSACTION_ZERO_DATA: u64 = 4;
+    pub const TRANSACTION_NON_ZERO_DATA_INIT: u64 = 16;
+    pub const TRANSACTION_NON_ZERO_DATA_FRONTIER: u64 = 68;
 
     pub const ACCESS_LIST_ADDRESS: u64 = 2400;
     pub const ACCESS_LIST_STORAGE_KEY: u64 = 1900;
@@ -184,7 +193,7 @@ pub mod gas_cost {
     /// ```
     #[inline]
     pub fn init_code_cost(init_code_length: usize) -> u64 {
-        INIT_WORD_COST * ((init_code_length as u64 + 31) / 32)
+        INITCODE_WORD_COST * ((init_code_length as u64 + 31) / 32)
     }
 
     /// Calculates the gas cost for expanding memory from a previous size to a new size.

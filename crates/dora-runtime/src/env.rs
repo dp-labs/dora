@@ -1,6 +1,8 @@
+//! Reference: [revm](https://github.com/bluealloy/revm)
+
 use std::cmp::min;
 
-use crate::transaction::TransactionType;
+use crate::{gas, result::EVMError, transaction::TransactionType};
 
 use super::constants::{
     gas_cost::{
@@ -12,6 +14,7 @@ use super::constants::{
 };
 use super::result::InvalidTransaction;
 use dora_primitives::{Bytes, EVMAddress as Address, B256, U256};
+use revm_primitives::{SpecId, GAS_PER_BLOB};
 
 /// Represents the execution environment for the EVM, including block, transaction, and EVM configuration.
 ///
@@ -127,8 +130,28 @@ impl Env {
         Ok(())
     }
 
+    /// Validate initial transaction gas.
+    pub fn validate_initial_tx_gas(&self, spec_id: SpecId) -> Result<u64, EVMError> {
+        let is_create = self.tx.transact_to.is_zero();
+        let authorization_list_num = 0; // TODO: eip7702
+        let initial_gas_cost = gas::validate_initial_tx_gas(
+            spec_id,
+            &self.tx.data,
+            is_create,
+            &self.tx.access_list,
+            authorization_list_num,
+        );
+        // Additional check to see if limit is big enough to cover initial gas.
+        if initial_gas_cost > self.tx.gas_limit {
+            return Err(EVMError::Transaction(
+                InvalidTransaction::CallGasCostMoreThanGasLimit,
+            ));
+        }
+        Ok(initial_gas_cost)
+    }
+
     /// Calculates the intrinsic cost based on the transaction data.
-    fn calculate_intrinsic_cost(&self) -> u64 {
+    pub fn calculate_intrinsic_cost(&self) -> u64 {
         let data_cost: u64 = self
             .tx
             .data
@@ -159,6 +182,21 @@ impl Env {
 
         TX_BASE_COST + data_cost + create_cost + access_list_cost
     }
+
+    /// Calculates the [EIP-4844] `data_fee` of the transaction.
+    ///
+    /// Returns `None` if `Cancun` is not enabled.
+    ///
+    /// [EIP-4844](https://eips.ethereum.org/EIPS/eip-4844)
+    #[inline]
+    pub fn calc_data_fee(&self) -> Option<U256> {
+        if self.tx.tx_type == TransactionType::Eip4844 {
+            let blob_gas = U256::from(self.tx.total_blob_gas());
+            let blob_gas_price = U256::from(self.block.blob_gasprice.unwrap_or_default());
+            return Some(blob_gas_price.saturating_mul(blob_gas));
+        }
+        None
+    }
 }
 
 /// Configuration settings for the EVM, including chain ID.
@@ -182,11 +220,13 @@ pub struct CfgEnv {
     /// If some it will effects EIP-170: Contract code size limit. Useful to increase this because of tests.
     /// By default it is 0x6000 (~25kb).
     pub limit_contract_code_size: Option<usize>,
-    /// Skips the nonce validation against the account's nonce.
-    pub disable_nonce_check: bool,
     /// A hard memory limit in bytes beyond which [crate::result::OutOfGasError::Memory] cannot be resized.
     /// Defaults to `2^32 - 1` bytes per EIP-1985.
     pub memory_limit: u64,
+    /// Skips the nonce validation against the account's nonce.
+    pub disable_nonce_check: bool,
+    /// Skips balance checks if true. Adds transaction cost to balance to ensure execution doesn't fail.
+    pub disable_balance_check: bool,
 }
 
 impl Default for CfgEnv {
@@ -194,9 +234,29 @@ impl Default for CfgEnv {
         Self {
             chain_id: 1,
             limit_contract_code_size: None,
-            disable_nonce_check: false,
             memory_limit: (1 << 32) - 1,
+            disable_nonce_check: false,
+            disable_balance_check: false,
         }
+    }
+}
+
+impl CfgEnv {
+    /// Returns max code size from [`Self::limit_contract_code_size`] if set
+    /// or default [`MAX_CODE_SIZE`] value.
+    #[inline]
+    pub fn max_code_size(&self) -> usize {
+        self.limit_contract_code_size.unwrap_or(MAX_CODE_SIZE)
+    }
+
+    #[inline]
+    pub const fn is_nonce_check_disabled(&self) -> bool {
+        self.disable_nonce_check
+    }
+
+    #[inline]
+    pub fn is_balance_check_disabled(&self) -> bool {
+        self.disable_balance_check
     }
 }
 
@@ -367,8 +427,8 @@ impl TxEnv {
     #[inline]
     pub fn effective_gas_price(&self, base_fee: U256) -> U256 {
         let (max_fee, max_priority_fee) = match self.tx_type {
-            TransactionType::Legacy => return U256::from(self.gas_price),
-            TransactionType::Eip2930 => return U256::from(self.gas_price),
+            TransactionType::Legacy => return self.gas_price,
+            TransactionType::Eip2930 => return self.gas_price,
             TransactionType::Eip1559 => (self.gas_price, self.gas_priority_fee.unwrap_or_default()),
             TransactionType::Eip4844 => (self.gas_price, self.gas_priority_fee.unwrap_or_default()),
             TransactionType::Eip7702 => (self.gas_price, self.gas_priority_fee.unwrap_or_default()),
@@ -376,5 +436,37 @@ impl TxEnv {
         };
 
         min(max_fee, base_fee + max_priority_fee)
+    }
+
+    /// Maximum fee that can be paid for the transaction.
+    pub fn max_fee(&self) -> U256 {
+        match self.tx_type {
+            TransactionType::Legacy => self.gas_price,
+            TransactionType::Eip2930 => self.gas_price,
+            TransactionType::Eip1559 => self.gas_price,
+            TransactionType::Eip4844 => self.gas_price,
+            TransactionType::Eip7702 => self.gas_price,
+            TransactionType::Custom => unimplemented!("Custom tx not supported"),
+        }
+    }
+
+    /// Calculates the maximum [EIP-4844] `data_fee` of the transaction.
+    ///
+    /// This is used for ensuring that the user has at least enough funds to pay the
+    /// `max_fee_per_blob_gas * total_blob_gas`, on top of regular gas costs.
+    ///
+    /// See EIP-4844:
+    /// <https://github.com/ethereum/EIPs/blob/master/EIPS/eip-4844.md#execution-layer-validation>
+    pub fn calc_max_data_fee(&self) -> U256 {
+        let blob_gas = U256::from(self.total_blob_gas());
+        let max_blob_fee = self.max_fee_per_blob_gas.unwrap_or_default();
+        max_blob_fee.saturating_mul(blob_gas)
+    }
+
+    /// Total gas for all blobs. Max number of blocks is already checked
+    /// so we dont need to check for overflow.
+    #[inline]
+    pub fn total_blob_gas(&self) -> u64 {
+        GAS_PER_BLOB * self.blob_hashes.len() as u64
     }
 }

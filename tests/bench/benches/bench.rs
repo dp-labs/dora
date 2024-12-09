@@ -1,6 +1,5 @@
 #![allow(missing_docs)]
 
-use ::dora::EVMTransaction;
 use criterion::{
     criterion_group, criterion_main, measurement::WallTime, BenchmarkGroup, Criterion,
 };
@@ -9,13 +8,11 @@ use dora_compiler::evm::{CompileOptions, Program};
 use dora_compiler::{dora, evm, pass, Compiler, Context, EVMCompiler};
 use dora_primitives::{spec::SpecId, Bytes};
 use dora_primitives::{Address, Bytecode};
-use dora_runtime::context::RuntimeContext;
-use dora_runtime::db::MemoryDB;
+use dora_runtime::context::{Contract, RuntimeContext};
+use dora_runtime::env::Env;
 use dora_runtime::executor::Executor;
 use dora_runtime::host::DummyHost;
-use dora_runtime::{context::CallFrame, env::Env};
 use std::hint::black_box;
-use std::sync::{Arc, RwLock};
 use std::time::Duration;
 
 fn bench(c: &mut Criterion) {
@@ -62,28 +59,19 @@ fn run_bench(c: &mut Criterion, bench: &Bench) {
     .unwrap();
     pass::run(&context.mlir_context, &mut module.mlir_module).unwrap();
     debug_assert!(module.mlir_module.as_operation().verify());
-    let (address, bytecode) = (
-        Address::from_low_u64_be(40),
-        Bytecode::from(program.to_opcode()),
-    );
+    let gas_limit = 2_000_000;
     // New the EVM run environment.
     let mut env: Env = Default::default();
-    env.tx.gas_limit = 999_999;
+    env.tx.gas_limit = gas_limit;
     env.tx.data = Bytes::from(calldata.to_vec());
-    env.tx.transact_to = address;
-    let mut context = RuntimeContext::new(
-        Arc::new(RwLock::new(
-            MemoryDB::default().with_contract(address, bytecode),
-        )),
-        CallFrame::new(Address::from_low_u64_le(10000)),
-        Arc::new(EVMTransaction::<MemoryDB>::new()),
-        Arc::new(RwLock::new(DummyHost::new(env))),
-        SpecId::CANCUN,
-    );
+    env.tx.transact_to = Address::from_low_u64_be(40);
+    let contract = Contract::new_with_env(&env, Bytecode::from(program.to_opcode()), None);
+    let mut host = DummyHost::new(env);
+    let mut context = RuntimeContext::new(contract, &mut host, SpecId::CANCUN);
     let executor = Executor::new(module.module(), &context, Default::default());
     let func = executor.get_main_entrypoint();
     let ctx = black_box(&mut context);
-    let gas = black_box(999_999);
+    let gas = black_box(gas_limit);
 
     g.bench_function("dora", |b| b.iter(|| func(ctx, gas)));
 

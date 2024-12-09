@@ -42,8 +42,8 @@ pub(crate) fn declare_symbols(context: &MLIRContext, module: &MLIRModule) {
         (symbols::CALLDATA, &[ptr_type], &[ptr_type]),
         (symbols::CALLDATA_SIZE, &[ptr_type], &[uint64]),
         (symbols::CHAINID, &[ptr_type], &[ptr_type]),
-        (symbols::CALLVALUE, &[ptr_type, ptr_type], &[ptr_type]),
-        (symbols::CALLER, &[ptr_type, ptr_type], &[ptr_type]),
+        (symbols::CALLVALUE, &[ptr_type, ptr_type], &[]),
+        (symbols::CALLER, &[ptr_type, ptr_type], &[]),
         (
             symbols::STORE_IN_GASPRICE_PTR,
             &[ptr_type, ptr_type],
@@ -114,8 +114,7 @@ pub(crate) fn declare_symbols(context: &MLIRContext, module: &MLIRModule) {
         (
             symbols::CALL,
             &[
-                ptr_type, uint64, ptr_type, ptr_type, uint64, uint64, uint64, uint64, uint64,
-                ptr_type, uint8,
+                ptr_type, uint64, ptr_type, ptr_type, uint64, uint64, uint64, uint64, uint64, uint8,
             ],
             &[ptr_type],
         ),
@@ -134,12 +133,12 @@ pub(crate) fn declare_symbols(context: &MLIRContext, module: &MLIRModule) {
         (symbols::EXT_CODE_HASH, &[ptr_type, ptr_type], &[ptr_type]),
         (
             symbols::CREATE,
-            &[ptr_type, uint64, uint64, ptr_type, ptr_type],
+            &[ptr_type, uint64, uint64, ptr_type, uint64],
             &[ptr_type],
         ),
         (
             symbols::CREATE2,
-            &[ptr_type, uint64, uint64, ptr_type, ptr_type, ptr_type],
+            &[ptr_type, uint64, uint64, ptr_type, uint64, ptr_type],
             &[ptr_type],
         ),
         (symbols::RETURNDATA_SIZE, &[ptr_type], &[ptr_type]),

@@ -1,50 +1,52 @@
-use std::{
-    ops::Deref,
-    sync::{Arc, RwLock},
-};
-
 use bytes::Bytes;
 use dora_compiler::evm::{program::Operation, Program};
 use dora_primitives::{spec::SpecId, Address, Bytecode, Bytes32, U256};
 use dora_runtime::{
-    context::{CallFrame, RuntimeContext, RuntimeHost},
+    context::{Contract, Log, RuntimeContext},
     db::MemoryDB,
     env::Env,
-    host::DummyHost,
-    result::ExecutionResult,
+    host::{DummyHost, Host},
+    ExitStatusCode,
 };
 use num_bigint::{BigInt, BigUint};
 
-use crate::{run_evm, run_with_context, EVMTransaction};
+use crate::{run_evm, run_with_context};
 
 use super::INIT_GAS;
 
 #[derive(Debug, Clone)]
 pub(crate) struct TestResult {
-    pub result: ExecutionResult,
+    pub status: ExitStatusCode,
     pub memory: Vec<u8>,
-    pub host: RuntimeHost,
-}
-
-impl Deref for TestResult {
-    type Target = ExecutionResult;
-
-    fn deref(&self) -> &Self::Target {
-        &self.result
-    }
+    pub host: DummyHost,
+    pub gas_used: u64,
+    pub output: Vec<u8>,
 }
 
 impl TestResult {
-    pub fn sload(&self, key: U256) -> U256 {
-        let mut host = self.host.write().unwrap();
-        let result = host.sload(&Address::default(), &Bytes32::from_u256(key));
-        result.value.to_u256()
+    pub fn sload(&mut self, key: U256) -> U256 {
+        let result = self
+            .host
+            .sload(Address::default(), Bytes32::from_u256(key))
+            .unwrap_or_default();
+        result.data.to_u256()
     }
 
-    pub fn tload(&self, key: U256) -> U256 {
-        let mut host = self.host.write().unwrap();
-        let result = host.tload(&Address::default(), &Bytes32::from_u256(key));
+    pub fn tload(&mut self, key: U256) -> U256 {
+        let result = self.host.tload(Address::default(), Bytes32::from_u256(key));
         result.to_u256()
+    }
+
+    pub fn logs(&self) -> &[Log] {
+        &self.host.logs
+    }
+
+    pub fn gas_used(&self) -> u64 {
+        self.gas_used
+    }
+
+    pub fn output(&self) -> Bytes {
+        self.output.to_owned().into()
     }
 }
 
@@ -67,21 +69,25 @@ pub(crate) fn run_result(operations: Vec<Operation>) -> TestResult {
 }
 
 pub(crate) fn run_result_with_spec(operations: Vec<Operation>, spec_id: SpecId) -> TestResult {
-    let (mut env, db) = default_env_and_db_setup(operations);
+    let mut env = Env::default();
+    env.tx.gas_limit = INIT_GAS;
     env.tx.data = Bytes::from_static(&[0xCC; 64]);
-    let mut runtime_context = RuntimeContext::new(
-        Arc::new(RwLock::new(db)),
-        CallFrame::new_with_data(env.tx.caller, vec![0xDD; 64]),
-        Arc::new(EVMTransaction::<MemoryDB>::new()),
-        Arc::new(RwLock::new(DummyHost::new(env))),
-        spec_id,
+    let initial_gas = env.tx.gas_limit;
+    let contract = Contract::new_with_env(
+        &env,
+        Bytecode::from(Program::from(operations).to_opcode()),
+        None,
     );
-    run_with_context(&mut runtime_context).unwrap();
-    let result = runtime_context.get_result().unwrap().result;
+    let mut host = DummyHost::new(env);
+    let mut runtime_context = RuntimeContext::new(contract, &mut host, spec_id);
+    runtime_context.set_returndata(vec![0xDD; 64]);
+    run_with_context::<MemoryDB>(&mut runtime_context, initial_gas).unwrap();
     TestResult {
-        result,
+        status: runtime_context.status(),
         memory: runtime_context.memory().to_owned(),
-        host: runtime_context.host.clone(),
+        output: runtime_context.return_values().to_vec(),
+        gas_used: initial_gas - runtime_context.gas_remaining(),
+        host,
     }
 }
 

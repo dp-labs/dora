@@ -38,7 +38,7 @@ impl<'c> ConversionPass<'c> {
         // We don't need to check for errors here, as no errors will be returned.
         let chainid = rewriter.get_field_value(
             result_ptr,
-            offset_of!(dora_runtime::context::Result<u64>, value),
+            offset_of!(dora_runtime::context::RuntimeResult<u64>, value),
             rewriter.intrinsics.i64_ty,
         )?;
         rewriter.make(arith::extui(chainid, rewriter.intrinsics.i256_ty, location))?;
@@ -61,7 +61,7 @@ impl<'c> ConversionPass<'c> {
         // We don't need to check for errors here, as no errors will be returned.
         let coinbase_ptr = rewriter.get_field_value(
             result_ptr,
-            offset_of!(dora_runtime::context::Result<*mut u8>, value),
+            offset_of!(dora_runtime::context::RuntimeResult<*mut u8>, value),
             ptr_type,
         )?;
         let coinbase = rewriter.make(rewriter.load(coinbase_ptr, uint160))?;
@@ -145,7 +145,7 @@ impl<'c> ConversionPass<'c> {
         // We don't need to check for errors here, as no errors will be returned.
         let gaslimit = rewriter.get_field_value(
             result_ptr,
-            offset_of!(dora_runtime::context::Result<u64>, value),
+            offset_of!(dora_runtime::context::RuntimeResult<u64>, value),
             rewriter.intrinsics.i64_ty,
         )?;
         rewriter.make(arith::extui(

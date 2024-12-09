@@ -11,17 +11,18 @@ use alloy_rlp::RlpEncodable;
 use alloy_rlp::RlpMaxEncodedLen;
 use anyhow::Result;
 use clap::{Args, Parser, Subcommand};
-use dora::{run_with_context, EVMTransaction};
+use dora::call_frame;
 use dora_primitives::spec::SpecId;
 use dora_primitives::spec::SpecName;
 use dora_primitives::Bytes;
 use dora_primitives::{Address, B256, U256};
 use dora_runtime::account::Account;
-use dora_runtime::context::{CallFrame, Log, RuntimeContext, RuntimeDB};
-use dora_runtime::db::{Database, DatabaseCommit, MemoryDB};
+use dora_runtime::context::Log;
+use dora_runtime::context::VMContext;
+use dora_runtime::db::{Database, MemoryDB};
 use dora_runtime::env::Env;
-use dora_runtime::host::DummyHost;
-use dora_runtime::result::ResultAndState;
+use dora_runtime::handler::Handler;
+use dora_runtime::vm::VM;
 use hash_db::Hasher;
 use indicatif::{ProgressBar, ProgressDrawTarget};
 use plain_hasher::PlainHasher;
@@ -30,7 +31,7 @@ use revm_primitives::EvmStorageSlot;
 use serde::de::Visitor;
 use serde::{de, Deserialize, Serialize};
 use std::fmt;
-use std::sync::{Arc, RwLock};
+use std::sync::Arc;
 use std::{
     collections::{BTreeMap, HashMap},
     path::{Path, PathBuf},
@@ -383,23 +384,6 @@ fn should_skip(path: &Path) -> bool {
         || path_str.contains("Pyspecs/cancun/eip1153_tstore/run_until_out_of_gas.json")
 }
 
-fn run_with_shared_db<DB: Database + 'static>(
-    mut env: Env,
-    db: RuntimeDB<DB>,
-) -> Result<ResultAndState> {
-    env.validate_transaction().map_err(|e| anyhow::anyhow!(e))?;
-    env.consume_intrinsic_cost()
-        .map_err(|e| anyhow::anyhow!(e))?;
-    let mut runtime_context = RuntimeContext::new(
-        db,
-        CallFrame::new(env.tx.caller),
-        Arc::new(EVMTransaction::<DB>::new()),
-        Arc::new(RwLock::new(DummyHost::new(env))),
-        SpecId::CANCUN,
-    );
-    run_with_context(&mut runtime_context)
-}
-
 fn execute_test(path: &Path) -> Result<(), TestError> {
     if should_skip(path) {
         return Ok(());
@@ -424,7 +408,15 @@ fn execute_test(path: &Path) -> Result<(), TestError> {
                 account_info.storage.iter().map(|(k, v)| (*k, *v)).collect(),
             );
         }
-        let db = Arc::new(RwLock::new(db));
+
+        let mut vm = VM::new(VMContext::new(
+            db,
+            Env::default(),
+            SpecId::CANCUN,
+            Handler {
+                call_frame: Arc::new(call_frame),
+            },
+        ));
 
         // post and execution
         for (spec_name, tests) in &suite.post {
@@ -479,18 +471,14 @@ fn execute_test(path: &Path) -> Result<(), TestError> {
                     ));
                 }
                 // Run EVM and get the state result.
-                let res = run_with_shared_db(env, db.clone());
-                let _logs_root =
-                    log_rlp_hash(res.as_ref().map(|r| r.result.logs()).unwrap_or_default());
+                vm.env = Box::new(env);
+                let res = vm.transact_commit();
+                let _logs_root = log_rlp_hash(res.as_ref().map(|r| r.logs()).unwrap_or_default());
                 // Check result and output.
                 match res {
                     Ok(res) => {
-                        // Commit the state change into the database for the next loop.
-                        let mut db_ref = db.write().unwrap();
-                        db_ref.commit(res.state);
-                        drop(db_ref);
                         // Check the expect exception.
-                        if test_case.expect_exception.is_some() && res.result.is_success() {
+                        if test_case.expect_exception.is_some() && res.is_success() {
                             return Err(TestError {
                                 name: name.to_string(),
                                 kind: TestErrorKind::UnexpectedException {
@@ -501,14 +489,14 @@ fn execute_test(path: &Path) -> Result<(), TestError> {
                         }
                         // Check output.
                         if let Some((expected_output, output)) =
-                            suite.out.as_ref().zip(res.result.output())
+                            suite.out.as_ref().zip(res.output())
                         {
                             if expected_output.0 != output {
                                 return Err(TestError {
                                     name: name.to_string(),
                                     kind: TestErrorKind::UnexpectedOutput {
                                         expected_output: Some(expected_output.0.clone()),
-                                        got_output: res.result.output().cloned(),
+                                        got_output: res.output().cloned(),
                                     },
                                 });
                             }
