@@ -22,6 +22,7 @@ use dora_runtime::context::VMContext;
 use dora_runtime::db::{Database, MemoryDB};
 use dora_runtime::env::Env;
 use dora_runtime::handler::Handler;
+use dora_runtime::transaction::TransactionType;
 use dora_runtime::vm::VM;
 use hash_db::Hasher;
 use indicatif::{ProgressBar, ProgressDrawTarget};
@@ -121,11 +122,44 @@ struct Transaction {
     pub max_priority_fee_per_gas: Option<U256>,
     #[serde(default)]
     pub access_lists: Vec<Option<AccessList>>,
-    #[serde(default)]
-    pub authorization_list: Vec<Authorization>,
+    pub authorization_list: Option<Vec<Authorization>>,
     #[serde(default)]
     pub blob_versioned_hashes: Vec<B256>,
     pub max_fee_per_blob_gas: Option<U256>,
+}
+
+impl Transaction {
+    pub fn tx_type(&self, access_list_index: usize) -> Option<TransactionType> {
+        let mut tx_type = TransactionType::Legacy;
+
+        // if it has access list it is EIP-2930 tx
+        if let Some(access_list) = self.access_lists.get(access_list_index) {
+            if access_list.is_some() {
+                tx_type = TransactionType::Eip2930;
+            }
+        }
+
+        // If there is max_fee it is EIP-1559 tx
+        if self.max_fee_per_gas.is_some() {
+            tx_type = TransactionType::Eip1559;
+        }
+
+        // if it has max_fee_per_blob_gas it is EIP-4844 tx
+        if self.max_fee_per_blob_gas.is_some() {
+            // target need to be present for EIP-4844 tx
+            self.to?;
+            tx_type = TransactionType::Eip4844;
+        }
+
+        // and if it has authorization list it is EIP-7702 tx
+        if self.authorization_list.is_some() {
+            // target need to be present for EIP-7702 tx
+            self.to?;
+            tx_type = TransactionType::Eip7702;
+        }
+
+        Some(tx_type)
+    }
 }
 
 #[derive(Debug, PartialEq, Eq, Serialize, Deserialize, Clone)]
@@ -425,6 +459,14 @@ fn execute_test(path: &Path) -> Result<(), TestError> {
                     // if spec is merge and prevrandao is not set, set it to default
                     env.block.prevrandao = Some(B256::default());
                 }
+                let Some(tx_type) = suite.transaction.tx_type(test_case.indexes.data) else {
+                    if test_case.expect_exception.is_some() {
+                        continue;
+                    } else {
+                        panic!("Invalid transaction type without expected exception");
+                    }
+                };
+                env.tx.tx_type = tx_type;
                 // Mapping transaction data and value
                 env.tx.gas_limit =
                     suite.transaction.gas_limit[test_case.indexes.gas].saturating_to();
@@ -463,17 +505,17 @@ fn execute_test(path: &Path) -> Result<(), TestError> {
                     ));
                 }
                 // Run EVM and get the state result.
-                let res = VM::new(VMContext::new(
+                let mut vm = VM::new(VMContext::new(
                     db.clone(),
                     env,
                     spec_id,
                     Handler {
                         call_frame: Arc::new(call_frame),
                     },
-                ))
-                .transact_commit();
+                ));
+                let res = vm.transact_commit();
 
-                let _logs_root = log_rlp_hash(res.as_ref().map(|r| r.logs()).unwrap_or_default());
+                let logs_root = log_rlp_hash(res.as_ref().map(|r| r.logs()).unwrap_or_default());
                 // Check result and output.
                 match res {
                     Ok(res) => {
@@ -502,19 +544,18 @@ fn execute_test(path: &Path) -> Result<(), TestError> {
                             }
                         }
                         // Check the state root.
-                        // FIXME: When completing the account balance and gas test, please note the calculation of state root here
-                        // let state = db.read().unwrap().clone().into_state();
-                        // let state_root = state_merkle_trie_root(state.iter());
-                        // if state_root != test_case.hash {
-                        //     let kind = TestErrorKind::StateRootMismatch {
-                        //         got: state_root,
-                        //         expected: test_case.hash,
-                        //     };
-                        //     return Err(TestError {
-                        //         name: name.to_string(),
-                        //         kind,
-                        //     });
-                        // }
+                        let state = vm.db.clone().into_state();
+                        let state_root = state_merkle_trie_root(state.iter());
+                        if state_root != test_case.hash {
+                            let kind = TestErrorKind::StateRootMismatch {
+                                got: state_root,
+                                expected: test_case.hash,
+                            };
+                            return Err(TestError {
+                                name: name.to_string(),
+                                kind,
+                            });
+                        }
                     }
                     Err(error) => {
                         if test_case.expect_exception.is_none() {
@@ -529,17 +570,16 @@ fn execute_test(path: &Path) -> Result<(), TestError> {
                     }
                 }
                 // Check the logs root.
-                // FIXME: When completing the log unit tests: https://github.com/dp-labs/dora/issues/91
-                // if logs_root != test_case.logs {
-                //     let kind = TestErrorKind::LogsRootMismatch {
-                //         got: logs_root,
-                //         expected: test_case.logs,
-                //     };
-                //     return Err(TestError {
-                //         name: name.to_string(),
-                //         kind,
-                //     });
-                // }
+                if logs_root != test_case.logs {
+                    let kind = TestErrorKind::LogsRootMismatch {
+                        got: logs_root,
+                        expected: test_case.logs,
+                    };
+                    return Err(TestError {
+                        name: name.to_string(),
+                        kind,
+                    });
+                }
             }
         }
     }
