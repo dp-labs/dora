@@ -2,7 +2,6 @@ use std::fmt::Debug;
 
 use crate::{
     context::{MainFunc, RuntimeContext},
-    db::Database,
     executor::Executor,
 };
 
@@ -36,11 +35,7 @@ pub trait Artifact: Default + Debug + Clone {
     ///
     /// # Returns
     /// A u8 value, typically representing an execution status or error code.
-    fn execute<DB: Database>(
-        &self,
-        runtime_context: &mut RuntimeContext<DB>,
-        initial_gas: u64,
-    ) -> u8;
+    fn execute(&self, runtime_context: &mut RuntimeContext, initial_gas: u64) -> u8;
 }
 
 /// A memory artifact that represents a compiled symbol as a raw pointer.
@@ -92,13 +87,9 @@ impl Artifact for SymbolArtifact {
     /// It assumes that the stored entry_ptr is valid and points to a correctly compiled
     /// function matching the MainFunc<DB> signature. Incorrect use could lead to undefined behavior.
     #[inline]
-    fn execute<DB: Database>(
-        &self,
-        runtime_context: &mut RuntimeContext<DB>,
-        initial_gas: u64,
-    ) -> u8 {
+    fn execute(&self, runtime_context: &mut RuntimeContext, initial_gas: u64) -> u8 {
         let ptr = self.entry_ptr as *mut ();
-        let func: MainFunc<DB> = unsafe { std::mem::transmute(ptr) };
+        let func: MainFunc = unsafe { std::mem::transmute(ptr) };
         func(runtime_context, initial_gas)
     }
 }

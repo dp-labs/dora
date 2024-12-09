@@ -6,7 +6,7 @@ use melior::{
     pass::{create_external, ExternalPass, Pass, RunExternalPass},
     Context, ContextRef,
 };
-use revmc::primitives::SpecId;
+use revm_primitives::SpecId;
 use tracing::debug;
 
 #[repr(align(8))]

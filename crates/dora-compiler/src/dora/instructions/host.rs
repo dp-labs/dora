@@ -46,7 +46,7 @@ impl<'c> ConversionPass<'c> {
         ))?;
         let gas = rewriter.get_field_value(
             result_ptr,
-            offset_of!(dora_runtime::context::Result<()>, gas_used),
+            offset_of!(dora_runtime::context::RuntimeResult<()>, gas_used),
             rewriter.intrinsics.i64_ty,
         )?;
         gas_or_fail!(op, rewriter, gas);
@@ -89,12 +89,12 @@ impl<'c> ConversionPass<'c> {
         // We don't need to check for errors here, as no errors will be returned.
         let codesize = rewriter.get_field_value(
             result_ptr,
-            offset_of!(dora_runtime::context::Result<u64>, value),
+            offset_of!(dora_runtime::context::RuntimeResult<u64>, value),
             rewriter.intrinsics.i64_ty,
         )?;
         let gas = rewriter.get_field_value(
             result_ptr,
-            offset_of!(dora_runtime::context::Result<u64>, gas_used),
+            offset_of!(dora_runtime::context::RuntimeResult<u64>, gas_used),
             rewriter.intrinsics.i64_ty,
         )?;
         gas_or_fail!(op, rewriter, gas);
@@ -122,7 +122,7 @@ impl<'c> ConversionPass<'c> {
         ))?;
         let gas = rewriter.get_field_value(
             result_ptr,
-            offset_of!(dora_runtime::context::Result<()>, gas_used),
+            offset_of!(dora_runtime::context::RuntimeResult<()>, gas_used),
             rewriter.intrinsics.i64_ty,
         )?;
         gas_or_fail!(op, rewriter, gas);
@@ -156,7 +156,7 @@ impl<'c> ConversionPass<'c> {
         ))?;
         let gas = rewriter.get_field_value(
             result_ptr,
-            offset_of!(dora_runtime::context::Result<()>, gas_used),
+            offset_of!(dora_runtime::context::RuntimeResult<()>, gas_used),
             rewriter.intrinsics.i64_ty,
         )?;
         gas_or_fail!(op, rewriter, gas);
@@ -198,7 +198,7 @@ impl<'c> ConversionPass<'c> {
         ))?;
         let gas = rewriter.get_field_value(
             result_ptr,
-            offset_of!(dora_runtime::context::Result<()>, gas_used),
+            offset_of!(dora_runtime::context::RuntimeResult<()>, gas_used),
             rewriter.intrinsics.i64_ty,
         )?;
         gas_or_fail!(op, rewriter, gas);
@@ -234,7 +234,7 @@ impl<'c> ConversionPass<'c> {
         ))?;
         let error = rewriter.get_field_value(
             result_ptr,
-            offset_of!(dora_runtime::context::Result<*mut u8>, error),
+            offset_of!(dora_runtime::context::RuntimeResult<*mut u8>, error),
             rewriter.intrinsics.i8_ty,
         )?;
         // Check the runtime sstore halt error
@@ -242,7 +242,7 @@ impl<'c> ConversionPass<'c> {
         rewrite_ctx!(context, op, rewriter, _location);
         let gas = rewriter.get_field_value(
             result_ptr,
-            offset_of!(dora_runtime::context::Result<()>, gas_used),
+            offset_of!(dora_runtime::context::RuntimeResult<()>, gas_used),
             rewriter.intrinsics.i64_ty,
         )?;
         gas_or_fail!(op, rewriter, gas);
@@ -370,7 +370,7 @@ impl<'c> ConversionPass<'c> {
         ))?;
         let gas = rewriter.get_field_value(
             result_ptr,
-            offset_of!(dora_runtime::context::Result<u64>, gas_used),
+            offset_of!(dora_runtime::context::RuntimeResult<u64>, gas_used),
             rewriter.intrinsics.i64_ty,
         )?;
         gas_or_fail!(op, rewriter, gas);

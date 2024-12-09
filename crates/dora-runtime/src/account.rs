@@ -1,9 +1,11 @@
-use std::fmt::Debug;
-use std::str::FromStr;
+//! Reference: [revm](https://github.com/bluealloy/revm)
+
+use std::fmt::{self, Debug};
 
 use crate::db::{DbAccount, StorageSlot};
 use bitflags::bitflags;
 use dora_primitives::{Bytecode, B256, U256};
+use revm_primitives::SpecId;
 use rustc_hash::FxHashMap;
 
 /// Keccak256 hash of an empty bytecode.
@@ -40,7 +42,7 @@ pub const EMPTY_CODE_HASH_BYTES: [u8; 32] =
 /// assert!(account_info.is_empty());
 /// assert!(!account_info.has_code());
 /// ```
-#[derive(Clone, Default, PartialEq, Eq, Debug)]
+#[derive(Clone, PartialEq, Eq)]
 pub struct AccountInfo {
     /// Account balance.
     pub balance: U256,
@@ -50,6 +52,29 @@ pub struct AccountInfo {
     pub code_hash: B256,
     /// The account's bytecode, if any. `None` indicates the code should be fetched when needed.
     pub code: Option<Bytecode>,
+}
+
+impl Default for AccountInfo {
+    fn default() -> Self {
+        Self {
+            balance: U256::ZERO,
+            code_hash: B256::from_slice(&EMPTY_CODE_HASH_BYTES),
+            code: Some(Bytecode::default()),
+            nonce: 0,
+        }
+    }
+}
+
+impl fmt::Debug for AccountInfo {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        f.debug_struct("AccountInfo")
+            .field("balance", &self.balance)
+            .field("nonce", &self.nonce)
+            .field("code_hash", &self.code_hash)
+            // Use the hex output format
+            .field("code", &self.code.as_ref().map(hex::encode))
+            .finish()
+    }
 }
 
 impl AccountInfo {
@@ -72,7 +97,7 @@ impl AccountInfo {
     pub fn is_empty(&self) -> bool {
         self.balance.is_zero()
             && self.nonce == 0
-            && self.code_hash == B256::from_str(EMPTY_CODE_HASH_STR).unwrap()
+            && self.code_hash == B256::from_slice(&EMPTY_CODE_HASH_BYTES)
     }
 
     /// Checks if the account has contract code associated with it.
@@ -87,8 +112,7 @@ impl AccountInfo {
     /// assert!(!account_info.has_code());
     /// ```
     pub fn has_code(&self) -> bool {
-        self.code_hash != B256::zero()
-            && self.code_hash != B256::from_str(EMPTY_CODE_HASH_STR).unwrap()
+        self.code_hash != B256::zero() && self.code_hash != B256::from_slice(&EMPTY_CODE_HASH_BYTES)
     }
 }
 
@@ -109,6 +133,34 @@ pub struct Account {
 }
 
 impl Account {
+    /// Create a new account and mark it as non existing.
+    pub fn new_not_existing() -> Self {
+        Self {
+            status: AccountStatus::LoadedAsNotExisting,
+            ..Default::default()
+        }
+    }
+
+    /// New empty account with the storage.
+    pub fn new_empty_with_storage(storage: FxHashMap<U256, StorageSlot>) -> Self {
+        Self {
+            storage,
+            ..Default::default()
+        }
+    }
+
+    /// Check if account is empty and check if empty state before spurious dragon hardfork.
+    #[inline]
+    pub fn state_clear_aware_is_empty(&self, spec: SpecId) -> bool {
+        if SpecId::enabled(spec, SpecId::SPURIOUS_DRAGON) {
+            self.is_empty()
+        } else {
+            let loaded_not_existing = self.is_loaded_as_not_existing();
+            let is_not_touched = !self.is_touched();
+            loaded_not_existing && is_not_touched
+        }
+    }
+
     /// Checks if the account is marked for self-destruction.
     ///
     /// # Returns:
@@ -139,6 +191,16 @@ impl Account {
         self.status.contains(AccountStatus::Created)
     }
 
+    /// Mark account as touched
+    pub fn mark_touch(&mut self) {
+        self.status |= AccountStatus::Touched;
+    }
+
+    /// Unmark the touch flag.
+    pub fn unmark_touch(&mut self) {
+        self.status -= AccountStatus::Touched;
+    }
+
     /// Checks if the account has been marked as touched.
     ///
     /// Touched accounts are those that have been accessed or modified during the current transaction,
@@ -157,12 +219,59 @@ impl Account {
         self.status.contains(AccountStatus::Touched)
     }
 
-    /// New empty account with the storage.
-    pub fn new_empty_with_storage(storage: FxHashMap<U256, StorageSlot>) -> Self {
-        Self {
-            storage,
-            ..Default::default()
+    /// Mark account as self destructed.
+    pub fn mark_selfdestruct(&mut self) {
+        self.status |= AccountStatus::SelfDestructed;
+    }
+
+    /// Unmark account as self destructed.
+    pub fn unmark_selfdestruct(&mut self) {
+        self.status -= AccountStatus::SelfDestructed;
+    }
+
+    /// Mark account as newly created.
+    pub fn mark_created(&mut self) {
+        self.status |= AccountStatus::Created;
+    }
+
+    /// Unmark created flag.
+    pub fn unmark_created(&mut self) {
+        self.status -= AccountStatus::Created;
+    }
+
+    /// Mark account as cold.
+    pub fn mark_cold(&mut self) {
+        self.status |= AccountStatus::Cold;
+    }
+
+    /// Mark account as warm and return true if it was previously cold.
+    pub fn mark_warm(&mut self) -> bool {
+        if self.status.contains(AccountStatus::Cold) {
+            self.status -= AccountStatus::Cold;
+            true
+        } else {
+            false
         }
+    }
+
+    /// Is account loaded as not existing from database
+    /// This is needed for pre spurious dragon hardforks where
+    /// existing and empty were two separate states.
+    #[inline]
+    pub fn is_loaded_as_not_existing(&self) -> bool {
+        self.status.contains(AccountStatus::LoadedAsNotExisting)
+    }
+
+    /// Is account empty, check if nonce and balance are zero and code is empty.
+    #[inline]
+    pub fn is_empty(&self) -> bool {
+        self.info.is_empty()
+    }
+
+    /// Returns an iterator over the storage slots that have been changed.
+    #[inline]
+    pub fn changed_storage_slots(&self) -> impl Iterator<Item = (&U256, &StorageSlot)> {
+        self.storage.iter().filter(|(_, slot)| slot.is_changed())
     }
 }
 

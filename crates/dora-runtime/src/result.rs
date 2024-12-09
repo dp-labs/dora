@@ -1,8 +1,7 @@
-use crate::{account::Account, context::Log, db::DatabaseError};
+use crate::{context::Log, db::DatabaseError, journaled_state::State};
 use core::fmt;
 use dora_primitives::{Bytes, EVMAddress as Address};
 use ruint::aliases::U256;
-use rustc_hash::FxHashMap;
 use std::{boxed::Box, fmt::Debug, string::String};
 
 /// Represents the result of an EVM execution along with the updated account state.
@@ -15,7 +14,7 @@ pub struct ResultAndState {
     /// Status of execution, containing details of success, revert, or halt.
     pub result: ExecutionResult,
     /// Updated state of accounts after execution.
-    pub state: FxHashMap<Address, Account>,
+    pub state: State,
 }
 
 /// Represents the result of executing a transaction in the EVM.
@@ -51,11 +50,6 @@ pub enum ExecutionResult {
     Halt {
         reason: HaltReason,
         gas_limit: u64,
-        gas_used: u64,
-    },
-    /// Internal error result.
-    Internal {
-        result: InternalResult,
         gas_used: u64,
     },
 }
@@ -155,8 +149,7 @@ impl ExecutionResult {
         match self {
             Self::Success { gas_used, .. }
             | Self::Revert { gas_used, .. }
-            | Self::Halt { gas_used, .. }
-            | Self::Internal { gas_used, .. } => *gas_used,
+            | Self::Halt { gas_used, .. } => *gas_used,
         }
     }
 
@@ -180,12 +173,30 @@ impl ExecutionResult {
 /// This enum has two variants:
 /// - `Call`: Output from a regular call.
 /// - `Create`: Output from contract creation, optionally returning the created contract address.
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+#[derive(Clone, PartialEq, Eq, Hash)]
 pub enum Output {
     /// Output from a call.
     Call(Bytes),
     /// Output from a contract creation, optionally includes the created contract address.
     Create(Bytes, Option<Address>),
+}
+
+impl fmt::Debug for Output {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match *self {
+            Output::Call(ref output) => f
+                .debug_tuple("Output::Call")
+                // Use the hex output format
+                .field(&hex::encode(output))
+                .finish(),
+            Output::Create(ref output, ref address) => f
+                .debug_tuple("Output::Create")
+                // Use the hex output format
+                .field(&hex::encode(output))
+                .field(address)
+                .finish(),
+        }
+    }
 }
 
 impl Output {
@@ -408,6 +419,8 @@ pub enum HaltReason {
     EOFFunctionStackOverflow,
     /// Check for target address validity is only done inside subcall.
     InvalidExtCallTarget,
+    /// Check for target address validity is only done inside sub delegate call.
+    InvalidExtDelegatecallTarget,
 }
 
 impl HaltReason {
@@ -497,6 +510,9 @@ impl fmt::Display for HaltReason {
             HaltReason::EofAuxDataTooSmall => write!(f, "EOF aux data too small"),
             HaltReason::EOFFunctionStackOverflow => write!(f, "EOF function stack overflow"),
             HaltReason::InvalidExtCallTarget => write!(f, "Invalid external call target"),
+            HaltReason::InvalidExtDelegatecallTarget => {
+                write!(f, "Invalid external delegatecall target")
+            }
         }
     }
 }
@@ -514,17 +530,4 @@ impl fmt::Display for OutOfGasError {
             }
         }
     }
-}
-
-/// Internal result that are not ex
-#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
-pub enum InternalResult {
-    /// Internal instruction that signals Interpreter should continue running.
-    InternalContinue,
-    /// Internal instruction that signals call or create.
-    InternalCallOrCreate,
-    /// Internal CREATE/CREATE starts with 0xEF00
-    CreateInitCodeStartingEF00,
-    /// Internal to ExtDelegatecall
-    InvalidExtDelegatecallTarget,
 }

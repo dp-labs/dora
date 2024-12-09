@@ -12,8 +12,7 @@ use crate::tests::utils::{run_result, run_result_with_spec};
 fn empty() {
     let operations = vec![];
     let result = run_result(operations);
-    assert!(result.is_success());
-    assert_eq!(result.output(), None);
+    assert!(result.status.is_ok());
     assert_eq!(result.gas_used(), 0)
 }
 
@@ -21,8 +20,7 @@ fn empty() {
 fn stop() {
     let operations = vec![Operation::Stop];
     let result = run_result(operations);
-    assert!(result.is_success());
-    assert_eq!(result.output(), None);
+    assert!(result.status.is_ok());
     assert_eq!(result.gas_used(), 0);
 }
 
@@ -30,8 +28,7 @@ fn stop() {
 fn push0_no_stop() {
     let operations = vec![Operation::Push0];
     let result = run_result(operations);
-    assert!(result.is_success());
-    assert_eq!(result.output(), None);
+    assert!(result.status.is_ok());
     assert_eq!(result.gas_used(), 2)
 }
 
@@ -39,8 +36,7 @@ fn push0_no_stop() {
 fn invalid_no_stop() {
     let operations = vec![Operation::Invalid];
     let result = run_result(operations);
-    assert!(result.is_halt());
-    assert_eq!(result.output(), None);
+    assert!(result.status.is_error());
     assert_eq!(result.gas_used(), 0)
 }
 
@@ -49,8 +45,7 @@ fn push0_stack_not_overflow() {
     let not_overflow_stack_size = MAX_STACK_SIZE;
     let operations = vec![Operation::Push0; not_overflow_stack_size];
     let result = run_result(operations);
-    assert!(result.is_success());
-    assert_eq!(result.output(), None);
+    assert!(result.status.is_ok());
     assert_eq!(result.gas_used(), 2 * not_overflow_stack_size as u64);
 }
 
@@ -59,8 +54,7 @@ fn push0_stack_overflow() {
     let overflow_stack_size = MAX_STACK_SIZE + 1;
     let operations = vec![Operation::Push0; overflow_stack_size];
     let result = run_result(operations);
-    assert!(result.halt_reason().unwrap().is_stack_overflow());
-    assert_eq!(result.output(), None);
+    assert!(result.status.is_stack_overflow());
     assert_eq!(result.gas_used(), 2 * overflow_stack_size as u64);
 }
 
@@ -69,8 +63,7 @@ fn push1_stack_overflow() {
     let overflow_stack_size = MAX_STACK_SIZE + 1;
     let operations = vec![Operation::Push((1, 10_u8.into())); overflow_stack_size];
     let result = run_result(operations);
-    assert!(result.halt_reason().unwrap().is_stack_overflow());
-    assert_eq!(result.output(), None);
+    assert!(result.status.is_stack_overflow());
     assert_eq!(result.gas_used(), 3 * overflow_stack_size as u64);
 }
 
@@ -78,8 +71,7 @@ fn push1_stack_overflow() {
 fn add_stack_underflow() {
     let operations = vec![Operation::Add];
     let result = run_result(operations);
-    assert!(result.halt_reason().unwrap().is_stack_underflow());
-    assert_eq!(result.output(), None);
+    assert!(result.status.is_stack_underflow());
     assert_eq!(result.gas_used(), 3)
 }
 
@@ -87,8 +79,7 @@ fn add_stack_underflow() {
 fn push0_add_stack_underflow() {
     let operations = vec![Operation::Push0, Operation::Add];
     let result = run_result(operations);
-    assert!(result.halt_reason().unwrap().is_stack_underflow());
-    assert_eq!(result.output(), None);
+    assert!(result.status.is_stack_underflow());
     assert_eq!(result.gas_used(), 5)
 }
 
@@ -96,8 +87,7 @@ fn push0_add_stack_underflow() {
 fn push0_pop_add_stack_underflow() {
     let operations = vec![Operation::Push0, Operation::Pop, Operation::Add];
     let result = run_result(operations);
-    assert!(result.halt_reason().unwrap().is_stack_underflow());
-    assert_eq!(result.output(), None);
+    assert!(result.status.is_stack_underflow());
     assert_eq!(result.gas_used(), 7)
 }
 
@@ -105,8 +95,7 @@ fn push0_pop_add_stack_underflow() {
 fn push0_add_pop_stack_underflow() {
     let operations = vec![Operation::Push0, Operation::Add, Operation::Pop];
     let result = run_result(operations);
-    assert!(result.halt_reason().unwrap().is_stack_underflow());
-    assert_eq!(result.output(), None);
+    assert!(result.status.is_stack_underflow());
     assert_eq!(result.gas_used(), 5)
 }
 
@@ -114,8 +103,7 @@ fn push0_add_pop_stack_underflow() {
 fn sub_stack_underflow() {
     let operations = vec![Operation::Sub];
     let result = run_result(operations);
-    assert!(result.halt_reason().unwrap().is_stack_underflow());
-    assert_eq!(result.output(), None);
+    assert!(result.status.is_stack_underflow());
     assert_eq!(result.gas_used(), 3)
 }
 
@@ -123,8 +111,7 @@ fn sub_stack_underflow() {
 fn mul_stack_underflow() {
     let operations = vec![Operation::Mul];
     let result = run_result(operations);
-    assert!(result.halt_reason().unwrap().is_stack_underflow());
-    assert_eq!(result.output(), None);
+    assert!(result.status.is_stack_underflow());
     assert_eq!(result.gas_used(), 5)
 }
 
@@ -132,8 +119,7 @@ fn mul_stack_underflow() {
 fn div_stack_underflow() {
     let operations = vec![Operation::Div];
     let result = run_result(operations);
-    assert!(result.halt_reason().unwrap().is_stack_underflow());
-    assert_eq!(result.output(), None);
+    assert!(result.status.is_stack_underflow());
     assert_eq!(result.gas_used(), 5)
 }
 
@@ -141,8 +127,7 @@ fn div_stack_underflow() {
 fn sdiv_stack_underflow() {
     let operations = vec![Operation::SDiv];
     let result = run_result(operations);
-    assert!(result.halt_reason().unwrap().is_stack_underflow());
-    assert_eq!(result.output(), None);
+    assert!(result.status.is_stack_underflow());
     assert_eq!(result.gas_used(), 5)
 }
 
@@ -150,8 +135,7 @@ fn sdiv_stack_underflow() {
 fn mod_stack_underflow() {
     let operations = vec![Operation::Mod];
     let result = run_result(operations);
-    assert!(result.halt_reason().unwrap().is_stack_underflow());
-    assert_eq!(result.output(), None);
+    assert!(result.status.is_stack_underflow());
     assert_eq!(result.gas_used(), 5)
 }
 
@@ -159,8 +143,7 @@ fn mod_stack_underflow() {
 fn smod_stack_underflow() {
     let operations = vec![Operation::SMod];
     let result = run_result(operations);
-    assert!(result.halt_reason().unwrap().is_stack_underflow());
-    assert_eq!(result.output(), None);
+    assert!(result.status.is_stack_underflow());
     assert_eq!(result.gas_used(), 5)
 }
 
@@ -168,8 +151,7 @@ fn smod_stack_underflow() {
 fn addmod_stack_underflow() {
     let operations = vec![Operation::AddMod];
     let result = run_result(operations);
-    assert!(result.halt_reason().unwrap().is_stack_underflow());
-    assert_eq!(result.output(), None);
+    assert!(result.status.is_stack_underflow());
     assert_eq!(result.gas_used(), 8)
 }
 
@@ -177,8 +159,7 @@ fn addmod_stack_underflow() {
 fn mulmod_stack_underflow() {
     let operations = vec![Operation::MulMod];
     let result = run_result(operations);
-    assert!(result.halt_reason().unwrap().is_stack_underflow());
-    assert_eq!(result.output(), None);
+    assert!(result.status.is_stack_underflow());
     assert_eq!(result.gas_used(), 8)
 }
 
@@ -186,8 +167,7 @@ fn mulmod_stack_underflow() {
 fn exp_stack_underflow() {
     let operations = vec![Operation::Exp];
     let result = run_result(operations);
-    assert!(result.halt_reason().unwrap().is_stack_underflow());
-    assert_eq!(result.output(), None);
+    assert!(result.status.is_stack_underflow());
     assert_eq!(result.gas_used(), 10)
 }
 
@@ -195,8 +175,7 @@ fn exp_stack_underflow() {
 fn signextend_stack_underflow() {
     let operations = vec![Operation::SignExtend];
     let result = run_result(operations);
-    assert!(result.halt_reason().unwrap().is_stack_underflow());
-    assert_eq!(result.output(), None);
+    assert!(result.status.is_stack_underflow());
     assert_eq!(result.gas_used(), 5)
 }
 
@@ -204,8 +183,7 @@ fn signextend_stack_underflow() {
 fn jump_stack_underflow() {
     let operations = vec![Operation::Jump];
     let result = run_result(operations);
-    assert!(result.halt_reason().unwrap().is_stack_underflow());
-    assert_eq!(result.output(), None);
+    assert!(result.status.is_stack_underflow());
     assert_eq!(result.gas_used(), 8)
 }
 
@@ -213,8 +191,7 @@ fn jump_stack_underflow() {
 fn jumpi_stack_underflow() {
     let operations = vec![Operation::JumpI];
     let result = run_result(operations);
-    assert!(result.halt_reason().unwrap().is_stack_underflow());
-    assert_eq!(result.output(), None);
+    assert!(result.status.is_stack_underflow());
     assert_eq!(result.gas_used(), 10)
 }
 
@@ -222,8 +199,7 @@ fn jumpi_stack_underflow() {
 fn push0_jumpi_stack_underflow() {
     let operations = vec![Operation::Push0, Operation::JumpI];
     let result = run_result(operations);
-    assert!(result.halt_reason().unwrap().is_stack_underflow());
-    assert_eq!(result.output(), None);
+    assert!(result.status.is_stack_underflow());
     assert_eq!(result.gas_used(), 2 + 10)
 }
 
@@ -235,8 +211,7 @@ fn exp_1() {
         Operation::Exp,
     ];
     let result = run_result(operations);
-    assert!(result.is_success());
-    assert_eq!(result.output(), None);
+    assert!(result.status.is_ok());
     assert_eq!(result.gas_used(), 3 + 3 + 10)
 }
 
@@ -248,8 +223,7 @@ fn exp_2() {
         Operation::Exp,
     ];
     let result = run_result(operations);
-    assert!(result.is_success());
-    assert_eq!(result.output(), None);
+    assert!(result.status.is_ok());
     assert_eq!(result.gas_used(), 3 + 3 + 10)
 }
 
@@ -261,8 +235,7 @@ fn exp_3() {
         Operation::Exp,
     ];
     let result = run_result(operations);
-    assert!(result.is_success());
-    assert_eq!(result.output(), None);
+    assert!(result.status.is_ok());
     // 50 is the dynamic gas
     assert_eq!(result.gas_used(), 3 + 3 + 10 + 50)
 }
@@ -275,8 +248,7 @@ fn exp_overflow() {
         Operation::Exp,
     ];
     let result = run_result(operations);
-    assert!(result.is_success());
-    assert_eq!(result.output(), None);
+    assert!(result.status.is_ok());
     // 100 is the dynamic gas
     assert_eq!(result.gas_used(), 3 + 3 + 10 + 100)
 }
@@ -285,8 +257,7 @@ fn exp_overflow() {
 fn push0_not_found_in_merge_spec() {
     let operations = vec![Operation::Push0];
     let result = run_result_with_spec(operations, SpecId::MERGE);
-    assert!(result.halt_reason().unwrap().is_opcode_not_found());
-    assert_eq!(result.output(), None);
+    assert!(result.status.is_opcode_not_found());
     assert_eq!(result.gas_used(), 0)
 }
 
@@ -294,8 +265,7 @@ fn push0_not_found_in_merge_spec() {
 fn push0_found_in_shanghai_spec() {
     let operations = vec![Operation::Push0];
     let result = run_result_with_spec(operations, SpecId::SHANGHAI);
-    assert!(result.is_success());
-    assert_eq!(result.output(), None);
+    assert!(result.status.is_ok());
     assert_eq!(result.gas_used(), 2)
 }
 
@@ -303,8 +273,7 @@ fn push0_found_in_shanghai_spec() {
 fn stack_push1_pop() {
     let operations = vec![Operation::Push((1, 1_u8.into())), Operation::Pop];
     let result = run_result(operations);
-    assert!(result.is_success());
-    assert_eq!(result.output(), None);
+    assert!(result.status.is_ok());
     assert_eq!(result.gas_used(), 3 + 2)
 }
 
@@ -312,8 +281,7 @@ fn stack_push1_pop() {
 fn stack_push1_dup1() {
     let operations = vec![Operation::Push((1, 1_u8.into())), Operation::Dup(1)];
     let result = run_result(operations);
-    assert!(result.is_success());
-    assert_eq!(result.output(), None);
+    assert!(result.status.is_ok());
     assert_eq!(result.gas_used(), 3 + 3)
 }
 
@@ -325,8 +293,7 @@ fn stack_push1_dupn() {
         Operation::Stop,
     ];
     let result = run_result(operations);
-    assert!(result.is_success());
-    assert_eq!(result.output(), None);
+    assert!(result.status.is_ok());
     assert_eq!(result.gas_used(), 3 + 3)
 }
 
@@ -338,8 +305,7 @@ fn stack_push1_push1_swap1() {
         Operation::Swap(1),
     ];
     let result = run_result(operations);
-    assert!(result.is_success());
-    assert_eq!(result.output(), None);
+    assert!(result.status.is_ok());
     assert_eq!(result.gas_used(), 3 + 3 + 3)
 }
 
@@ -352,8 +318,7 @@ fn stack_push1_push1_swap2() {
         Operation::Swap(1),
     ];
     let result = run_result(operations);
-    assert!(result.is_success());
-    assert_eq!(result.output(), None);
+    assert!(result.status.is_ok());
     assert_eq!(result.gas_used(), 3 + 3 + 3 + 3)
 }
 
@@ -367,8 +332,7 @@ fn basic_jump() {
         Operation::Stop,
     ];
     let result = run_result(operations);
-    assert!(result.is_success());
-    assert_eq!(result.output(), None);
+    assert!(result.status.is_ok());
     assert_eq!(result.gas_used(), 3 + 8 + 1 + 3)
 }
 
@@ -382,8 +346,7 @@ fn basic_jumpi() {
         Operation::Push((1, 1_u8.into())),
     ];
     let result = run_result(operations);
-    assert!(result.is_success());
-    assert_eq!(result.output(), None);
+    assert!(result.status.is_ok());
     assert_eq!(result.gas_used(), 1 + 2 + 2 + 10 + 3)
 }
 
@@ -397,8 +360,7 @@ fn basic_jumpi_2() {
         Operation::Push((1, 6_u8.into())),
     ];
     let result = run_result(operations);
-    assert!(result.is_success());
-    assert_eq!(result.output(), None);
+    assert!(result.status.is_ok());
     assert_eq!(result.gas_used(), 3 + 3 + 10 + 1 + 3)
 }
 
@@ -411,8 +373,7 @@ fn jumpi_invalid_target() {
         Operation::Push((1, 1_u8.into())),
     ];
     let result = run_result(operations);
-    assert!(result.is_success());
-    assert_eq!(result.output(), None);
+    assert!(result.status.is_ok());
     assert_eq!(result.gas_used(), 2 + 2 + 10 + 3)
 }
 
@@ -426,8 +387,7 @@ fn jumpi_invalid_target_2() {
         Operation::Push((1, 6_u8.into())),
     ];
     let result = run_result(operations);
-    assert!(result.halt_reason().unwrap().is_invalid_jump());
-    assert_eq!(result.output(), None);
+    assert!(result.status.is_invalid_jump());
     assert_eq!(result.gas_used(), 3 + 2 + 10)
 }
 
@@ -441,8 +401,7 @@ fn stack_underflow_after_push_jump() {
         Operation::Add,
     ];
     let result = run_result(operations);
-    assert!(result.halt_reason().unwrap().is_stack_underflow());
-    assert_eq!(result.output(), None);
+    assert!(result.status.is_stack_underflow());
     assert_eq!(result.gas_used(), 3 + 8 + 1 + 2 + 3)
 }
 
@@ -461,8 +420,7 @@ fn basic_loop() {
         Operation::Push((1, 6_u8.into())),
     ];
     let result = run_result(operations);
-    assert!(result.is_success());
-    assert_eq!(result.output(), None);
+    assert!(result.status.is_ok());
     assert_eq!(
         result.gas_used(),
         3 + (1 + 3 + 3 + 3 + 3 + 3 + 10) * 3 + 2 + 3
@@ -480,8 +438,7 @@ fn basic_pc() {
         Operation::PC { pc: 6 },
     ];
     let result = run_result(operations);
-    assert!(result.is_success());
-    assert_eq!(result.output(), None);
+    assert!(result.status.is_ok());
     assert_eq!(result.gas_used(), 2 + 2 + 3 + 2 + 2 + 2)
 }
 
@@ -494,8 +451,7 @@ fn gas() {
         Operation::Gas,
     ];
     let result = run_result(operations);
-    assert!(result.is_success());
-    assert_eq!(result.output(), None);
+    assert!(result.status.is_ok());
     assert_eq!(result.gas_used(), 2 + 2 + 1 + 2)
 }
 
@@ -503,8 +459,7 @@ fn gas() {
 fn address() {
     let operations = vec![Operation::Address, Operation::Address];
     let result = run_result(operations);
-    assert!(result.is_success());
-    assert_eq!(result.output(), None);
+    assert!(result.status.is_ok());
     assert_eq!(result.gas_used(), 2 + 2)
 }
 
@@ -512,8 +467,7 @@ fn address() {
 fn origin() {
     let operations = vec![Operation::Origin, Operation::Origin];
     let result = run_result(operations);
-    assert!(result.is_success());
-    assert_eq!(result.output(), None);
+    assert!(result.status.is_ok());
     assert_eq!(result.gas_used(), 2 + 2)
 }
 
@@ -521,8 +475,7 @@ fn origin() {
 fn caller() {
     let operations = vec![Operation::Caller, Operation::Caller];
     let result = run_result(operations);
-    assert!(result.is_success());
-    assert_eq!(result.output(), None);
+    assert!(result.status.is_ok());
     assert_eq!(result.gas_used(), 2 + 2)
 }
 
@@ -530,8 +483,7 @@ fn caller() {
 fn callvalue() {
     let operations = vec![Operation::CallValue, Operation::CallValue];
     let result = run_result(operations);
-    assert!(result.is_success());
-    assert_eq!(result.output(), None);
+    assert!(result.status.is_ok());
     assert_eq!(result.gas_used(), 2 + 2)
 }
 
@@ -539,8 +491,7 @@ fn callvalue() {
 fn calldataload() {
     let operations = vec![Operation::Push0, Operation::CalldataLoad];
     let result = run_result(operations);
-    assert!(result.is_success());
-    assert_eq!(result.output(), None);
+    assert!(result.status.is_ok());
     assert_eq!(result.gas_used(), 2 + 3)
 }
 
@@ -548,8 +499,7 @@ fn calldataload() {
 fn calldatasize() {
     let operations = vec![Operation::CalldataSize, Operation::CalldataSize];
     let result = run_result(operations);
-    assert!(result.is_success());
-    assert_eq!(result.output(), None);
+    assert!(result.status.is_ok());
     assert_eq!(result.gas_used(), 2 + 2)
 }
 
@@ -562,8 +512,7 @@ fn calldatacopy() {
         Operation::CalldataCopy,
     ];
     let result = run_result(operations);
-    assert!(result.is_success());
-    assert_eq!(result.output(), None);
+    assert!(result.status.is_ok());
     assert_eq!(result.gas_used(), 3 + 2 + 2 + 3 + 3);
     assert_eq!(result.memory, vec![0xCC; 32]);
 }
@@ -572,8 +521,7 @@ fn calldatacopy() {
 fn codesize() {
     let operations = vec![Operation::CodeSize, Operation::CodeSize];
     let result = run_result(operations);
-    assert!(result.is_success());
-    assert_eq!(result.output(), None);
+    assert!(result.status.is_ok());
     assert_eq!(result.gas_used(), 2 + 2)
 }
 
@@ -586,8 +534,7 @@ fn codecopy() {
         Operation::CodeCopy,
     ];
     let result = run_result(operations);
-    assert!(result.is_success());
-    assert_eq!(result.output(), None);
+    assert!(result.status.is_ok());
     assert_eq!(result.gas_used(), 3 + 2 + 2 + 3 + 3 + 3);
     assert_eq!(
         result.memory,
@@ -599,8 +546,7 @@ fn codecopy() {
 fn keccak256_stack_underflow() {
     let operations = vec![Operation::Push0, Operation::Keccak256];
     let result = run_result(operations);
-    assert!(result.halt_reason().unwrap().is_stack_underflow());
-    assert_eq!(result.output(), None);
+    assert!(result.status.is_stack_underflow());
     assert_eq!(result.gas_used(), 2 + 30)
 }
 
@@ -608,8 +554,7 @@ fn keccak256_stack_underflow() {
 fn keccak256_empty_1() {
     let operations = vec![Operation::Push0, Operation::Push0, Operation::Keccak256];
     let result = run_result(operations);
-    assert!(result.is_success());
-    assert_eq!(result.output(), None);
+    assert!(result.status.is_ok());
     assert_eq!(result.gas_used(), 2 + 2 + 30)
 }
 
@@ -621,8 +566,7 @@ fn keccak256_empty_2() {
         Operation::Keccak256,
     ];
     let result = run_result(operations);
-    assert!(result.is_success());
-    assert_eq!(result.output(), None);
+    assert!(result.status.is_ok());
     assert_eq!(result.gas_used(), 2 + 3 + 30)
 }
 
@@ -634,8 +578,7 @@ fn keccak256_1() {
         Operation::Keccak256,
     ];
     let result = run_result(operations);
-    assert!(result.is_success());
-    assert_eq!(result.output(), None);
+    assert!(result.status.is_ok());
     let expect_gas = 3 + 2 // Push1 + Push0
         + 30 // 30 is the static gas of Keccak256
         + 6  // 6 = 6 * (32 + 31) / 32 is the dynamic gas cost of Keccak256
@@ -657,8 +600,7 @@ fn keccak256_2() {
         Operation::Keccak256,
     ];
     let result = run_result(operations);
-    assert!(result.is_success());
-    assert_eq!(result.output(), None);
+    assert!(result.status.is_ok());
     let expect_gas = 3 + 2 // Push2 + Push0
         + 3 + 3 // MStore
         + 3 + 2 // Push2 + Push0
@@ -679,8 +621,7 @@ fn returndatasize() {
         Operation::MStore,
     ];
     let result = run_result(operations);
-    assert!(result.is_success());
-    assert_eq!(result.output(), None);
+    assert!(result.status.is_ok());
     assert_eq!(result.gas_used(), 2 + 2 + 2 + 3 + 3);
     assert_eq!(result.memory, Bytes32::from(64_u8).to_be_bytes());
 }
@@ -694,8 +635,7 @@ fn returndatacopy() {
         Operation::ReturndataCopy,
     ];
     let result = run_result(operations);
-    assert!(result.is_success());
-    assert_eq!(result.output(), None);
+    assert!(result.status.is_ok());
     assert_eq!(result.gas_used(), 3 + 2 + 2 + 3 + 3 + 3);
     assert_eq!(result.memory, vec![0xDD; 32]);
 }
@@ -709,9 +649,9 @@ fn extcodesize() {
         Operation::ExtCodeSize,
     ];
     let result = run_result(operations);
-    assert!(result.is_success());
-    assert_eq!(result.output(), None);
-    assert_eq!(result.gas_used(), 3 + 2 + 2 + 2600);
+    assert!(result.status.is_ok());
+    // 100 is the default warm account load.
+    assert_eq!(result.gas_used(), 3 + 2 + 2 + 100);
     assert_eq!(result.memory, vec![0x00; 0]);
 }
 
@@ -725,9 +665,9 @@ fn extcodecopy() {
         Operation::ExtCodeCopy,
     ];
     let result = run_result(operations);
-    assert!(result.is_success());
-    assert_eq!(result.output(), None);
-    assert_eq!(result.gas_used(), 2 + 2 + 2 + 2 + 2600);
+    assert!(result.status.is_ok());
+    // 100 is the warm account access cost
+    assert_eq!(result.gas_used(), 2 + 2 + 2 + 2 + 100);
     assert_eq!(result.memory, vec![0x00; 0]);
 }
 
@@ -741,9 +681,9 @@ fn extcodehash() {
         Operation::ExtCodeHash,
     ];
     let result = run_result(operations);
-    assert!(result.is_success());
-    assert_eq!(result.output(), None);
-    assert_eq!(result.gas_used(), 2 + 2 + 2 + 2 + 2600);
+    assert!(result.status.is_ok());
+    // 100 is the default warm account load.
+    assert_eq!(result.gas_used(), 2 + 2 + 2 + 2 + 100);
     assert_eq!(result.memory, vec![0x00; 0]);
 }
 
@@ -751,8 +691,7 @@ fn extcodehash() {
 fn gasprice() {
     let operations = vec![Operation::GasPrice, Operation::GasPrice];
     let result = run_result(operations);
-    assert!(result.is_success());
-    assert_eq!(result.output(), None);
+    assert!(result.status.is_ok());
     assert_eq!(result.gas_used(), 2 + 2);
     assert_eq!(result.memory, vec![0x00; 0]);
 }
@@ -761,8 +700,7 @@ fn gasprice() {
 fn gaslimit() {
     let operations = vec![Operation::GasLimit, Operation::GasLimit];
     let result = run_result(operations);
-    assert!(result.is_success());
-    assert_eq!(result.output(), None);
+    assert!(result.status.is_ok());
     assert_eq!(result.gas_used(), 2 + 2);
     assert_eq!(result.memory, vec![0x00; 0]);
 }
@@ -771,8 +709,7 @@ fn gaslimit() {
 fn coinbase() {
     let operations = vec![Operation::Coinbase, Operation::Coinbase];
     let result = run_result(operations);
-    assert!(result.is_success());
-    assert_eq!(result.output(), None);
+    assert!(result.status.is_ok());
     assert_eq!(result.gas_used(), 2 + 2);
     assert_eq!(result.memory, vec![0x00; 0]);
 }
@@ -781,8 +718,7 @@ fn coinbase() {
 fn timestamp() {
     let operations = vec![Operation::Timestamp, Operation::Timestamp];
     let result = run_result(operations);
-    assert!(result.is_success());
-    assert_eq!(result.output(), None);
+    assert!(result.status.is_ok());
     assert_eq!(result.gas_used(), 2 + 2);
     assert_eq!(result.memory, vec![0x00; 0]);
 }
@@ -791,8 +727,7 @@ fn timestamp() {
 fn number() {
     let operations = vec![Operation::Number, Operation::Number];
     let result = run_result(operations);
-    assert!(result.is_success());
-    assert_eq!(result.output(), None);
+    assert!(result.status.is_ok());
     assert_eq!(result.gas_used(), 2 + 2);
     assert_eq!(result.memory, vec![0x00; 0]);
 }
@@ -801,8 +736,7 @@ fn number() {
 fn prevrandao() {
     let operations = vec![Operation::Prevrandao, Operation::Prevrandao];
     let result = run_result(operations);
-    assert!(result.is_success());
-    assert_eq!(result.output(), None);
+    assert!(result.status.is_ok());
     assert_eq!(result.gas_used(), 2 + 2);
     assert_eq!(result.memory, vec![0x00; 0]);
 }
@@ -811,8 +745,7 @@ fn prevrandao() {
 fn chainid() {
     let operations = vec![Operation::Chainid, Operation::Chainid];
     let result = run_result(operations);
-    assert!(result.is_success());
-    assert_eq!(result.output(), None);
+    assert!(result.status.is_ok());
     assert_eq!(result.gas_used(), 2 + 2);
     assert_eq!(result.memory, vec![0x00; 0]);
 }
@@ -821,8 +754,7 @@ fn chainid() {
 fn selfbalance() {
     let operations = vec![Operation::SelfBalance, Operation::SelfBalance];
     let result = run_result(operations);
-    assert!(result.is_success());
-    assert_eq!(result.output(), None);
+    assert!(result.status.is_ok());
     assert_eq!(result.gas_used(), 5 + 5);
     assert_eq!(result.memory, vec![0x00; 0]);
 }
@@ -831,8 +763,7 @@ fn selfbalance() {
 fn basefee() {
     let operations = vec![Operation::BaseFee, Operation::BaseFee];
     let result = run_result(operations);
-    assert!(result.is_success());
-    assert_eq!(result.output(), None);
+    assert!(result.status.is_ok());
     assert_eq!(result.gas_used(), 2 + 2);
     assert_eq!(result.memory, vec![0x00; 0]);
 }
@@ -841,8 +772,7 @@ fn basefee() {
 fn blobhash() {
     let operations = vec![Operation::Push0, Operation::BlobHash];
     let result = run_result(operations);
-    assert!(result.is_success());
-    assert_eq!(result.output(), None);
+    assert!(result.status.is_ok());
     assert_eq!(result.gas_used(), 2 + 3);
     assert_eq!(result.memory, vec![0x00; 0]);
 }
@@ -851,8 +781,7 @@ fn blobhash() {
 fn blobbasefee() {
     let operations = vec![Operation::BlobBaseFee, Operation::BlobBaseFee];
     let result = run_result(operations);
-    assert!(result.is_success());
-    assert_eq!(result.output(), None);
+    assert!(result.status.is_ok());
     assert_eq!(result.gas_used(), 2 + 2);
     assert_eq!(result.memory, vec![0x00; 0]);
 }
@@ -861,8 +790,7 @@ fn blobbasefee() {
 fn mload_1() {
     let operations = vec![Operation::Push0, Operation::MLoad];
     let result = run_result(operations);
-    assert!(result.is_success());
-    assert_eq!(result.output(), None);
+    assert!(result.status.is_ok());
     assert_eq!(result.gas_used(), 2 + 3 + 3);
     // Check the memory extened by the MLOAD opcode.
     assert_eq!(result.memory, vec![0x00; 32]);
@@ -872,8 +800,7 @@ fn mload_1() {
 fn mload_2() {
     let operations = vec![Operation::Push((1, 1_u8.into())), Operation::MLoad];
     let result = run_result(operations);
-    assert!(result.is_success());
-    assert_eq!(result.output(), None);
+    assert!(result.status.is_ok());
     assert_eq!(result.gas_used(), 3 + 3 + 3 * 2);
     // Check the memory extened by the MLOAD opcode.
     assert_eq!(result.memory, vec![0x00; 64]);
@@ -883,8 +810,7 @@ fn mload_2() {
 fn mload_3() {
     let operations = vec![Operation::Push((1, 32_u8.into())), Operation::MLoad];
     let result = run_result(operations);
-    assert!(result.is_success());
-    assert_eq!(result.output(), None);
+    assert!(result.status.is_ok());
     assert_eq!(result.gas_used(), 3 + 3 + 3 * 2);
     // Check the memory extened by the MLOAD opcode.
     assert_eq!(result.memory, vec![0x00; 64]);
@@ -894,8 +820,7 @@ fn mload_3() {
 fn mload_4() {
     let operations = vec![Operation::Push((1, 33_u8.into())), Operation::MLoad];
     let result = run_result(operations);
-    assert!(result.is_success());
-    assert_eq!(result.output(), None);
+    assert!(result.status.is_ok());
     assert_eq!(result.gas_used(), 3 + 3 + 3 * 3);
     // Check the memory extened by the MLOAD opcode.
     assert_eq!(result.memory, vec![0x00; 96]);
@@ -905,8 +830,7 @@ fn mload_4() {
 fn mload_overflow_1() {
     let operations = vec![Operation::Push((8, u64::MAX.into())), Operation::MLoad];
     let result = run_result(operations);
-    assert!(result.halt_reason().unwrap().is_out_of_gas());
-    assert_eq!(result.output(), None);
+    assert!(result.status.is_out_of_gas());
     assert_eq!(result.gas_used(), 3 + 3);
     // Check the memory extened by the MLOAD opcode.
     assert_eq!(result.memory, vec![0x00; 0]);
@@ -916,8 +840,7 @@ fn mload_overflow_1() {
 fn mload_overflow_2() {
     let operations = vec![Operation::Push((8, u64::MAX.into())), Operation::MLoad];
     let result = run_result(operations);
-    assert!(result.halt_reason().unwrap().is_out_of_gas());
-    assert_eq!(result.output(), None);
+    assert!(result.status.is_out_of_gas());
     assert_eq!(result.gas_used(), 3 + 3);
     // Check the memory extened by the MLOAD opcode.
     assert_eq!(result.memory, vec![0x00; 0]);
@@ -927,8 +850,7 @@ fn mload_overflow_2() {
 fn mload_overflow_3() {
     let operations = vec![Operation::Push((16, u128::MAX.into())), Operation::MLoad];
     let result = run_result(operations);
-    assert!(result.halt_reason().unwrap().is_out_of_gas());
-    assert_eq!(result.output(), None);
+    assert!(result.status.is_out_of_gas());
     assert_eq!(result.gas_used(), 3 + 3);
     // Check the memory extened by the MLOAD opcode.
     assert_eq!(result.memory, vec![0x00; 0]);
@@ -938,8 +860,8 @@ fn mload_overflow_3() {
 fn mstore_1() {
     let operations = vec![Operation::Push0, Operation::Push0, Operation::MStore];
     let result = run_result(operations);
-    assert!(result.is_success());
-    assert_eq!(result.output(), None);
+    assert!(result.status.is_ok());
+
     assert_eq!(result.gas_used(), 2 + 2 + 3 + 3);
     // Check the memory extened by the MSTORE opcode.
     assert_eq!(result.memory, vec![0x00; 32]);
@@ -953,8 +875,8 @@ fn mstore_2() {
         Operation::MStore,
     ];
     let result = run_result(operations);
-    assert!(result.is_success());
-    assert_eq!(result.output(), None);
+    assert!(result.status.is_ok());
+
     assert_eq!(result.gas_used(), 3 + 2 + 3 + 3);
     // Check the memory extened by the MSTORE opcode.
     assert_eq!(result.memory, {
@@ -968,8 +890,8 @@ fn mstore_2() {
 fn mstore8_1() {
     let operations = vec![Operation::Push0, Operation::Push0, Operation::MStore8];
     let result = run_result(operations);
-    assert!(result.is_success());
-    assert_eq!(result.output(), None);
+    assert!(result.status.is_ok());
+
     assert_eq!(result.gas_used(), 2 + 2 + 3 + 3);
     // Check the memory extened by the MSTORE8 opcode.
     assert_eq!(result.memory, vec![0x00; 32]);
@@ -983,8 +905,8 @@ fn mstore8_2() {
         Operation::MStore8,
     ];
     let result = run_result(operations);
-    assert!(result.is_success());
-    assert_eq!(result.output(), None);
+    assert!(result.status.is_ok());
+
     assert_eq!(result.gas_used(), 3 + 2 + 3 + 3);
     // Check the memory extened by the MSTORE8 opcode.
     assert_eq!(result.memory, {
@@ -998,8 +920,8 @@ fn mstore8_2() {
 fn msize_1() {
     let operations = vec![Operation::MSize, Operation::MSize];
     let result = run_result(operations);
-    assert!(result.is_success());
-    assert_eq!(result.output(), None);
+    assert!(result.status.is_ok());
+
     assert_eq!(result.gas_used(), 2 + 2);
     assert_eq!(result.memory, vec![0x00; 0]);
 }
@@ -1018,8 +940,8 @@ fn msize_2() {
         Operation::MSize,
     ];
     let result = run_result(operations);
-    assert!(result.is_success());
-    assert_eq!(result.output(), None);
+    assert!(result.status.is_ok());
+
     assert_eq!(
         result.gas_used(),
         2 + 2 + 3 + 3 + 2 + 2 + 3 + (3 + 3) + 2 + 2
@@ -1036,8 +958,8 @@ fn mcopy_1() {
         Operation::MCopy,
     ];
     let result = run_result(operations);
-    assert!(result.is_success());
-    assert_eq!(result.output(), None);
+    assert!(result.status.is_ok());
+
     assert_eq!(result.gas_used(), 3 + 2 + 3 + 3 + 3 + 3 * 2);
     assert_eq!(result.memory, vec![0x00; 64]);
 }
@@ -1054,8 +976,8 @@ fn mcopy_2() {
         Operation::MCopy,
     ];
     let result = run_result(operations);
-    assert!(result.is_success());
-    assert_eq!(result.output(), None);
+    assert!(result.status.is_ok());
+
     assert_eq!(result.gas_used(), 3 + 2 + 3 + 3 + 3 + 3 + 3 + 3 * 2);
     assert_eq!(result.memory, {
         let mut mem = [0; 32];
@@ -1071,10 +993,9 @@ fn mcopy_2() {
 fn balance() {
     let operations = vec![Operation::Push0, Operation::Balance, Operation::Balance];
     let result = run_result(operations);
-    assert!(result.is_success());
-    assert_eq!(result.output(), None);
-    // 2600 is the cold account access cost
-    assert_eq!(result.gas_used(), 2 + 2600 + 2600);
+    assert!(result.status.is_ok());
+    // 100 is the warm account access cost
+    assert_eq!(result.gas_used(), 2 + 100 + 100);
     assert_eq!(result.memory, vec![0x00; 0]);
 }
 
@@ -1082,8 +1003,7 @@ fn balance() {
 fn sload_1() {
     let operations = vec![Operation::Push0, Operation::SLoad];
     let result = run_result(operations);
-    assert!(result.is_success());
-    assert_eq!(result.output(), None);
+    assert!(result.status.is_ok());
     // 2100 is the cold storage cost
     assert_eq!(result.gas_used(), 2 + 2100);
     assert_eq!(result.memory, vec![0x00; 0]);
@@ -1100,9 +1020,8 @@ fn sstore_1() {
         Operation::Push((1, 200_u8.into())),
         Operation::SLoad,
     ];
-    let result = run_result(operations);
-    assert!(result.is_success());
-    assert_eq!(result.output(), None);
+    let mut result = run_result(operations);
+    assert!(result.status.is_ok());
     // 2100 is the cold storage cost
     // 20000 is the new value is set from zero cost
     assert_eq!(result.gas_used(), 3 + 2100 + 3 + 3 + 20000 + 3 + 100);
@@ -1114,8 +1033,7 @@ fn sstore_1() {
 fn tload_1() {
     let operations = vec![Operation::Push0, Operation::TLoad];
     let result = run_result(operations);
-    assert!(result.is_success());
-    assert_eq!(result.output(), None);
+    assert!(result.status.is_ok());
     assert_eq!(result.gas_used(), 2 + 100);
     assert_eq!(result.memory, vec![0x00; 0]);
 }
@@ -1131,9 +1049,8 @@ fn tstore_1() {
         Operation::Push((1, 200_u8.into())),
         Operation::TLoad,
     ];
-    let result = run_result(operations);
-    assert!(result.is_success());
-    assert_eq!(result.output(), None);
+    let mut result = run_result(operations);
+    assert!(result.status.is_ok());
     assert_eq!(result.gas_used(), 3 + 100 + 3 + 3 + 100 + 3 + 100);
     assert_eq!(result.memory, vec![0x00; 0]);
     assert_eq!(result.tload(U256::from(200)), U256::from(100));
@@ -1143,8 +1060,7 @@ fn tstore_1() {
 fn log0() {
     let operations = vec![Operation::Push0, Operation::Push0, Operation::Log(0)];
     let result = run_result(operations);
-    assert!(result.is_success());
-    assert_eq!(result.output(), None);
+    assert!(result.status.is_ok());
     // 375 is the log0 cost
     assert_eq!(result.gas_used(), 2 + 2 + 375);
     assert_eq!(result.memory, vec![0x00; 0]);
@@ -1168,8 +1084,8 @@ fn log0_data() {
         Operation::Log(0),
     ];
     let result = run_result(operations);
-    assert!(result.is_success());
-    assert_eq!(result.output(), None);
+    assert!(result.status.is_ok());
+
     // 375 + 8 * 32 is the log0 with 32 length cost
     assert_eq!(result.gas_used(), 3 + 2 + (3 + 3) + 3 + 2 + 375 + 8 * 32);
     assert_eq!(
@@ -1194,8 +1110,8 @@ fn log1_1() {
         Operation::Log(1),
     ];
     let result = run_result(operations);
-    assert!(result.is_success());
-    assert_eq!(result.output(), None);
+    assert!(result.status.is_ok());
+
     assert_eq!(result.gas_used(), 2 + 2 + 2 + 375 * 2);
     assert_eq!(result.memory, vec![0x00; 0]);
     assert_eq!(
@@ -1216,8 +1132,8 @@ fn log1_2() {
         Operation::Log(1),
     ];
     let result = run_result(operations);
-    assert!(result.is_success());
-    assert_eq!(result.output(), None);
+    assert!(result.status.is_ok());
+
     assert_eq!(result.gas_used(), 3 + 3 + 2 + 3 * 2 + 375 * 2 + 8 * 50);
     assert_eq!(result.memory, vec![0x00; 64]);
     assert_eq!(
@@ -1242,8 +1158,8 @@ fn log2_1() {
         Operation::Log(2),
     ];
     let result = run_result(operations);
-    assert!(result.is_success());
-    assert_eq!(result.output(), None);
+    assert!(result.status.is_ok());
+
     assert_eq!(result.gas_used(), 2 + 2 + 2 + 2 + 375 * 3);
     assert_eq!(result.memory, vec![0x00; 0]);
     assert_eq!(
@@ -1266,8 +1182,8 @@ fn log3_1() {
         Operation::Log(3),
     ];
     let result = run_result(operations);
-    assert!(result.is_success());
-    assert_eq!(result.output(), None);
+    assert!(result.status.is_ok());
+
     assert_eq!(result.gas_used(), 2 + 2 + 2 + 2 + 2 + 375 * 4);
     assert_eq!(result.memory, vec![0x00; 0]);
     assert_eq!(
@@ -1291,8 +1207,8 @@ fn log4_1() {
         Operation::Log(4),
     ];
     let result = run_result(operations);
-    assert!(result.is_success());
-    assert_eq!(result.output(), None);
+    assert!(result.status.is_ok());
+
     assert_eq!(result.gas_used(), 2 + 2 + 2 + 2 + 2 + 2 + 375 * 5);
     assert_eq!(result.memory, vec![0x00; 0]);
     assert_eq!(
@@ -1317,8 +1233,8 @@ fn call_1() {
         Operation::Call,
     ];
     let result = run_result(operations);
-    assert!(result.is_success());
-    assert_eq!(result.output(), None);
+    assert!(result.status.is_ok());
+
     assert_eq!(result.memory, vec![0x00; 32]);
 }
 
@@ -1334,8 +1250,8 @@ fn delegatecall_1() {
         Operation::Delegatecall,
     ];
     let result = run_result(operations);
-    assert!(result.is_success());
-    assert_eq!(result.output(), None);
+    assert!(result.status.is_ok());
+
     assert_eq!(result.memory, vec![0x00; 32]);
 }
 
@@ -1351,8 +1267,8 @@ fn staticcall_1() {
         Operation::Staticcall,
     ];
     let result = run_result(operations);
-    assert!(result.is_success());
-    assert_eq!(result.output(), None);
+    assert!(result.status.is_ok());
+
     assert_eq!(result.memory, vec![0x00; 32]);
 }
 
@@ -1367,11 +1283,11 @@ fn revert() {
         Operation::Revert,
     ];
     let result = run_result(operations);
-    assert!(result.is_revert());
+    assert!(result.status.is_revert());
     assert_eq!(result.gas_used(), 3 + 2 + 3 + 3 + 3 + 2);
     assert_eq!(
         result.output(),
-        Some(&Bytes::from(Bytes32::from(0xAA_u32).to_be_bytes().to_vec()))
+        &Bytes::from(Bytes32::from(0xAA_u32).to_be_bytes().to_vec())
     );
 }
 
@@ -1382,8 +1298,8 @@ fn selfdestruct() {
         Operation::SelfDestruct,
     ];
     let result = run_result(operations);
-    assert!(result.is_success());
+    assert!(result.status.is_ok());
     assert_eq!(result.gas_used(), 3 + 5000);
-    assert_eq!(result.output(), None);
+
     assert_eq!(result.memory, vec![0x00; 0]);
 }

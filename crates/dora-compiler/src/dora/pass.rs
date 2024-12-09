@@ -1,7 +1,7 @@
 use super::{conversion, storage};
 use crate::errors::Result;
 use melior::{ir::Module as MLIRModule, Context};
-use revmc::primitives::SpecId;
+use revm_primitives::SpecId;
 
 /// Options for configuring a pass, including program-related settings.
 ///

@@ -1,11 +1,15 @@
+//! Reference: [revm](https://github.com/bluealloy/revm)
 use crate::constants::gas_cost::{
-    ACCESS_LIST_STORAGE_KEY, CALL_STIPEND, COLD_ACCOUNT_ACCESS_COST, COLD_SLOAD_COST,
-    INSTANBUL_SLOAD_GAS, REFUND_SSTORE_CLEARS, SSTORE_RESET, SSTORE_SET, WARM_SLOAD_COST,
+    ACCESS_LIST_ADDRESS, ACCESS_LIST_STORAGE_KEY, CALLVALUE, CALL_STIPEND,
+    COLD_ACCOUNT_ACCESS_COST, COLD_SLOAD_COST, INITCODE_WORD_COST, INSTANBUL_SLOAD_GAS, NEWACCOUNT,
+    REFUND_SSTORE_CLEARS, SSTORE_RESET, SSTORE_SET, TRANSACTION_ZERO_DATA, WARM_SLOAD_COST,
     WARM_SSTORE_RESET,
 };
-use crate::host::SelfDestructResult;
+use crate::env::AccessListItem;
+use crate::host::{AccountLoad, CodeLoad, SelfDestructResult, StateLoad};
 use dora_primitives::spec::SpecId;
 use dora_primitives::U256;
+use revm_primitives::eip7702::PER_EMPTY_ACCOUNT_COST;
 
 /// Calculates the gas cost of the `SSTORE` opcode based on the EVM specification and storage conditions.
 ///
@@ -84,7 +88,7 @@ fn frontier_sstore_cost(current: U256, new: U256) -> u64 {
 /// # Returns
 /// The refund amount as `i64`.
 #[inline]
-pub fn sstore_refund(spec_id: SpecId, original: U256, current: U256, new: U256) -> u64 {
+pub fn sstore_refund(spec_id: SpecId, original: U256, current: U256, new: U256) -> i64 {
     if !spec_id.is_enabled_in(SpecId::ISTANBUL) {
         return if !current.is_zero() && new.is_zero() {
             REFUND_SSTORE_CLEARS
@@ -94,7 +98,7 @@ pub fn sstore_refund(spec_id: SpecId, original: U256, current: U256, new: U256) 
     }
 
     let sstore_clears_schedule = if spec_id.is_enabled_in(SpecId::LONDON) {
-        SSTORE_RESET - COLD_SLOAD_COST + ACCESS_LIST_STORAGE_KEY
+        (SSTORE_RESET - COLD_SLOAD_COST + ACCESS_LIST_STORAGE_KEY) as i64
     } else {
         REFUND_SSTORE_CLEARS
     };
@@ -103,7 +107,7 @@ pub fn sstore_refund(spec_id: SpecId, original: U256, current: U256, new: U256) 
         return 0;
     }
 
-    let mut refund = 0;
+    let mut refund: i64 = 0;
 
     if original == current && new.is_zero() {
         return sstore_clears_schedule;
@@ -125,13 +129,36 @@ pub fn sstore_refund(spec_id: SpecId, original: U256, current: U256, new: U256) 
         };
 
         refund += if original.is_zero() {
-            SSTORE_SET - sload_cost
+            (SSTORE_SET - sload_cost) as i64
         } else {
-            sstore_reset_cost - sload_cost
+            (sstore_reset_cost - sload_cost) as i64
         };
     }
 
     refund
+}
+
+/// Returns number of words what would fit to provided number of bytes,
+/// i.e. it rounds up the number bytes to number of words.
+#[inline]
+pub const fn num_words(len: u64) -> u64 {
+    len.saturating_add(31) / 32
+}
+
+/// Calculate the cost of buffer per word.
+#[inline]
+pub const fn cost_per_word(len: u64, multiple: u64) -> Option<u64> {
+    multiple.checked_mul(num_words(len))
+}
+
+/// EIP-3860: Limit and meter initcode
+///
+/// Apply extra gas cost of 2 for every 32-byte chunk of initcode.
+///
+/// This cannot overflow as the initcode length is assumed to be checked.
+#[inline]
+pub const fn initcode_cost(len: u64) -> Option<u64> {
+    cost_per_word(len, INITCODE_WORD_COST)
 }
 
 /// Calculates the `SLOAD` cost based on the EVM specification.
@@ -172,18 +199,31 @@ pub const fn sload_cost(spec_id: SpecId, is_cold: bool) -> u64 {
 /// The gas cost for the `EXTCODESIZE` operation.
 ///
 #[inline]
-pub const fn extcodesize_gas_cost(spec_id: SpecId, is_cold: bool) -> u64 {
+pub const fn extcodesize_gas_cost(spec_id: SpecId, load: CodeLoad<()>) -> u64 {
     if spec_id.is_enabled_in(SpecId::BERLIN) {
-        if is_cold {
-            COLD_ACCOUNT_ACCESS_COST
-        } else {
-            WARM_SLOAD_COST
-        }
+        warm_cold_cost_with_delegation(load)
     } else if spec_id.is_enabled_in(SpecId::TANGERINE) {
         700
     } else {
         20
     }
+}
+
+#[inline]
+pub const fn warm_cold_cost(is_cold: bool) -> u64 {
+    if is_cold {
+        COLD_ACCOUNT_ACCESS_COST
+    } else {
+        WARM_SLOAD_COST
+    }
+}
+
+pub const fn warm_cold_cost_with_delegation(load: CodeLoad<()>) -> u64 {
+    let mut gas = warm_cold_cost(load.state_load.is_cold);
+    if let Some(is_cold) = load.is_delegate_account_cold {
+        gas += warm_cold_cost(is_cold);
+    }
+    gas
 }
 
 /// Computes the gas cost for the `EXTCODECOPY` operation based on the Ethereum specification.
@@ -202,13 +242,9 @@ pub const fn extcodesize_gas_cost(spec_id: SpecId, is_cold: bool) -> u64 {
 ///   with historical and updated protocol rules.
 ///
 #[inline]
-pub const fn extcodecopy_gas_cost(spec_id: SpecId, is_cold: bool) -> u64 {
+pub const fn extcodecopy_gas_cost(spec_id: SpecId, load: CodeLoad<()>) -> u64 {
     if spec_id.is_enabled_in(SpecId::BERLIN) {
-        if is_cold {
-            COLD_ACCOUNT_ACCESS_COST
-        } else {
-            WARM_SLOAD_COST
-        }
+        warm_cold_cost_with_delegation(load)
     } else if spec_id.is_enabled_in(SpecId::TANGERINE) {
         700
     } else {
@@ -231,11 +267,7 @@ pub const fn extcodecopy_gas_cost(spec_id: SpecId, is_cold: bool) -> u64 {
 #[inline]
 pub const fn balance_gas_cost(spec_id: SpecId, is_cold: bool) -> u64 {
     if spec_id.is_enabled_in(SpecId::BERLIN) {
-        if is_cold {
-            COLD_ACCOUNT_ACCESS_COST
-        } else {
-            WARM_SLOAD_COST
-        }
+        warm_cold_cost(is_cold)
     } else if spec_id.is_enabled_in(SpecId::ISTANBUL) {
         700
     } else if spec_id.is_enabled_in(SpecId::TANGERINE) {
@@ -258,13 +290,9 @@ pub const fn balance_gas_cost(spec_id: SpecId, is_cold: bool) -> u64 {
 /// The gas cost for the `EXTCODEHASH` operation.
 ///
 #[inline]
-pub const fn extcodehash_gas_cost(spec_id: SpecId, is_cold: bool) -> u64 {
+pub const fn extcodehash_gas_cost(spec_id: SpecId, load: CodeLoad<()>) -> u64 {
     if spec_id.is_enabled_in(SpecId::BERLIN) {
-        if is_cold {
-            COLD_ACCOUNT_ACCESS_COST
-        } else {
-            WARM_SLOAD_COST
-        }
+        warm_cold_cost_with_delegation(load)
     } else if spec_id.is_enabled_in(SpecId::ISTANBUL) {
         700
     } else {
@@ -285,12 +313,12 @@ pub const fn extcodehash_gas_cost(spec_id: SpecId, is_cold: bool) -> u64 {
 /// The gas cost for the `SELFDESTRUCT` operation.
 ///
 #[inline]
-pub const fn selfdestruct_cost(spec_id: SpecId, res: &SelfDestructResult) -> u64 {
+pub const fn selfdestruct_cost(spec_id: SpecId, res: &StateLoad<SelfDestructResult>) -> u64 {
     // EIP-161: State trie clearing (invariant-preserving alternative)
     let should_charge_topup = if spec_id.is_enabled_in(SpecId::SPURIOUS_DRAGON) {
-        res.had_value && !res.target_exists
+        res.data.had_value && !res.data.target_exists
     } else {
-        !res.target_exists
+        !res.data.target_exists
     };
 
     // EIP-150: Gas cost changes for IO-heavy operations
@@ -313,4 +341,90 @@ pub const fn selfdestruct_cost(spec_id: SpecId, res: &SelfDestructResult) -> u64
         gas += COLD_ACCOUNT_ACCESS_COST
     }
     gas
+}
+
+/// Calculate call gas cost for the call instruction.
+#[inline]
+pub const fn call_cost(spec_id: SpecId, transfers_value: bool, account_load: AccountLoad) -> u64 {
+    // Account access.
+    let mut gas = if spec_id.is_enabled_in(SpecId::BERLIN) {
+        warm_cold_cost_with_delegation(account_load.code_load)
+    } else if spec_id.is_enabled_in(SpecId::TANGERINE) {
+        // EIP-150: Gas cost changes for IO-heavy operations
+        700
+    } else {
+        40
+    };
+    // transfer value cost
+    if transfers_value {
+        gas += CALLVALUE;
+    }
+    if account_load.is_empty {
+        if spec_id.is_enabled_in(SpecId::SPURIOUS_DRAGON) {
+            if transfers_value {
+                gas += NEWACCOUNT;
+            }
+        } else {
+            gas += NEWACCOUNT;
+        }
+    }
+
+    gas
+}
+
+/// Initial gas that is deducted for transaction to be included.
+/// Initial gas contains initial stipend gas, gas for access list and input data.
+pub fn validate_initial_tx_gas(
+    spec_id: SpecId,
+    input: &[u8],
+    is_create: bool,
+    access_list: &[AccessListItem],
+    authorization_list_num: u64,
+) -> u64 {
+    let mut initial_gas = 0;
+    let zero_data_len = input.iter().filter(|v| **v == 0).count() as u64;
+    let non_zero_data_len = input.len() as u64 - zero_data_len;
+
+    // initdate stipend
+    initial_gas += zero_data_len * TRANSACTION_ZERO_DATA;
+    // EIP-2028: Transaction data gas cost reduction
+    initial_gas += non_zero_data_len
+        * if spec_id.is_enabled_in(SpecId::ISTANBUL) {
+            16
+        } else {
+            68
+        };
+
+    // get number of access list account and storages.
+    let (account_num, storage_num): (usize, usize) = (
+        access_list.len(),
+        access_list.iter().map(|i| i.1.len()).sum(),
+    );
+    initial_gas += account_num as u64 * ACCESS_LIST_ADDRESS;
+    initial_gas += storage_num as u64 * ACCESS_LIST_STORAGE_KEY;
+
+    // base stipend
+    initial_gas += if is_create {
+        if spec_id.is_enabled_in(SpecId::HOMESTEAD) {
+            // EIP-2: Homestead Hard-fork Changes
+            53000
+        } else {
+            21000
+        }
+    } else {
+        21000
+    };
+
+    // EIP-3860: Limit and meter initcode
+    // Init code stipend for bytecode analysis
+    if spec_id.is_enabled_in(SpecId::SHANGHAI) && is_create {
+        initial_gas += initcode_cost(input.len() as u64).unwrap_or_default();
+    }
+
+    // EIP-7702
+    if spec_id.is_enabled_in(SpecId::PRAGUE) {
+        initial_gas += authorization_list_num * PER_EMPTY_ACCOUNT_COST;
+    }
+
+    initial_gas
 }

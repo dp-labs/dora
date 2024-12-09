@@ -1,15 +1,18 @@
-use dora_primitives::{Address, Bytes32, B256};
+use bytes::Bytes;
+use dora_primitives::{Address, Bytes32};
 use rustc_hash::FxHashMap;
-use std::{collections::hash_map::Entry, fmt::Debug, str::FromStr};
+use std::ops::{Deref, DerefMut};
+use std::{collections::hash_map::Entry, fmt::Debug};
 
-use crate::account::EMPTY_CODE_HASH_STR;
+use crate::call::{CallKind, CallMessage, CallResult};
+use crate::result::EVMError;
 use crate::{context::Log, env::Env};
 
 /// The `Host` trait defines the interface for interacting with the Dora runtime environment.
 /// It includes methods for account management, storage operations, balance inquiries,
 /// code retrieval, logging, and access status tracking. Implementing this trait allows
 /// a host to provide the necessary functionalities during contract execution.
-pub trait Host: Debug {
+pub trait Host {
     /// Returns a reference to the environment.
     fn env(&self) -> &Env;
 
@@ -17,65 +20,60 @@ pub trait Host: Debug {
     fn env_mut(&mut self) -> &mut Env;
 
     /// Retrieves the storage value for a given account and storage key.
-    fn sload(&mut self, addr: &Address, key: &Bytes32) -> SLoadResult;
+    fn sload(&mut self, addr: Address, key: Bytes32) -> Option<StateLoad<Bytes32>>;
 
     /// Sets the storage value for a given account and storage key.
-    fn sstore(&mut self, addr: Address, key: Bytes32, value: Bytes32) -> SStoreResult;
+    fn sstore(
+        &mut self,
+        addr: Address,
+        key: Bytes32,
+        value: Bytes32,
+    ) -> Option<StateLoad<SStoreResult>>;
 
     /// Get the transient storage value of `address` at `key`.
-    fn tload(&mut self, addr: &Address, key: &Bytes32) -> Bytes32;
+    fn tload(&mut self, addr: Address, key: Bytes32) -> Bytes32;
 
     /// Set the transient storage value of `address` at `key`.
-    fn tstore(&mut self, addr: &Address, key: Bytes32, value: Bytes32);
+    fn tstore(&mut self, addr: Address, key: Bytes32, value: Bytes32);
 
-    /// Access all storage in the journa that is used to merge into DB.
-    fn storage(&self) -> FxHashMap<Bytes32, Bytes32>;
-
-    /// Get access status for the specific account
-    fn access_storage(&self, addr: Address, key: Bytes32) -> AccessStatus;
-
-    /// Get access status for the specific account
-    fn access_account(&self, addr: Address) -> AccessStatus;
+    /// Load account from database to JournaledState.
+    fn load_account_delegated(&mut self, addr: Address) -> Option<AccountLoad>;
 
     /// Retrieves the balance of a specified account.
-    fn balance(&self, addr: &Address) -> BalanceResult;
+    fn balance(&mut self, addr: Address) -> Option<StateLoad<Bytes32>>;
 
     /// Retrieves the code deployed at a specified account.
-    fn code(&mut self, addr: &Address) -> Bytes32;
+    fn code(&mut self, addr: Address) -> Option<CodeLoad<Bytes>>;
 
     /// Retrieves the hash of the code deployed at a specified account.
-    fn code_hash(&self, addr: &Address) -> Bytes32;
+    fn code_hash(&mut self, addr: Address) -> Option<CodeLoad<Bytes32>>;
 
     /// Mark `address` to be deleted, with funds transferred to `target`.
-    fn selfdestruct(&mut self, addr: &Address, target: Address) -> SelfDestructResult;
+    fn selfdestruct(
+        &mut self,
+        addr: Address,
+        target: Address,
+    ) -> Option<StateLoad<SelfDestructResult>>;
 
     /// Get the block hash of the given block `number`.
-    fn block_hash(&mut self, number: u64) -> Bytes32;
+    fn block_hash(&mut self, number: u64) -> Option<Bytes32>;
 
     /// Emit a log owned by `address` with given `LogData`.
     fn log(&mut self, log: Log);
-}
 
-/// Result of a `get_storage` action.
-#[derive(Debug, Clone, Default, PartialEq, Eq, Hash)]
-pub struct SLoadResult {
-    pub value: Bytes32,
-    pub is_cold: bool,
-}
-
-/// Result of a `get_storage` action.
-#[derive(Debug, Clone, Default, PartialEq, Eq, Hash)]
-pub struct BalanceResult {
-    pub value: Bytes32,
-    pub is_cold: bool,
+    /// Host for the call-like insturctions e.g., `CALL`, `CREATE`, etc.
+    fn call(&mut self, msg: CallMessage) -> Result<CallResult, EVMError>;
 }
 
 /// Result of a `set_storage` action.
 #[derive(Debug, Clone, Default, PartialEq, Eq, Hash)]
 pub struct SStoreResult {
+    /// Value of the storage when it is first read
     pub original_value: Bytes32,
+    /// Current value of the storage
     pub present_value: Bytes32,
-    pub is_cold: bool,
+    /// New value that is set
+    pub new_value: Bytes32,
 }
 
 /// Result of a `selfdestruct` action.
@@ -84,27 +82,121 @@ pub struct SelfDestructResult {
     pub had_value: bool,
     pub target_exists: bool,
     pub previously_destroyed: bool,
+}
+
+/// State load information that contains the data and if the account or storage is cold loaded.
+#[derive(Clone, Debug, Default, PartialEq, Eq)]
+pub struct StateLoad<T> {
+    /// returned data
+    pub data: T,
+    /// True if account is cold loaded.
     pub is_cold: bool,
 }
 
-/// Access status per EIP-2929: Gas cost increases for state access opcodes.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-#[repr(u8)]
-pub enum AccessStatus {
-    Cold = 0,
-    Warm = 1,
+impl<T> Deref for StateLoad<T> {
+    type Target = T;
+
+    fn deref(&self) -> &Self::Target {
+        &self.data
+    }
 }
 
-impl AccessStatus {
-    #[inline]
-    pub fn is_cold(&self) -> bool {
-        matches!(self, AccessStatus::Cold)
+impl<T> DerefMut for StateLoad<T> {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.data
+    }
+}
+
+impl<T> StateLoad<T> {
+    /// Returns a new [`StateLoad`] with the given data and cold load status.
+    pub fn new(data: T, is_cold: bool) -> Self {
+        Self { data, is_cold }
     }
 
-    #[inline]
-    pub fn is_warm(&self) -> bool {
-        matches!(self, AccessStatus::Warm)
+    /// Maps the data of the [`StateLoad`] to a new value.
+    ///
+    /// Useful for transforming the data of the [`StateLoad`] without changing the cold load status.
+    pub fn map<B, F>(self, f: F) -> StateLoad<B>
+    where
+        F: FnOnce(T) -> B,
+    {
+        StateLoad::new(f(self.data), self.is_cold)
     }
+}
+
+/// State load information that contains the data and if the account or storage is cold loaded.
+#[derive(Clone, Debug, Default, PartialEq, Eq)]
+pub struct CodeLoad<T> {
+    /// returned data
+    pub state_load: StateLoad<T>,
+    /// True if account has delegate code and delegated account is cold loaded.
+    pub is_delegate_account_cold: Option<bool>,
+}
+
+impl<T> Deref for CodeLoad<T> {
+    type Target = StateLoad<T>;
+
+    fn deref(&self) -> &Self::Target {
+        &self.state_load
+    }
+}
+
+impl<T> DerefMut for CodeLoad<T> {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.state_load
+    }
+}
+
+impl<T> CodeLoad<T> {
+    /// Returns a new [`CodeLoad`] with the given data and without delegation.
+    pub fn new_state_load(state_load: StateLoad<T>) -> Self {
+        Self {
+            state_load,
+            is_delegate_account_cold: None,
+        }
+    }
+
+    /// Returns a new [`CodeLoad`] with the given data and without delegation.
+    pub fn new_not_delegated(data: T, is_cold: bool) -> Self {
+        Self {
+            state_load: StateLoad::new(data, is_cold),
+            is_delegate_account_cold: None,
+        }
+    }
+
+    /// Deconstructs the [`CodeLoad`] by extracting data and
+    /// returning a new [`CodeLoad`] with empty data.
+    pub fn into_components(self) -> (T, CodeLoad<()>) {
+        let is_cold = self.is_cold;
+        (
+            self.state_load.data,
+            CodeLoad {
+                state_load: StateLoad::new((), is_cold),
+                is_delegate_account_cold: self.is_delegate_account_cold,
+            },
+        )
+    }
+
+    /// Sets the delegation cold load status.
+    pub fn set_delegate_load(&mut self, is_delegate_account_cold: bool) {
+        self.is_delegate_account_cold = Some(is_delegate_account_cold);
+    }
+
+    /// Returns a new [`CodeLoad`] with the given data and delegation cold load status.
+    pub fn new(state_load: StateLoad<T>, is_delegate_account_cold: bool) -> Self {
+        Self {
+            state_load,
+            is_delegate_account_cold: Some(is_delegate_account_cold),
+        }
+    }
+}
+
+#[derive(Debug, Clone, Default)]
+pub struct AccountLoad {
+    /// Is account empty, if true account is not created.
+    pub is_empty: bool,
+    /// Code load information.
+    pub code_load: CodeLoad<()>,
 }
 
 /// A dummy [Host] implementation for testing.
@@ -138,72 +230,75 @@ impl Host for DummyHost {
     }
 
     #[inline]
-    fn sload(&mut self, _addr: &Address, key: &Bytes32) -> SLoadResult {
-        match self.storage.entry(*key) {
-            Entry::Occupied(entry) => SLoadResult {
-                value: *entry.get(),
-                is_cold: false,
-            },
+    fn sload(&mut self, _addr: Address, key: Bytes32) -> Option<StateLoad<Bytes32>> {
+        Some(match self.storage.entry(key) {
+            Entry::Occupied(entry) => StateLoad::new(*entry.get(), false),
             Entry::Vacant(entry) => {
                 entry.insert(Bytes32::ZERO);
-                SLoadResult {
-                    value: Bytes32::ZERO,
-                    is_cold: true,
-                }
+                StateLoad::new(Bytes32::ZERO, true)
             }
-        }
+        })
     }
 
     #[inline]
-    fn sstore(&mut self, _addr: Address, key: Bytes32, value: Bytes32) -> SStoreResult {
+    fn sstore(
+        &mut self,
+        _addr: Address,
+        key: Bytes32,
+        value: Bytes32,
+    ) -> Option<StateLoad<SStoreResult>> {
         let present = self.storage.insert(key, value);
-        SStoreResult {
-            original_value: Bytes32::ZERO,
-            present_value: present.unwrap_or(Bytes32::ZERO),
-            is_cold: present.is_none(),
-        }
+
+        Some(StateLoad::new(
+            SStoreResult {
+                original_value: Bytes32::ZERO,
+                present_value: present.unwrap_or(Bytes32::ZERO),
+                new_value: Bytes32::ZERO,
+            },
+            present.is_none(),
+        ))
     }
 
     #[inline]
-    fn balance(&self, _addr: &Address) -> BalanceResult {
-        BalanceResult {
-            value: Bytes32::ZERO,
-            is_cold: true,
-        }
+    fn balance(&mut self, _addr: Address) -> Option<StateLoad<Bytes32>> {
+        None
     }
 
     #[inline]
-    fn tload(&mut self, _addr: &Address, key: &Bytes32) -> Bytes32 {
-        self.transient_storage.get(key).copied().unwrap_or_default()
+    fn tload(&mut self, _addr: Address, key: Bytes32) -> Bytes32 {
+        self.transient_storage
+            .get(&key)
+            .copied()
+            .unwrap_or_default()
     }
 
     #[inline]
-    fn tstore(&mut self, _addr: &Address, key: Bytes32, value: Bytes32) {
+    fn tstore(&mut self, _addr: Address, key: Bytes32, value: Bytes32) {
         self.transient_storage.insert(key, value);
     }
 
     #[inline]
-    fn code(&mut self, _addr: &Address) -> Bytes32 {
-        Bytes32::ZERO
+    fn code(&mut self, _addr: Address) -> Option<CodeLoad<Bytes>> {
+        None
     }
 
     #[inline]
-    fn code_hash(&self, _addr: &Address) -> Bytes32 {
-        Bytes32::from_be_bytes(
-            *B256::from_str(EMPTY_CODE_HASH_STR)
-                .unwrap_or_default()
-                .as_fixed_bytes(),
-        )
+    fn code_hash(&mut self, _addr: Address) -> Option<CodeLoad<Bytes32>> {
+        None
     }
 
     #[inline]
-    fn selfdestruct(&mut self, _addr: &Address, _target: Address) -> SelfDestructResult {
-        SelfDestructResult::default()
+    fn selfdestruct(
+        &mut self,
+        _addr: Address,
+        _target: Address,
+    ) -> Option<StateLoad<SelfDestructResult>> {
+        None
     }
 
     #[inline]
-    fn block_hash(&mut self, _number: u64) -> Bytes32 {
-        Bytes32::ZERO
+    fn block_hash(&mut self, _number: u64) -> Option<Bytes32> {
+        None
     }
 
     #[inline]
@@ -212,17 +307,22 @@ impl Host for DummyHost {
     }
 
     #[inline]
-    fn storage(&self) -> FxHashMap<Bytes32, Bytes32> {
-        self.storage.clone()
+    fn load_account_delegated(&mut self, _addr: Address) -> Option<AccountLoad> {
+        None
     }
 
-    #[inline]
-    fn access_storage(&self, _addr: Address, _key: Bytes32) -> AccessStatus {
-        AccessStatus::Cold
-    }
-
-    #[inline]
-    fn access_account(&self, _addr: Address) -> AccessStatus {
-        AccessStatus::Cold
+    fn call(&mut self, msg: CallMessage) -> Result<CallResult, EVMError> {
+        Ok(match msg.kind {
+            CallKind::Call
+            | CallKind::CallCode
+            | CallKind::Delegatecall
+            | CallKind::Staticcall
+            | CallKind::Create
+            | CallKind::Create2 => CallResult::new_with_gas_limit(msg.gas_limit),
+            CallKind::ExtCall
+            | CallKind::ExtStaticcall
+            | CallKind::ExtDelegatecall
+            | CallKind::EofCreate => unimplemented!("{:?}", msg.kind),
+        })
     }
 }
