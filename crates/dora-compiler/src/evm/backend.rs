@@ -407,6 +407,13 @@ impl<'a, 'c> crate::backend::Builder for EVMBuilder<'a, 'c> {
         Ok(op.result(0)?.to_ctx_value())
     }
 
+    fn iadd(&mut self, lhs: Self::Value, rhs: Self::Value) -> Result<Self::Value> {
+        let op = self.builder.create(
+            dora_ir::evm::add(self.context(), self.uint256_ty(), lhs, rhs, self.location()).into(),
+        );
+        Ok(op.result(0)?.to_ctx_value())
+    }
+
     fn isub(&mut self, lhs: Self::Value, rhs: Self::Value) -> Result<Self::Value> {
         let op = self.builder.create(
             dora_ir::evm::sub(self.context(), self.uint256_ty(), lhs, rhs, self.location()).into(),
@@ -716,13 +723,6 @@ impl<'a, 'c> crate::backend::Builder for EVMBuilder<'a, 'c> {
 
     fn unreachable(&mut self) {
         self.builder.create(llvm::unreachable(self.location()));
-    }
-
-    fn iadd(&mut self, lhs: Self::Value, rhs: Self::Value) -> Result<Self::Value> {
-        let op = self.builder.create(
-            dora_ir::evm::add(self.context(), self.uint256_ty(), lhs, rhs, self.location()).into(),
-        );
-        Ok(op.result(0)?.to_ctx_value())
     }
 }
 
