@@ -395,7 +395,7 @@ fn execute_test(path: &Path) -> Result<(), TestError> {
         kind: e.into(),
     })?;
 
-    for (_, suite) in suite.0 {
+    for (suite_name, suite) in suite.0 {
         // Mapping account into
         let mut db = MemoryDB::new();
         for (address, account_info) in suite.pre.iter() {
@@ -407,16 +407,6 @@ fn execute_test(path: &Path) -> Result<(), TestError> {
                 account_info.storage.iter().map(|(k, v)| (*k, *v)).collect(),
             );
         }
-
-        let mut vm = VM::new(VMContext::new(
-            db,
-            Env::default(),
-            SpecId::CANCUN,
-            Handler {
-                call_frame: Arc::new(call_frame),
-            },
-        ));
-
         // post and execution
         for (spec_name, tests) in &suite.post {
             // Constantinople was immediately extended by Petersburg.
@@ -452,7 +442,10 @@ fn execute_test(path: &Path) -> Result<(), TestError> {
                     .clone()
                     .0;
                 env.tx.nonce = u64::try_from(suite.transaction.nonce).unwrap();
-                info!("testing {:?} index {:?}", name, test_case.indexes);
+                info!(
+                    "testing {:?} suite {:?} index {:?}",
+                    name, suite_name, test_case.indexes
+                );
                 // Mapping access list
                 let access_list = suite
                     .transaction
@@ -470,8 +463,16 @@ fn execute_test(path: &Path) -> Result<(), TestError> {
                     ));
                 }
                 // Run EVM and get the state result.
-                vm.env = Box::new(env);
-                let res = vm.transact_commit();
+                let res = VM::new(VMContext::new(
+                    db.clone(),
+                    env,
+                    spec_id,
+                    Handler {
+                        call_frame: Arc::new(call_frame),
+                    },
+                ))
+                .transact_commit();
+
                 let _logs_root = log_rlp_hash(res.as_ref().map(|r| r.logs()).unwrap_or_default());
                 // Check result and output.
                 match res {

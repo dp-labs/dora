@@ -669,7 +669,7 @@ impl JournaledState {
     ) -> Result<StateLoad<Bytes32>, DB::Error> {
         // Check account is warm
         let account = self.state.get_mut(&address).unwrap();
-        // only if account is created in this tx we can assume that storage is empty.
+        // Only if account is created in this tx we can assume that storage is empty.
         let is_newly_created = account.is_created();
         let (value, is_cold) = match account.storage.entry(key.to_u256()) {
             Entry::Occupied(occ) => {
