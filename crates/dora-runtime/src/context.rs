@@ -554,7 +554,7 @@ impl<'a, DB: Database> VMContext<'a, DB> {
                     code: msg.input.clone().into(),
                     hash: Some(init_code_hash),
                     target_address: created_address,
-                    code_address: Address::default(),
+                    code_address: created_address,
                     caller: msg.caller,
                     call_value: msg.value,
                 };
@@ -1394,8 +1394,10 @@ impl<'a> RuntimeContext<'a> {
         stg_key: &Bytes32,
         stg_value: &mut Bytes32,
     ) -> *mut RuntimeResult<()> {
-        let addr = self.host.env().tx.transact_to;
-        let result = self.host.sload(addr, *stg_key).unwrap_or_default();
+        let result = self
+            .host
+            .sload(self.contract.target_address, *stg_key)
+            .unwrap_or_default();
         *stg_value = result.data;
 
         let gas_cost = gas::sload_cost(self.inner.spec_id, result.is_cold);
@@ -1408,10 +1410,9 @@ impl<'a> RuntimeContext<'a> {
         stg_value: &Bytes32,
         gas_remaining: u64,
     ) -> *mut RuntimeResult<()> {
-        let addr = self.host.env().tx.transact_to;
         let result = self
             .host
-            .sstore(addr, *stg_key, *stg_value)
+            .sstore(self.contract.target_address, *stg_key, *stg_value)
             .unwrap_or_default();
 
         let original = result.original_value.to_u256();
@@ -1514,7 +1515,11 @@ impl<'a> RuntimeContext<'a> {
     fn create_log(&mut self, offset: u64, size: u64, topics: Vec<B256>) {
         let offset = offset as usize;
         let size = size as usize;
-        let data: Vec<u8> = self.inner.memory[offset..offset + size].into();
+        let data: Vec<u8> = if size != 0 {
+            self.inner.memory[offset..offset + size].into()
+        } else {
+            vec![]
+        };
         self.host.log(Log {
             address: self.contract.target_address,
             data: LogData { data, topics },
@@ -1540,10 +1545,9 @@ impl<'a> RuntimeContext<'a> {
 
     #[allow(clippy::clone_on_copy)]
     pub extern "C" fn address(&mut self) -> *mut RuntimeResult<*mut u8> {
-        let address = self.host.env().tx.transact_to.clone();
-        Box::into_raw(Box::new(
-            RuntimeResult::success(address.as_ptr() as *mut u8),
-        ))
+        Box::into_raw(Box::new(RuntimeResult::success(
+            self.contract.target_address.as_ptr() as *mut u8,
+        )))
     }
 
     pub extern "C" fn prevrandao(&self, prevrandao: &mut Bytes32) -> *mut RuntimeResult<()> {
@@ -1613,7 +1617,7 @@ impl<'a> RuntimeContext<'a> {
         size: u64,
         dest_offset: u64,
     ) -> *mut RuntimeResult<()> {
-        let addr = Address::from(address_value);
+        let addr = address_value.to_address();
         let (code, load) = self.host.code(addr).unwrap_or_default().into_components();
         let code_size = code.len();
         let code_offset = code_offset as usize;
@@ -1669,7 +1673,6 @@ impl<'a> RuntimeContext<'a> {
         } else {
             self.inner.memory[offset..offset + actual_size].to_vec()
         };
-
         let mut gas_limit = original_remaining_gas;
         if self.inner.spec_id.is_enabled_in(SpecId::TANGERINE) {
             gas_limit -= gas_limit / 64;
@@ -1758,11 +1761,10 @@ impl<'a> RuntimeContext<'a> {
         &mut self,
         receiver_address: &Bytes32,
     ) -> *mut RuntimeResult<u64> {
-        let sender_address = self.host.env().tx.get_address();
         let receiver_address = Address::from(receiver_address);
         let result = self
             .host
-            .selfdestruct(sender_address, receiver_address)
+            .selfdestruct(self.contract.target_address, receiver_address)
             .unwrap_or_default();
 
         // EIP-3529: Reduction in refunds
@@ -1782,8 +1784,7 @@ impl<'a> RuntimeContext<'a> {
         stg_key: &Bytes32,
         stg_value: &mut Bytes32,
     ) -> *mut RuntimeResult<()> {
-        let addr = self.host.env().tx.transact_to;
-        let result = self.host.tload(addr, *stg_key);
+        let result = self.host.tload(self.contract.target_address, *stg_key);
         *stg_value = result;
         Box::into_raw(Box::new(RuntimeResult::success(())))
     }
@@ -1793,8 +1794,8 @@ impl<'a> RuntimeContext<'a> {
         stg_key: &Bytes32,
         stg_value: &mut Bytes32,
     ) -> *mut RuntimeResult<()> {
-        let addr = self.host.env().tx.transact_to;
-        self.host.tstore(addr, *stg_key, *stg_value);
+        self.host
+            .tstore(self.contract.target_address, *stg_key, *stg_value);
         Box::into_raw(Box::new(RuntimeResult::success(())))
     }
 }
