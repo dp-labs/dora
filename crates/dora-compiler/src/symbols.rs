@@ -26,7 +26,12 @@ pub(crate) fn declare_symbols(context: &MLIRContext, module: &MLIRModule) {
     // Globals declaration
     builder.create(builder.global(symbols::CTX_IS_STATIC, ptr_type, Linkage::External));
     let function_signatures: &[(&str, &[Type<'_>], &[Type<'_>])] = &[
-        (symbols::TRACING, &[ptr_type, uint8, uint64], &[]),
+        (symbols::NOP, &[], &[]),
+        (
+            symbols::TRACING,
+            &[ptr_type, uint8, uint64, ptr_type, uint64],
+            &[],
+        ),
         (
             symbols::WRITE_RESULT,
             &[ptr_type, uint64, uint64, uint64, uint8],

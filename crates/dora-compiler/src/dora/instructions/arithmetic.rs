@@ -100,20 +100,58 @@ impl<'c> ConversionPass<'c> {
     pub(crate) fn umod(context: &Context, op: &OperationRef<'_, '_>) -> Result<()> {
         operands!(op, l, r);
         rewrite_ctx!(context, op, rewriter, location);
-        let result = rewriter.make(arith::remui(l, r, location))?;
+
         let zero = rewriter.make(rewriter.iconst_256_from_u64(0)?)?;
         let is_zero = rewriter.make(rewriter.icmp(IntCC::Equal, r, zero))?;
-        rewriter.make(arith::select(is_zero, zero, result, location))?;
+        rewriter.make(scf::r#if(
+            is_zero,
+            &[rewriter.intrinsics.i256_ty],
+            {
+                let region = Region::new();
+                let block = region.append_block(Block::new(&[]));
+                let rewriter = Rewriter::new_with_block(context, block);
+                rewriter.create(scf::r#yield(&[zero], location));
+                region
+            },
+            {
+                let region = Region::new();
+                let block = region.append_block(Block::new(&[]));
+                let rewriter = Rewriter::new_with_block(context, block);
+                let result = rewriter.make(arith::remui(l, r, location))?;
+                rewriter.create(scf::r#yield(&[result], location));
+                region
+            },
+            location,
+        ))?;
         Ok(())
     }
 
     pub(crate) fn smod(context: &Context, op: &OperationRef<'_, '_>) -> Result<()> {
         operands!(op, l, r);
         rewrite_ctx!(context, op, rewriter, location);
-        let result = rewriter.make(arith::remsi(l, r, location))?;
+
         let zero = rewriter.make(rewriter.iconst_256_from_u64(0)?)?;
         let is_zero = rewriter.make(rewriter.icmp(IntCC::Equal, r, zero))?;
-        rewriter.make(arith::select(is_zero, zero, result, location))?;
+        rewriter.make(scf::r#if(
+            is_zero,
+            &[rewriter.intrinsics.i256_ty],
+            {
+                let region = Region::new();
+                let block = region.append_block(Block::new(&[]));
+                let rewriter = Rewriter::new_with_block(context, block);
+                rewriter.create(scf::r#yield(&[zero], location));
+                region
+            },
+            {
+                let region = Region::new();
+                let block = region.append_block(Block::new(&[]));
+                let rewriter = Rewriter::new_with_block(context, block);
+                let result = rewriter.make(arith::remsi(l, r, location))?;
+                rewriter.create(scf::r#yield(&[result], location));
+                region
+            },
+            location,
+        ))?;
         Ok(())
     }
 
@@ -121,13 +159,16 @@ impl<'c> ConversionPass<'c> {
         operands!(op, a, b, den);
         rewrite_ctx!(context, op, rewriter, location);
 
-        let a = rewriter.make(arith::extui(a, rewriter.intrinsics.i257_ty, location))?;
-        let b = rewriter.make(arith::extui(b, rewriter.intrinsics.i257_ty, location))?;
-        let den = rewriter.make(arith::extui(den, rewriter.intrinsics.i257_ty, location))?;
-        let add = rewriter.make(arith::addi(a, b, location))?;
-        let umod = rewriter.make(arith::remui(add, den, location))?;
+        let a_i257 = rewriter.make(arith::extui(a, rewriter.intrinsics.i257_ty, location))?;
+        let b_i257 = rewriter.make(arith::extui(b, rewriter.intrinsics.i257_ty, location))?;
+        let den_i257 = rewriter.make(arith::extui(den, rewriter.intrinsics.i257_ty, location))?;
+        let add = rewriter.make(arith::addi(a_i257, b_i257, location))?;
+        let umod = rewriter.make(arith::remui(add, den_i257, location))?;
+        let result = rewriter.make(arith::trunci(umod, rewriter.intrinsics.i256_ty, location))?;
 
-        rewriter.make(arith::trunci(umod, rewriter.intrinsics.i256_ty, location))?;
+        let zero = rewriter.make(rewriter.iconst_256_from_u64(0)?)?;
+        let is_zero = rewriter.make(rewriter.icmp(IntCC::Equal, den, zero))?;
+        rewriter.make(arith::select(is_zero, zero, result, location))?;
         Ok(())
     }
 
@@ -136,13 +177,16 @@ impl<'c> ConversionPass<'c> {
         rewrite_ctx!(context, op, rewriter, location);
 
         let uint512 = IntegerType::new(context, 512);
-        let a = rewriter.make(arith::extui(a, uint512.into(), location))?;
-        let b = rewriter.make(arith::extui(b, uint512.into(), location))?;
-        let den = rewriter.make(arith::extui(den, uint512.into(), location))?;
-        let add = rewriter.make(arith::muli(a, b, location))?;
-        let umod = rewriter.make(arith::remui(add, den, location))?;
+        let a_i512 = rewriter.make(arith::extui(a, uint512.into(), location))?;
+        let b_i512 = rewriter.make(arith::extui(b, uint512.into(), location))?;
+        let den_i512 = rewriter.make(arith::extui(den, uint512.into(), location))?;
+        let add = rewriter.make(arith::muli(a_i512, b_i512, location))?;
+        let umod = rewriter.make(arith::remui(add, den_i512, location))?;
+        let result = rewriter.make(arith::trunci(umod, rewriter.intrinsics.i256_ty, location))?;
 
-        rewriter.make(arith::trunci(umod, rewriter.intrinsics.i256_ty, location))?;
+        let zero = rewriter.make(rewriter.iconst_256_from_u64(0)?)?;
+        let is_zero = rewriter.make(rewriter.icmp(IntCC::Equal, den, zero))?;
+        rewriter.make(arith::select(is_zero, zero, result, location))?;
         Ok(())
     }
 

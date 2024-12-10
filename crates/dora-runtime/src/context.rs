@@ -2,7 +2,9 @@ use std::fmt;
 
 use crate::account::{Account, EMPTY_CODE_HASH_BYTES};
 use crate::call::{CallKind, CallMessage, CallResult};
-use crate::constants::{gas_cost, precompiles, CallType, BLOCK_HASH_HISTORY, CALL_STACK_LIMIT};
+use crate::constants::{
+    gas_cost, precompiles, CallType, BLOCK_HASH_HISTORY, CALL_STACK_LIMIT, MAX_STACK_SIZE,
+};
 use crate::db::{Database, DatabaseError};
 use crate::env::{CfgEnv, Env};
 use crate::executor::ExecutionEngine;
@@ -1082,14 +1084,38 @@ impl<'a> RuntimeContext<'a> {
 
 // System call functions
 impl<'a> RuntimeContext<'a> {
-    pub extern "C" fn tracing(&mut self, op: u8, gas: u64) {
+    pub(crate) extern "C" fn nop() {}
+
+    pub(crate) extern "C" fn tracing(
+        &mut self,
+        op: u8,
+        gas: u64,
+        stack_top_ptr: *mut Bytes32,
+        stack_size: u64,
+    ) {
+        let stack = unsafe {
+            let stack_bottom_ptr = stack_top_ptr.sub(stack_size as usize);
+            Vec::<Bytes32>::from_raw_parts(stack_bottom_ptr, stack_size as usize, MAX_STACK_SIZE)
+        };
+        let nano_seconds = if let Ok(duration_since_epoch) =
+            std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH)
+        {
+            duration_since_epoch.as_nanos()
+        } else {
+            0
+        };
         println!(
-            "op: {}, opHex: {:x}, gas: 0x{:x}, memSize: {}",
+            "time: {}ns, op: {}, opHex: {:x}, gas: 0x{:x}, memSize: {}, stack: {:?}, stackSize: {}",
+            nano_seconds,
             op,
             op,
             gas,
-            self.memory().len()
+            self.memory().len(),
+            stack.iter().map(|v| v.to_u256()).collect::<Vec<_>>(),
+            stack_size,
         );
+        // DO NOT free the stack pointer.
+        stack.leak();
     }
 
     pub extern "C" fn write_result(
@@ -1868,6 +1894,7 @@ impl<'a> RuntimeContext<'a> {
                     &self.inner.is_static as *const bool as *const _,
                 ),
                 // Debug functions
+                (symbols::NOP, RuntimeContext::nop as *const _),
                 (symbols::TRACING, RuntimeContext::tracing as *const _),
                 // Syscalls
                 (

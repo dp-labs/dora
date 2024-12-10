@@ -1,4 +1,5 @@
 // Debug functions
+pub const NOP: &str = "dora_fn_nop";
 pub const TRACING: &str = "dora_fn_tracing";
 // Global variables
 pub const CTX_IS_STATIC: &str = "dora_global_ctx_is_static";

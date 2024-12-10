@@ -12,7 +12,8 @@ module {
   llvm.mlir.global internal @dora_global_calldata_size() {addr_space = 0 : i32} : i64
   llvm.mlir.global internal @dora_global_gas_counter() {addr_space = 0 : i32} : i64
   llvm.mlir.global external @dora_global_ctx_is_static() {addr_space = 0 : i32} : !llvm.ptr
-  func.func private @dora_fn_tracing(!llvm.ptr, i8, i64)
+  func.func private @dora_fn_nop()
+  func.func private @dora_fn_tracing(!llvm.ptr, i8, i64, !llvm.ptr, i64)
   func.func private @dora_fn_write_result(!llvm.ptr, i64, i64, i64, i8)
   func.func private @dora_fn_keccak256_hasher(!llvm.ptr, i64, i64, !llvm.ptr)
   func.func private @dora_fn_calldata(!llvm.ptr) -> !llvm.ptr
@@ -106,6 +107,7 @@ module {
     %18 = llvm.mlir.addressof @dora_global_gas_counter : !llvm.ptr
     %19 = llvm.load %18 : !llvm.ptr -> i64
     %c0_i64_4 = arith.constant 0 : i64
+    call @dora_fn_nop() : () -> ()
     %20 = arith.cmpi uge, %19, %c0_i64_4 : i64
     %c80_i8 = arith.constant 80 : i8
     cf.cond_br %20, ^bb7, ^bb1(%c80_i8 : i8)

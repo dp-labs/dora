@@ -12,7 +12,8 @@ module {
   llvm.mlir.global internal @dora_global_calldata_size() {addr_space = 0 : i32} : i64
   llvm.mlir.global internal @dora_global_gas_counter() {addr_space = 0 : i32} : i64
   llvm.mlir.global external @dora_global_ctx_is_static() {addr_space = 0 : i32} : !llvm.ptr
-  func.func private @dora_fn_tracing(!llvm.ptr, i8, i64)
+  func.func private @dora_fn_nop()
+  func.func private @dora_fn_tracing(!llvm.ptr, i8, i64, !llvm.ptr, i64)
   func.func private @dora_fn_write_result(!llvm.ptr, i64, i64, i64, i8)
   func.func private @dora_fn_keccak256_hasher(!llvm.ptr, i64, i64, !llvm.ptr)
   func.func private @dora_fn_calldata(!llvm.ptr) -> !llvm.ptr
@@ -109,6 +110,7 @@ module {
     %23 = llvm.mlir.addressof @dora_global_gas_counter : !llvm.ptr
     %24 = llvm.load %23 : !llvm.ptr -> i64
     %c2_i64 = arith.constant 2 : i64
+    call @dora_fn_nop() : () -> ()
     %25 = arith.cmpi uge, %24, %c2_i64 : i64
     %c80_i8 = arith.constant 80 : i8
     cf.cond_br %25, ^bb6, ^bb1(%c80_i8 : i8)
@@ -138,6 +140,7 @@ module {
     %34 = llvm.mlir.addressof @dora_global_gas_counter : !llvm.ptr
     %35 = llvm.load %34 : !llvm.ptr -> i64
     %c3_i64 = arith.constant 3 : i64
+    call @dora_fn_nop() : () -> ()
     %36 = arith.cmpi uge, %35, %c3_i64 : i64
     %c80_i8_5 = arith.constant 80 : i8
     cf.cond_br %36, ^bb10, ^bb1(%c80_i8_5 : i8)
@@ -188,6 +191,7 @@ module {
     %57 = llvm.mlir.addressof @dora_global_gas_counter : !llvm.ptr
     %58 = llvm.load %57 : !llvm.ptr -> i64
     %c3_i64_11 = arith.constant 3 : i64
+    call @dora_fn_nop() : () -> ()
     %59 = arith.cmpi uge, %58, %c3_i64_11 : i64
     %c80_i8_12 = arith.constant 80 : i8
     cf.cond_br %59, ^bb16, ^bb1(%c80_i8_12 : i8)
@@ -217,6 +221,7 @@ module {
     %69 = llvm.mlir.addressof @dora_global_gas_counter : !llvm.ptr
     %70 = llvm.load %69 : !llvm.ptr -> i64
     %c2_i64_16 = arith.constant 2 : i64
+    call @dora_fn_nop() : () -> ()
     %71 = arith.cmpi uge, %70, %c2_i64_16 : i64
     %c80_i8_17 = arith.constant 80 : i8
     cf.cond_br %71, ^bb20, ^bb1(%c80_i8_17 : i8)
@@ -248,6 +253,7 @@ module {
     %83 = llvm.mlir.addressof @dora_global_gas_counter : !llvm.ptr
     %84 = llvm.load %83 : !llvm.ptr -> i64
     %c2_i64_21 = arith.constant 2 : i64
+    call @dora_fn_nop() : () -> ()
     %85 = arith.cmpi uge, %84, %c2_i64_21 : i64
     %c80_i8_22 = arith.constant 80 : i8
     cf.cond_br %85, ^bb24, ^bb1(%c80_i8_22 : i8)
@@ -277,6 +283,7 @@ module {
     %94 = llvm.mlir.addressof @dora_global_gas_counter : !llvm.ptr
     %95 = llvm.load %94 : !llvm.ptr -> i64
     %c3_i64_26 = arith.constant 3 : i64
+    call @dora_fn_nop() : () -> ()
     %96 = arith.cmpi uge, %95, %c3_i64_26 : i64
     %c80_i8_27 = arith.constant 80 : i8
     cf.cond_br %96, ^bb28, ^bb1(%c80_i8_27 : i8)
@@ -327,6 +334,7 @@ module {
     %117 = llvm.mlir.addressof @dora_global_gas_counter : !llvm.ptr
     %118 = llvm.load %117 : !llvm.ptr -> i64
     %c3_i64_36 = arith.constant 3 : i64
+    call @dora_fn_nop() : () -> ()
     %119 = arith.cmpi uge, %118, %c3_i64_36 : i64
     %c80_i8_37 = arith.constant 80 : i8
     cf.cond_br %119, ^bb34, ^bb1(%c80_i8_37 : i8)
@@ -356,6 +364,7 @@ module {
     %129 = llvm.mlir.addressof @dora_global_gas_counter : !llvm.ptr
     %130 = llvm.load %129 : !llvm.ptr -> i64
     %c2_i64_42 = arith.constant 2 : i64
+    call @dora_fn_nop() : () -> ()
     %131 = arith.cmpi uge, %130, %c2_i64_42 : i64
     %c80_i8_43 = arith.constant 80 : i8
     cf.cond_br %131, ^bb38, ^bb1(%c80_i8_43 : i8)
@@ -387,6 +396,7 @@ module {
     %143 = llvm.mlir.addressof @dora_global_gas_counter : !llvm.ptr
     %144 = llvm.load %143 : !llvm.ptr -> i64
     %c2_i64_47 = arith.constant 2 : i64
+    call @dora_fn_nop() : () -> ()
     %145 = arith.cmpi uge, %144, %c2_i64_47 : i64
     %c80_i8_48 = arith.constant 80 : i8
     cf.cond_br %145, ^bb42, ^bb1(%c80_i8_48 : i8)
