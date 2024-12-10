@@ -116,9 +116,9 @@ impl<'a, DB: Database> VM<'a, DB> {
 
         if tx.tx_type == TransactionType::Eip4844 {
             // if the tx is not a blob tx, this will be None, so we add zero
-            let data_fee = tx.calc_max_data_fee();
+            let data_fee = tx.calc_max_data_fee().unwrap_or_default();
             balance_check = balance_check
-                .checked_add(U256::from(data_fee))
+                .checked_add(data_fee)
                 .ok_or(InvalidTransaction::OverflowPaymentInTransaction)?;
         }
 
@@ -150,26 +150,29 @@ impl<'a, DB: Database> VM<'a, DB> {
             ctx.deduct_caller()?;
         }
 
-        let gas_limit = ctx.env.tx.gas_limit - initial_gas_cost;
-
-        let mut result = ctx.call(CallMessage {
-            kind: if ctx.env.tx.transact_to.is_zero() {
-                CallKind::Create
-            } else {
-                CallKind::Call
-            },
-            input: ctx.env.tx.data.to_vec(),
-            value: ctx.env.tx.value,
-            depth: 0,
-            gas_limit,
-            caller: ctx.env.tx.caller,
-            recipient: ctx.env.tx.transact_to,
-            salt: None,
-            code_address: ctx.env.tx.transact_to,
-            is_static: false,
-            is_eof: false,
-        })?;
-        ctx.last_frame_return(&mut result);
+        // Execution
+        let mut result = {
+            let gas_limit = ctx.env.tx.gas_limit - initial_gas_cost;
+            let mut result = ctx.call(CallMessage {
+                kind: if ctx.env.tx.transact_to.is_zero() {
+                    CallKind::Create
+                } else {
+                    CallKind::Call
+                },
+                input: ctx.env.tx.data.to_vec(),
+                value: ctx.env.tx.value,
+                depth: 0,
+                gas_limit,
+                caller: ctx.env.tx.caller,
+                recipient: ctx.env.tx.transact_to,
+                salt: None,
+                code_address: ctx.env.tx.transact_to,
+                is_static: false,
+                is_eof: false,
+            })?;
+            ctx.last_frame_return(&mut result);
+            result
+        };
 
         // Post excution
         {
