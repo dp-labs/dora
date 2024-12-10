@@ -17,6 +17,7 @@ use dora_primitives::spec::SpecName;
 use dora_primitives::Bytes;
 use dora_primitives::{Address, B256, U256};
 use dora_runtime::account::Account;
+use dora_runtime::as_u64_saturated;
 use dora_runtime::context::Log;
 use dora_runtime::context::VMContext;
 use dora_runtime::db::{Database, MemoryDB};
@@ -27,8 +28,14 @@ use dora_runtime::vm::VM;
 use hash_db::Hasher;
 use indicatif::{ProgressBar, ProgressDrawTarget};
 use plain_hasher::PlainHasher;
+use revm_primitives::alloy_primitives::Parity;
 use revm_primitives::keccak256;
+use revm_primitives::Authorization;
+use revm_primitives::AuthorizationList;
 use revm_primitives::EvmStorageSlot;
+use revm_primitives::RecoveredAuthority;
+use revm_primitives::RecoveredAuthorization;
+use revm_primitives::Signature;
 use serde::de::Visitor;
 use serde::{de, Deserialize, Serialize};
 use std::fmt;
@@ -122,7 +129,7 @@ struct Transaction {
     pub max_priority_fee_per_gas: Option<U256>,
     #[serde(default)]
     pub access_lists: Vec<Option<AccessList>>,
-    pub authorization_list: Option<Vec<Authorization>>,
+    pub authorization_list: Option<Vec<TestAuthorization>>,
     #[serde(default)]
     pub blob_versioned_hashes: Vec<B256>,
     pub max_fee_per_blob_gas: Option<U256>,
@@ -171,9 +178,9 @@ pub struct AccessListItem {
 
 pub type AccessList = Vec<AccessListItem>;
 
-#[derive(Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
-pub struct Authorization {
+pub struct TestAuthorization {
     chain_id: U256,
     address: Address,
     nonce: U256,
@@ -181,6 +188,32 @@ pub struct Authorization {
     r: U256,
     s: U256,
     signer: Option<Address>,
+}
+
+impl TestAuthorization {
+    /// Get the signature using the v, r, s values.
+    pub fn signature(&self) -> Signature {
+        let v = u64::try_from(self.v).unwrap_or(u64::MAX);
+        let parity = Parity::try_from(v).unwrap_or(Parity::Eip155(36));
+        Signature::from_rs_and_parity(self.r, self.s, parity).unwrap()
+    }
+
+    /// Convert to a recovered authorization.
+    pub fn into_recovered(self) -> RecoveredAuthorization {
+        let authorization = Authorization {
+            chain_id: as_u64_saturated!(self.chain_id),
+            address: revm_primitives::Address(self.address.as_fixed_bytes().into()),
+            nonce: u64::try_from(self.nonce).unwrap(),
+        };
+        let authority = match self
+            .signature()
+            .recover_address_from_prehash(&authorization.signature_hash())
+        {
+            Ok(addr) => RecoveredAuthority::Valid(addr),
+            Err(_) => RecoveredAuthority::Invalid,
+        };
+        RecoveredAuthorization::new_unchecked(authorization, authority)
+    }
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Deserialize)]
@@ -504,6 +537,21 @@ fn execute_test(path: &Path) -> Result<(), TestError> {
                             .collect(),
                     ));
                 }
+
+                env.tx.authorization_list = suite
+                    .transaction
+                    .authorization_list
+                    .as_ref()
+                    .map(|auth_list| {
+                        AuthorizationList::Recovered(
+                            auth_list
+                                .iter()
+                                .map(|auth| auth.clone().into_recovered())
+                                .collect(),
+                        )
+                    })
+                    .unwrap_or_else(|| AuthorizationList::Signed(Vec::new()));
+
                 // Run EVM and get the state result.
                 let mut vm = VM::new(VMContext::new(
                     db.clone(),
