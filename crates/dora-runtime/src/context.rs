@@ -528,10 +528,6 @@ impl<'a, DB: Database> VMContext<'a, DB> {
                     }
                     _ => msg.caller.create(old_nonce),
                 };
-                println!(
-                    "sad: create {} with nonce {} to {}",
-                    msg.caller, old_nonce, created_address
-                );
                 // Created address is not allowed to be a precompile.
                 if Self::is_precompile_address(created_address) {
                     return Ok(CallResult::new_with_gas_limit_and_status(
@@ -1099,8 +1095,11 @@ impl<'a> RuntimeContext<'a> {
         remaining_gas: u64,
         execution_result: u8,
     ) -> *mut RuntimeResult<()> {
-        self.inner.returndata =
-            self.inner.memory[offset as usize..offset as usize + bytes_len as usize].to_vec();
+        self.inner.returndata = if bytes_len != 0 {
+            self.inner.memory[offset as usize..offset as usize + bytes_len as usize].to_vec()
+        } else {
+            vec![]
+        };
         self.inner.gas_remaining = Some(remaining_gas);
         self.inner.exit_status = Some(ExitStatusCode::from_u8(execution_result));
         Box::into_raw(Box::new(RuntimeResult::success(())))
@@ -1388,13 +1387,14 @@ impl<'a> RuntimeContext<'a> {
         let code_offset = code_offset.min(code_size);
         let code_end = core::cmp::min(code_offset + size, code_size);
         let code_len: usize = code_end - code_offset;
-        let code_slice = &code[code_offset..code_end];
-        self.inner.memory[dest_offset..dest_offset + code_len].copy_from_slice(code_slice);
-        // Zero-fill the remaining space
-        if size > code_len {
-            self.inner.memory[dest_offset + code_len..dest_offset + size].fill(0);
+        if size != 0 {
+            let code_slice = &code[code_offset..code_end];
+            self.inner.memory[dest_offset..dest_offset + code_len].copy_from_slice(code_slice);
+            // Zero-fill the remaining space
+            if size > code_len {
+                self.inner.memory[dest_offset + code_len..dest_offset + size].fill(0);
+            }
         }
-
         Box::into_raw(Box::new(RuntimeResult::success(())))
     }
 
@@ -1635,15 +1635,15 @@ impl<'a> RuntimeContext<'a> {
         let code_offset = code_offset.min(code_size);
         let code_end = core::cmp::min(code_offset + size, code_size);
         let code_len = code_end - code_offset;
-        let code_slice = &code[code_offset..code_end];
-        self.inner.memory[dest_offset..dest_offset + code_len].copy_from_slice(code_slice);
-
-        let gas_cost = gas::extcodecopy_gas_cost(self.inner.spec_id, load);
-
-        // Zero-fill the remaining space
-        if size > code_len {
-            self.inner.memory[dest_offset + code_len..dest_offset + size].fill(0);
+        if size != 0 {
+            let code_slice = &code[code_offset..code_end];
+            self.inner.memory[dest_offset..dest_offset + code_len].copy_from_slice(code_slice);
+            // Zero-fill the remaining space
+            if size > code_len {
+                self.inner.memory[dest_offset + code_len..dest_offset + size].fill(0);
+            }
         }
+        let gas_cost = gas::extcodecopy_gas_cost(self.inner.spec_id, load);
         Box::into_raw(Box::new(RuntimeResult::success_with_gas((), gas_cost)))
     }
 

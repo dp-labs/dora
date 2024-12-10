@@ -8,7 +8,7 @@ use crate::{
     errors::Result,
     load_by_addr, maybe_revert_here, operands, rewrite_ctx, syscall_ctx,
 };
-use crate::{gas_or_fail, u256_to_64};
+use crate::{gas_or_fail, if_here, u256_to_64};
 use dora_runtime::constants::GAS_COUNTER_GLOBAL;
 use dora_runtime::{constants, ExitStatusCode};
 use melior::{
@@ -33,7 +33,11 @@ impl<'c> ConversionPass<'c> {
         let uint256 = rewriter.intrinsics.i256_ty;
         u256_to_64!(op, rewriter, offset);
         let value_size = rewriter.make(rewriter.iconst_64(32))?;
-        memory::resize_memory(context, op, &rewriter, syscall_ctx, offset, value_size)?;
+        let size_is_not_zero =
+            rewriter.make(rewriter.icmp_imm(IntCC::NotEqual, value_size, 0)?)?;
+        if_here!(op, rewriter, size_is_not_zero, {
+            memory::resize_memory(context, op, &rewriter, syscall_ctx, offset, value_size)?;
+        });
         rewrite_ctx!(context, op, rewriter, location);
         let memory_ptr = load_by_addr!(rewriter, constants::MEMORY_PTR_GLOBAL, rewriter.ptr_ty());
         let memory_destination = rewriter.make(llvm::get_element_ptr_dynamic(
@@ -81,7 +85,11 @@ impl<'c> ConversionPass<'c> {
         u256_to_64!(op, rewriter, offset);
         // Calculate value size (1 byte for mstore8, 32 bytes for mstore)
         let value_size = rewriter.make(rewriter.iconst_64(byte_size as i64))?;
-        memory::resize_memory(context, op, &rewriter, syscall_ctx, offset, value_size)?;
+        let size_is_not_zero =
+            rewriter.make(rewriter.icmp_imm(IntCC::NotEqual, value_size, 0)?)?;
+        if_here!(op, rewriter, size_is_not_zero, {
+            memory::resize_memory(context, op, &rewriter, syscall_ctx, offset, value_size)?;
+        });
         rewrite_ctx!(context, op, rewriter, location);
         let memory_ptr = load_by_addr!(rewriter, constants::MEMORY_PTR_GLOBAL, rewriter.ptr_ty());
         // Memory_destination = memory_ptr + offset
@@ -139,7 +147,10 @@ impl<'c> ConversionPass<'c> {
         u256_to_64!(op, rewriter, dest_offset);
         u256_to_64!(op, rewriter, offset);
         let offset = rewriter.make(arith::maxui(dest_offset, offset, location))?;
-        memory::resize_memory(context, op, &rewriter, syscall_ctx, offset, size)?;
+        let size_is_not_zero = rewriter.make(rewriter.icmp_imm(IntCC::NotEqual, size, 0)?)?;
+        if_here!(op, rewriter, size_is_not_zero, {
+            memory::resize_memory(context, op, &rewriter, syscall_ctx, dest_offset, size)?;
+        });
         rewrite_ctx!(context, op, rewriter, location);
         let memory_ptr = load_by_addr!(rewriter, constants::MEMORY_PTR_GLOBAL, rewriter.ptr_ty());
         // memory_destination = memory_ptr + offset

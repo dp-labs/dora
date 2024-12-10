@@ -145,7 +145,11 @@ impl<'c> ConversionPass<'c> {
         u256_to_64!(op, rewriter, dest_offset);
         let address_ptr =
             memory::allocate_u256_and_assign_value(context, &rewriter, address, location)?;
-        memory::resize_memory(context, op, &rewriter, syscall_ctx, dest_offset, size)?;
+
+        let size_is_not_zero = rewriter.make(rewriter.icmp_imm(IntCC::NotEqual, size, 0)?)?;
+        if_here!(op, rewriter, size_is_not_zero, {
+            memory::resize_memory(context, op, &rewriter, syscall_ctx, dest_offset, size)?;
+        });
         rewrite_ctx!(context, op, rewriter, location);
         let result_ptr = rewriter.make(func::call(
             context,

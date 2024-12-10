@@ -2,19 +2,22 @@ use crate::{
     arith_constant,
     backend::IntCC,
     check_op_oog,
-    conversion::builder::OpBuilder,
-    conversion::rewriter::{DeferredRewriter, Rewriter},
-    dora::{conversion::ConversionPass, memory},
+    conversion::{
+        builder::OpBuilder,
+        rewriter::{DeferredRewriter, Rewriter},
+    },
+    dora::{conversion::ConversionPass, gas, memory},
     errors::Result,
-    load_by_addr, maybe_revert_here, operands, rewrite_ctx, syscall_ctx, u256_to_64,
+    if_here, maybe_revert_here, operands, rewrite_ctx, syscall_ctx, u256_to_64,
 };
+use dora_runtime::symbols;
 use dora_runtime::ExitStatusCode;
-use dora_runtime::{constants, symbols};
 use melior::{
     dialect::{arith, cf, func},
     ir::{
         attribute::{FlatSymbolRefAttribute, IntegerAttribute},
         operation::OperationRef,
+        Block,
     },
     Context,
 };
@@ -25,15 +28,18 @@ impl<'c> ConversionPass<'c> {
         syscall_ctx!(op, syscall_ctx);
         let rewriter = Rewriter::new_with_op(context, *op);
         let uint8 = rewriter.intrinsics.i8_ty;
-        let uint64 = rewriter.intrinsics.i64_ty;
         let ptr_type = rewriter.ptr_ty();
 
         u256_to_64!(op, rewriter, offset);
         u256_to_64!(op, rewriter, size);
-        memory::resize_memory(context, op, &rewriter, syscall_ctx, offset, size)?;
+
+        let size_is_not_zero = rewriter.make(rewriter.icmp_imm(IntCC::NotEqual, size, 0)?)?;
+        if_here!(op, rewriter, size_is_not_zero, {
+            memory::resize_memory(context, op, &rewriter, syscall_ctx, offset, size)?;
+        });
         rewrite_ctx!(context, op, rewriter, location);
 
-        let gas_counter = load_by_addr!(rewriter, constants::GAS_COUNTER_GLOBAL, uint64);
+        let gas_counter = gas::get_gas_counter(&rewriter)?;
         let reason = rewriter.make(arith_constant!(
             rewriter,
             context,
