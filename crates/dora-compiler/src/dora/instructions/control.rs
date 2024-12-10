@@ -28,7 +28,6 @@ impl<'c> ConversionPass<'c> {
         syscall_ctx!(op, syscall_ctx);
         let rewriter = Rewriter::new_with_op(context, *op);
         let uint8 = rewriter.intrinsics.i8_ty;
-        let ptr_type = rewriter.ptr_ty();
 
         u256_to_64!(op, rewriter, offset);
         u256_to_64!(op, rewriter, size);
@@ -51,7 +50,7 @@ impl<'c> ConversionPass<'c> {
             context,
             FlatSymbolRefAttribute::new(context, symbols::WRITE_RESULT),
             &[syscall_ctx.into(), offset, size, gas_counter, reason],
-            &[ptr_type],
+            &[],
             location,
         ));
         rewriter.create(func::r#return(&[reason], location));

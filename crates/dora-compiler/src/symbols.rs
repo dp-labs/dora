@@ -17,7 +17,6 @@ pub(crate) fn declare_symbols(context: &MLIRContext, module: &MLIRModule) {
 
     let ptr_type = builder.intrinsics.ptr_ty;
     let uint8 = builder.intrinsics.i8_ty;
-    let uint32 = builder.intrinsics.i32_ty;
     let uint64 = builder.intrinsics.i64_ty;
     let attributes = &[(
         Identifier::new(context, "sym_visibility"),
@@ -26,13 +25,12 @@ pub(crate) fn declare_symbols(context: &MLIRContext, module: &MLIRModule) {
 
     // Globals declaration
     builder.create(builder.global(symbols::CTX_IS_STATIC, ptr_type, Linkage::External));
-
     let function_signatures: &[(&str, &[Type<'_>], &[Type<'_>])] = &[
-        (symbols::DEBUG_PRINT, &[uint32], &[]),
+        (symbols::TRACING, &[ptr_type, uint8, uint64], &[]),
         (
             symbols::WRITE_RESULT,
             &[ptr_type, uint64, uint64, uint64, uint8],
-            &[ptr_type],
+            &[],
         ),
         (
             symbols::KECCAK256_HASHER,

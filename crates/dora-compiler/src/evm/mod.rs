@@ -1,4 +1,5 @@
 use dora_primitives::SpecId;
+use dora_runtime::constants::env::DORA_TRACING;
 use dora_runtime::constants::STACK_SIZE_GLOBAL;
 use dora_runtime::{constants::STACK_PTR_GLOBAL, ExitStatusCode};
 use dora_runtime::{
@@ -307,7 +308,7 @@ impl<'c> EVMCompiler<'c> {
         }
         // Static gas metering needs to be done before stack checking.
         if options.gas_metering {
-            block_start = Self::gas_metering_block(ctx, region, block_start, &op_info)?;
+            block_start = Self::gas_metering_block(ctx, region, block_start, &op, &op_info)?;
         }
         // Register the jump dest block.
         if let Operation::Jumpdest { pc } = op {
@@ -409,6 +410,7 @@ impl<'c> EVMCompiler<'c> {
         ctx: &mut CtxType<'c>,
         region: &'r Region<'c>,
         block_start: BlockRef<'r, 'c>,
+        op: &Operation,
         op_info: &OpcodeInfo,
     ) -> Result<BlockRef<'r, 'c>> {
         let base_gas = op_info.base_gas();
@@ -421,6 +423,19 @@ impl<'c> EVMCompiler<'c> {
             builder.make(builder.addressof(GAS_COUNTER_GLOBAL, builder.ptr_ty()))?;
         let gas_counter = builder.make(builder.load(gas_counter_ptr, builder.intrinsics.i64_ty))?;
         let gas_value = builder.make(builder.iconst_64(base_gas as i64))?;
+        if std::env::var(DORA_TRACING).is_ok() {
+            let opcode = builder
+                .create(builder.iconst(builder.intrinsics.i8_ty, op.opcode() as i64))
+                .result(0)?
+                .into();
+            builder.create(func::call(
+                builder.context(),
+                FlatSymbolRefAttribute::new(builder.context(), symbols::TRACING),
+                &[ctx.values.syscall_ctx, opcode, gas_counter],
+                &[],
+                builder.get_insert_location(),
+            ));
+        }
         let flag = builder.make(arith::cmpi(
             builder.context(),
             arith::CmpiPredicate::Uge,
@@ -526,7 +541,7 @@ impl<'c> EVMCompiler<'c> {
             builder.context(),
             FlatSymbolRefAttribute::new(builder.context(), symbols::WRITE_RESULT),
             &[ctx.values.syscall_ctx, zero, zero, gas_counter, reason],
-            &[builder.ptr_ty()],
+            &[],
             builder.get_insert_location(),
         ));
         builder.create(func::r#return(&[reason], builder.get_insert_location()));
@@ -843,7 +858,7 @@ pub fn revert_block<'c>(context: &'c MLIRContext, syscall_ctx: Value<'c, 'c>) ->
         context,
         FlatSymbolRefAttribute::new(context, symbols::WRITE_RESULT),
         &[syscall_ctx, zero, zero, gas_counter, reason],
-        &[builder.ptr_ty()],
+        &[],
         location,
     ));
     block.append_operation(func::r#return(&[reason], location));
