@@ -7,7 +7,7 @@ use dora_compiler::{
     evm::{self, program::Program, CompileOptions, EVMCompiler},
     pass, Compiler,
 };
-use dora_primitives::{spec::SpecId, Address, Bytecode};
+use dora_primitives::{spec::SpecId, Bytecode, Bytes32};
 use dora_runtime::context::RuntimeContext;
 use dora_runtime::env::Env;
 use dora_runtime::executor::Executor;
@@ -143,12 +143,12 @@ pub fn run_evm_bytecode_with_calldata(
 ) -> anyhow::Result<ResultAndState> {
     let opcodes = hex::decode(program)?;
     let calldata = hex::decode(calldata)?;
-    let address = Address::from_low_u64_be(40);
+    let address = Bytes32::from(40_u32).to_address();
     let mut env = Env::default();
     env.tx.transact_to = address;
     env.tx.gas_limit = initial_gas;
     env.tx.data = Bytecode::from(calldata);
-    env.tx.caller = Address::from_low_u64_le(10000);
+    env.tx.caller = Bytes32::from(10000_u32).to_address();
     let db = MemoryDB::new().with_contract(address, Bytecode::from(opcodes));
     run_evm(env, db, spec_id).map_err(|err| anyhow::anyhow!(err))
 }

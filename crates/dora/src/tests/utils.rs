@@ -1,6 +1,5 @@
-use bytes::Bytes;
 use dora_compiler::evm::{program::Operation, Program};
-use dora_primitives::{spec::SpecId, Address, Bytecode, Bytes32, U256};
+use dora_primitives::{spec::SpecId, Address, Bytecode, Bytes, Bytes32, U256};
 use dora_runtime::{
     context::{Contract, Log, RuntimeContext},
     db::MemoryDB,
@@ -96,11 +95,11 @@ pub(crate) fn default_env_and_db_setup(operations: Vec<Operation>) -> (Env, Memo
     env.tx.gas_limit = INIT_GAS;
     let program = Program::from(operations);
     let (address, bytecode) = (
-        Address::from_low_u64_be(40),
+        Address::left_padding_from(&[40]),
         Bytecode::from(program.to_opcode()),
     );
     env.tx.transact_to = address;
-    env.block.coinbase = Address::from_low_u64_be(80);
+    env.block.coinbase = Address::left_padding_from(&[80]);
     let mut db = MemoryDB::new().with_contract(address, bytecode);
     db.set_balance(address, U256::from(10));
     (env, db)

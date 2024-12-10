@@ -12,10 +12,9 @@ use crate::journaled_state::{JournalCheckpoint, JournalEntry, JournaledState};
 use crate::precompiles::{blake2f, ecrecover, identity, modexp, ripemd_160, sha2_256};
 use crate::result::EVMError;
 use crate::{gas, symbols, ExitStatusCode};
-use bytes::Bytes;
 use dora_primitives::spec::SpecId;
-use dora_primitives::{Bytecode, Bytes32, EVMAddress as Address, B256, H160, U256};
-use revm_primitives::PrecompileErrors;
+use dora_primitives::{Address, Bytecode, Bytes, Bytes32, B256, U256};
+use revm_primitives::{keccak256, PrecompileErrors};
 use sha3::{Digest, Keccak256};
 
 /// Converts a `U256` value to a `u64`, saturating to `MAX` if the value is too large.
@@ -123,7 +122,7 @@ impl<'a, DB: Database> VMContext<'a, DB> {
                 precompiles::MODEXP_ADDRESS,
                 precompiles::BLAKE2F_ADDRESS,
             ]
-            .map(Address::from_low_u64_be),
+            .map(|addr_u64| Bytes32::from(addr_u64).to_address()),
         );
     }
 
@@ -360,12 +359,12 @@ impl<'a, DB: Database> VMContext<'a, DB> {
 
     fn is_precompile_address(address: Address) -> bool {
         match address {
-            x if x == Address::from_low_u64_be(precompiles::ECRECOVER_ADDRESS) => true,
-            x if x == Address::from_low_u64_be(precompiles::IDENTITY_ADDRESS) => true,
-            x if x == Address::from_low_u64_be(precompiles::SHA2_256_ADDRESS) => true,
-            x if x == Address::from_low_u64_be(precompiles::RIPEMD_160_ADDRESS) => true,
-            x if x == Address::from_low_u64_be(precompiles::MODEXP_ADDRESS) => true,
-            x if x == Address::from_low_u64_be(precompiles::BLAKE2F_ADDRESS) => true,
+            x if x == Bytes32::from(precompiles::ECRECOVER_ADDRESS).to_address() => true,
+            x if x == Bytes32::from(precompiles::IDENTITY_ADDRESS).to_address() => true,
+            x if x == Bytes32::from(precompiles::SHA2_256_ADDRESS).to_address() => true,
+            x if x == Bytes32::from(precompiles::RIPEMD_160_ADDRESS).to_address() => true,
+            x if x == Bytes32::from(precompiles::MODEXP_ADDRESS).to_address() => true,
+            x if x == Bytes32::from(precompiles::BLAKE2F_ADDRESS).to_address() => true,
             _ => false,
         }
     }
@@ -379,22 +378,22 @@ impl<'a, DB: Database> VMContext<'a, DB> {
         gas_limit: u64,
     ) -> Result<Option<CallResult>, EVMError> {
         let result = match address {
-            x if x == Address::from_low_u64_be(precompiles::ECRECOVER_ADDRESS) => {
+            x if x == Bytes32::from(precompiles::ECRECOVER_ADDRESS).to_address() => {
                 ecrecover(calldata, gas_limit)
             }
-            x if x == Address::from_low_u64_be(precompiles::IDENTITY_ADDRESS) => {
+            x if x == Bytes32::from(precompiles::IDENTITY_ADDRESS).to_address() => {
                 identity(calldata, gas_limit)
             }
-            x if x == Address::from_low_u64_be(precompiles::SHA2_256_ADDRESS) => {
+            x if x == Bytes32::from(precompiles::SHA2_256_ADDRESS).to_address() => {
                 sha2_256(calldata, gas_limit)
             }
-            x if x == Address::from_low_u64_be(precompiles::RIPEMD_160_ADDRESS) => {
+            x if x == Bytes32::from(precompiles::RIPEMD_160_ADDRESS).to_address() => {
                 ripemd_160(calldata, gas_limit)
             }
-            x if x == Address::from_low_u64_be(precompiles::MODEXP_ADDRESS) => {
+            x if x == Bytes32::from(precompiles::MODEXP_ADDRESS).to_address() => {
                 modexp(calldata, gas_limit)
             }
-            x if x == Address::from_low_u64_be(precompiles::BLAKE2F_ADDRESS) => {
+            x if x == Bytes32::from(precompiles::BLAKE2F_ADDRESS).to_address() => {
                 blake2f(calldata, gas_limit)
             }
             _ => return Ok(None),
@@ -520,24 +519,19 @@ impl<'a, DB: Database> VMContext<'a, DB> {
                         ExitStatusCode::NonceOverflow,
                     ));
                 }
-                // Create address
-                let mut init_code_hash = B256::zero();
+                // Created address
+                let mut init_code_hash = B256::ZERO;
                 let created_address = match msg.salt {
                     Some(s) => {
-                        let hash = {
-                            let mut hasher = Keccak256::new();
-                            hasher.update(&msg.input);
-                            hasher.finalize()
-                        };
-                        init_code_hash = B256::from_slice(&hash);
-                        compute_contract_address2_with_init_code_hash(
-                            msg.caller,
-                            s,
-                            init_code_hash.as_fixed_bytes(),
-                        )
+                        init_code_hash = keccak256(msg.caller);
+                        msg.caller.create2(s.0, init_code_hash)
                     }
-                    _ => compute_contract_address(msg.caller, old_nonce),
+                    _ => msg.caller.create(old_nonce),
                 };
+                println!(
+                    "sad: create {} with nonce {} to {}",
+                    msg.caller, old_nonce, created_address
+                );
                 // Created address is not allowed to be a precompile.
                 if Self::is_precompile_address(created_address) {
                     return Ok(CallResult::new_with_gas_limit_and_status(
@@ -1712,7 +1706,7 @@ impl<'a> RuntimeContext<'a> {
             depth: self.inner.depth as u32,
             gas_limit,
             caller: self.contract.target_address,
-            salt: salt.map(|salt| salt.to_u256()),
+            salt: salt.map(|salt| salt.to_b256()),
             recipient: Address::default(),
             code_address: Address::default(),
             is_static: self.inner.is_static,
@@ -1950,98 +1944,4 @@ impl<'a> RuntimeContext<'a> {
             }
         }
     }
-}
-
-/// Computes the contract address based on the sender's address and nonce.
-///
-/// This method follows the standard contract creation process by using the RLP encoding of the sender's address and nonce,
-/// and applying a Keccak256 hash to generate the new contract address.
-///
-/// # Parameters
-///
-/// - `address`: The 160-bit sender address (usually an externally owned account).
-/// - `nonce`: The nonce of the transaction that initiates the contract creation.
-///
-/// # Returns
-///
-/// - `Address`: The computed contract address.
-///
-/// # Example
-///
-/// ```no_check
-/// let contract_address = RuntimeContext::compute_contract_address(sender_address, nonce);
-/// ```
-pub fn compute_contract_address(address: H160, nonce: u64) -> Address {
-    // Compute the destination address using keccak256
-    let encoded_nonce = encode_rlp_u64(nonce);
-    let mut buf = Vec::new();
-    buf.push(0xd5);
-    buf.extend_from_slice(&encoded_nonce.len().to_be_bytes());
-    buf.push(0x94);
-    buf.extend_from_slice(address.as_bytes());
-    buf.extend_from_slice(&encoded_nonce);
-
-    let mut hasher = Keccak256::new();
-    hasher.update(&buf);
-    Address::from_slice(&hasher.finalize()[12..])
-}
-
-/// Computes the contract address using the CREATE2 opcode, which allows specifying a salt.
-///
-/// This method generates a contract address deterministically based on the sender's address, a salt, and the contract's initialization code.
-/// This ensures that the same contract address will be generated given the same input values.
-///
-/// # Parameters
-///
-/// - `address`: The 160-bit sender address.
-/// - `salt`: A 256-bit salt value, which can be chosen arbitrarily by the sender.
-/// - `initialization_code`: The contract's initialization code, used to hash and form part of the address computation.
-///
-/// # Returns
-///
-/// - `Address`: The computed contract address.
-///
-/// # Example
-///
-/// ```no_check
-/// let contract_address = RuntimeContext::compute_contract_address2(sender_address, salt, init_code);
-/// ```
-pub fn compute_contract_address2(address: H160, salt: U256, init_code: &[u8]) -> Address {
-    // Compute the destination address using the second method
-    let init_code_hash = {
-        let mut hasher = Keccak256::new();
-        hasher.update(init_code);
-        hasher.finalize()
-    };
-
-    let mut hasher = Keccak256::new();
-    let salt_bytes: [u8; 32] = salt.to_be_bytes();
-    hasher.update([0xff]);
-    hasher.update(address.as_bytes());
-    hasher.update(salt_bytes);
-    hasher.update(init_code_hash);
-
-    Address::from_slice(&hasher.finalize()[12..])
-}
-
-/// Computes the contract address using the CREATE2 opcode, which allows specifying a salt and init code hash
-pub fn compute_contract_address2_with_init_code_hash(
-    address: H160,
-    salt: U256,
-    init_code_hash: &[u8; 32],
-) -> Address {
-    let mut hasher = Keccak256::new();
-    let salt_bytes: [u8; 32] = salt.to_be_bytes();
-    hasher.update([0xff]);
-    hasher.update(address.as_bytes());
-    hasher.update(salt_bytes);
-    hasher.update(init_code_hash);
-
-    Address::from_slice(&hasher.finalize()[12..])
-}
-
-pub fn encode_rlp_u64(number: u64) -> Vec<u8> {
-    let mut buf = vec![0x80]; // RLP encoding for a single 64-bit number
-    buf.extend_from_slice(&number.to_be_bytes());
-    buf
 }

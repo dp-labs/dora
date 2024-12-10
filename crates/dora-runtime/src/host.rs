@@ -1,5 +1,4 @@
-use bytes::Bytes;
-use dora_primitives::{Address, Bytes32};
+use dora_primitives::{Address, Bytes, Bytes32};
 use rustc_hash::FxHashMap;
 use std::ops::{Deref, DerefMut};
 use std::{collections::hash_map::Entry, fmt::Debug};

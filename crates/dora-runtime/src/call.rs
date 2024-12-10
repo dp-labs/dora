@@ -3,7 +3,7 @@ use crate::{
     context::RuntimeContext,
     ExitStatusCode,
 };
-use dora_primitives::{Address, U256};
+use dora_primitives::{Address, B256, U256};
 
 /// The kind of call-like instructions for the Host API.
 #[derive(Debug, Clone)]
@@ -60,7 +60,7 @@ pub struct CallMessage {
     /// Target address, this account storage is going to be modified.
     pub recipient: Address,
     /// The optional value used in new contract address construction.
-    pub salt: Option<U256>,
+    pub salt: Option<B256>,
     /// The address of the code to be executed.
     pub code_address: Address,
     /// Whether the call is a static call, or is initiated inside a static call.

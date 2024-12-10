@@ -3,24 +3,19 @@ use std::str::FromStr;
 use crate::{run_evm, run_with_context, tests::INIT_GAS};
 use dora_compiler::evm::program::{Operation, Program};
 use dora_primitives::spec::SpecId;
-use dora_primitives::{Address, Bytecode, Bytes32, B256};
+use dora_primitives::{Address, Bytecode, Bytes32, B256, U256};
 use dora_runtime::account::EMPTY_CODE_HASH_BYTES;
 use dora_runtime::context::Contract;
 use dora_runtime::host::DummyHost;
-use dora_runtime::{
-    context::{compute_contract_address, RuntimeContext},
-    db::MemoryDB,
-    env::Env,
-};
+use dora_runtime::{context::RuntimeContext, db::MemoryDB, env::Env};
 use num_bigint::{BigInt, BigUint};
-use ruint::aliases::U256;
 
 use super::utils::{
     biguint_256_from_bigint, default_env_and_db_setup, run_program_assert_halt,
     run_program_assert_num_result, run_program_assert_revert,
 };
 
-const CREATE_ADDRESS_U256_STR: &str = "471519750947579038811315280252789814448584561545";
+const CREATE_ADDRESS_U256_STR: &str = "1145609038113382871769568181405607467656660548686";
 
 #[test]
 fn add() {
@@ -1064,7 +1059,7 @@ fn origin() {
 
 #[test]
 fn caller() {
-    let addr = Address::from_low_u64_le(10000);
+    let addr = Address::left_padding_from(&[40]);
     let mut value = Bytes32::ZERO;
     value.copy_from(&addr);
     let operations = vec![
@@ -1078,6 +1073,7 @@ fn caller() {
     ];
     let (mut env, db) = default_env_and_db_setup(operations);
     env.tx.caller = addr;
+    env.tx.nonce = 1;
     run_program_assert_num_result(env, db, BigUint::from_bytes_le(&value.to_le_bytes()));
 }
 
@@ -1367,7 +1363,7 @@ fn test_extcodesize() {
     ];
     let (env, db) = default_env_and_db_setup(operations);
     // 40 is the sender address
-    let _created_address = compute_contract_address(Address::from_low_u64_be(40), 1);
+    let _created_address = Address::left_padding_from(&[40]).create(1);
     // _created_address is the deployed contract address
     // 41 is the deployed contract code size.
     run_program_assert_num_result(env, db, 41_u8.into());
@@ -1450,8 +1446,8 @@ fn extcodecopy_full() {
         Operation::Return,
     ];
     let (env, db) = default_env_and_db_setup(operations);
-    let created_address = compute_contract_address(Address::from_low_u64_be(40), 1);
-    run_program_assert_num_result(env, db, BigUint::from_bytes_be(created_address.as_bytes()));
+    let created_address = Address::left_padding_from(&[40]).create(1);
+    run_program_assert_num_result(env, db, BigUint::from_bytes_be(&created_address.0 .0));
 }
 
 #[test]
@@ -1571,8 +1567,8 @@ fn returndatacopy() {
     ];
     let mut env = Env::default();
     env.tx.gas_limit = INIT_GAS;
-    env.tx.transact_to = Address::from_low_u64_be(40);
-    env.block.coinbase = Address::from_low_u64_be(80);
+    env.tx.transact_to = Address::left_padding_from(&[40]);
+    env.block.coinbase = Address::left_padding_from(&[80]);
     let contract = Contract::new_with_env(
         &env,
         Bytecode::from(Program::from(operations).to_opcode()),
@@ -1651,8 +1647,8 @@ fn returndatacopy_out_of_bounds() {
     ];
     let mut env = Env::default();
     env.tx.gas_limit = INIT_GAS;
-    env.tx.transact_to = Address::from_low_u64_be(40);
-    env.block.coinbase = Address::from_low_u64_be(80);
+    env.tx.transact_to = Address::left_padding_from(&[40]);
+    env.block.coinbase = Address::left_padding_from(&[80]);
     let contract = Contract::new_with_env(
         &env,
         Bytecode::from(Program::from(operations).to_opcode()),
@@ -1751,7 +1747,7 @@ fn blockhash_invalid_block_number() {
 #[test]
 fn blockhash_previous_block() {
     let block_number = 1_u8;
-    let block_hash = 209433;
+    let block_hash: u32 = 209433;
     let current_block_number = 3_u8;
     let expected_block_hash = BigUint::from(block_hash);
     let operations = vec![
@@ -1766,7 +1762,10 @@ fn blockhash_previous_block() {
     ];
     let (mut env, mut db) = default_env_and_db_setup(operations);
     env.block.number = U256::from(current_block_number);
-    db.insert_block_hash(U256::from(block_number), B256::from_low_u64_be(block_hash));
+    db.insert_block_hash(
+        U256::from(block_number),
+        B256::left_padding_from(&block_hash.to_be_bytes()),
+    );
     run_program_assert_num_result(env, db, expected_block_hash);
 }
 
@@ -2847,7 +2846,7 @@ fn create2_with_salt() {
     run_program_assert_num_result(
         env,
         db,
-        BigUint::from_str("1298672851206845405429649291545422093257887715444").unwrap(),
+        BigUint::from_str("873749533739983692161977913712972771298764473627").unwrap(),
     );
 }
 
