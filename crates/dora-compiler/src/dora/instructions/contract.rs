@@ -280,8 +280,10 @@ impl<'c> ConversionPass<'c> {
 
         u256_to_64!(op, rewriter, offset);
         u256_to_64!(op, rewriter, size);
-        let gas_counter = gas::get_gas_counter(&rewriter)?;
-        memory::resize_memory(context, op, &rewriter, syscall_ctx, size, offset)?;
+        let size_is_not_zero = rewriter.make(rewriter.icmp_imm(IntCC::NotEqual, size, 0)?)?;
+        if_here!(op, rewriter, size_is_not_zero, {
+            memory::resize_memory(context, op, &rewriter, syscall_ctx, offset, size)?;
+        });
         let reason = rewriter.make(arith_constant!(
             rewriter,
             context,
@@ -290,6 +292,7 @@ impl<'c> ConversionPass<'c> {
             location
         ))?;
         rewrite_ctx!(context, op, rewriter, location);
+        let gas_counter = gas::get_gas_counter(&rewriter)?;
         rewriter.create(func::call(
             context,
             FlatSymbolRefAttribute::new(context, symbols::WRITE_RESULT),

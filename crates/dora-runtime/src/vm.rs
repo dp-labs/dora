@@ -170,12 +170,6 @@ impl<'a, DB: Database> VM<'a, DB> {
                 is_eof: false,
             })?;
             ctx.last_frame_return(&mut result);
-
-            println!(
-                "sad: exec {} {} {}",
-                result.gas_limit, result.gas_remaining, result.gas_refunded
-            );
-
             result
         };
 
