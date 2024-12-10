@@ -260,7 +260,7 @@ impl Host for DummyHost {
 
     #[inline]
     fn balance(&mut self, _addr: Address) -> Option<StateLoad<Bytes32>> {
-        None
+        Some(Default::default())
     }
 
     #[inline]
@@ -278,12 +278,12 @@ impl Host for DummyHost {
 
     #[inline]
     fn code(&mut self, _addr: Address) -> Option<CodeLoad<Bytes>> {
-        None
+        Some(Default::default())
     }
 
     #[inline]
     fn code_hash(&mut self, _addr: Address) -> Option<CodeLoad<Bytes32>> {
-        None
+        Some(Default::default())
     }
 
     #[inline]
@@ -292,12 +292,12 @@ impl Host for DummyHost {
         _addr: Address,
         _target: Address,
     ) -> Option<StateLoad<SelfDestructResult>> {
-        None
+        Some(Default::default())
     }
 
     #[inline]
     fn block_hash(&mut self, _number: u64) -> Option<Bytes32> {
-        None
+        Some(Default::default())
     }
 
     #[inline]
@@ -307,7 +307,7 @@ impl Host for DummyHost {
 
     #[inline]
     fn load_account_delegated(&mut self, _addr: Address) -> Option<AccountLoad> {
-        None
+        Some(Default::default())
     }
 
     fn call(&mut self, msg: CallMessage) -> Result<CallResult, EVMError> {

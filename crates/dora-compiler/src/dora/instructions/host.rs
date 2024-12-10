@@ -260,16 +260,15 @@ impl<'c> ConversionPass<'c> {
         ensure_non_staticcall!(op, rewriter);
         rewrite_ctx!(context, op, rewriter, location);
 
-        let ptr_type = rewriter.ptr_ty();
         let key_ptr = memory::allocate_u256_and_assign_value(context, &rewriter, key, location)?;
         let value_ptr =
             memory::allocate_u256_and_assign_value(context, &rewriter, value, location)?;
 
         rewriter.create(func::call(
             context,
-            FlatSymbolRefAttribute::new(context, symbols::TRANSIENT_STORAGE_WRITE),
+            FlatSymbolRefAttribute::new(context, symbols::TSTORE),
             &[syscall_ctx.into(), key_ptr, value_ptr],
-            &[ptr_type],
+            &[],
             location,
         ));
 
@@ -287,8 +286,9 @@ impl<'c> ConversionPass<'c> {
             rewriter,
             context,
             syscall_ctx,
-            symbols::TRANSIENT_STORAGE_READ,
+            symbols::TLOAD,
             &[key_ptr, value_ptr],
+            [],
             value_ptr,
             rewriter.intrinsics.i256_ty,
             location

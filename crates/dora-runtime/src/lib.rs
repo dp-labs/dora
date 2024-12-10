@@ -94,6 +94,8 @@ pub enum ExitStatusCode {
     EofAuxDataTooSmall,
     /// `EXT*CALL` target address needs to be padded with 0s.
     InvalidExtCallTarget,
+    /// Fatal extenal error such as host errors.
+    FatalExternalError,
 }
 
 impl ExitStatusCode {
