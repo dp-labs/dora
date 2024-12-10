@@ -76,19 +76,13 @@ impl<'c> ConversionPass<'c> {
         let ptr_type = rewriter.ptr_ty();
 
         // Call to get the address pointer
-        let result_ptr = rewriter.make(func::call(
+        let address_ptr = rewriter.make(func::call(
             context,
             FlatSymbolRefAttribute::new(context, symbols::ADDRESS),
             &[syscall_ctx.into()],
             &[ptr_type],
             location,
         ))?;
-        // We don't need to check for errors here, as no errors will be returned.
-        let address_ptr = rewriter.get_field_value(
-            result_ptr,
-            offset_of!(dora_runtime::context::RuntimeResult<*mut u8>, value),
-            ptr_type,
-        )?;
         // Load the address from the pointer
         let address = rewriter.make(rewriter.load(address_ptr, uint160))?;
         let address = if cfg!(target_endian = "little") {
@@ -347,7 +341,6 @@ impl<'c> ConversionPass<'c> {
         operands!(op, dest_offset, offset, size);
         syscall_ctx!(op, syscall_ctx);
         let rewriter = Rewriter::new_with_op(context, *op);
-        let ptr_type = rewriter.ptr_ty();
 
         u256_to_64!(op, rewriter, size);
         let gas = compute_copy_cost(&rewriter, size)?;
@@ -366,7 +359,7 @@ impl<'c> ConversionPass<'c> {
             context,
             FlatSymbolRefAttribute::new(context, symbols::CODE_COPY),
             &[syscall_ctx.into(), offset, size, dest_offset],
-            &[ptr_type],
+            &[],
             location,
         ));
         Ok(())
@@ -377,20 +370,13 @@ impl<'c> ConversionPass<'c> {
         rewrite_ctx!(context, op, rewriter, location);
 
         let uint256 = rewriter.intrinsics.i256_ty;
-        let ptr_type = rewriter.ptr_ty();
-        let result_ptr = rewriter.make(func::call(
+        let data_size = rewriter.make(func::call(
             context,
             FlatSymbolRefAttribute::new(context, symbols::RETURNDATA_SIZE),
             &[syscall_ctx.into()],
-            &[ptr_type],
+            &[rewriter.intrinsics.i64_ty],
             location,
         ))?;
-        // We don't need to check for errors here, as no errors will be returned.
-        let data_size = rewriter.get_field_value(
-            result_ptr,
-            offset_of!(dora_runtime::context::RuntimeResult<u64>, value),
-            rewriter.intrinsics.i64_ty,
-        )?;
         rewriter.create(arith::extui(data_size, uint256, location));
         Ok(())
     }
