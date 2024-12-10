@@ -1,9 +1,8 @@
-pub use bytes::Bytes;
-pub use ethereum_types::{Address, Address as EVMAddress, H160, H256};
-pub use ruint::aliases::U256;
+pub use revm_primitives::{
+    address, b256, uint, Address, Bytes, PrecompileOutput, SpecId, B256, U256,
+};
 
 pub type Bytecode = Bytes;
-pub type B256 = H256;
 
 pub mod config;
 pub mod spec;
@@ -132,7 +131,7 @@ impl From<&mut U256> for Bytes32 {
 impl From<B256> for Bytes32 {
     #[inline]
     fn from(value: B256) -> Self {
-        Self::from_be_bytes(value.to_fixed_bytes())
+        Self::from_be_bytes(value.0)
     }
 }
 
@@ -292,7 +291,7 @@ impl Bytes32 {
     #[inline]
     pub fn copy_from(&mut self, value: &Address) {
         let mut buffer = [0u8; 32];
-        buffer[12..32].copy_from_slice(&value.0);
+        buffer[12..32].copy_from_slice(&value.0 .0);
         *self = Bytes32::from_be_bytes(buffer);
     }
 

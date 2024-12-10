@@ -15,6 +15,7 @@ use crate::{
     errors::Result,
     gas_or_fail, if_here, maybe_revert_here, operands, rewrite_ctx, syscall_ctx, u256_to_64,
 };
+use dora_primitives::SpecId;
 use dora_runtime::constants::{gas_cost, GAS_COUNTER_GLOBAL};
 use dora_runtime::constants::{gas_cost::MAX_INITCODE_SIZE, CallType};
 use dora_runtime::symbols;
@@ -29,7 +30,6 @@ use melior::{
     },
     Context,
 };
-use revm_primitives::SpecId;
 use std::mem::offset_of;
 
 impl<'c> ConversionPass<'c> {

@@ -1,5 +1,5 @@
 use crate::{
-    account::{Account, AccountInfo, AccountStatus, EMPTY_CODE_HASH_BYTES},
+    account::{Account, AccountInfo, AccountStatus, EMPTY_CODE_HASH, EMPTY_CODE_HASH_BYTES},
     artifact::{Artifact, SymbolArtifact},
 };
 use dora_primitives::{Address, Bytecode, B256, U256};
@@ -536,15 +536,20 @@ impl DatabaseCommit for MemoryDB {
     /// ```
     fn commit(&mut self, changes: FxHashMap<Address, Account>) {
         for (address, account) in changes {
-            if account.is_created() {
-                self.store_contract(&account.info);
+            if !account.is_touched() {
+                continue;
             }
-
             if account.is_selfdestructed() {
                 let db_account = self.accounts.entry(address).or_default();
                 db_account.storage.clear();
+                db_account.status = AccountStatus::LoadedAsNotExisting;
+                db_account.balance = U256::ZERO;
+                db_account.nonce = 0;
+                db_account.bytecode_hash = EMPTY_CODE_HASH;
                 continue;
             }
+            let is_newly_created = account.is_created();
+            self.store_contract(&account.info);
 
             let db_account = self
                 .accounts
@@ -552,8 +557,16 @@ impl DatabaseCommit for MemoryDB {
                 .or_insert_with(DbAccount::empty);
             db_account.nonce = account.info.nonce;
             db_account.balance = account.info.balance;
-            db_account.status = AccountStatus::Cold;
+            db_account.status = account.status;
             db_account.bytecode_hash = account.info.code_hash;
+            db_account.account_state = if is_newly_created {
+                db_account.storage.clear();
+                AccountState::StorageCleared
+            } else if db_account.account_state.is_storage_cleared() {
+                AccountState::StorageCleared
+            } else {
+                AccountState::Touched
+            };
             db_account.storage.extend(
                 account
                     .storage
@@ -594,6 +607,8 @@ pub struct DbAccount {
     pub storage: FxHashMap<U256, U256>,
     pub bytecode_hash: B256,
     pub status: AccountStatus,
+    /// If account is selfdestructed or newly created, storage will be cleared.
+    pub account_state: AccountState,
 }
 
 impl DbAccount {
@@ -612,6 +627,7 @@ impl DbAccount {
             storage: FxHashMap::default(),
             bytecode_hash: B256::from_slice(&EMPTY_CODE_HASH_BYTES),
             status: AccountStatus::Created,
+            account_state: AccountState::None,
         }
     }
 }
@@ -635,5 +651,27 @@ impl From<DbAccount> for AccountInfo {
             code_hash: db_account.bytecode_hash,
             code: None,
         }
+    }
+}
+
+#[derive(Debug, Clone, Default, PartialEq, Eq, Hash)]
+pub enum AccountState {
+    /// Before Spurious Dragon hardfork there was a difference between empty and not existing.
+    /// And we are flagging it here.
+    NotExisting,
+    /// EVM touched this account. For newer hardfork this means it can be cleared/removed from state.
+    Touched,
+    /// EVM cleared storage of this account, mostly by selfdestruct, we don't ask database for storage slots
+    /// and assume they are U256::ZERO
+    StorageCleared,
+    /// EVM didn't interacted with this account
+    #[default]
+    None,
+}
+
+impl AccountState {
+    /// Returns `true` if EVM cleared storage of this account
+    pub fn is_storage_cleared(&self) -> bool {
+        matches!(self, AccountState::StorageCleared)
     }
 }

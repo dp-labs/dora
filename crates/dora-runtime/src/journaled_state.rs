@@ -8,9 +8,7 @@ use crate::{
     host::{AccountLoad, CodeLoad, SStoreResult, SelfDestructResult, StateLoad},
     ExitStatusCode,
 };
-use bytes::Bytes;
-use dora_primitives::{Address, Bytes32, B256, H256, U256};
-use revm_primitives::SpecId;
+use dora_primitives::{Address, Bytes, Bytes32, SpecId, B256, U256};
 use rustc_hash::{FxHashMap, FxHashSet};
 use sha3::{Digest, Keccak256};
 
@@ -644,7 +642,7 @@ impl JournaledState {
         let account_load = self.load_account(address, db)?;
         let acc = &mut account_load.data.info;
         if acc.code.is_none() {
-            if acc.code_hash == H256::from_slice(&EMPTY_CODE_HASH_BYTES) {
+            if acc.code_hash == B256::from_slice(&EMPTY_CODE_HASH_BYTES) {
                 let empty = Default::default();
                 acc.code = Some(empty);
             } else {

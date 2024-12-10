@@ -1,6 +1,6 @@
 use crate::{context::Log, db::DatabaseError, journaled_state::State};
 use core::fmt;
-use dora_primitives::{Bytes, EVMAddress as Address};
+use dora_primitives::{Address, Bytes};
 use ruint::aliases::U256;
 use std::{boxed::Box, fmt::Debug, string::String};
 

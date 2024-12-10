@@ -3,8 +3,7 @@ use std::{
     ops::{Deref, DerefMut},
 };
 
-use dora_primitives::U256;
-use revm_primitives::SpecId;
+use dora_primitives::{SpecId, U256};
 
 use crate::{
     account::Account,
@@ -171,6 +170,12 @@ impl<'a, DB: Database> VM<'a, DB> {
                 is_eof: false,
             })?;
             ctx.last_frame_return(&mut result);
+
+            println!(
+                "sad: exec {} {} {}",
+                result.gas_limit, result.gas_remaining, result.gas_refunded
+            );
+
             result
         };
 
@@ -182,6 +187,8 @@ impl<'a, DB: Database> VM<'a, DB> {
             result.set_final_refund(ctx.spec_id().is_enabled_in(SpecId::LONDON));
             // Reimburse the caller with gas that were not used.
             ctx.reimburse_caller(result.gas_remaining, result.gas_refunded)?;
+            // Reward beneficiary
+            ctx.reward_beneficiary(result.gas_used(), result.gas_refunded)?;
         }
         // Returns output of transaction.
         Ok(self.output(result))

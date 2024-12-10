@@ -5,7 +5,7 @@ use std::fmt::{self, Debug};
 use crate::db::{DbAccount, StorageSlot};
 use bitflags::bitflags;
 use dora_primitives::{Bytecode, B256, U256};
-use revm_primitives::SpecId;
+use revm_primitives::{b256, SpecId};
 use rustc_hash::FxHashMap;
 
 /// Keccak256 hash of an empty bytecode.
@@ -21,6 +21,8 @@ pub const EMPTY_CODE_HASH_STR: &str =
     "0xc5d2460186f7233c927e7db2dcc703c0e500b653ca82273b7bfad8045d85a470";
 pub const EMPTY_CODE_HASH_BYTES: [u8; 32] =
     hex_literal::hex!("c5d2460186f7233c927e7db2dcc703c0e500b653ca82273b7bfad8045d85a470");
+pub const EMPTY_CODE_HASH: B256 =
+    b256!("c5d2460186f7233c927e7db2dcc703c0e500b653ca82273b7bfad8045d85a470");
 
 /// Represents the core information of an account, including its balance, nonce, code hash, and optional bytecode.
 ///
@@ -112,7 +114,7 @@ impl AccountInfo {
     /// assert!(!account_info.has_code());
     /// ```
     pub fn has_code(&self) -> bool {
-        self.code_hash != B256::zero() && self.code_hash != B256::from_slice(&EMPTY_CODE_HASH_BYTES)
+        self.code_hash != B256::ZERO && self.code_hash != B256::from_slice(&EMPTY_CODE_HASH_BYTES)
     }
 }
 

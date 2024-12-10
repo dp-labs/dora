@@ -7,6 +7,7 @@ use crate::{
     errors::Result,
     gas_or_fail, maybe_revert_here, operands, rewrite_ctx,
 };
+use dora_primitives::SpecId;
 use dora_runtime::constants::GAS_COUNTER_GLOBAL;
 use dora_runtime::ExitStatusCode;
 use melior::{
@@ -20,7 +21,6 @@ use melior::{
     },
     Context,
 };
-use revm_primitives::SpecId;
 
 impl<'c> ConversionPass<'c> {
     pub(crate) fn add(context: &Context, op: &OperationRef<'_, '_>) -> Result<()> {

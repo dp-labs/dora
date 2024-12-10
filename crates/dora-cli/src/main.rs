@@ -1,11 +1,9 @@
 use anyhow::{Context, Result};
-use bytes::Bytes;
 use clap::{Args, Parser, Subcommand};
 use dora_primitives::spec::SpecId;
-use dora_primitives::{Address, Bytecode};
+use dora_primitives::{Address, Bytecode, Bytes, Bytes32, U256};
 use dora_runtime::db::MemoryDB;
 use dora_runtime::env::Env;
-use ruint::aliases::U256;
 use std::str::FromStr;
 use tracing::{error, info};
 
@@ -125,7 +123,7 @@ fn main() -> Result<()> {
             let sender = Address::from_str(run_args.sender.as_str())
                 .with_context(|| format!("Invalid sender address: {}", run_args.sender))?;
 
-            let address = Address::from_low_u64_be(40);
+            let address = Bytes32::from(40_u8).to_address();
 
             // Set Env
             let mut env = Env::default();
