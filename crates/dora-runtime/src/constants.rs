@@ -23,6 +23,10 @@ pub const MAX_BLOB_NUMBER_PER_BLOCK: u64 = 2 * TARGET_BLOB_NUMBER_PER_BLOCK;
 /// Number of block hashes that EVM can access in the past (pre-Prague).
 pub const BLOCK_HASH_HISTORY: u64 = 256;
 
+pub mod env {
+    pub const DORA_TRACING: &str = "DORA_TRACING";
+}
+
 pub mod gas_cost {
     // Gas costs for various operations
     pub const ADD: i64 = 3;

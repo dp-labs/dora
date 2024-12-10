@@ -152,7 +152,7 @@ impl<'a, DB: Database> VM<'a, DB> {
         // Execution
         let mut result = {
             let gas_limit = ctx.env.tx.gas_limit - initial_gas_cost;
-            let mut result = ctx.call(CallMessage {
+            let call_msg = CallMessage {
                 kind: if ctx.env.tx.transact_to.is_zero() {
                     CallKind::Create
                 } else {
@@ -168,7 +168,8 @@ impl<'a, DB: Database> VM<'a, DB> {
                 code_address: ctx.env.tx.transact_to,
                 is_static: false,
                 is_eof: false,
-            })?;
+            };
+            let mut result = ctx.call(call_msg)?;
             ctx.last_frame_return(&mut result);
             result
         };
