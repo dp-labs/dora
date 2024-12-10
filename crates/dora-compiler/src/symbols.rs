@@ -39,14 +39,10 @@ pub(crate) fn declare_symbols(context: &MLIRContext, module: &MLIRModule) {
         ),
         (symbols::CALLDATA, &[ptr_type], &[ptr_type]),
         (symbols::CALLDATA_SIZE, &[ptr_type], &[uint64]),
-        (symbols::CHAINID, &[ptr_type], &[ptr_type]),
+        (symbols::CHAINID, &[ptr_type], &[uint64]),
         (symbols::CALLVALUE, &[ptr_type, ptr_type], &[]),
         (symbols::CALLER, &[ptr_type, ptr_type], &[]),
-        (
-            symbols::STORE_IN_GASPRICE_PTR,
-            &[ptr_type, ptr_type],
-            &[ptr_type],
-        ),
+        (symbols::STORE_IN_GASPRICE_PTR, &[ptr_type, ptr_type], &[]),
         (
             symbols::STORE_IN_SELFBALANCE_PTR,
             &[ptr_type, ptr_type],
@@ -57,13 +53,9 @@ pub(crate) fn declare_symbols(context: &MLIRContext, module: &MLIRModule) {
             &[ptr_type, ptr_type],
             &[],
         ),
-        (symbols::GASLIMIT, &[ptr_type], &[ptr_type]),
+        (symbols::GASLIMIT, &[ptr_type], &[uint64]),
         (symbols::EXTEND_MEMORY, &[ptr_type, uint64], &[ptr_type]),
-        (
-            symbols::CODE_COPY,
-            &[ptr_type, uint64, uint64, uint64],
-            &[ptr_type],
-        ),
+        (symbols::CODE_COPY, &[ptr_type, uint64, uint64, uint64], &[]),
         (symbols::SLOAD, &[ptr_type, ptr_type, ptr_type], &[ptr_type]),
         (
             symbols::SSTORE,
@@ -93,22 +85,14 @@ pub(crate) fn declare_symbols(context: &MLIRContext, module: &MLIRModule) {
             ],
             &[],
         ),
-        (symbols::ORIGIN, &[ptr_type, ptr_type], &[ptr_type]),
+        (symbols::ORIGIN, &[ptr_type, ptr_type], &[]),
         (symbols::COINBASE, &[ptr_type], &[ptr_type]),
-        (symbols::BLOCK_NUMBER, &[ptr_type, ptr_type], &[ptr_type]),
+        (symbols::BLOCK_NUMBER, &[ptr_type, ptr_type], &[]),
         (symbols::EXT_CODE_SIZE, &[ptr_type, ptr_type], &[ptr_type]),
         (symbols::ADDRESS, &[ptr_type], &[ptr_type]),
-        (symbols::PREVRANDAO, &[ptr_type, ptr_type], &[ptr_type]),
-        (
-            symbols::STORE_IN_TIMESTAMP_PTR,
-            &[ptr_type, ptr_type],
-            &[ptr_type],
-        ),
-        (
-            symbols::STORE_IN_BASEFEE_PTR,
-            &[ptr_type, ptr_type],
-            &[ptr_type],
-        ),
+        (symbols::PREVRANDAO, &[ptr_type, ptr_type], &[]),
+        (symbols::STORE_IN_TIMESTAMP_PTR, &[ptr_type, ptr_type], &[]),
+        (symbols::STORE_IN_BASEFEE_PTR, &[ptr_type, ptr_type], &[]),
         (
             symbols::CALL,
             &[
@@ -139,23 +123,15 @@ pub(crate) fn declare_symbols(context: &MLIRContext, module: &MLIRModule) {
             &[ptr_type, uint64, uint64, ptr_type, uint64, ptr_type],
             &[ptr_type],
         ),
-        (symbols::RETURNDATA_SIZE, &[ptr_type], &[ptr_type]),
+        (symbols::RETURNDATA_SIZE, &[ptr_type], &[uint64]),
         (
             symbols::RETURNDATA_COPY,
             &[ptr_type, uint64, uint64, uint64],
             &[ptr_type],
         ),
         (symbols::SELFDESTRUCT, &[ptr_type, ptr_type], &[ptr_type]),
-        (
-            symbols::TRANSIENT_STORAGE_READ,
-            &[ptr_type, ptr_type, ptr_type],
-            &[ptr_type],
-        ),
-        (
-            symbols::TRANSIENT_STORAGE_WRITE,
-            &[ptr_type, ptr_type, ptr_type],
-            &[ptr_type],
-        ),
+        (symbols::TLOAD, &[ptr_type, ptr_type, ptr_type], &[]),
+        (symbols::TSTORE, &[ptr_type, ptr_type, ptr_type], &[]),
     ];
 
     for (name, input_types, output_types) in function_signatures.iter() {

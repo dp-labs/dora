@@ -52,6 +52,8 @@ pub enum ExecutionResult {
         gas_limit: u64,
         gas_used: u64,
     },
+    /// Fatal extenal error such as host errors.
+    FatalExternalError,
 }
 
 impl ExecutionResult {
@@ -150,6 +152,7 @@ impl ExecutionResult {
             Self::Success { gas_used, .. }
             | Self::Revert { gas_used, .. }
             | Self::Halt { gas_used, .. } => *gas_used,
+            _ => 0,
         }
     }
 

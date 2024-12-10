@@ -367,6 +367,7 @@ impl<'a, DB: Database> VM<'a, DB> {
                 gas_limit,
                 gas_used,
             },
+            ExitStatusCode::FatalExternalError => ExecutionResult::FatalExternalError,
         };
 
         ResultAndState { result, state }

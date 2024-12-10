@@ -998,12 +998,6 @@ impl<T> RuntimeResult<T> {
     }
 }
 
-macro_rules! uint_result_ptr {
-    ($result:expr) => {
-        Box::into_raw(Box::new(RuntimeResult::success($result)))
-    };
-}
-
 /// Accessors for managing and retrieving execution results in a runtime context.
 impl<'a> RuntimeContext<'a> {
     /// Creates a new `RuntimeContext` with the given environment, journal, and call frame.
@@ -1114,8 +1108,8 @@ impl<'a> RuntimeContext<'a> {
         self.inner.exit_status = Some(ExitStatusCode::from_u8(execution_result));
     }
 
-    pub extern "C" fn returndata_size(&mut self) -> *mut RuntimeResult<u64> {
-        uint_result_ptr!(self.inner.returndata.len() as u64)
+    pub extern "C" fn returndata_size(&mut self) -> u64 {
+        self.inner.returndata.len() as u64
     }
 
     pub extern "C" fn returndata_copy(
@@ -1151,7 +1145,15 @@ impl<'a> RuntimeContext<'a> {
             CallType::try_from(call_type).expect("Error while parsing CallType on call syscall");
         let to = Address::from(call_to_address);
         // Load account and calculate gas cost.
-        let mut account_load = self.host.load_account_delegated(to).unwrap_or_default();
+        let mut account_load = match self.host.load_account_delegated(to) {
+            Some(account_load) => account_load,
+            None => {
+                return Box::into_raw(Box::new(RuntimeResult::error(
+                    ExitStatusCode::FatalExternalError.to_u8(),
+                    0,
+                )));
+            }
+        };
         if call_type != CallType::Call {
             account_load.is_empty = false;
         }
@@ -1290,12 +1292,16 @@ impl<'a> RuntimeContext<'a> {
         &mut self,
         balance: &mut Bytes32,
     ) -> *mut RuntimeResult<()> {
-        let state = self
-            .host
-            .balance(self.contract.target_address)
-            .unwrap_or_default();
-        *balance = state.data;
-        Box::into_raw(Box::new(RuntimeResult::success(())))
+        match self.host.balance(self.contract.target_address) {
+            Some(state) => {
+                *balance = state.data;
+                Box::into_raw(Box::new(RuntimeResult::success(())))
+            }
+            None => Box::into_raw(Box::new(RuntimeResult::error(
+                ExitStatusCode::FatalExternalError.to_u8(),
+                (),
+            ))),
+        }
     }
 
     pub extern "C" fn keccak256_hasher(&mut self, offset: u64, size: u64, hash_ptr: &mut Bytes32) {
@@ -1310,9 +1316,8 @@ impl<'a> RuntimeContext<'a> {
         }
     }
 
-    pub extern "C" fn callvalue(&self, value: &mut Bytes32) -> *mut RuntimeResult<()> {
+    pub extern "C" fn callvalue(&self, value: &mut Bytes32) {
         *value = self.contract.call_value.into();
-        Box::into_raw(Box::new(RuntimeResult::success(())))
     }
 
     pub extern "C" fn store_in_blobbasefee_ptr(&self, value: &mut Bytes32) {
@@ -1325,24 +1330,23 @@ impl<'a> RuntimeContext<'a> {
             .into();
     }
 
-    pub extern "C" fn gaslimit(&self) -> *mut RuntimeResult<u64> {
-        uint_result_ptr!(self.host.env().tx.gas_limit)
+    pub extern "C" fn gaslimit(&self) -> u64 {
+        self.host.env().tx.gas_limit
     }
 
     pub extern "C" fn caller(&self, value: &mut Bytes32) {
         value.copy_from(&self.contract.caller);
     }
 
-    pub extern "C" fn store_in_gasprice_ptr(&self, value: &mut Bytes32) -> *mut RuntimeResult<()> {
+    pub extern "C" fn store_in_gasprice_ptr(&self, value: &mut Bytes32) {
         *value = self.host.env().tx.gas_price.into();
-        Box::into_raw(Box::new(RuntimeResult::success(())))
     }
 
-    pub extern "C" fn chainid(&self) -> *mut RuntimeResult<u64> {
-        uint_result_ptr!(self.host.env().cfg.chain_id)
+    pub extern "C" fn chainid(&self) -> u64 {
+        self.host.env().cfg.chain_id
     }
 
-    pub extern "C" fn calldata(&mut self) -> *mut RuntimeResult<*mut u8> {
+    pub extern "C" fn calldata(&mut self) -> *mut u8 {
         self.host.env().tx.data.as_ptr() as _
     }
 
@@ -1350,9 +1354,8 @@ impl<'a> RuntimeContext<'a> {
         self.host.env().tx.data.len() as u64
     }
 
-    pub extern "C" fn origin(&self, address: &mut Bytes32) -> *mut RuntimeResult<()> {
+    pub extern "C" fn origin(&self, address: &mut Bytes32) {
         address.copy_from(&self.host.env().tx.caller);
-        Box::into_raw(Box::new(RuntimeResult::success(())))
     }
 
     pub extern "C" fn extend_memory(&mut self, new_size: u64) -> *mut RuntimeResult<*mut u8> {
@@ -1382,12 +1385,7 @@ impl<'a> RuntimeContext<'a> {
         }
     }
 
-    pub extern "C" fn code_copy(
-        &mut self,
-        code_offset: u64,
-        size: u64,
-        dest_offset: u64,
-    ) -> *mut RuntimeResult<()> {
+    pub extern "C" fn code_copy(&mut self, code_offset: u64, size: u64, dest_offset: u64) {
         let code = &self.contract.code;
         let code_size = code.len();
         let code_offset = code_offset as usize;
@@ -1404,7 +1402,6 @@ impl<'a> RuntimeContext<'a> {
                 self.inner.memory[dest_offset + code_len..dest_offset + size].fill(0);
             }
         }
-        Box::into_raw(Box::new(RuntimeResult::success(())))
     }
 
     pub extern "C" fn sload(
@@ -1412,10 +1409,15 @@ impl<'a> RuntimeContext<'a> {
         stg_key: &Bytes32,
         stg_value: &mut Bytes32,
     ) -> *mut RuntimeResult<()> {
-        let result = self
-            .host
-            .sload(self.contract.target_address, *stg_key)
-            .unwrap_or_default();
+        let result = match self.host.sload(self.contract.target_address, *stg_key) {
+            Some(result) => result,
+            None => {
+                return Box::into_raw(Box::new(RuntimeResult::error(
+                    ExitStatusCode::FatalExternalError.to_u8(),
+                    (),
+                )))
+            }
+        };
         *stg_value = result.data;
 
         let gas_cost = gas::sload_cost(self.inner.spec_id, result.is_cold);
@@ -1428,10 +1430,18 @@ impl<'a> RuntimeContext<'a> {
         stg_value: &Bytes32,
         gas_remaining: u64,
     ) -> *mut RuntimeResult<()> {
-        let result = self
+        let result = match self
             .host
             .sstore(self.contract.target_address, *stg_key, *stg_value)
-            .unwrap_or_default();
+        {
+            Some(result) => result,
+            None => {
+                return Box::into_raw(Box::new(RuntimeResult::error(
+                    ExitStatusCode::FatalExternalError.to_u8(),
+                    (),
+                )))
+            }
+        };
 
         let original = result.original_value.to_u256();
         let current = result.present_value.to_u256();
@@ -1516,16 +1526,20 @@ impl<'a> RuntimeContext<'a> {
         );
     }
 
-    pub extern "C" fn block_number(&self, number: &mut Bytes32) -> *mut RuntimeResult<()> {
+    pub extern "C" fn block_number(&self, number: &mut Bytes32) {
         *number = self.host.env().block.number.into();
-        Box::into_raw(Box::new(RuntimeResult::success(())))
     }
 
     pub extern "C" fn block_hash(&mut self, number: &mut Bytes32) -> *mut RuntimeResult<()> {
-        let hash = self
-            .host
-            .block_hash(as_u64_saturated!(number.as_u256()))
-            .unwrap_or_default();
+        let hash = match self.host.block_hash(as_u64_saturated!(number.as_u256())) {
+            Some(hash) => hash,
+            None => {
+                return Box::into_raw(Box::new(RuntimeResult::error(
+                    ExitStatusCode::FatalExternalError.to_u8(),
+                    (),
+                )))
+            }
+        };
         *number = hash;
         Box::into_raw(Box::new(RuntimeResult::success(())))
     }
@@ -1545,11 +1559,15 @@ impl<'a> RuntimeContext<'a> {
     }
 
     pub extern "C" fn extcodesize(&mut self, address: &Bytes32) -> *mut RuntimeResult<u64> {
-        let (code, load) = self
-            .host
-            .code(address.to_address())
-            .unwrap_or_default()
-            .into_components();
+        let (code, load) = match self.host.code(address.to_address()) {
+            Some(code_load) => code_load.into_components(),
+            None => {
+                return Box::into_raw(Box::new(RuntimeResult::error(
+                    ExitStatusCode::FatalExternalError.to_u8(),
+                    0,
+                )))
+            }
+        };
         let size = code.len();
 
         let gas_cost = gas::extcodesize_gas_cost(self.inner.spec_id, load);
@@ -1562,13 +1580,11 @@ impl<'a> RuntimeContext<'a> {
     }
 
     #[allow(clippy::clone_on_copy)]
-    pub extern "C" fn address(&mut self) -> *mut RuntimeResult<*mut u8> {
-        Box::into_raw(Box::new(RuntimeResult::success(
-            self.contract.target_address.as_ptr() as *mut u8,
-        )))
+    pub extern "C" fn address(&mut self) -> *mut u8 {
+        self.contract.target_address.as_ptr() as *mut u8
     }
 
-    pub extern "C" fn prevrandao(&self, prevrandao: &mut Bytes32) -> *mut RuntimeResult<()> {
+    pub extern "C" fn prevrandao(&self, prevrandao: &mut Bytes32) {
         let env = self.host.env();
         *prevrandao = if self.inner.spec_id.is_enabled_in(SpecId::MERGE) {
             let randao = env.block.prevrandao.unwrap_or_default();
@@ -1576,29 +1592,32 @@ impl<'a> RuntimeContext<'a> {
         } else {
             env.block.difficulty.into()
         };
-        Box::into_raw(Box::new(RuntimeResult::success(())))
     }
 
-    pub extern "C" fn coinbase(&self) -> *mut RuntimeResult<*mut u8> {
-        Box::into_raw(Box::new(RuntimeResult::success(
-            self.host.env().block.coinbase.as_ptr() as *mut u8,
-        )))
+    pub extern "C" fn coinbase(&self) -> *mut u8 {
+        self.host.env().block.coinbase.as_ptr() as *mut u8
     }
 
-    pub extern "C" fn store_in_timestamp_ptr(&self, value: &mut Bytes32) -> *mut RuntimeResult<()> {
+    pub extern "C" fn store_in_timestamp_ptr(&self, value: &mut Bytes32) {
         *value = Bytes32::from(self.host.env().block.timestamp);
-        Box::into_raw(Box::new(RuntimeResult::success(())))
     }
 
-    pub extern "C" fn store_in_basefee_ptr(&self, basefee: &mut Bytes32) -> *mut RuntimeResult<()> {
+    pub extern "C" fn store_in_basefee_ptr(&self, basefee: &mut Bytes32) {
         *basefee = Bytes32::from(&self.host.env().block.basefee);
-        Box::into_raw(Box::new(RuntimeResult::success(())))
     }
 
     /// This function reads an address pointer and set the balance of the address to the same pointer
     pub extern "C" fn store_in_balance(&mut self, address: &mut Bytes32) -> *mut RuntimeResult<()> {
         let addr = address.to_address();
-        let result = self.host.balance(addr).unwrap_or_default();
+        let result = match self.host.balance(addr) {
+            Some(result) => result,
+            None => {
+                return Box::into_raw(Box::new(RuntimeResult::error(
+                    ExitStatusCode::FatalExternalError.to_u8(),
+                    (),
+                )))
+            }
+        };
         *address = result.data;
         let gas_cost = gas::balance_gas_cost(self.inner.spec_id, result.is_cold);
 
@@ -1636,7 +1655,15 @@ impl<'a> RuntimeContext<'a> {
         dest_offset: u64,
     ) -> *mut RuntimeResult<()> {
         let addr = address_value.to_address();
-        let (code, load) = self.host.code(addr).unwrap_or_default().into_components();
+        let (code, load) = match self.host.code(addr) {
+            Some(code_load) => code_load.into_components(),
+            None => {
+                return Box::into_raw(Box::new(RuntimeResult::error(
+                    ExitStatusCode::FatalExternalError.to_u8(),
+                    (),
+                )))
+            }
+        };
         let code_size = code.len();
         let code_offset = code_offset as usize;
         let dest_offset = dest_offset as usize;
@@ -1658,11 +1685,15 @@ impl<'a> RuntimeContext<'a> {
 
     pub extern "C" fn ext_code_hash(&mut self, address: &mut Bytes32) -> *mut RuntimeResult<()> {
         let addr = Address::from(address as &Bytes32);
-        let (hash, load) = self
-            .host
-            .code_hash(addr)
-            .unwrap_or_default()
-            .into_components();
+        let (hash, load) = match self.host.code_hash(addr) {
+            Some(code_load) => code_load.into_components(),
+            None => {
+                return Box::into_raw(Box::new(RuntimeResult::error(
+                    ExitStatusCode::FatalExternalError.to_u8(),
+                    (),
+                )))
+            }
+        };
         *address = hash;
         let gas_cost = gas::extcodehash_gas_cost(self.inner.spec_id, load);
 
@@ -1721,7 +1752,15 @@ impl<'a> RuntimeContext<'a> {
             is_static: self.inner.is_static,
             is_eof: false,
         };
-        let call_result = self.host.call(call_msg).unwrap_or_default();
+        let call_result = match self.host.call(call_msg) {
+            Ok(result) => result,
+            Err(_) => {
+                return Box::into_raw(Box::new(RuntimeResult::error(
+                    ExitStatusCode::FatalExternalError.to_u8(),
+                    0,
+                )))
+            }
+        };
         self.inner.returndata = if call_result.status.is_revert() {
             call_result.output
         } else {
@@ -1780,11 +1819,18 @@ impl<'a> RuntimeContext<'a> {
         receiver_address: &Bytes32,
     ) -> *mut RuntimeResult<u64> {
         let receiver_address = Address::from(receiver_address);
-        let result = self
+        let result = match self
             .host
             .selfdestruct(self.contract.target_address, receiver_address)
-            .unwrap_or_default();
-
+        {
+            Some(result) => result,
+            None => {
+                return Box::into_raw(Box::new(RuntimeResult::error(
+                    ExitStatusCode::FatalExternalError.to_u8(),
+                    0,
+                )))
+            }
+        };
         // EIP-3529: Reduction in refunds
         if !self.inner.spec_id.is_enabled_in(SpecId::LONDON) && !result.previously_destroyed {
             self.inner.gas_refunded += gas_cost::SELFDESTRUCT;
@@ -1797,24 +1843,14 @@ impl<'a> RuntimeContext<'a> {
         }))
     }
 
-    pub extern "C" fn read_transient_storage(
-        &mut self,
-        stg_key: &Bytes32,
-        stg_value: &mut Bytes32,
-    ) -> *mut RuntimeResult<()> {
+    pub extern "C" fn tload(&mut self, stg_key: &Bytes32, stg_value: &mut Bytes32) {
         let result = self.host.tload(self.contract.target_address, *stg_key);
         *stg_value = result;
-        Box::into_raw(Box::new(RuntimeResult::success(())))
     }
 
-    pub extern "C" fn write_transient_storage(
-        &mut self,
-        stg_key: &Bytes32,
-        stg_value: &mut Bytes32,
-    ) -> *mut RuntimeResult<()> {
+    pub extern "C" fn tstore(&mut self, stg_key: &Bytes32, stg_value: &mut Bytes32) {
         self.host
             .tstore(self.contract.target_address, *stg_key, *stg_value);
-        Box::into_raw(Box::new(RuntimeResult::success(())))
     }
 }
 
@@ -1936,14 +1972,8 @@ impl<'a> RuntimeContext<'a> {
                     symbols::SELFDESTRUCT,
                     RuntimeContext::selfdestruct as *const _,
                 ),
-                (
-                    symbols::TRANSIENT_STORAGE_READ,
-                    RuntimeContext::read_transient_storage as *const _,
-                ),
-                (
-                    symbols::TRANSIENT_STORAGE_WRITE,
-                    RuntimeContext::write_transient_storage as *const _,
-                ),
+                (symbols::TLOAD, RuntimeContext::tload as *const _),
+                (symbols::TSTORE, RuntimeContext::tstore as *const _),
             ];
 
             for (symbol, signature) in symbols_and_signatures {
