@@ -597,11 +597,10 @@ fn execute_test(path: &Path) -> Result<(), TestError> {
                         }
                         // Check the state root.
                         let state = vm.db.clone().into_state();
-                        let state_root = state_merkle_trie_root(
-                            state
-                                .iter()
-                                .filter(|(_, acc)| !acc.is_loaded_as_not_existing()),
-                        );
+                        let state = state
+                            .iter()
+                            .filter(|(_, acc)| !acc.is_loaded_as_not_existing());
+                        let state_root = state_merkle_trie_root(state);
                         if state_root != test_case.hash {
                             let kind = TestErrorKind::StateRootMismatch {
                                 got: state_root,

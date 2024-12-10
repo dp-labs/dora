@@ -203,6 +203,21 @@ fn push0_jumpi_stack_underflow() {
 }
 
 #[test]
+fn addmod_1() {
+    let operations = vec![
+        Operation::Push((1, 5_u8.into())),
+        Operation::Push0,
+        Operation::Push((1, 1_u8.into())),
+        Operation::Push((1, 4_u8.into())),
+        Operation::AddMod,
+        Operation::Add,
+    ];
+    let result = run_result(operations);
+    assert!(result.status.is_ok());
+    assert_eq!(result.gas_used(), 3 + 2 + 3 + 3 + 8 + 3)
+}
+
+#[test]
 fn exp_1() {
     let operations = vec![
         Operation::Push((1, 0_u32.into())),
