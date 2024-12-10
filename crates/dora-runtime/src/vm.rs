@@ -169,6 +169,7 @@ impl<'a, DB: Database> VM<'a, DB> {
             is_static: false,
             is_eof: false,
         })?;
+        ctx.last_frame_return(&mut result);
 
         // Post excution
         {
@@ -177,7 +178,7 @@ impl<'a, DB: Database> VM<'a, DB> {
             result.gas_refunded += eip7702_gas_refund;
             result.set_final_refund(ctx.spec_id().is_enabled_in(SpecId::LONDON));
             // Reimburse the caller with gas that were not used.
-            ctx.reimburse_caller(result.gas_used(), result.gas_refunded)?;
+            ctx.reimburse_caller(result.gas_remaining, result.gas_refunded)?;
         }
         // Returns output of transaction.
         Ok(self.output(result))

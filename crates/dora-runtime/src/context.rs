@@ -222,6 +222,21 @@ impl<'a, DB: Database> VMContext<'a, DB> {
         Ok(())
     }
 
+    /// Handle output of the transaction
+    pub fn last_frame_return(&mut self, result: &mut CallResult) {
+        let remaining = result.gas_remaining;
+        let refunded = result.gas_refunded;
+        result.gas_limit = self.env.tx.gas_limit;
+        result.gas_remaining = 0;
+        result.gas_refunded = 0;
+        if result.status.is_ok() {
+            result.gas_remaining = remaining;
+            result.gas_refunded = refunded;
+        } else if result.status.is_revert() {
+            result.gas_remaining = remaining;
+        }
+    }
+
     /// Return environment.
     #[inline]
     pub fn env(&mut self) -> &mut Env {
