@@ -7,7 +7,7 @@ use crate::{
     errors::Result,
     store_var,
 };
-use crate::{check_op_oog, check_runtime_error, gas_or_fail, maybe_revert_here};
+use crate::{check_op_oog, check_runtime_error, gas_or_fail, if_here, maybe_revert_here};
 use block::BlockArgument;
 use dora_runtime::constants;
 use dora_runtime::constants::GAS_COUNTER_GLOBAL;
@@ -107,76 +107,53 @@ pub(crate) fn resize_memory<'c>(
         rounded_required_size,
         location,
     ))?;
-    let gas = rewriter.make(scf::r#if(
-        extension_flag,
-        &[rewriter.intrinsics.i64_ty],
-        {
-            let region = Region::new();
-            let block = region.append_block(Block::new(&[]));
-            let rewriter = Rewriter::new_with_block(context, block);
-            // dynamic gas computation in the gas pass
-            let memory_cost_before = memory_gas_cost(&rewriter, memory_size_words)?;
-            let memory_cost_after = memory_gas_cost(&rewriter, required_size_words)?;
-            let dynamic_gas_value =
-                rewriter.make(arith::subi(memory_cost_after, memory_cost_before, location))?;
-            rewriter.create(scf::r#yield(&[dynamic_gas_value], location));
-            region
-        },
-        {
-            let region = Region::new();
-            let block = region.append_block(Block::new(&[]));
-            let rewriter = Rewriter::new_with_block(context, block);
-            rewriter.create(scf::r#yield(
-                &[rewriter.make(rewriter.iconst_64(0))?],
-                location,
-            ));
-            region
-        },
-        location,
-    ))?;
-    gas_or_fail!(op, rewriter, gas);
-    let rewriter = Rewriter::new_with_op(context, *op);
-    let result_ptr = rewriter.make(func::call(
-        context,
-        FlatSymbolRefAttribute::new(context, symbols::EXTEND_MEMORY),
-        &[syscall_ctx.into(), rounded_required_size],
-        &[ptr_type],
-        location,
-    ))?;
-    let new_memory_ptr = rewriter.get_field_value(
-        result_ptr,
-        offset_of!(dora_runtime::context::RuntimeResult<*mut u8>, value),
-        ptr_type,
-    )?;
-    let error = rewriter.get_field_value(
-        result_ptr,
-        offset_of!(dora_runtime::context::RuntimeResult<*mut u8>, error),
-        rewriter.intrinsics.i8_ty,
-    )?;
-    // Check the runtime memory resize halt error
-    check_runtime_error!(op, rewriter, error);
-    let rewriter = Rewriter::new_with_op(context, *op);
-    // Load memory ptr
-    let memory_ptr_ptr =
-        rewriter.make(rewriter.addressof(constants::MEMORY_PTR_GLOBAL, ptr_type))?;
-    rewriter.create(llvm::store(
-        context,
-        new_memory_ptr,
-        memory_ptr_ptr,
-        location,
-        LoadStoreOptions::default(),
-    ));
-    // Load memory size
-    let memory_size_ptr =
-        rewriter.make(rewriter.addressof(constants::MEMORY_SIZE_GLOBAL, ptr_type))?;
-
-    rewriter.create(llvm::store(
-        context,
-        rounded_required_size,
-        memory_size_ptr,
-        location,
-        LoadStoreOptions::default(),
-    ));
-
+    if_here!(op, rewriter, extension_flag, {
+        // dynamic gas computation in the gas pass
+        let memory_cost_before = memory_gas_cost(&rewriter, memory_size_words)?;
+        let memory_cost_after = memory_gas_cost(&rewriter, required_size_words)?;
+        let gas = rewriter.make(arith::subi(memory_cost_after, memory_cost_before, location))?;
+        gas_or_fail!(op, rewriter, gas);
+        let rewriter = Rewriter::new_with_op(context, *op);
+        let result_ptr = rewriter.make(func::call(
+            context,
+            FlatSymbolRefAttribute::new(context, symbols::EXTEND_MEMORY),
+            &[syscall_ctx.into(), rounded_required_size],
+            &[ptr_type],
+            location,
+        ))?;
+        let new_memory_ptr = rewriter.get_field_value(
+            result_ptr,
+            offset_of!(dora_runtime::context::RuntimeResult<*mut u8>, value),
+            ptr_type,
+        )?;
+        let error = rewriter.get_field_value(
+            result_ptr,
+            offset_of!(dora_runtime::context::RuntimeResult<*mut u8>, error),
+            rewriter.intrinsics.i8_ty,
+        )?;
+        // Check the runtime memory resize halt error
+        check_runtime_error!(op, rewriter, error);
+        let rewriter = Rewriter::new_with_op(context, *op);
+        // Load memory ptr
+        let memory_ptr_ptr =
+            rewriter.make(rewriter.addressof(constants::MEMORY_PTR_GLOBAL, ptr_type))?;
+        rewriter.create(llvm::store(
+            context,
+            new_memory_ptr,
+            memory_ptr_ptr,
+            location,
+            LoadStoreOptions::default(),
+        ));
+        // Load memory size
+        let memory_size_ptr =
+            rewriter.make(rewriter.addressof(constants::MEMORY_SIZE_GLOBAL, ptr_type))?;
+        rewriter.create(llvm::store(
+            context,
+            rounded_required_size,
+            memory_size_ptr,
+            location,
+            LoadStoreOptions::default(),
+        ));
+    });
     Ok(())
 }

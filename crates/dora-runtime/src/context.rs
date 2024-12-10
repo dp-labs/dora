@@ -847,7 +847,7 @@ impl Contract {
         }
     }
 
-    /// Creates a new contract from the given [`CallMessage`].
+    /// Creates a new contract from the given sub call message [`CallMessage`].
     #[inline]
     pub fn new_with_call_message(
         call_msg: &CallMessage,
@@ -1088,13 +1088,23 @@ impl<'a> RuntimeContext<'a> {
 
 // System call functions
 impl<'a> RuntimeContext<'a> {
+    pub extern "C" fn tracing(&mut self, op: u8, gas: u64) {
+        println!(
+            "op: {}, opHex: {:x}, gas: 0x{:x}, memSize: {}",
+            op,
+            op,
+            gas,
+            self.memory().len()
+        );
+    }
+
     pub extern "C" fn write_result(
         &mut self,
         offset: u64,
         bytes_len: u64,
         remaining_gas: u64,
         execution_result: u8,
-    ) -> *mut RuntimeResult<()> {
+    ) {
         self.inner.returndata = if bytes_len != 0 {
             self.inner.memory[offset as usize..offset as usize + bytes_len as usize].to_vec()
         } else {
@@ -1102,7 +1112,6 @@ impl<'a> RuntimeContext<'a> {
         };
         self.inner.gas_remaining = Some(remaining_gas);
         self.inner.exit_status = Some(ExitStatusCode::from_u8(execution_result));
-        Box::into_raw(Box::new(RuntimeResult::success(())))
     }
 
     pub extern "C" fn returndata_size(&mut self) -> *mut RuntimeResult<u64> {
@@ -1822,10 +1831,8 @@ impl<'a> RuntimeContext<'a> {
                     symbols::CTX_IS_STATIC,
                     &self.inner.is_static as *const bool as *const _,
                 ),
-                // (
-                //     symbols::DEBUG_PRINT,
-                //     RuntimeContext::debug_print as *const _,
-                // ),
+                // Debug functions
+                (symbols::TRACING, RuntimeContext::tracing as *const _),
                 // Syscalls
                 (
                     symbols::WRITE_RESULT,
