@@ -224,6 +224,42 @@ fn div_by_zero() {
 }
 
 #[test]
+fn div_by_one() {
+    let (a, b) = (BigUint::from(1_u8), BigUint::from(10_u8));
+    let operations = vec![
+        Operation::Push((1_u8, b.clone())),
+        Operation::Push((1_u8, a.clone())),
+        Operation::Div,
+        // Return result
+        Operation::Push0,
+        Operation::MStore,
+        Operation::Push((1, 32_u8.into())),
+        Operation::Push0,
+        Operation::Return,
+    ];
+    let (env, db) = default_env_and_db_setup(operations);
+    run_program_assert_num_result(env, db, BigUint::from(0_u8));
+}
+
+#[test]
+fn div_by_eleven() {
+    let (a, b) = (BigUint::from(11_u8), BigUint::from(10_u8));
+    let operations = vec![
+        Operation::Push((1_u8, b.clone())),
+        Operation::Push((1_u8, a.clone())),
+        Operation::Div,
+        // Return result
+        Operation::Push0,
+        Operation::MStore,
+        Operation::Push((1, 32_u8.into())),
+        Operation::Push0,
+        Operation::Return,
+    ];
+    let (env, db) = default_env_and_db_setup(operations);
+    run_program_assert_num_result(env, db, BigUint::from(1_u8));
+}
+
+#[test]
 fn div_zero() {
     let (a, b) = (BigUint::from(10_u8), BigUint::from(0_u8));
     let operations = vec![
@@ -242,11 +278,29 @@ fn div_zero() {
 }
 
 #[test]
-fn mod_by_zero() {
-    let (a, b) = (BigUint::from(10_u64), BigUint::from(0_u64));
+fn umod() {
+    let (a, b) = (BigUint::from(2_u8), BigUint::from(6_u8));
     let operations = vec![
-        Operation::Push((32_u8, b.clone())),
-        Operation::Push((32_u8, a.clone())),
+        Operation::Push((1, b.clone())),
+        Operation::Push((1, a.clone())),
+        Operation::Mod,
+        // Return result
+        Operation::Push0,
+        Operation::MStore,
+        Operation::Push((1, 32_u8.into())),
+        Operation::Push0,
+        Operation::Return,
+    ];
+    let (env, db) = default_env_and_db_setup(operations);
+    run_program_assert_num_result(env, db, BigUint::from(2_u8));
+}
+
+#[test]
+fn umod_by_zero() {
+    let (a, b) = (BigUint::from(0_u8), BigUint::from(10_u8));
+    let operations = vec![
+        Operation::Push((1, b.clone())),
+        Operation::Push((1, a.clone())),
         Operation::Mod,
         // Return result
         Operation::Push0,
@@ -260,12 +314,66 @@ fn mod_by_zero() {
 }
 
 #[test]
-fn mod_zero() {
-    let (a, b) = (BigUint::from(10_u64), BigUint::from(0_u64));
+fn umod_by_one() {
+    let (a, b) = (BigUint::from(1_u8), BigUint::from(10_u8));
     let operations = vec![
-        Operation::Push((32_u8, b.clone())),
-        Operation::Push((32_u8, a.clone())),
+        Operation::Push((1, b.clone())),
+        Operation::Push((1, a.clone())),
         Operation::Mod,
+        // Return result
+        Operation::Push0,
+        Operation::MStore,
+        Operation::Push((1, 32_u8.into())),
+        Operation::Push0,
+        Operation::Return,
+    ];
+    let (env, db) = default_env_and_db_setup(operations);
+    run_program_assert_num_result(env, db, BigUint::from(1_u8));
+}
+
+#[test]
+fn smod_by_zero() {
+    let (a, b) = (BigUint::from(0_u8), BigUint::from(10_u8));
+    let operations = vec![
+        Operation::Push((1, b.clone())),
+        Operation::Push((1, a.clone())),
+        Operation::SMod,
+        // Return result
+        Operation::Push0,
+        Operation::MStore,
+        Operation::Push((1, 32_u8.into())),
+        Operation::Push0,
+        Operation::Return,
+    ];
+    let (env, db) = default_env_and_db_setup(operations);
+    run_program_assert_num_result(env, db, BigUint::from(0_u8));
+}
+
+#[test]
+fn umod_zero() {
+    let (a, b) = (BigUint::from(10_u8), BigUint::from(0_u8));
+    let operations = vec![
+        Operation::Push((1, b.clone())),
+        Operation::Push((1, a.clone())),
+        Operation::Mod,
+        // Return result
+        Operation::Push0,
+        Operation::MStore,
+        Operation::Push((1, 32_u8.into())),
+        Operation::Push0,
+        Operation::Return,
+    ];
+    let (env, db) = default_env_and_db_setup(operations);
+    run_program_assert_num_result(env, db, BigUint::from(0_u8));
+}
+
+#[test]
+fn smod_zero() {
+    let (a, b) = (BigUint::from(10_u8), BigUint::from(0_u8));
+    let operations = vec![
+        Operation::Push((1, b.clone())),
+        Operation::Push((1, a.clone())),
+        Operation::SMod,
         // Return result
         Operation::Push0,
         Operation::MStore,
@@ -279,7 +387,7 @@ fn mod_zero() {
 
 #[test]
 fn sdiv_positive() {
-    let (a, b) = (BigUint::from(10_u64), BigUint::from(5_u64));
+    let (a, b) = (BigUint::from(10_u8), BigUint::from(5_u8));
     let operations = vec![
         Operation::Push((1_u8, b.clone())),
         Operation::Push((1_u8, a.clone())),

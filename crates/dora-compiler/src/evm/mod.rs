@@ -428,10 +428,35 @@ impl<'c> EVMCompiler<'c> {
                 .create(builder.iconst(builder.intrinsics.i8_ty, op.opcode() as i64))
                 .result(0)?
                 .into();
+            // Get address of stack pointer global
+            let stack_ptr_ptr =
+                builder.make(builder.addressof(STACK_PTR_GLOBAL, builder.ptr_ty()))?;
+            // Load stack pointer
+            let stack_ptr = builder.make(builder.load(stack_ptr_ptr, builder.ptr_ty()))?;
+            let stack_size_ptr =
+                builder.make(builder.addressof(STACK_SIZE_GLOBAL, builder.ptr_ty()))?;
+            let stack_size =
+                builder.make(builder.load(stack_size_ptr, builder.intrinsics.i64_ty))?;
+
             builder.create(func::call(
                 builder.context(),
                 FlatSymbolRefAttribute::new(builder.context(), symbols::TRACING),
-                &[ctx.values.syscall_ctx, opcode, gas_counter],
+                &[
+                    ctx.values.syscall_ctx,
+                    opcode,
+                    gas_counter,
+                    stack_ptr,
+                    stack_size,
+                ],
+                &[],
+                builder.get_insert_location(),
+            ));
+        } else {
+            // FIXME: insert an empty FFI interface to prevent inline optimization of gas registers.
+            builder.create(func::call(
+                builder.context(),
+                FlatSymbolRefAttribute::new(builder.context(), symbols::NOP),
+                &[],
                 &[],
                 builder.get_insert_location(),
             ));
