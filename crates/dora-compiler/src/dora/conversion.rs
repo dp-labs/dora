@@ -1,4 +1,5 @@
 use crate::{conversion::walker::walk_operation, errors::Result, value::IntoContextOperation};
+use dora_primitives::SpecId;
 use dora_runtime::constants::CallType;
 use melior::{
     dialect::DialectHandle,
@@ -6,7 +7,6 @@ use melior::{
     pass::{create_external, ExternalPass, Pass, RunExternalPass},
     Context, ContextRef,
 };
-use revm_primitives::SpecId;
 use tracing::debug;
 
 #[repr(align(8))]

@@ -1,3 +1,4 @@
+use dora_primitives::SpecId;
 use dora_runtime::constants::STACK_SIZE_GLOBAL;
 use dora_runtime::{constants::STACK_PTR_GLOBAL, ExitStatusCode};
 use dora_runtime::{
@@ -22,7 +23,6 @@ use melior::{
 };
 use num_bigint::BigUint;
 use program::stack_io;
-use revm_primitives::SpecId;
 use revmc::{op_info_map, OpcodeInfo};
 use std::collections::BTreeMap;
 
@@ -172,7 +172,7 @@ impl<'c> EVMCompiler<'c> {
         options: &<EVMCompiler<'c> as Compiler>::Options,
     ) -> Result<(BlockRef<'c, 'c>, BlockRef<'c, 'c>)> {
         let op_infos = op_info_map(unsafe {
-            std::mem::transmute::<revm_primitives::SpecId, revmc::primitives::SpecId>(
+            std::mem::transmute::<dora_primitives::SpecId, revmc::primitives::SpecId>(
                 options.spec_id,
             )
         });

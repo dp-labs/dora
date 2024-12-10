@@ -1,26 +1,24 @@
 use crate::constants::precompiles::{sha2_256_dynamic_cost, SHA2_256_COST};
-use bytes::Bytes;
+use dora_primitives::{Bytes, PrecompileOutput};
 use revm_precompile::{
     blake2::run as blake2_run, hash::ripemd160_run, identity::identity_run, modexp::berlin_run,
     secp256k1::ec_recover_run, PrecompileError, PrecompileErrors,
 };
-use revm_primitives::PrecompileOutput;
 use sha2::{Digest, Sha256};
-use std::mem::transmute;
 
 /// Current implementation serves as a baseline:
 /// + Five functions reuse the REVM implementation
 /// + `sha2_256` utilizes the `sha2` crate with the ASM feature enabled
 /// + Future performance optimizations may consider porting high-performance SIMD implementations
 ///   ECRECOVER precompile implementation.
+#[inline]
 pub fn ecrecover(calldata: &Bytes, gas_limit: u64) -> Result<PrecompileOutput, PrecompileErrors> {
-    let calldata = unsafe { transmute::<&bytes::Bytes, &revm_precompile::Bytes>(calldata) };
     ec_recover_run(calldata, gas_limit)
 }
 
 /// IDENTITY precompile implementation.
+#[inline]
 pub fn identity(calldata: &Bytes, gas_limit: u64) -> Result<PrecompileOutput, PrecompileErrors> {
-    let calldata = unsafe { transmute::<&bytes::Bytes, &revm_precompile::Bytes>(calldata) };
     identity_run(calldata, gas_limit)
 }
 
@@ -34,25 +32,25 @@ pub fn sha2_256(calldata: &Bytes, gas_limit: u64) -> Result<PrecompileOutput, Pr
     hasher.update(calldata);
     let hash = hasher.finalize();
     Ok(PrecompileOutput {
-        bytes: Bytes::copy_from_slice(&hash).into(),
+        bytes: Bytes::copy_from_slice(&hash),
         gas_used: gas_cost,
     })
 }
 
 /// RIPEMD-160 precompile implementation.
+#[inline]
 pub fn ripemd_160(calldata: &Bytes, gas_limit: u64) -> Result<PrecompileOutput, PrecompileErrors> {
-    let calldata = unsafe { transmute::<&bytes::Bytes, &revm_precompile::Bytes>(calldata) };
     ripemd160_run(calldata, gas_limit)
 }
 
 /// Modular exponentiation precompile (MOD_EXP) implementation.
+#[inline]
 pub fn modexp(calldata: &Bytes, gas_limit: u64) -> Result<PrecompileOutput, PrecompileErrors> {
-    let calldata = unsafe { transmute::<&bytes::Bytes, &revm_precompile::Bytes>(calldata) };
     berlin_run(calldata, gas_limit)
 }
 
 /// BLAKE2 F precompile implementation.
+#[inline]
 pub fn blake2f(calldata: &Bytes, gas_limit: u64) -> Result<PrecompileOutput, PrecompileErrors> {
-    let calldata = unsafe { transmute::<&bytes::Bytes, &revm_precompile::Bytes>(calldata) };
     blake2_run(calldata, gas_limit)
 }

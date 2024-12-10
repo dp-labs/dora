@@ -1,5 +1,5 @@
+use dora_primitives::SpecId;
 use num_bigint::BigUint;
-use revm_primitives::SpecId;
 pub use revmc::{op_info_map, OpcodeInfo};
 use std::fmt;
 use thiserror::Error;

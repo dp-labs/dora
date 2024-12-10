@@ -64,7 +64,7 @@ fn run_bench(c: &mut Criterion, bench: &Bench) {
     let mut env: Env = Default::default();
     env.tx.gas_limit = gas_limit;
     env.tx.data = Bytes::from(calldata.to_vec());
-    env.tx.transact_to = Address::from_low_u64_be(40);
+    env.tx.transact_to = Address::left_padding_from(&[40]);
     let contract = Contract::new_with_env(&env, Bytecode::from(program.to_opcode()), None);
     let mut host = DummyHost::new(env);
     let mut context = RuntimeContext::new(contract, &mut host, SpecId::CANCUN);

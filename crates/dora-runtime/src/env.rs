@@ -13,7 +13,7 @@ use super::constants::{
     MAX_BLOB_NUMBER_PER_BLOCK, VERSIONED_HASH_VERSION_KZG,
 };
 use super::result::InvalidTransaction;
-use dora_primitives::{Bytes, EVMAddress as Address, B256, U256};
+use dora_primitives::{Address, Bytes, B256, U256};
 use revm_primitives::{AuthorizationList, SpecId, GAS_PER_BLOB};
 
 /// Represents the execution environment for the EVM, including block, transaction, and EVM configuration.
@@ -411,10 +411,10 @@ pub type AccessListItem = (Address, Vec<B256>);
 impl Default for TxEnv {
     fn default() -> Self {
         Self {
-            caller: Address::zero(),
+            caller: Address::ZERO,
             gas_limit: i64::MAX as _,
             gas_price: U256::ZERO,
-            transact_to: Address::zero(),
+            transact_to: Address::ZERO,
             value: U256::ZERO,
             data: Bytes::new(),
             nonce: 0,

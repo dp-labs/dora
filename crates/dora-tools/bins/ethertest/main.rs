@@ -178,7 +178,7 @@ pub struct AccessListItem {
 
 pub type AccessList = Vec<AccessListItem>;
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct TestAuthorization {
     chain_id: U256,
@@ -202,7 +202,7 @@ impl TestAuthorization {
     pub fn into_recovered(self) -> RecoveredAuthorization {
         let authorization = Authorization {
             chain_id: as_u64_saturated!(self.chain_id),
-            address: revm_primitives::Address(self.address.as_fixed_bytes().into()),
+            address: self.address,
             nonce: u64::try_from(self.nonce).unwrap(),
         };
         let authority = match self
@@ -238,7 +238,7 @@ pub struct PostStateTest {
     pub txbytes: Option<DeserializeBytes>,
 }
 
-#[derive(Debug, PartialEq, Eq, Deserialize)]
+#[derive(Debug, PartialEq, Eq, Clone, Deserialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct TestIndexes {
     pub data: usize,
@@ -247,9 +247,11 @@ pub struct TestIndexes {
 }
 
 #[derive(Debug, Error)]
-#[error("Test {name} failed: {kind}")]
+#[error("Test {name} suite {suite_name:?} index {indexs:?} failed: {kind}")]
 pub struct TestError {
     pub name: String,
+    pub suite_name: Option<String>,
+    pub indexs: Option<TestIndexes>,
     pub kind: TestErrorKind,
 }
 
@@ -281,14 +283,10 @@ fn log_rlp_hash(logs: &[Log]) -> B256 {
     let logs: Vec<revm_primitives::Log> = logs
         .iter()
         .map(|l| revm_primitives::Log {
-            address: revm_primitives::Address::from_slice(l.address.as_bytes()),
+            address: l.address,
             data: revm_primitives::LogData::new_unchecked(
-                l.data
-                    .topics
-                    .iter()
-                    .map(|t| revm_primitives::FixedBytes::<32>(t.to_fixed_bytes()))
-                    .collect(),
-                revm_primitives::Bytes(Bytes::from(l.data.data.clone())),
+                l.data.topics.clone(),
+                l.data.data.clone().into(),
             ),
         })
         .collect();
@@ -315,8 +313,8 @@ pub fn state_merkle_trie_root<'a>(
 struct TrieAccount {
     nonce: u64,
     balance: U256,
-    root_hash: revm_primitives::B256,
-    code_hash: revm_primitives::B256,
+    root_hash: B256,
+    code_hash: B256,
 }
 
 impl TrieAccount {
@@ -335,7 +333,7 @@ impl TrieAccount {
                         )
                     }),
             ),
-            code_hash: revm_primitives::B256::from_slice(acc.info.code_hash.as_bytes()),
+            code_hash: acc.info.code_hash,
         }
     }
 }
@@ -397,7 +395,7 @@ impl StorageSlot {
 pub type StorageWithOriginalValues = HashMap<U256, StorageSlot>;
 
 #[inline]
-pub fn trie_root<I, A, B>(input: I) -> revm_primitives::B256
+pub fn trie_root<I, A, B>(input: I) -> dora_primitives::B256
 where
     I: IntoIterator<Item = (A, B)>,
     A: AsRef<[u8]>,
@@ -410,7 +408,7 @@ where
 pub struct KeccakHasher;
 
 impl Hasher for KeccakHasher {
-    type Out = revm_primitives::B256;
+    type Out = dora_primitives::B256;
     type StdHasher = PlainHasher;
     const LENGTH: usize = 32;
 
@@ -459,6 +457,8 @@ fn execute_test(path: &Path) -> Result<(), TestError> {
     let s = std::fs::read_to_string(path).unwrap();
     let suite: TestSuite = serde_json::from_str(&s).map_err(|e| TestError {
         name: name.clone(),
+        suite_name: None,
+        indexs: None,
         kind: e.into(),
     })?;
 
@@ -530,10 +530,10 @@ fn execute_test(path: &Path) -> Result<(), TestError> {
                     .unwrap_or_default();
                 for item in access_list {
                     env.tx.access_list.push((
-                        Address::from_slice(&item.address.0),
+                        item.address,
                         item.storage_keys
                             .iter()
-                            .map(|key| B256::from_slice(key.as_bytes()))
+                            .map(|key| B256::from(*key))
                             .collect(),
                     ));
                 }
@@ -571,6 +571,8 @@ fn execute_test(path: &Path) -> Result<(), TestError> {
                         if test_case.expect_exception.is_some() && res.is_success() {
                             return Err(TestError {
                                 name: name.to_string(),
+                                suite_name: Some(suite_name.to_string()),
+                                indexs: Some(test_case.indexes.clone()),
                                 kind: TestErrorKind::UnexpectedException {
                                     expected_exception: test_case.expect_exception.clone(),
                                     got_exception: None,
@@ -581,9 +583,11 @@ fn execute_test(path: &Path) -> Result<(), TestError> {
                         if let Some((expected_output, output)) =
                             suite.out.as_ref().zip(res.output())
                         {
-                            if expected_output.0 != output {
+                            if expected_output.0 != *output {
                                 return Err(TestError {
                                     name: name.to_string(),
+                                    suite_name: Some(suite_name.to_string()),
+                                    indexs: Some(test_case.indexes.clone()),
                                     kind: TestErrorKind::UnexpectedOutput {
                                         expected_output: Some(expected_output.0.clone()),
                                         got_output: res.output().cloned(),
@@ -593,7 +597,11 @@ fn execute_test(path: &Path) -> Result<(), TestError> {
                         }
                         // Check the state root.
                         let state = vm.db.clone().into_state();
-                        let state_root = state_merkle_trie_root(state.iter());
+                        let state_root = state_merkle_trie_root(
+                            state
+                                .iter()
+                                .filter(|(_, acc)| !acc.is_loaded_as_not_existing()),
+                        );
                         if state_root != test_case.hash {
                             let kind = TestErrorKind::StateRootMismatch {
                                 got: state_root,
@@ -601,6 +609,8 @@ fn execute_test(path: &Path) -> Result<(), TestError> {
                             };
                             return Err(TestError {
                                 name: name.to_string(),
+                                suite_name: Some(suite_name.to_string()),
+                                indexs: Some(test_case.indexes.clone()),
                                 kind,
                             });
                         }
@@ -609,6 +619,8 @@ fn execute_test(path: &Path) -> Result<(), TestError> {
                         if test_case.expect_exception.is_none() {
                             return Err(TestError {
                                 name: name.to_string(),
+                                suite_name: Some(suite_name.to_string()),
+                                indexs: Some(test_case.indexes.clone()),
                                 kind: TestErrorKind::UnexpectedException {
                                     expected_exception: test_case.expect_exception.clone(),
                                     got_exception: Some(error.to_string()),
@@ -625,6 +637,8 @@ fn execute_test(path: &Path) -> Result<(), TestError> {
                     };
                     return Err(TestError {
                         name: name.to_string(),
+                        suite_name: Some(suite_name.to_string()),
+                        indexs: Some(test_case.indexes.clone()),
                         kind,
                     });
                 }
@@ -656,11 +670,12 @@ fn setup_env(name: &str, test: &Test) -> Result<Env, TestError> {
     env.tx.caller = if let Some(address) = test.transaction.sender {
         address
     } else {
-        let addr =
-            recover_address(test.transaction.secret_key.as_bytes()).ok_or_else(|| TestError {
-                name: name.to_string(),
-                kind: TestErrorKind::UnknownPrivateKey(test.transaction.secret_key),
-            })?;
+        let addr = recover_address(&test.transaction.secret_key.0).ok_or_else(|| TestError {
+            name: name.to_string(),
+            suite_name: None,
+            indexs: None,
+            kind: TestErrorKind::UnknownPrivateKey(test.transaction.secret_key),
+        })?;
         Address::from_slice(addr.as_slice())
     };
     env.tx.gas_price = test
@@ -675,14 +690,12 @@ fn setup_env(name: &str, test: &Test) -> Result<Env, TestError> {
     Ok(env)
 }
 
-fn recover_address(private_key: &[u8]) -> Option<revm_primitives::Address> {
+fn recover_address(private_key: &[u8]) -> Option<Address> {
     use k256::ecdsa::SigningKey;
 
     let key = SigningKey::from_slice(private_key).ok()?;
     let public_key = key.verifying_key().to_encoded_point(false);
-    Some(revm_primitives::Address::from_raw_public_key(
-        &public_key.as_bytes()[1..],
-    ))
+    Some(Address::from_raw_public_key(&public_key.as_bytes()[1..]))
 }
 
 impl<'de> serde::Deserialize<'de> for DeserializeBytes {

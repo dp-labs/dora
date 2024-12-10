@@ -1,5 +1,5 @@
-use bytes::Bytes;
 use criterion::{black_box, criterion_group, criterion_main, Criterion};
+use dora_primitives::Bytes;
 use dora_runtime::precompiles::{blake2f, ecrecover, identity, modexp, ripemd_160, sha2_256};
 
 /// Benchmark for `ecrecover`

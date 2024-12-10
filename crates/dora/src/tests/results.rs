@@ -1,6 +1,5 @@
-use bytes::Bytes;
 use dora_compiler::evm::program::Operation;
-use dora_primitives::{spec::SpecId, Address, Bytes32, B256, U256};
+use dora_primitives::{spec::SpecId, Address, Bytes, Bytes32, B256, U256};
 use dora_runtime::{
     constants::MAX_STACK_SIZE,
     context::{Log, LogData},
@@ -1118,7 +1117,7 @@ fn log1_1() {
         result.logs(),
         &[Log {
             address: Address::default(),
-            data: LogData::new_unchecked(vec![B256::zero()], vec![]),
+            data: LogData::new_unchecked(vec![B256::ZERO], vec![]),
         }]
     );
 }
@@ -1166,7 +1165,7 @@ fn log2_1() {
         result.logs(),
         &[Log {
             address: Address::default(),
-            data: LogData::new_unchecked(vec![B256::zero(); 2], vec![]),
+            data: LogData::new_unchecked(vec![B256::ZERO; 2], vec![]),
         }]
     );
 }
@@ -1190,7 +1189,7 @@ fn log3_1() {
         result.logs(),
         &[Log {
             address: Address::default(),
-            data: LogData::new_unchecked(vec![B256::zero(); 3], vec![]),
+            data: LogData::new_unchecked(vec![B256::ZERO; 3], vec![]),
         }]
     );
 }
@@ -1215,7 +1214,7 @@ fn log4_1() {
         result.logs(),
         &[Log {
             address: Address::default(),
-            data: LogData::new_unchecked(vec![B256::zero(); 4], vec![]),
+            data: LogData::new_unchecked(vec![B256::ZERO; 4], vec![]),
         }]
     );
 }
@@ -1287,7 +1286,7 @@ fn revert() {
     assert_eq!(result.gas_used(), 3 + 2 + 3 + 3 + 3 + 2);
     assert_eq!(
         result.output(),
-        &Bytes::from(Bytes32::from(0xAA_u32).to_be_bytes().to_vec())
+        Bytes::from(Bytes32::from(0xAA_u32).to_be_bytes().to_vec())
     );
 }
 
