@@ -612,6 +612,68 @@ fn keccak256_2() {
 }
 
 #[test]
+fn creturn_1() {
+    let operations = vec![
+        Operation::Push((1, 0_u8.into())),
+        Operation::Push((1, 0_u8.into())),
+        Operation::Return,
+    ];
+    let result = run_result(operations);
+    assert!(result.status.is_ok());
+    assert_eq!(result.gas_used(), 3 + 3);
+    assert_eq!(result.memory, vec![0; 0]);
+}
+
+#[test]
+fn creturn_2() {
+    let operations = vec![
+        Operation::Push((1, 30_u8.into())),
+        Operation::Push((1, 0_u8.into())),
+        Operation::Return,
+    ];
+    let result = run_result(operations);
+    assert!(result.status.is_ok());
+    assert_eq!(result.gas_used(), 3 + 3 + 3);
+    assert_eq!(result.output, vec![0; 30]);
+}
+
+#[test]
+fn creturn_3() {
+    let operations = vec![
+        Operation::Push((1_u8, 1_u8.into())),
+        Operation::Push((1_u8, 1_u8.into())),
+        Operation::Add,
+        // Return result
+        Operation::Push0,
+        Operation::MStore,
+        Operation::Push((1, 32_u8.into())),
+        Operation::Push0,
+        Operation::Return,
+    ];
+    let result = run_result(operations);
+    assert!(result.status.is_ok());
+    assert_eq!(result.gas_used(), 3 + 3 + 3 + 2 + 3 + 3 + 3 + 2);
+    assert_eq!(result.memory, Bytes32::from(2_u8).to_be_bytes());
+}
+
+#[test]
+fn creturn_4() {
+    let operations = vec![
+        Operation::Push((1_u8, 0x70_u8.into())),
+        Operation::Push0,
+        Operation::MStore,
+        Operation::Push((1, 32_u8.into())),
+        Operation::Push0,
+        Operation::Return,
+    ];
+    let result = run_result(operations);
+    assert!(result.status.is_ok());
+    assert_eq!(result.gas_used(), 3 + 2 + 3 + 3 + 3 + 2);
+    assert_eq!(result.memory, Bytes32::from(0x70_u8).to_be_bytes());
+    assert_eq!(result.output, Bytes32::from(0x70_u8).to_be_bytes().to_vec());
+}
+
+#[test]
 fn returndatasize() {
     let operations = vec![
         Operation::ReturndataSize,
@@ -1026,6 +1088,26 @@ fn sstore_1() {
     assert_eq!(result.gas_used(), 3 + 2100 + 3 + 3 + 20000 + 3 + 100);
     assert_eq!(result.memory, vec![0x00; 0]);
     assert_eq!(result.sload(U256::from(200)), U256::from(100));
+}
+
+#[test]
+fn sstore_2() {
+    let operations = vec![
+        Operation::Push((1, 3_u8.into())),
+        Operation::Push((1, 1_u8.into())),
+        Operation::SStore,
+        Operation::Push((1, 0x20_u8.into())),
+        Operation::Push((1, 0_u8.into())),
+        Operation::Return,
+    ];
+    let mut result = run_result(operations);
+    assert!(result.status.is_ok());
+    // 2100 is the cold storage cost
+    // 20000 is the new value is set from zero cost
+    assert_eq!(result.gas_used(), 3 + 3 + 20000 + 2100 + 3 + 3 + 3);
+    assert_eq!(result.memory, vec![0x00; 32]);
+    assert_eq!(result.sload(U256::from(1)), U256::from(3));
+    assert_eq!(result.output, vec![0; 0x20]);
 }
 
 #[test]

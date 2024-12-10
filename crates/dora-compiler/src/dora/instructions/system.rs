@@ -243,7 +243,7 @@ impl<'c> ConversionPass<'c> {
     }
 
     pub(crate) fn calldatacopy(context: &Context, op: &OperationRef<'_, '_>) -> Result<()> {
-        operands!(op, dest_offset, calldata_offset, length);
+        operands!(op, dest_offset, calldata_offset, size);
         syscall_ctx!(op, syscall_ctx);
         let rewriter = Rewriter::new_with_op(context, *op);
         let uint64 = rewriter.intrinsics.i64_ty;
@@ -251,9 +251,12 @@ impl<'c> ConversionPass<'c> {
 
         u256_to_64!(op, rewriter, calldata_offset);
         u256_to_64!(op, rewriter, dest_offset);
-        u256_to_64!(op, rewriter, length);
+        u256_to_64!(op, rewriter, size);
 
-        memory::resize_memory(context, op, &rewriter, syscall_ctx, dest_offset, length)?;
+        let size_is_not_zero = rewriter.make(rewriter.icmp_imm(IntCC::NotEqual, size, 0)?)?;
+        if_here!(op, rewriter, size_is_not_zero, {
+            memory::resize_memory(context, op, &rewriter, syscall_ctx, dest_offset, size)?;
+        });
         rewrite_ctx!(context, op, rewriter, location);
 
         let memory_ptr = memory::get_memory_pointer(context, &rewriter, location)?;
@@ -289,7 +292,7 @@ impl<'c> ConversionPass<'c> {
                 let remaining_calldata_size =
                     builder.make(arith::subi(calldata_size, calldata_offset, location))?;
                 let memcpy_len =
-                    builder.make(arith::minui(remaining_calldata_size, length, location))?;
+                    builder.make(arith::minui(remaining_calldata_size, size, location))?;
                 let calldata_ptr = builder.make(func::call(
                     builder.context(),
                     FlatSymbolRefAttribute::new(builder.context(), symbols::CALLDATA),
@@ -353,7 +356,10 @@ impl<'c> ConversionPass<'c> {
         u256_to_64!(op, rewriter, offset);
         u256_to_64!(op, rewriter, dest_offset);
 
-        memory::resize_memory(context, op, &rewriter, syscall_ctx, dest_offset, size)?;
+        let size_is_not_zero = rewriter.make(rewriter.icmp_imm(IntCC::NotEqual, size, 0)?)?;
+        if_here!(op, rewriter, size_is_not_zero, {
+            memory::resize_memory(context, op, &rewriter, syscall_ctx, dest_offset, size)?;
+        });
         rewrite_ctx!(context, op, rewriter, location);
 
         rewriter.create(func::call(
@@ -400,7 +406,11 @@ impl<'c> ConversionPass<'c> {
         let rewriter = Rewriter::new_with_op(context, *op);
         u256_to_64!(op, rewriter, dest_offset);
         u256_to_64!(op, rewriter, offset);
-        memory::resize_memory(context, op, &rewriter, syscall_ctx, dest_offset, size)?;
+
+        let size_is_not_zero = rewriter.make(rewriter.icmp_imm(IntCC::NotEqual, size, 0)?)?;
+        if_here!(op, rewriter, size_is_not_zero, {
+            memory::resize_memory(context, op, &rewriter, syscall_ctx, dest_offset, size)?;
+        });
         rewrite_ctx!(context, op, rewriter, location);
         let result_ptr = rewriter.make(func::call(
             context,
