@@ -14,7 +14,7 @@ use super::constants::{
 };
 use super::result::InvalidTransaction;
 use dora_primitives::{Bytes, EVMAddress as Address, B256, U256};
-use revm_primitives::{SpecId, GAS_PER_BLOB};
+use revm_primitives::{AuthorizationList, SpecId, GAS_PER_BLOB};
 
 /// Represents the execution environment for the EVM, including block, transaction, and EVM configuration.
 ///
@@ -133,7 +133,11 @@ impl Env {
     /// Validate initial transaction gas.
     pub fn validate_initial_tx_gas(&self, spec_id: SpecId) -> Result<u64, EVMError> {
         let is_create = self.tx.transact_to.is_zero();
-        let authorization_list_num = 0; // TODO: eip7702
+        let authorization_list_num = if self.tx.tx_type == TransactionType::Eip7702 {
+            self.tx.authorization_list_len() as u64
+        } else {
+            0
+        };
         let initial_gas_cost = gas::validate_initial_tx_gas(
             spec_id,
             &self.tx.data,
@@ -181,6 +185,18 @@ impl Env {
             .sum();
 
         TX_BASE_COST + data_cost + create_cost + access_list_cost
+    }
+
+    /// Calculates the maximum [EIP-4844] `data_fee` of the transaction.
+    ///
+    /// This is used for ensuring that the user has at least enough funds to pay the
+    /// `max_fee_per_blob_gas * total_blob_gas`, on top of regular gas costs.
+    ///
+    /// See EIP-4844:
+    /// <https://github.com/ethereum/EIPs/blob/master/EIPS/eip-4844.md#execution-layer-validation>
+    #[inline]
+    pub fn calc_max_data_fee(&self) -> Option<U256> {
+        self.tx.calc_max_data_fee()
     }
 
     /// Calculates the [EIP-4844] `data_fee` of the transaction.
@@ -381,6 +397,13 @@ pub struct TxEnv {
     ///
     /// [EIP-1559](https://eips.ethereum.org/EIPS/eip-1559)
     pub gas_priority_fee: Option<U256>,
+    /// List of authorizations, that contains the signature that authorizes this
+    /// caller to place the code to signer account.
+    ///
+    /// Set EOA account code for one transaction
+    ///
+    /// [EIP-Set EOA account code for one transaction](https://eips.ethereum.org/EIPS/eip-7702)
+    pub authorization_list: AuthorizationList,
 }
 
 pub type AccessListItem = (Address, Vec<B256>);
@@ -401,6 +424,7 @@ impl Default for TxEnv {
             chain_id: Some(1),
             gas_priority_fee: None,
             max_fee_per_blob_gas: None,
+            authorization_list: AuthorizationList::Signed(Vec::new()),
         }
     }
 }
@@ -457,10 +481,13 @@ impl TxEnv {
     ///
     /// See EIP-4844:
     /// <https://github.com/ethereum/EIPs/blob/master/EIPS/eip-4844.md#execution-layer-validation>
-    pub fn calc_max_data_fee(&self) -> U256 {
-        let blob_gas = U256::from(self.total_blob_gas());
-        let max_blob_fee = self.max_fee_per_blob_gas.unwrap_or_default();
-        max_blob_fee.saturating_mul(blob_gas)
+    pub fn calc_max_data_fee(&self) -> Option<U256> {
+        if self.tx_type == TransactionType::Eip4844 {
+            let blob_gas = U256::from(self.total_blob_gas());
+            let max_blob_fee = self.max_fee_per_blob_gas.unwrap_or_default();
+            return Some(max_blob_fee.saturating_mul(blob_gas));
+        }
+        None
     }
 
     /// Total gas for all blobs. Max number of blocks is already checked
@@ -468,5 +495,15 @@ impl TxEnv {
     #[inline]
     pub fn total_blob_gas(&self) -> u64 {
         GAS_PER_BLOB * self.blob_hashes.len() as u64
+    }
+
+    /// Returns length of the authorization list.
+    #[inline]
+    pub fn authorization_list_len(&self) -> usize {
+        if self.tx_type == TransactionType::Eip7702 {
+            self.authorization_list.len()
+        } else {
+            0
+        }
     }
 }
