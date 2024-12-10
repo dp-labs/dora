@@ -162,7 +162,7 @@ impl<'c> ConversionPass<'c> {
                     revert_flag,
                     ExitStatusCode::CallNotAllowedInsideStatic
                 );
-                Self::intern_call(context, op, value, 3)?;
+                Self::intern_call(context, op, value, 3, call_type)?;
             }
             CallType::Staticcall | CallType::Delegatecall => {
                 Self::intern_call(
@@ -170,6 +170,7 @@ impl<'c> ConversionPass<'c> {
                     op,
                     rewriter.make(rewriter.iconst_256_from_u64(0)?)?,
                     2,
+                    call_type,
                 )?;
             }
         };
@@ -181,6 +182,7 @@ impl<'c> ConversionPass<'c> {
         op: &OperationRef<'_, '_>,
         value: Value<'_, '_>,
         o_index: usize,
+        call_type: CallType,
     ) -> Result<()> {
         operands!(op, gas, address);
         syscall_ctx!(op, syscall_ctx);
@@ -224,7 +226,7 @@ impl<'c> ConversionPass<'c> {
             rewriter,
             context,
             uint8,
-            CallType::Call as u8 as i64,
+            call_type as u8 as i64,
             location
         ))?;
         let result_ptr = rewriter.make(func::call(
