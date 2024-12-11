@@ -267,7 +267,7 @@ macro_rules! check_op_oog {
 }
 
 #[macro_export]
-macro_rules! u256_to_64 {
+macro_rules! u256_to_u64 {
     ($op:expr, $rewriter:ident, $size:ident) => {
         let $size = $rewriter.make(arith::trunci(
             $size,

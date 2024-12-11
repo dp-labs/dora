@@ -7,7 +7,7 @@ use crate::{
     create_var,
     dora::{conversion::ConversionPass, memory},
     errors::{CompileError, Result},
-    load_var, maybe_revert_here, operands, rewrite_ctx, syscall_ctx, u256_to_64,
+    load_var, maybe_revert_here, operands, rewrite_ctx, syscall_ctx, u256_to_u64,
 };
 use crate::{check_runtime_error, ensure_non_staticcall, gas_or_fail, if_here};
 use dora_runtime::constants::GAS_COUNTER_GLOBAL;
@@ -132,28 +132,35 @@ impl<'c> ConversionPass<'c> {
     }
 
     pub(crate) fn extcodecopy(context: &Context, op: &OperationRef<'_, '_>) -> Result<()> {
-        operands!(op, address, dest_offset, offset, size);
+        operands!(op, address, memory_offset, code_offset, size);
         syscall_ctx!(op, syscall_ctx);
         let rewriter = Rewriter::new_with_op(context, *op);
         let ptr_type = rewriter.ptr_ty();
-        u256_to_64!(op, rewriter, size);
+        u256_to_u64!(op, rewriter, size);
         let gas = compute_copy_cost(&rewriter, size)?;
         gas_or_fail!(op, rewriter, gas);
         let rewriter = Rewriter::new_with_op(context, *op);
-        u256_to_64!(op, rewriter, offset);
-        u256_to_64!(op, rewriter, dest_offset);
+        u256_to_u64!(op, rewriter, memory_offset);
         let size_is_not_zero = rewriter.make(rewriter.icmp_imm(IntCC::NotEqual, size, 0)?)?;
         if_here!(op, rewriter, size_is_not_zero, {
-            memory::resize_memory(context, op, &rewriter, syscall_ctx, dest_offset, size)?;
+            memory::resize_memory(context, op, &rewriter, syscall_ctx, memory_offset, size)?;
         });
         rewrite_ctx!(context, op, rewriter, location);
         let address_ptr =
             memory::allocate_u256_and_assign_value(context, &rewriter, address, location)?;
+        let code_offset =
+            memory::allocate_u256_and_assign_value(context, &rewriter, code_offset, location)?;
 
         let result_ptr = rewriter.make(func::call(
             context,
             FlatSymbolRefAttribute::new(context, symbols::EXT_CODE_COPY),
-            &[syscall_ctx.into(), address_ptr, offset, size, dest_offset],
+            &[
+                syscall_ctx.into(),
+                address_ptr,
+                code_offset,
+                size,
+                memory_offset,
+            ],
             &[ptr_type],
             location,
         ))?;
@@ -308,11 +315,11 @@ impl<'c> ConversionPass<'c> {
         let rewriter = Rewriter::new_with_op(context, *op);
 
         // Check the log mem offset and size overflow error
-        u256_to_64!(op, rewriter, size);
+        u256_to_u64!(op, rewriter, size);
         let gas = compute_log_dynamic_cost(&rewriter, size)?;
         gas_or_fail!(op, rewriter, gas);
         let rewriter = Rewriter::new_with_op(context, *op);
-        u256_to_64!(op, rewriter, offset);
+        u256_to_u64!(op, rewriter, offset);
 
         let size_is_not_zero = rewriter.make(rewriter.icmp_imm(IntCC::NotEqual, size, 0)?)?;
         if_here!(op, rewriter, size_is_not_zero, {
