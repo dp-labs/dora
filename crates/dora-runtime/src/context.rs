@@ -1364,6 +1364,11 @@ impl<'a> RuntimeContext<'a> {
         }
     }
 
+    pub extern "C" fn exp(&mut self, base: &Bytes32, exponent_ptr: &mut Bytes32) {
+        let exponent = exponent_ptr.to_u256();
+        *exponent_ptr = base.to_u256().pow(exponent).into();
+    }
+
     pub extern "C" fn keccak256_hasher(&mut self, offset: u64, size: u64, hash_ptr: &mut Bytes32) {
         if size == 0 {
             *hash_ptr = Bytes32::from_be_bytes(EMPTY_CODE_HASH_BYTES);
@@ -1925,6 +1930,7 @@ impl<'a> RuntimeContext<'a> {
                     symbols::WRITE_RESULT,
                     RuntimeContext::write_result as *const _,
                 ),
+                (symbols::EXP, RuntimeContext::exp as *const _),
                 (
                     symbols::KECCAK256_HASHER,
                     RuntimeContext::keccak256_hasher as *const _,

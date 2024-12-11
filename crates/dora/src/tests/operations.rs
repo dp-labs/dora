@@ -636,6 +636,32 @@ fn exp_large_base() {
 }
 
 #[test]
+fn exp_large_u256_exponent() {
+    let (a, b) = (
+        0xff_u8.into(),
+        BigUint::from_str(
+            "102161150204658159326162171757797299165741800222807601117528975009918212890625",
+        )
+        .unwrap(),
+    );
+    let operations = vec![
+        Operation::Push((32, b)),
+        Operation::Push((1, a)),
+        Operation::Exp,
+        // Return result
+        Operation::Push0,
+        Operation::MStore,
+        Operation::Push((1, 32_u8.into())),
+        Operation::Push0,
+        Operation::Return,
+    ];
+    let (env, db) = default_env_and_db_setup(operations);
+    run_program_assert_num_result(env, db, BigUint::from_str(
+        &U256::from(0xFF).pow(U256::from_str("102161150204658159326162171757797299165741800222807601117528975009918212890625").unwrap()).to_string()
+    ).unwrap());
+}
+
+#[test]
 fn exp_edge_case() {
     let (a, b) = (BigUint::from(u128::MAX), 1_u32);
     let operations = vec![

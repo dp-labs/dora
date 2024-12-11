@@ -37,6 +37,7 @@ pub(crate) fn declare_symbols(context: &MLIRContext, module: &MLIRModule) {
             &[ptr_type, uint64, uint64, uint64, uint8],
             &[],
         ),
+        (symbols::EXP, &[ptr_type, ptr_type, ptr_type], &[]),
         (
             symbols::KECCAK256_HASHER,
             &[ptr_type, uint64, uint64, ptr_type],
