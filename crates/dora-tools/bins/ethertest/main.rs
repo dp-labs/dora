@@ -794,7 +794,7 @@ fn main() -> Result<()> {
     match &cli.command {
         Commands::Run(run_args) => {
             for path in &run_args.path {
-                println!("\nRunning tests in {}...", path.display());
+                info!("\nRunning tests in {}...", path.display());
 
                 let tests = find_all_json_tests(path);
                 let pb = ProgressBar::new(tests.len() as u64);
@@ -803,7 +803,7 @@ fn main() -> Result<()> {
                 for test_path in tests {
                     match execute_test(&test_path) {
                         Ok(_) => pb.inc(1),
-                        Err(e) => eprintln!("Test failed: {:?}", e),
+                        Err(e) => error!("Test failed: {:?}", e),
                     }
                 }
 

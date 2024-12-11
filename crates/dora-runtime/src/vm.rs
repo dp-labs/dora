@@ -158,7 +158,7 @@ impl<'a, DB: Database> VM<'a, DB> {
                 } else {
                     CallKind::Call
                 },
-                input: ctx.env.tx.data.to_vec(),
+                input: ctx.env.tx.data.clone(),
                 value: ctx.env.tx.value,
                 depth: 0,
                 gas_limit,

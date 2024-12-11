@@ -4,6 +4,7 @@ use crate::{
     ExitStatusCode,
 };
 use dora_primitives::{Address, B256, U256};
+use revm_primitives::Bytes;
 
 /// The kind of call-like instructions for the Host API.
 #[derive(Debug, Clone)]
@@ -48,7 +49,7 @@ pub struct CallMessage {
     /// The kind of of the execution.
     pub kind: CallKind,
     /// The call data of the execution.
-    pub input: Vec<u8>,
+    pub input: Bytes,
     /// Call value.
     pub value: U256,
     /// The present depth of the message call stack.
@@ -89,7 +90,7 @@ pub struct CallResult {
     /// The refunded gas accumulated from this execution and its sub-calls.
     pub gas_refunded: i64,
     /// The output contains data coming from RETURN opcode.
-    pub output: Vec<u8>,
+    pub output: Bytes,
     // An optional address associated with the create and create2 kinds.
     pub create_address: Option<Address>,
 }
@@ -131,7 +132,7 @@ impl CallResult {
             status: runtime_context.status(),
             gas_remaining: runtime_context.gas_remaining(),
             gas_refunded: runtime_context.gas_refunded(),
-            output: runtime_context.return_values().to_vec(),
+            output: runtime_context.return_bytes(),
             create_address: None,
         }
     }
