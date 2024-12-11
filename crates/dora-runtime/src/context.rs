@@ -147,7 +147,7 @@ impl<'a, DB: Database> VMContext<'a, DB> {
             .load_account(caller, &mut self.db)
             .map_err(|_| EVMError::Database(DatabaseError))?;
 
-        let is_call = !self.env.tx.get_address().is_zero();
+        let is_call = self.env.tx.transact_to.is_call();
 
         // Subtract gas costs from the caller's account.
         // We need to saturate the gas cost to prevent underflow in case that `disable_balance_check` is enabled.
@@ -848,7 +848,7 @@ impl Contract {
             input: env.tx.data.clone(),
             code: bytecode,
             hash,
-            target_address: env.tx.transact_to,
+            target_address: env.tx.get_address(),
             caller: env.tx.caller,
             code_address: env.tx.caller,
             call_value: env.tx.value,
