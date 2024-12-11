@@ -1683,7 +1683,7 @@ fn returndatacopy() {
         None,
     );
     let mut host = DummyHost::new(env);
-    let mut runtime_context = RuntimeContext::new(contract, &mut host, SpecId::CANCUN);
+    let mut runtime_context = RuntimeContext::new(contract, 1, &mut host, SpecId::CANCUN);
     runtime_context.set_returndata(vec![0; calldata_size as usize]);
     run_with_context::<MemoryDB>(&mut runtime_context, INIT_GAS).unwrap();
     let status = runtime_context.status();
@@ -1763,7 +1763,7 @@ fn returndatacopy_out_of_bounds() {
         None,
     );
     let mut host = DummyHost::new(env);
-    let mut runtime_context = RuntimeContext::new(contract, &mut host, SpecId::CANCUN);
+    let mut runtime_context = RuntimeContext::new(contract, 1, &mut host, SpecId::CANCUN);
     runtime_context.set_returndata(vec![0; (calldata_size - 10) as usize]);
     run_with_context::<MemoryDB>(&mut runtime_context, INIT_GAS).unwrap();
     let status = runtime_context.status();

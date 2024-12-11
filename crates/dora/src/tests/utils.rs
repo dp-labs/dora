@@ -78,7 +78,7 @@ pub(crate) fn run_result_with_spec(operations: Vec<Operation>, spec_id: SpecId) 
         None,
     );
     let mut host = DummyHost::new(env);
-    let mut runtime_context = RuntimeContext::new(contract, &mut host, spec_id);
+    let mut runtime_context = RuntimeContext::new(contract, 1, &mut host, spec_id);
     runtime_context.set_returndata(vec![0xDD; 64]);
     run_with_context::<MemoryDB>(&mut runtime_context, initial_gas).unwrap();
     TestResult {
