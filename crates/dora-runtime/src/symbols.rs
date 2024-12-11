@@ -6,6 +6,7 @@ pub const CTX_IS_STATIC: &str = "dora_global_ctx_is_static";
 // System functions
 pub const WRITE_RESULT: &str = "dora_fn_write_result";
 pub const EXTEND_MEMORY: &str = "dora_fn_extend_memory";
+pub const EXP: &str = "dora_fn_exp";
 pub const KECCAK256_HASHER: &str = "dora_fn_keccak256_hasher";
 pub const SSTORE: &str = "dora_fn_sstore";
 pub const SLOAD: &str = "dora_fn_sload";

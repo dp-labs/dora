@@ -1,23 +1,26 @@
 use crate::{
     arith_constant,
     backend::IntCC,
-    conversion::builder::OpBuilder,
-    conversion::rewriter::{DeferredRewriter, Rewriter},
-    dora::{conversion::ConversionPass, gas::compute_exp_cost},
+    conversion::{
+        builder::OpBuilder,
+        rewriter::{DeferredRewriter, Rewriter},
+    },
+    dora::{
+        conversion::ConversionPass, gas::compute_exp_cost, memory::allocate_u256_and_assign_value,
+    },
     errors::Result,
-    gas_or_fail, maybe_revert_here, operands, rewrite_ctx,
+    gas_or_fail, maybe_revert_here, operands, rewrite_ctx, syscall_ctx,
 };
 use dora_primitives::SpecId;
-use dora_runtime::constants::GAS_COUNTER_GLOBAL;
 use dora_runtime::ExitStatusCode;
+use dora_runtime::{constants::GAS_COUNTER_GLOBAL, symbols};
 use melior::{
-    dialect::{
-        arith, cf,
-        ods::{llvm, math},
-        scf,
-    },
+    dialect::{arith, cf, func, ods::llvm, scf},
     ir::{
-        attribute::IntegerAttribute, operation::OperationRef, r#type::IntegerType, Block, Region,
+        attribute::{FlatSymbolRefAttribute, IntegerAttribute},
+        operation::OperationRef,
+        r#type::IntegerType,
+        Block, Region,
     },
     Context,
 };
@@ -199,8 +202,19 @@ impl<'c> ConversionPass<'c> {
         let rewriter = Rewriter::new_with_op(context, *op);
         let gas = compute_exp_cost(&rewriter, r, spec_id)?;
         gas_or_fail!(op, rewriter, gas);
+        syscall_ctx!(op, syscall_ctx);
         rewrite_ctx!(context, op, rewriter, location);
-        rewriter.make(math::ipowi(context, l, r, location).into())?;
+        // Note the power i256 overflow, thus we use the pow runtime function to deal this situation.
+        let base_ptr = allocate_u256_and_assign_value(context, &rewriter, l, location)?;
+        let exponent_ptr = allocate_u256_and_assign_value(context, &rewriter, r, location)?;
+        rewriter.create(func::call(
+            context,
+            FlatSymbolRefAttribute::new(context, symbols::EXP),
+            &[syscall_ctx.into(), base_ptr, exponent_ptr],
+            &[],
+            location,
+        ));
+        rewriter.create(rewriter.load(exponent_ptr, rewriter.intrinsics.i256_ty));
         Ok(())
     }
 
