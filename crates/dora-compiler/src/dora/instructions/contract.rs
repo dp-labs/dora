@@ -13,7 +13,7 @@ use crate::{
     },
     ensure_non_staticcall,
     errors::Result,
-    gas_or_fail, if_here, maybe_revert_here, operands, rewrite_ctx, syscall_ctx, u256_to_64,
+    gas_or_fail, if_here, maybe_revert_here, operands, rewrite_ctx, syscall_ctx, u256_to_u64,
 };
 use dora_primitives::SpecId;
 use dora_runtime::constants::{gas_cost, GAS_COUNTER_GLOBAL};
@@ -48,8 +48,8 @@ impl<'c> ConversionPass<'c> {
         let location = rewriter.get_insert_location();
         let uint256 = rewriter.intrinsics.i256_ty;
         let ptr_type = rewriter.ptr_ty();
-        u256_to_64!(op, rewriter, offset);
-        u256_to_64!(op, rewriter, size);
+        u256_to_u64!(op, rewriter, offset);
+        u256_to_u64!(op, rewriter, size);
         let size_is_not_zero = rewriter.make(rewriter.icmp_imm(IntCC::NotEqual, size, 0)?)?;
         if_here!(op, rewriter, size_is_not_zero, {
             if spec_id.is_enabled_in(SpecId::SHANGHAI) {
@@ -198,11 +198,10 @@ impl<'c> ConversionPass<'c> {
         let uint8 = rewriter.intrinsics.i8_ty;
         let uint256 = rewriter.intrinsics.i256_ty;
         let ptr_type = rewriter.ptr_ty();
-        u256_to_64!(op, rewriter, gas);
-        u256_to_64!(op, rewriter, args_offset);
-        u256_to_64!(op, rewriter, args_size);
-        u256_to_64!(op, rewriter, ret_offset);
-        u256_to_64!(op, rewriter, ret_size);
+        u256_to_u64!(op, rewriter, args_offset);
+        u256_to_u64!(op, rewriter, args_size);
+        u256_to_u64!(op, rewriter, ret_offset);
+        u256_to_u64!(op, rewriter, ret_size);
 
         let size_is_not_zero =
             rewriter.make(rewriter.icmp_imm(IntCC::NotEqual, args_size, 0)?)?;
@@ -220,6 +219,7 @@ impl<'c> ConversionPass<'c> {
         let remaining_gas = gas::get_gas_counter(&rewriter)?;
         let value_ptr =
             memory::allocate_u256_and_assign_value(context, &rewriter, value, location)?;
+        let gas_ptr = memory::allocate_u256_and_assign_value(context, &rewriter, gas, location)?;
         let address_ptr =
             memory::allocate_u256_and_assign_value(context, &rewriter, address, location)?;
         let call_type_value = rewriter.make(arith_constant!(
@@ -234,7 +234,7 @@ impl<'c> ConversionPass<'c> {
             FlatSymbolRefAttribute::new(context, symbols::CALL),
             &[
                 syscall_ctx.into(),
-                gas,
+                gas_ptr,
                 address_ptr,
                 value_ptr,
                 args_offset,
@@ -279,8 +279,8 @@ impl<'c> ConversionPass<'c> {
         let location = rewriter.get_insert_location();
         let uint8 = rewriter.intrinsics.i8_ty;
 
-        u256_to_64!(op, rewriter, offset);
-        u256_to_64!(op, rewriter, size);
+        u256_to_u64!(op, rewriter, offset);
+        u256_to_u64!(op, rewriter, size);
         let size_is_not_zero = rewriter.make(rewriter.icmp_imm(IntCC::NotEqual, size, 0)?)?;
         if_here!(op, rewriter, size_is_not_zero, {
             memory::resize_memory(context, op, &rewriter, syscall_ctx, offset, size)?;
