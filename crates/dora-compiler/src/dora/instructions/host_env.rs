@@ -125,18 +125,18 @@ impl<'c> ConversionPass<'c> {
         syscall_ctx!(op, syscall_ctx);
         rewrite_ctx!(context, op, rewriter, location);
 
-        let gaslimit = rewriter.make(func::call(
+        let gaslimit_ptr = create_var!(rewriter, context, location);
+        load_var!(
+            rewriter,
             context,
-            FlatSymbolRefAttribute::new(context, symbols::GASLIMIT),
-            &[syscall_ctx.into()],
-            &[rewriter.intrinsics.i64_ty],
-            location,
-        ))?;
-        rewriter.make(arith::extui(
-            gaslimit,
+            syscall_ctx,
+            symbols::STORE_IN_GASLIMIT_PTR,
+            &[gaslimit_ptr],
+            [],
+            gaslimit_ptr,
             rewriter.intrinsics.i256_ty,
-            location,
-        ))?;
+            location
+        );
         Ok(())
     }
 

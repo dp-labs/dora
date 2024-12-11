@@ -2,7 +2,11 @@
 
 use std::cmp::min;
 
-use crate::{gas, result::EVMError, transaction::TransactionType};
+use crate::{
+    gas,
+    result::{EVMError, InvalidHeader},
+    transaction::TransactionType,
+};
 
 use super::constants::{
     gas_cost::{
@@ -14,7 +18,7 @@ use super::constants::{
 };
 use super::result::InvalidTransaction;
 use dora_primitives::{Address, Bytes, B256, U256};
-use revm_primitives::{AuthorizationList, SpecId, GAS_PER_BLOB};
+use revm_primitives::{calc_blob_gasprice, AuthorizationList, SpecId, GAS_PER_BLOB};
 
 /// Represents the execution environment for the EVM, including block, transaction, and EVM configuration.
 ///
@@ -102,7 +106,12 @@ impl Env {
         }
 
         if let Some(max_fee) = self.tx.max_fee_per_blob_gas {
-            let price = self.block.blob_gasprice.unwrap_or_default();
+            let price = self
+                .block
+                .blob_excess_gas_and_price
+                .clone()
+                .unwrap_or_default()
+                .blob_gasprice;
             if U256::from(price) > max_fee {
                 return Err(InvalidTransaction::BlobGasPriceGreaterThanMax);
             }
@@ -126,6 +135,20 @@ impl Env {
                     max: MAX_BLOB_NUMBER_PER_BLOCK as usize,
                 });
             }
+        }
+        Ok(())
+    }
+
+    /// Validate the block environment.
+    #[inline]
+    pub fn validate_block_env(&self, spec_id: SpecId) -> Result<(), InvalidHeader> {
+        // `prevrandao` is required for the merge
+        if spec_id.is_enabled_in(SpecId::MERGE) && self.block.prevrandao.is_none() {
+            return Err(InvalidHeader::PrevrandaoNotSet);
+        }
+        // `excess_blob_gas` is required for Cancun
+        if spec_id.is_enabled_in(SpecId::CANCUN) && self.block.blob_excess_gas_and_price.is_none() {
+            return Err(InvalidHeader::ExcessBlobGasNotSet);
         }
         Ok(())
     }
@@ -208,7 +231,13 @@ impl Env {
     pub fn calc_data_fee(&self) -> Option<U256> {
         if self.tx.tx_type == TransactionType::Eip4844 {
             let blob_gas = U256::from(self.tx.total_blob_gas());
-            let blob_gas_price = U256::from(self.block.blob_gasprice.unwrap_or_default());
+            let blob_gas_price = U256::from(
+                self.block
+                    .blob_excess_gas_and_price
+                    .clone()
+                    .unwrap_or_default()
+                    .blob_gasprice,
+            );
             return Some(blob_gas_price.saturating_mul(blob_gas));
         }
         None
@@ -326,14 +355,35 @@ pub struct BlockEnv {
     ///
     /// [EIP-4399](https://eips.ethereum.org/EIPS/eip-4399)
     pub prevrandao: Option<B256>,
+    /// Excess blob gas and blob gasprice.
+    pub blob_excess_gas_and_price: Option<BlobExcessGasAndPrice>,
+}
+
+impl BlockEnv {
+    /// Takes `blob_excess_gas` saves it inside env.
+    pub fn set_blob_excess_gas_and_price(&mut self, excess_blob_gas: u64) {
+        self.blob_excess_gas_and_price = Some(BlobExcessGasAndPrice::new(excess_blob_gas));
+    }
+}
+
+/// Structure holding block blob excess gas and it calculates blob fee.
+#[derive(Clone, Debug, PartialEq, Eq, Hash, Default)]
+pub struct BlobExcessGasAndPrice {
     /// The excess blob gas of the block.
-    ///
-    /// [EIP-4844](https://eips.ethereum.org/EIPS/eip-4844)
-    pub excess_blob_gas: Option<u64>,
-    /// The calculated blob gas price based on the `excess_blob_gas`.
-    ///
-    /// [EIP-4844](https://eips.ethereum.org/EIPS/eip-4844)
-    pub blob_gasprice: Option<u128>,
+    pub excess_blob_gas: u64,
+    /// The calculated blob gas price based on the `excess_blob_gas`, See [calc_blob_gasprice]
+    pub blob_gasprice: u128,
+}
+
+impl BlobExcessGasAndPrice {
+    /// Creates a new instance by calculating the blob gas price with [`calc_blob_gasprice`].
+    pub fn new(excess_blob_gas: u64) -> Self {
+        let blob_gasprice = calc_blob_gasprice(excess_blob_gas);
+        Self {
+            excess_blob_gas,
+            blob_gasprice,
+        }
+    }
 }
 
 /// Contains information about the transaction being processed by the EVM, including sender and gas details.
