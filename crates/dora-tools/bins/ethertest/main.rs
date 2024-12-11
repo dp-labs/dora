@@ -29,6 +29,7 @@ use hash_db::Hasher;
 use indicatif::{ProgressBar, ProgressDrawTarget};
 use plain_hasher::PlainHasher;
 use revm_primitives::alloy_primitives::Parity;
+use revm_primitives::calc_excess_blob_gas;
 use revm_primitives::keccak256;
 use revm_primitives::Authorization;
 use revm_primitives::AuthorizationList;
@@ -651,21 +652,29 @@ fn execute_test(path: &Path) -> Result<(), TestError> {
 fn setup_env(name: &str, test: &Test) -> Result<Env, TestError> {
     let mut env = Env::default();
     env.cfg.chain_id = 1;
-    env.tx.transact_to = test.transaction.to.unwrap_or_default();
     env.block.number = test.env.current_number;
     env.block.coinbase = test.env.current_coinbase;
+    env.block.gas_limit = test.env.current_gas_limit;
     env.block.timestamp = test.env.current_timestamp;
     env.block.basefee = test.env.current_base_fee.unwrap_or_default();
+    env.block.difficulty = test.env.current_difficulty;
     env.block.prevrandao = test.env.current_random;
+    // EIP-4844
     if let Some(current_excess_blob_gas) = test.env.current_excess_blob_gas {
-        env.block.excess_blob_gas = Some(current_excess_blob_gas.to());
-    } else if let (Some(_), Some(parent_excess_blob_gas)) = (
+        env.block
+            .set_blob_excess_gas_and_price(current_excess_blob_gas.to());
+    } else if let (Some(parent_blob_gas_used), Some(parent_excess_blob_gas)) = (
         test.env.parent_blob_gas_used,
         test.env.parent_excess_blob_gas,
     ) {
-        env.block.excess_blob_gas = Some(parent_excess_blob_gas.to());
+        env.block
+            .set_blob_excess_gas_and_price(calc_excess_blob_gas(
+                parent_blob_gas_used.to(),
+                parent_excess_blob_gas.to(),
+            ));
     }
     // tx env
+    env.tx.transact_to = test.transaction.to.unwrap_or_default();
     env.tx.caller = if let Some(address) = test.transaction.sender {
         address
     } else {

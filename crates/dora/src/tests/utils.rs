@@ -93,6 +93,7 @@ pub(crate) fn run_result_with_spec(operations: Vec<Operation>, spec_id: SpecId) 
 pub(crate) fn default_env_and_db_setup(operations: Vec<Operation>) -> (Env, MemoryDB) {
     let mut env = Env::default();
     env.tx.gas_limit = INIT_GAS;
+    env.block.gas_limit = Bytes32::from(INIT_GAS).into_u256();
     let program = Program::from(operations);
     let (address, bytecode) = (
         Address::left_padding_from(&[40]),

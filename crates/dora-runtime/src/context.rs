@@ -1351,17 +1351,19 @@ impl<'a> RuntimeContext<'a> {
             .host
             .env()
             .block
-            .blob_gasprice
+            .blob_excess_gas_and_price
+            .clone()
             .unwrap_or_default()
+            .blob_gasprice
             .into();
-    }
-
-    pub extern "C" fn gaslimit(&self) -> u64 {
-        self.host.env().tx.gas_limit
     }
 
     pub extern "C" fn caller(&self, value: &mut Bytes32) {
         value.copy_from(&self.contract.caller);
+    }
+
+    pub extern "C" fn store_in_gaslimit_ptr(&self, value: &mut Bytes32) {
+        *value = self.host.env().block.gas_limit.into();
     }
 
     pub extern "C" fn store_in_gasprice_ptr(&self, value: &mut Bytes32) {
@@ -1956,7 +1958,10 @@ impl<'a> RuntimeContext<'a> {
                     RuntimeContext::store_in_basefee_ptr as *const _,
                 ),
                 (symbols::CALLER, RuntimeContext::caller as *const _),
-                (symbols::GASLIMIT, RuntimeContext::gaslimit as *const _),
+                (
+                    symbols::STORE_IN_GASLIMIT_PTR,
+                    RuntimeContext::store_in_gaslimit_ptr as *const _,
+                ),
                 (
                     symbols::STORE_IN_GASPRICE_PTR,
                     RuntimeContext::store_in_gasprice_ptr as *const _,
