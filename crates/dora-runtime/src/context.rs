@@ -502,6 +502,8 @@ impl<'a, DB: Database> VMContext<'a, DB> {
                     let call_result = self.call_frame(Frame {
                         contract,
                         gas_limit: msg.gas_limit,
+                        is_static: msg.is_static,
+                        is_eof: msg.is_eof,
                         depth: self.journaled_state.depth(),
                     })?;
                     self.call_return(&call_result.status, checkpoint);
@@ -577,6 +579,8 @@ impl<'a, DB: Database> VMContext<'a, DB> {
                 let mut call_result = self.call_frame(Frame {
                     contract,
                     gas_limit: msg.gas_limit,
+                    is_static: msg.is_static,
+                    is_eof: msg.is_eof,
                     depth: self.journaled_state.depth(),
                 })?;
                 self.create_return(&mut call_result, created_address, checkpoint);
@@ -1025,12 +1029,21 @@ impl<'a> RuntimeContext<'a> {
     /// ```no_check
     /// let context = RuntimeContext::new(env, journal, call_frame);
     /// ```
-    pub fn new(contract: Contract, depth: usize, host: &'a mut dyn Host, spec_id: SpecId) -> Self {
+    pub fn new(
+        contract: Contract,
+        depth: usize,
+        is_static: bool,
+        is_eof: bool,
+        host: &'a mut dyn Host,
+        spec_id: SpecId,
+    ) -> Self {
         Self {
             inner: InnerContext {
                 spec_id,
                 depth,
                 memory: Vec::with_capacity(4 * 1024),
+                is_static,
+                is_eof,
                 ..Default::default()
             },
             host,
@@ -1493,6 +1506,12 @@ impl<'a> RuntimeContext<'a> {
         stg_value: &Bytes32,
         gas_remaining: u64,
     ) -> *mut RuntimeResult<()> {
+        if self.inner.is_static {
+            return Box::into_raw(Box::new(RuntimeResult::error(
+                ExitStatusCode::StateChangeDuringStaticcall.to_u8(),
+                (),
+            )));
+        }
         let result = match self
             .host
             .sstore(self.contract.target_address, *stg_key, *stg_value)

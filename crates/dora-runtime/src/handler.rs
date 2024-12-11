@@ -15,6 +15,10 @@ pub struct Frame {
     pub gas_limit: u64,
     /// Depth in the call stack.
     pub depth: usize,
+    /// Whether the call is a static call, or is initiated inside a static call.
+    pub is_static: bool,
+    /// Whether the call is initiated from EOF bytecode.
+    pub is_eof: bool,
 }
 
 pub type CallFrameHandle<'a, DB> =

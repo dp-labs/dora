@@ -67,7 +67,7 @@ fn run_bench(c: &mut Criterion, bench: &Bench) {
     env.tx.transact_to = TxKind::Call(Address::left_padding_from(&[40]));
     let contract = Contract::new_with_env(&env, Bytecode::from(program.to_opcode()), None);
     let mut host = DummyHost::new(env);
-    let mut context = RuntimeContext::new(contract, 1, &mut host, SpecId::CANCUN);
+    let mut context = RuntimeContext::new(contract, 1, false, false, &mut host, SpecId::CANCUN);
     let executor = Executor::new(module.module(), &context, Default::default());
     let func = executor.get_main_entrypoint();
     let ctx = black_box(&mut context);

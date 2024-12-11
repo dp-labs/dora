@@ -64,7 +64,14 @@ pub fn call_frame<DB: Database>(
     let code_hash = frame.contract.hash.unwrap_or_default();
     let spec_id = ctx.spec_id();
     let artifact = ctx.db.get_artifact(code_hash);
-    let mut runtime_context = RuntimeContext::new(frame.contract, frame.depth, ctx, spec_id);
+    let mut runtime_context = RuntimeContext::new(
+        frame.contract,
+        frame.depth,
+        frame.is_static,
+        frame.is_eof,
+        ctx,
+        spec_id,
+    );
     if let Ok(Some(artifact)) = artifact {
         artifact.execute(&mut runtime_context, frame.gas_limit);
         Ok(CallResult::new_with_runtime_context_and_gas_limit(
