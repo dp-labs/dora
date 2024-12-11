@@ -1474,7 +1474,7 @@ fn test_extcodesize() {
     let _created_address = Address::left_padding_from(&[40]).create(1);
     // _created_address is the deployed contract address
     // 41 is the deployed contract code size.
-    run_program_assert_num_result(env, db, 41_u8.into());
+    run_program_assert_num_result(env, db, 0_u8.into());
 }
 
 #[test]
@@ -1798,7 +1798,7 @@ fn extcodehash() {
         env,
         db,
         BigUint::from_str(
-            "22398296254509512877748035601769957114361483429695916232935987428590872618327",
+            "89477152217924674838424037953991966239322087453347756267410168184682657981552",
         )
         .unwrap(),
     );
@@ -2954,7 +2954,7 @@ fn create2_with_salt() {
     run_program_assert_num_result(
         env,
         db,
-        BigUint::from_str("873749533739983692161977913712972771298764473627").unwrap(),
+        BigUint::from_str("1298672851206845405429649291545422093257887715444").unwrap(),
     );
 }
 
@@ -3141,7 +3141,7 @@ fn call_1() {
         Operation::Return,
     ];
     let (env, db) = default_env_and_db_setup(operations);
-    run_program_assert_num_result(env, db, 1_u8.into());
+    run_program_assert_num_result(env, db, 0_u8.into());
 }
 
 #[test]

@@ -60,7 +60,7 @@ impl Default for AccountInfo {
     fn default() -> Self {
         Self {
             balance: U256::ZERO,
-            code_hash: B256::from_slice(&EMPTY_CODE_HASH_BYTES),
+            code_hash: EMPTY_CODE_HASH,
             code: Some(Bytecode::default()),
             nonce: 0,
         }
@@ -96,10 +96,9 @@ impl AccountInfo {
     /// let account_info = AccountInfo::default();
     /// assert!(account_info.is_empty());
     /// ```
+    #[inline]
     pub fn is_empty(&self) -> bool {
-        self.balance.is_zero()
-            && self.nonce == 0
-            && self.code_hash == B256::from_slice(&EMPTY_CODE_HASH_BYTES)
+        self.balance.is_zero() && self.nonce == 0 && self.code_hash == EMPTY_CODE_HASH
     }
 
     /// Checks if the account has contract code associated with it.
@@ -113,8 +112,9 @@ impl AccountInfo {
     /// let account_info = AccountInfo::default();
     /// assert!(!account_info.has_code());
     /// ```
+    #[inline]
     pub fn has_code(&self) -> bool {
-        self.code_hash != B256::ZERO && self.code_hash != B256::from_slice(&EMPTY_CODE_HASH_BYTES)
+        self.code_hash != B256::ZERO && self.code_hash != EMPTY_CODE_HASH
     }
 }
 

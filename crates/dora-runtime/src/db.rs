@@ -1,5 +1,5 @@
 use crate::{
-    account::{Account, AccountInfo, AccountStatus, EMPTY_CODE_HASH, EMPTY_CODE_HASH_BYTES},
+    account::{Account, AccountInfo, AccountStatus, EMPTY_CODE_HASH},
     artifact::{Artifact, SymbolArtifact},
 };
 use dora_primitives::{Address, Bytecode, B256, U256};
@@ -625,7 +625,7 @@ impl DbAccount {
             nonce: 0,
             balance: U256::ZERO,
             storage: FxHashMap::default(),
-            bytecode_hash: B256::from_slice(&EMPTY_CODE_HASH_BYTES),
+            bytecode_hash: EMPTY_CODE_HASH,
             status: AccountStatus::Created,
             account_state: AccountState::None,
         }
