@@ -13,6 +13,8 @@ pub struct Frame {
     pub contract: Contract,
     /// The gas limit
     pub gas_limit: u64,
+    /// Depth in the call stack.
+    pub depth: usize,
 }
 
 pub type CallFrameHandle<'a, DB> =
