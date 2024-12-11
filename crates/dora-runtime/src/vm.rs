@@ -215,6 +215,13 @@ impl<'a, DB: Database> VM<'a, DB> {
                 output: Output::Call(return_values.into()),
                 logs,
             },
+            ExitStatusCode::SelfDestruct => ExecutionResult::Success {
+                reason: SuccessReason::SelfDestruct,
+                gas_used,
+                gas_refunded,
+                output: Output::Call(return_values.into()),
+                logs,
+            },
             ExitStatusCode::Revert
             | ExitStatusCode::CreateInitCodeStartingEF00
             | ExitStatusCode::InvalidEOFInitCode => ExecutionResult::Revert {
