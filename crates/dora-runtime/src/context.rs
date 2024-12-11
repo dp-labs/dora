@@ -1,3 +1,4 @@
+use std::cmp::min;
 use std::fmt;
 
 use crate::account::{Account, EMPTY_CODE_HASH_BYTES};
@@ -404,7 +405,7 @@ impl<'a, DB: Database> VMContext<'a, DB> {
         let mut call_result = CallResult::new_with_gas_limit(gas_limit);
         match result {
             Ok(output) => {
-                call_result.output = output.bytes.0.to_vec();
+                call_result.output = output.bytes;
                 if !call_result.record_cost(output.gas_used) {
                     call_result.status = ExitStatusCode::PrecompileOOG;
                 }
@@ -636,7 +637,7 @@ impl<'a, DB: Database> VMContext<'a, DB> {
                 result.status = ExitStatusCode::OutOfGas;
                 return;
             } else {
-                result.output = Vec::new();
+                result.output = Bytes::new();
             }
         }
         // if we have enough gas we can commit changes.
@@ -1038,8 +1039,15 @@ impl<'a> RuntimeContext<'a> {
     /// ```no_check
     /// let returndata = context.return_values();
     /// ```
+    #[inline]
     pub fn return_values(&self) -> &[u8] {
         &self.inner.returndata
+    }
+
+    /// Retrieves the return data produced during execution.
+    #[inline]
+    pub fn return_bytes(&self) -> Bytes {
+        self.inner.returndata.to_vec().into()
     }
 
     /// Retrieves the memory used during execution.
@@ -1257,25 +1265,26 @@ impl<'a> RuntimeContext<'a> {
         if std::env::var(DORA_TRACING).is_ok() {
             println!("info: sub call result {:?}", call_result);
         }
-        self.inner.returndata = call_result.output.clone();
+        self.inner.returndata = call_result.output.to_vec();
+        let ret_offset = ret_offset as usize;
+        let ret_size = ret_size as usize;
+        let target_len = min(ret_size, self.inner.returndata.len());
         // Check the error message.
         if call_result.status.is_ok() {
             let gas_remaining = gas_remaining + call_result.gas_remaining;
             self.inner.gas_refunded += call_result.gas_refunded;
-            // Copy call output to the memory
-            Self::copy_exact(
-                &mut self.inner.memory,
-                &call_result.output,
-                ret_offset,
-                0,
-                ret_size,
-            );
+            // Copy call output to the memory.
+            self.inner.memory[ret_offset..ret_offset + target_len]
+                .copy_from_slice(&self.inner.returndata[..target_len]);
             Box::into_raw(Box::new(RuntimeResult::success_with_gas(
                 1,
                 original_remaining_gas - gas_remaining,
             )))
         } else if call_result.status.is_revert() {
             let gas_remaining = gas_remaining + call_result.gas_remaining;
+            // Copy call output to the memory.
+            self.inner.memory[ret_offset..ret_offset + target_len]
+                .copy_from_slice(&self.inner.returndata[..target_len]);
             Box::into_raw(Box::new(RuntimeResult::success_with_gas(
                 0,
                 original_remaining_gas - gas_remaining,
@@ -1300,6 +1309,7 @@ impl<'a> RuntimeContext<'a> {
         let size = size as usize;
 
         let (source_end, overflow) = source_offset.overflowing_add(size);
+
         // Check bounds
         if overflow || source_end > source.len() {
             return Box::into_raw(Box::new(RuntimeResult::error(
@@ -1802,7 +1812,7 @@ impl<'a> RuntimeContext<'a> {
             }
         };
         self.inner.returndata = if call_result.status.is_revert() {
-            call_result.output
+            call_result.output.to_vec()
         } else {
             Vec::new()
         };
