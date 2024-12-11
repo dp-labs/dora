@@ -8,7 +8,7 @@ use crate::{
     errors::Result,
     load_by_addr, maybe_revert_here, operands, rewrite_ctx, syscall_ctx,
 };
-use crate::{gas_or_fail, if_here, u256_to_64};
+use crate::{gas_or_fail, if_here, u256_to_u64};
 use dora_runtime::constants::GAS_COUNTER_GLOBAL;
 use dora_runtime::{constants, ExitStatusCode};
 use melior::{
@@ -31,7 +31,7 @@ impl<'c> ConversionPass<'c> {
         let rewriter = Rewriter::new_with_op(context, *op);
         let uint8 = IntegerType::new(context, 8);
         let uint256 = rewriter.intrinsics.i256_ty;
-        u256_to_64!(op, rewriter, offset);
+        u256_to_u64!(op, rewriter, offset);
         let value_size = rewriter.make(rewriter.iconst_64(32))?;
         let size_is_not_zero =
             rewriter.make(rewriter.icmp_imm(IntCC::NotEqual, value_size, 0)?)?;
@@ -82,7 +82,7 @@ impl<'c> ConversionPass<'c> {
         } else {
             value
         };
-        u256_to_64!(op, rewriter, offset);
+        u256_to_u64!(op, rewriter, offset);
         // Calculate value size (1 byte for mstore8, 32 bytes for mstore)
         let value_size = rewriter.make(rewriter.iconst_64(byte_size as i64))?;
         let size_is_not_zero =
@@ -140,12 +140,12 @@ impl<'c> ConversionPass<'c> {
         let rewriter = Rewriter::new_with_op(context, *op);
         let location = rewriter.get_insert_location();
         let uint8 = rewriter.intrinsics.i8_ty;
-        u256_to_64!(op, rewriter, size);
+        u256_to_u64!(op, rewriter, size);
         let gas = compute_copy_cost(&rewriter, size)?;
         gas_or_fail!(op, rewriter, gas);
         let rewriter = Rewriter::new_with_op(context, *op);
-        u256_to_64!(op, rewriter, dest_offset);
-        u256_to_64!(op, rewriter, offset);
+        u256_to_u64!(op, rewriter, dest_offset);
+        u256_to_u64!(op, rewriter, offset);
         let offset = rewriter.make(arith::maxui(dest_offset, offset, location))?;
         let size_is_not_zero = rewriter.make(rewriter.icmp_imm(IntCC::NotEqual, size, 0)?)?;
         if_here!(op, rewriter, size_is_not_zero, {

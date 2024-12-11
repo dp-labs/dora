@@ -37,6 +37,14 @@ macro_rules! as_u64_saturated {
     };
 }
 
+/// Converts a `U256` value to a `usize`, saturating to `MAX` if the value is too large.
+#[macro_export]
+macro_rules! as_usize_saturated {
+    ($v:expr) => {
+        usize::try_from($crate::as_u64_saturated!($v)).unwrap_or(usize::MAX)
+    };
+}
+
 /// Function type for the main entrypoint of the generated code.
 pub type MainFunc = extern "C" fn(&mut RuntimeContext, initial_gas: u64) -> u8;
 
@@ -1156,22 +1164,32 @@ impl<'a> RuntimeContext<'a> {
 
     pub extern "C" fn returndata_copy(
         &mut self,
-        dest_offset: u64,
-        offset: u64,
+        memory_offset: u64,
+        data_offset: &Bytes32,
         size: u64,
     ) -> *mut RuntimeResult<()> {
-        Self::copy_exact(
-            &mut self.inner.memory,
-            &self.inner.returndata,
-            dest_offset,
-            offset,
-            size,
-        )
+        let data_offset = as_usize_saturated!(data_offset.to_u256());
+        let memory_offset = memory_offset as usize;
+        let size = size as usize;
+        let (data_end, overflow) = data_offset.overflowing_add(size);
+        // Check bounds
+        if overflow || data_end > self.inner.returndata.len() {
+            return Box::into_raw(Box::new(RuntimeResult::error(
+                ExitStatusCode::OutOfOffset.to_u8(),
+                (),
+            )));
+        }
+        // Copy calldata to memory
+        if size != 0 {
+            self.inner.memory[memory_offset..memory_offset + size]
+                .copy_from_slice(&self.inner.returndata[data_offset..data_end]);
+        }
+        Box::into_raw(Box::new(RuntimeResult::success(())))
     }
 
     pub extern "C" fn call(
         &mut self,
-        local_gas_limit: u64,
+        local_gas_limit: &Bytes32,
         call_to_address: &Bytes32,
         value_to_transfer: &Bytes32,
         args_offset: u64,
@@ -1209,6 +1227,7 @@ impl<'a> RuntimeContext<'a> {
                 1,
             )));
         }
+        let local_gas_limit = as_u64_saturated!(local_gas_limit.to_u256());
         // EIP-150: Gas cost changes for IO-heavy operations
         let mut gas_limit = if self.inner.spec_id.is_enabled_in(SpecId::TANGERINE) {
             // take l64 part of gas_limit
@@ -1301,43 +1320,31 @@ impl<'a> RuntimeContext<'a> {
         }
     }
 
-    fn copy_exact(
-        target: &mut [u8],
-        source: &[u8],
-        target_offset: u64,
-        source_offset: u64,
-        size: u64,
-    ) -> *mut RuntimeResult<()> {
-        let target_offset = target_offset as usize;
-        let source_offset = source_offset as usize;
-        let size = size as usize;
-
-        let (source_end, overflow) = source_offset.overflowing_add(size);
-
-        // Check bounds
-        if overflow || source_end > source.len() {
-            return Box::into_raw(Box::new(RuntimeResult::error(
-                ExitStatusCode::OutOfOffset.to_u8(),
-                (),
-            )));
+    fn memory_set_data(
+        &mut self,
+        memory_offset: usize,
+        data_offset: usize,
+        len: usize,
+        data: &[u8],
+    ) {
+        if data_offset > data.len() {
+            self.memory_slice_mut(memory_offset, len).fill(0);
+            return;
         }
-        if size + source_offset > source.len() {
-            return Box::into_raw(Box::new(RuntimeResult::error(
-                ExitStatusCode::OutOfOffset.to_u8(),
-                (),
-            )));
-        }
+        let data_end = min(data_offset + len, data.len());
+        let data_len = data_end - data_offset;
+        debug_assert!(data_offset < data.len() && data_end <= data.len());
+        let data = unsafe { data.get_unchecked(data_offset..data_end) };
+        self.memory_slice_mut(memory_offset, data_len)
+            .copy_from_slice(data);
+        self.memory_slice_mut(memory_offset + data_len, len - data_len)
+            .fill(0);
+    }
 
-        // Calculate bytes to copy
-        let available_target_space = target.len() - target_offset;
-        let available_source_bytes = source.len() - source_offset;
-        let bytes_to_copy = size.min(available_target_space).min(available_source_bytes);
-
-        // Perform the copy
-        target[target_offset..target_offset + bytes_to_copy]
-            .copy_from_slice(&source[source_offset..source_offset + bytes_to_copy]);
-
-        Box::into_raw(Box::new(RuntimeResult::success(())))
+    #[inline]
+    fn memory_slice_mut(&mut self, offset: usize, size: usize) -> &mut [u8] {
+        let end = offset + size;
+        &mut self.inner.memory[offset..end]
     }
 
     pub extern "C" fn store_in_selfbalance_ptr(
@@ -1439,22 +1446,18 @@ impl<'a> RuntimeContext<'a> {
         }
     }
 
-    pub extern "C" fn code_copy(&mut self, code_offset: u64, size: u64, dest_offset: u64) {
-        let code = &self.contract.code;
-        let code_size = code.len();
-        let code_offset = code_offset as usize;
-        let dest_offset = dest_offset as usize;
+    pub extern "C" fn code_copy(&mut self, code_offset: &Bytes32, size: u64, memory_offset: u64) {
         let size = size as usize;
-        let code_offset = code_offset.min(code_size);
-        let code_end = core::cmp::min(code_offset + size, code_size);
-        let code_len: usize = code_end - code_offset;
         if size != 0 {
-            let code_slice = &code[code_offset..code_end];
-            self.inner.memory[dest_offset..dest_offset + code_len].copy_from_slice(code_slice);
-            // Zero-fill the remaining space
-            if size > code_len {
-                self.inner.memory[dest_offset + code_len..dest_offset + size].fill(0);
-            }
+            let code_offset =
+                as_usize_saturated!(code_offset.to_u256()).min(self.contract.code.len());
+            let memory_offset = memory_offset as usize;
+            self.memory_set_data(
+                memory_offset,
+                code_offset,
+                size,
+                &self.contract.code.clone(),
+            );
         }
     }
 
@@ -1704,9 +1707,9 @@ impl<'a> RuntimeContext<'a> {
     pub extern "C" fn ext_code_copy(
         &mut self,
         address_value: &Bytes32,
-        code_offset: u64,
+        code_offset: &Bytes32,
         size: u64,
-        dest_offset: u64,
+        memory_offset: u64,
     ) -> *mut RuntimeResult<()> {
         let addr = address_value.to_address();
         let (code, load) = match self.host.code(addr) {
@@ -1718,20 +1721,12 @@ impl<'a> RuntimeContext<'a> {
                 )))
             }
         };
-        let code_size = code.len();
-        let code_offset = code_offset as usize;
-        let dest_offset = dest_offset as usize;
+        let code_offset = as_usize_saturated!(code_offset.to_u256());
+        let memory_offset = memory_offset as usize;
         let size = size as usize;
-        let code_offset = code_offset.min(code_size);
-        let code_end = core::cmp::min(code_offset + size, code_size);
-        let code_len = code_end - code_offset;
         if size != 0 {
-            let code_slice = &code[code_offset..code_end];
-            self.inner.memory[dest_offset..dest_offset + code_len].copy_from_slice(code_slice);
-            // Zero-fill the remaining space
-            if size > code_len {
-                self.inner.memory[dest_offset + code_len..dest_offset + size].fill(0);
-            }
+            let code_offset = code_offset.min(code.len());
+            self.memory_set_data(memory_offset, code_offset, size, &code);
         }
         let gas_cost = gas::extcodecopy_gas_cost(self.inner.spec_id, load);
         Box::into_raw(Box::new(RuntimeResult::success_with_gas((), gas_cost)))

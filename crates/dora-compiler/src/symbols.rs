@@ -60,7 +60,11 @@ pub(crate) fn declare_symbols(context: &MLIRContext, module: &MLIRModule) {
         ),
         (symbols::STORE_IN_GASLIMIT_PTR, &[ptr_type, ptr_type], &[]),
         (symbols::EXTEND_MEMORY, &[ptr_type, uint64], &[ptr_type]),
-        (symbols::CODE_COPY, &[ptr_type, uint64, uint64, uint64], &[]),
+        (
+            symbols::CODE_COPY,
+            &[ptr_type, ptr_type, uint64, uint64],
+            &[],
+        ),
         (symbols::SLOAD, &[ptr_type, ptr_type, ptr_type], &[ptr_type]),
         (
             symbols::SSTORE,
@@ -101,7 +105,8 @@ pub(crate) fn declare_symbols(context: &MLIRContext, module: &MLIRModule) {
         (
             symbols::CALL,
             &[
-                ptr_type, uint64, ptr_type, ptr_type, uint64, uint64, uint64, uint64, uint64, uint8,
+                ptr_type, ptr_type, ptr_type, ptr_type, uint64, uint64, uint64, uint64, uint64,
+                uint8,
             ],
             &[ptr_type],
         ),
@@ -112,7 +117,7 @@ pub(crate) fn declare_symbols(context: &MLIRContext, module: &MLIRModule) {
         ),
         (
             symbols::EXT_CODE_COPY,
-            &[ptr_type, ptr_type, uint64, uint64, uint64],
+            &[ptr_type, ptr_type, ptr_type, uint64, uint64],
             &[ptr_type],
         ),
         (symbols::BLOB_HASH, &[ptr_type, ptr_type], &[]),
@@ -131,7 +136,7 @@ pub(crate) fn declare_symbols(context: &MLIRContext, module: &MLIRModule) {
         (symbols::RETURNDATA_SIZE, &[ptr_type], &[uint64]),
         (
             symbols::RETURNDATA_COPY,
-            &[ptr_type, uint64, uint64, uint64],
+            &[ptr_type, uint64, ptr_type, uint64],
             &[ptr_type],
         ),
         (symbols::SELFDESTRUCT, &[ptr_type, ptr_type], &[ptr_type]),
