@@ -903,14 +903,14 @@ module {
     %c84_i8_138 = arith.constant 84 : i8
     cf.cond_br %347, ^bb1(%c84_i8_138 : i8), ^bb102
   ^bb102:  // pred: ^bb101
-    %c1_i256_139 = arith.constant 1 : i256
-    %348 = llvm.alloca %c1_i256_139 x i256 : (i256) -> !llvm.ptr
-    llvm.store %323, %348 {alignment = 1 : i64} : i256, !llvm.ptr
-    %c0_i64_140 = arith.constant 0 : i64
-    %349 = arith.cmpi ne, %336, %c0_i64_140 : i64
-    cf.cond_br %349, ^bb141, ^bb103
+    %c0_i64_139 = arith.constant 0 : i64
+    %348 = arith.cmpi ne, %336, %c0_i64_139 : i64
+    cf.cond_br %348, ^bb141, ^bb103
   ^bb103:  // 2 preds: ^bb102, ^bb143
-    %350 = call @dora_fn_ext_code_copy(%arg0, %348, %344, %336, %346) : (!llvm.ptr, !llvm.ptr, i64, i64, i64) -> !llvm.ptr
+    %c1_i256_140 = arith.constant 1 : i256
+    %349 = llvm.alloca %c1_i256_140 x i256 : (i256) -> !llvm.ptr
+    llvm.store %323, %349 {alignment = 1 : i64} : i256, !llvm.ptr
+    %350 = call @dora_fn_ext_code_copy(%arg0, %349, %344, %336, %346) : (!llvm.ptr, !llvm.ptr, i64, i64, i64) -> !llvm.ptr
     %351 = llvm.getelementptr %350[8] : (!llvm.ptr) -> !llvm.ptr, i8
     %352 = llvm.load %351 : !llvm.ptr -> i64
     %353 = llvm.mlir.addressof @dora_global_gas_counter : !llvm.ptr

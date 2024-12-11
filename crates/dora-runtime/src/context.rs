@@ -2,6 +2,7 @@ use std::fmt;
 
 use crate::account::{Account, EMPTY_CODE_HASH_BYTES};
 use crate::call::{CallKind, CallMessage, CallResult};
+use crate::constants::env::DORA_TRACING;
 use crate::constants::{
     gas_cost, precompiles, CallType, BLOCK_HASH_HISTORY, CALL_STACK_LIMIT, MAX_STACK_SIZE,
 };
@@ -460,11 +461,9 @@ impl<'a, DB: Database> VMContext<'a, DB> {
                         }
                     }
                 }
-                if let Some(call_result) = self.call_precompile(
-                    msg.code_address,
-                    &msg.input.clone().into(),
-                    msg.gas_limit,
-                )? {
+                if let Some(call_result) =
+                    self.call_precompile(msg.code_address, &msg.input.clone(), msg.gas_limit)?
+                {
                     if call_result.status.is_ok() {
                         self.journaled_state.checkpoint_commit();
                     } else {
@@ -487,7 +486,7 @@ impl<'a, DB: Database> VMContext<'a, DB> {
                     }
                     let contract = Contract::new_with_call_message(
                         &msg,
-                        msg.input.clone().into(),
+                        msg.input.clone(),
                         bytecode,
                         Some(code_hash),
                     );
@@ -558,7 +557,7 @@ impl<'a, DB: Database> VMContext<'a, DB> {
 
                 let contract = Contract {
                     input: Bytes::new(),
-                    code: msg.input.clone().into(),
+                    code: msg.input.clone(),
                     hash: Some(init_code_hash),
                     target_address: created_address,
                     code_address: created_address,
@@ -569,12 +568,7 @@ impl<'a, DB: Database> VMContext<'a, DB> {
                     contract,
                     gas_limit: msg.gas_limit,
                 })?;
-                self.create_return(
-                    &mut call_result,
-                    created_address,
-                    msg.input.into(),
-                    checkpoint,
-                );
+                self.create_return(&mut call_result, created_address, msg.input, checkpoint);
                 Ok(call_result)
             }
             CallKind::ExtCall
@@ -1111,7 +1105,17 @@ impl<'a> RuntimeContext<'a> {
             op,
             gas,
             self.memory().len(),
-            stack.iter().map(|v| v.to_u256()).collect::<Vec<_>>(),
+            stack
+                .iter()
+                .map(|v| hex::encode(v.to_be_bytes())
+                    .trim_start_matches('0')
+                    .to_string())
+                .map(|v| if v.is_empty() {
+                    "0x0".to_string()
+                } else {
+                    format!("0x{v}")
+                })
+                .collect::<Vec<_>>(),
             stack_size,
         );
         // DO NOT free the stack pointer.
@@ -1214,9 +1218,11 @@ impl<'a> RuntimeContext<'a> {
         }
         let call_msg = CallMessage {
             input: if args_size != 0 {
-                self.inner.memory[args_offset..args_offset + args_size].to_vec()
+                self.inner.memory[args_offset..args_offset + args_size]
+                    .to_vec()
+                    .into()
             } else {
-                vec![]
+                Bytes::new()
             },
             kind: call_type.into(),
             value: if call_type == CallType::Delegatecall {
@@ -1241,10 +1247,16 @@ impl<'a> RuntimeContext<'a> {
             is_static: self.inner.is_static || call_type == CallType::Staticcall,
             is_eof: false,
         };
+        if std::env::var(DORA_TRACING).is_ok() {
+            println!("info: sub call msg {:?}", call_msg);
+        }
         let call_result = self
             .host
             .call(call_msg)
             .unwrap_or_else(|_| CallResult::new_with_gas_limit(gas_limit));
+        if std::env::var(DORA_TRACING).is_ok() {
+            println!("info: sub call result {:?}", call_result);
+        }
         self.inner.returndata = call_result.output.clone();
         // Check the error message.
         if call_result.status.is_ok() {
@@ -1375,11 +1387,11 @@ impl<'a> RuntimeContext<'a> {
     }
 
     pub extern "C" fn calldata(&mut self) -> *mut u8 {
-        self.host.env().tx.data.as_ptr() as _
+        self.contract.input.as_ptr() as _
     }
 
     pub extern "C" fn calldata_size(&self) -> u64 {
-        self.host.env().tx.data.len() as u64
+        self.contract.input.len() as u64
     }
 
     pub extern "C" fn origin(&self, address: &mut Bytes32) {
@@ -1764,7 +1776,7 @@ impl<'a> RuntimeContext<'a> {
         }
 
         let call_msg = CallMessage {
-            input: bytecode,
+            input: bytecode.into(),
             kind: if salt.is_some() {
                 CallKind::Create2
             } else {

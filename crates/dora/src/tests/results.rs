@@ -527,7 +527,7 @@ fn calldatacopy() {
     ];
     let result = run_result(operations);
     assert!(result.status.is_ok());
-    assert_eq!(result.gas_used(), 3 + 2 + 2 + 3 + 3);
+    assert_eq!(result.gas_used(), 3 + 2 + 2 + 3 + 3 + 3);
     assert_eq!(result.memory, vec![0xCC; 32]);
 }
 

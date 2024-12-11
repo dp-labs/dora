@@ -4,6 +4,7 @@ use crate::{
     ExitStatusCode,
 };
 use dora_primitives::{Address, B256, U256};
+use revm_primitives::Bytes;
 
 /// The kind of call-like instructions for the Host API.
 #[derive(Debug, Clone)]
@@ -48,7 +49,7 @@ pub struct CallMessage {
     /// The kind of of the execution.
     pub kind: CallKind,
     /// The call data of the execution.
-    pub input: Vec<u8>,
+    pub input: Bytes,
     /// Call value.
     pub value: U256,
     /// The present depth of the message call stack.
