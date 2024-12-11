@@ -1,3 +1,4 @@
+use dora_runtime::ExitStatusCode;
 use melior::ir::{Block, BlockRef, Region};
 
 use crate::backend::{Builder, EVMBuilder};
@@ -176,6 +177,8 @@ impl<'c> EVMCompiler<'c> {
         let mut builder = Self::make_builder(ctx, start_block);
         let recipient = builder.stack_pop()?;
         builder.selfdestruct(recipient);
-        Ok((start_block, start_block))
+        EVMCompiler::return_empty_result(ctx, start_block, ExitStatusCode::SelfDestruct)?;
+        let empty_block = region.append_block(Block::new(&[]));
+        Ok((start_block, empty_block))
     }
 }
