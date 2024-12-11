@@ -78,7 +78,7 @@ pub(crate) fn run_result_with_spec(operations: Vec<Operation>, spec_id: SpecId) 
         None,
     );
     let mut host = DummyHost::new(env);
-    let mut runtime_context = RuntimeContext::new(contract, 1, &mut host, spec_id);
+    let mut runtime_context = RuntimeContext::new(contract, 1, false, false, &mut host, spec_id);
     runtime_context.set_returndata(vec![0xDD; 64]);
     run_with_context::<MemoryDB>(&mut runtime_context, initial_gas).unwrap();
     TestResult {
@@ -99,6 +99,7 @@ pub(crate) fn default_env_and_db_setup(operations: Vec<Operation>) -> (Env, Memo
         Address::left_padding_from(&[40]),
         Bytecode::from(program.to_opcode()),
     );
+    println!("SAD: {}", hex::encode(&bytecode));
     env.tx.transact_to = TxKind::Call(address);
     env.block.coinbase = Address::left_padding_from(&[80]);
     let mut db = MemoryDB::new().with_contract(address, bytecode);

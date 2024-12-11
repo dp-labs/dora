@@ -162,7 +162,7 @@ impl<'c> EVMCompiler<'c> {
         let input_length = builder.stack_pop()?;
         let output_offset = builder.stack_pop()?;
         let output_length = builder.stack_pop()?;
-        let value = builder.delegatecall(
+        let value = builder.staticcall(
             gas,
             address,
             input_offset,

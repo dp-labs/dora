@@ -220,8 +220,6 @@ impl<'c> ConversionPass<'c> {
     pub(crate) fn sstore(context: &Context, op: &OperationRef<'_, '_>) -> Result<()> {
         operands!(op, key, value);
         syscall_ctx!(op, syscall_ctx);
-        let rewriter = Rewriter::new_with_op(context, *op);
-        ensure_non_staticcall!(op, rewriter);
         rewrite_ctx!(context, op, rewriter, location, NoDefer);
 
         let ptr_type = rewriter.ptr_ty();
