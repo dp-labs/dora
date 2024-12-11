@@ -1,9 +1,9 @@
 use anyhow::{Context, Result};
 use clap::{Args, Parser, Subcommand};
 use dora_primitives::spec::SpecId;
-use dora_primitives::{Address, Bytecode, Bytes, Bytes32, U256};
+use dora_primitives::{Address, Bytecode, Bytes, U256};
 use dora_runtime::db::MemoryDB;
-use dora_runtime::env::Env;
+use dora_runtime::env::{Env, TxKind};
 use std::str::FromStr;
 use tracing::{error, info};
 
@@ -48,7 +48,7 @@ struct RunArgs {
     value: String,
 
     /// Address of the sender
-    #[arg(long, default_value = "0x00000000000000000000000000000000000000AA")]
+    #[arg(long, default_value = "0x0000000000000000000000000000000000000001")]
     sender: String,
 
     /// Chain ID
@@ -123,14 +123,14 @@ fn main() -> Result<()> {
             let sender = Address::from_str(run_args.sender.as_str())
                 .with_context(|| format!("Invalid sender address: {}", run_args.sender))?;
 
-            let address = Bytes32::from(40_u8).to_address();
+            let address = Address::default();
 
             // Set Env
             let mut env = Env::default();
             env.tx.gas_limit = run_args.gas_limit;
             env.tx.value = U256::from_str(&run_args.value).context("Failed to parse value")?;
             env.tx.caller = sender;
-            env.tx.transact_to = address;
+            env.tx.transact_to = TxKind::Call(address);
             env.tx.data = Bytes::from(calldata);
             env.block.number = U256::from(run_args.block_number);
             env.block.timestamp = U256::from(run_args.timestamp);

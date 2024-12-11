@@ -99,7 +99,7 @@ impl Env {
     /// env.validate_transaction()?;
     /// ```
     pub fn validate_transaction(&self) -> Result<(), InvalidTransaction> {
-        let is_create = self.tx.transact_to.is_zero();
+        let is_create = self.tx.transact_to.is_create();
 
         if is_create && self.tx.data.len() > 2 * MAX_CODE_SIZE {
             return Err(InvalidTransaction::CreateInitCodeSizeLimit);
@@ -155,7 +155,7 @@ impl Env {
 
     /// Validate initial transaction gas.
     pub fn validate_initial_tx_gas(&self, spec_id: SpecId) -> Result<u64, EVMError> {
-        let is_create = self.tx.transact_to.is_zero();
+        let is_create = self.tx.transact_to.is_create();
         let authorization_list_num = if self.tx.tx_type == TransactionType::Eip7702 {
             self.tx.authorization_list_len() as u64
         } else {
@@ -192,7 +192,7 @@ impl Env {
             })
             .sum();
 
-        let create_cost = if !self.tx.transact_to.is_zero() {
+        let create_cost = if !self.tx.transact_to.is_create() {
             0
         } else {
             TX_CREATE_COST + init_code_cost(self.tx.data.len())
@@ -420,7 +420,7 @@ pub struct TxEnv {
     /// The gas price of the transaction.
     pub gas_price: U256,
     /// The destination of the transaction.
-    pub transact_to: Address,
+    pub transact_to: TxKind,
     /// The value sent to `transact_to`.
     pub value: U256,
     /// The data of the transaction.
@@ -464,7 +464,7 @@ impl Default for TxEnv {
             caller: Address::ZERO,
             gas_limit: i64::MAX as _,
             gas_price: U256::ZERO,
-            transact_to: Address::ZERO,
+            transact_to: TxKind::Create,
             value: U256::ZERO,
             data: Bytes::new(),
             nonce: 0,
@@ -495,7 +495,10 @@ impl TxEnv {
     /// ```
     #[inline]
     pub fn get_address(&self) -> Address {
-        self.transact_to
+        match self.transact_to {
+            TxKind::Create => Address::default(),
+            TxKind::Call(address) => address,
+        }
     }
 
     #[inline]
@@ -555,5 +558,57 @@ impl TxEnv {
         } else {
             0
         }
+    }
+}
+
+/// The `to` field of a transaction. Either a target address, or empty for a
+/// contract creation.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash)]
+pub enum TxKind {
+    /// A transaction that creates a contract.
+    #[default]
+    Create,
+    /// A transaction that calls a contract or transfer.
+    Call(Address),
+}
+
+impl From<Option<Address>> for TxKind {
+    /// Creates a `TxKind::Call` with the `Some` address, `None` otherwise.
+    #[inline]
+    fn from(value: Option<Address>) -> Self {
+        match value {
+            None => Self::Create,
+            Some(addr) => Self::Call(addr),
+        }
+    }
+}
+
+impl From<Address> for TxKind {
+    /// Creates a `TxKind::Call` with the given address.
+    #[inline]
+    fn from(value: Address) -> Self {
+        Self::Call(value)
+    }
+}
+
+impl TxKind {
+    /// Returns the address of the contract that will be called or will receive the transfer.
+    pub const fn to(&self) -> Option<&Address> {
+        match self {
+            Self::Create => None,
+            Self::Call(to) => Some(to),
+        }
+    }
+
+    /// Returns true if the transaction is a contract creation.
+    #[inline]
+    pub const fn is_create(&self) -> bool {
+        matches!(self, Self::Create)
+    }
+
+    /// Returns true if the transaction is a contract call.
+    #[inline]
+    pub const fn is_call(&self) -> bool {
+        matches!(self, Self::Call(_))
     }
 }

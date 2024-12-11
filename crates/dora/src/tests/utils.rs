@@ -3,7 +3,7 @@ use dora_primitives::{spec::SpecId, Address, Bytecode, Bytes, Bytes32, U256};
 use dora_runtime::{
     context::{Contract, Log, RuntimeContext},
     db::MemoryDB,
-    env::Env,
+    env::{Env, TxKind},
     host::{DummyHost, Host},
     ExitStatusCode,
 };
@@ -99,7 +99,7 @@ pub(crate) fn default_env_and_db_setup(operations: Vec<Operation>) -> (Env, Memo
         Address::left_padding_from(&[40]),
         Bytecode::from(program.to_opcode()),
     );
-    env.tx.transact_to = address;
+    env.tx.transact_to = TxKind::Call(address);
     env.block.coinbase = Address::left_padding_from(&[80]);
     let mut db = MemoryDB::new().with_contract(address, bytecode);
     db.set_balance(address, U256::from(10));
