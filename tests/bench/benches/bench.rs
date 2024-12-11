@@ -9,7 +9,7 @@ use dora_compiler::{dora, evm, pass, Compiler, Context, EVMCompiler};
 use dora_primitives::{spec::SpecId, Bytes};
 use dora_primitives::{Address, Bytecode};
 use dora_runtime::context::{Contract, RuntimeContext};
-use dora_runtime::env::Env;
+use dora_runtime::env::{Env, TxKind};
 use dora_runtime::executor::Executor;
 use dora_runtime::host::DummyHost;
 use std::hint::black_box;
@@ -64,7 +64,7 @@ fn run_bench(c: &mut Criterion, bench: &Bench) {
     let mut env: Env = Default::default();
     env.tx.gas_limit = gas_limit;
     env.tx.data = Bytes::from(calldata.to_vec());
-    env.tx.transact_to = Address::left_padding_from(&[40]);
+    env.tx.transact_to = TxKind::Call(Address::left_padding_from(&[40]));
     let contract = Contract::new_with_env(&env, Bytecode::from(program.to_opcode()), None);
     let mut host = DummyHost::new(env);
     let mut context = RuntimeContext::new(contract, 1, &mut host, SpecId::CANCUN);

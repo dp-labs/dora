@@ -22,6 +22,7 @@ use dora_runtime::context::Log;
 use dora_runtime::context::VMContext;
 use dora_runtime::db::{Database, MemoryDB};
 use dora_runtime::env::Env;
+use dora_runtime::env::TxKind;
 use dora_runtime::handler::Handler;
 use dora_runtime::transaction::TransactionType;
 use dora_runtime::vm::VM;
@@ -674,7 +675,11 @@ fn setup_env(name: &str, test: &Test) -> Result<Env, TestError> {
             ));
     }
     // tx env
-    env.tx.transact_to = test.transaction.to.unwrap_or_default();
+    let to = match test.transaction.to {
+        Some(addr) => TxKind::Call(addr),
+        None => TxKind::Create,
+    };
+    env.tx.transact_to = to;
     env.tx.caller = if let Some(address) = test.transaction.sender {
         address
     } else {

@@ -6,6 +6,7 @@ use dora_primitives::spec::SpecId;
 use dora_primitives::{Address, Bytecode, Bytes32, B256, U256};
 use dora_runtime::account::EMPTY_CODE_HASH_BYTES;
 use dora_runtime::context::Contract;
+use dora_runtime::env::TxKind;
 use dora_runtime::host::DummyHost;
 use dora_runtime::{context::RuntimeContext, db::MemoryDB, env::Env};
 use num_bigint::{BigInt, BigUint};
@@ -1701,7 +1702,7 @@ fn returndatacopy() {
     ];
     let mut env = Env::default();
     env.tx.gas_limit = INIT_GAS;
-    env.tx.transact_to = Address::left_padding_from(&[40]);
+    env.tx.transact_to = TxKind::Call(Address::left_padding_from(&[40]));
     env.block.coinbase = Address::left_padding_from(&[80]);
     let contract = Contract::new_with_env(
         &env,
@@ -1781,7 +1782,7 @@ fn returndatacopy_out_of_bounds() {
     ];
     let mut env = Env::default();
     env.tx.gas_limit = INIT_GAS;
-    env.tx.transact_to = Address::left_padding_from(&[40]);
+    env.tx.transact_to = TxKind::Call(Address::left_padding_from(&[40]));
     env.block.coinbase = Address::left_padding_from(&[80]);
     let contract = Contract::new_with_env(
         &env,

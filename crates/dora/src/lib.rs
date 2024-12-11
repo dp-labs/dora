@@ -8,7 +8,6 @@ use dora_compiler::{
     pass, Compiler,
 };
 use dora_primitives::{spec::SpecId, Bytecode, Bytes32};
-use dora_runtime::context::RuntimeContext;
 use dora_runtime::env::Env;
 use dora_runtime::executor::Executor;
 use dora_runtime::{
@@ -19,6 +18,7 @@ use dora_runtime::{
     result::EVMError,
     vm::VM,
 };
+use dora_runtime::{context::RuntimeContext, env::TxKind};
 use dora_runtime::{
     db::{Database, MemoryDB},
     result::ResultAndState,
@@ -145,7 +145,7 @@ pub fn run_evm_bytecode_with_calldata(
     let calldata = hex::decode(calldata)?;
     let address = Bytes32::from(40_u32).to_address();
     let mut env = Env::default();
-    env.tx.transact_to = address;
+    env.tx.transact_to = TxKind::Call(address);
     env.tx.gas_limit = initial_gas;
     env.tx.data = Bytecode::from(calldata);
     env.tx.caller = Bytes32::from(10000_u32).to_address();

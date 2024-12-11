@@ -153,7 +153,7 @@ impl<'a, DB: Database> VM<'a, DB> {
         let mut result = {
             let gas_limit = ctx.env.tx.gas_limit - initial_gas_cost;
             let call_msg = CallMessage {
-                kind: if ctx.env.tx.transact_to.is_zero() {
+                kind: if ctx.env.tx.transact_to.is_create() {
                     CallKind::Create
                 } else {
                     CallKind::Call
@@ -163,9 +163,9 @@ impl<'a, DB: Database> VM<'a, DB> {
                 depth: 0,
                 gas_limit,
                 caller: ctx.env.tx.caller,
-                recipient: ctx.env.tx.transact_to,
+                recipient: ctx.env.tx.get_address(),
                 salt: None,
-                code_address: ctx.env.tx.transact_to,
+                code_address: ctx.env.tx.get_address(),
                 is_static: false,
                 is_eof: false,
             };
