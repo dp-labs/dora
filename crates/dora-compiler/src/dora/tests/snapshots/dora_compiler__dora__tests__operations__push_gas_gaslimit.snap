@@ -24,7 +24,7 @@ module {
   func.func private @dora_fn_store_in_gasprice_ptr(!llvm.ptr, !llvm.ptr)
   func.func private @dora_fn_store_in_selfbalance_ptr(!llvm.ptr, !llvm.ptr) -> !llvm.ptr
   func.func private @dora_fn_store_in_blobbasefee_ptr(!llvm.ptr, !llvm.ptr)
-  func.func private @dora_fn_gaslimit(!llvm.ptr) -> i64
+  func.func private @dora_fn_store_in_gaslimit_ptr(!llvm.ptr, !llvm.ptr)
   func.func private @dora_fn_extend_memory(!llvm.ptr, i64) -> !llvm.ptr
   func.func private @dora_fn_code_copy(!llvm.ptr, i64, i64, i64)
   func.func private @dora_fn_sload(!llvm.ptr, !llvm.ptr, !llvm.ptr) -> !llvm.ptr
@@ -149,8 +149,10 @@ module {
     llvm.store %37, %34 : i64, !llvm.ptr
     cf.br ^bb8
   ^bb11:  // pred: ^bb12
-    %38 = call @dora_fn_gaslimit(%arg0) : (!llvm.ptr) -> i64
-    %39 = arith.extui %38 : i64 to i256
+    %c1_i256 = arith.constant 1 : i256
+    %38 = llvm.alloca %c1_i256 x i256 : (i256) -> !llvm.ptr
+    call @dora_fn_store_in_gaslimit_ptr(%arg0, %38) : (!llvm.ptr, !llvm.ptr) -> ()
+    %39 = llvm.load %38 : !llvm.ptr -> i256
     %40 = llvm.mlir.addressof @dora_global_stack_ptr : !llvm.ptr
     %41 = llvm.load %40 : !llvm.ptr -> !llvm.ptr
     llvm.store %39, %41 : i256, !llvm.ptr
