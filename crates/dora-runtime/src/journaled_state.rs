@@ -2,15 +2,15 @@
 use std::{collections::hash_map::Entry, mem};
 
 use crate::{
-    account::{Account, EMPTY_CODE_HASH_BYTES},
+    account::{Account, EMPTY_CODE_HASH, EMPTY_CODE_HASH_BYTES},
     context::Log,
     db::{Database, StorageSlot},
     host::{AccountLoad, CodeLoad, SStoreResult, SelfDestructResult, StateLoad},
     ExitStatusCode,
 };
 use dora_primitives::{Address, Bytes, Bytes32, SpecId, B256, U256};
+use revm_primitives::keccak256;
 use rustc_hash::{FxHashMap, FxHashSet};
-use sha3::{Digest, Keccak256};
 
 pub type State = FxHashMap<Address, Account>;
 pub type TransientStorage = FxHashMap<(Address, Bytes32), Bytes32>;
@@ -162,12 +162,8 @@ impl JournaledState {
     /// Assume account is warm
     #[inline]
     pub fn set_code(&mut self, address: Address, code: Bytes) {
-        let hash = {
-            let mut hasher = Keccak256::new();
-            hasher.update(&code);
-            hasher.finalize()
-        };
-        self.set_code_with_hash(address, code, B256::from_slice(&hash))
+        let hash = keccak256(&code);
+        self.set_code_with_hash(address, code, hash);
     }
 
     #[inline]
@@ -642,7 +638,7 @@ impl JournaledState {
         let account_load = self.load_account(address, db)?;
         let acc = &mut account_load.data.info;
         if acc.code.is_none() {
-            if acc.code_hash == B256::from_slice(&EMPTY_CODE_HASH_BYTES) {
+            if acc.code_hash == EMPTY_CODE_HASH {
                 let empty = Default::default();
                 acc.code = Some(empty);
             } else {

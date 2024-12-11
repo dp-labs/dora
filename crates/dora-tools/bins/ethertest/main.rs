@@ -303,7 +303,7 @@ pub fn state_merkle_trie_root<'a>(
         trie_root(accounts.into_iter().map(|(address, acc)| {
             (
                 address,
-                alloy_rlp::encode_fixed_size(&TrieAccount::new(acc)),
+                alloy_rlp::encode_fixed_size(&TrieAccount::new(address, acc)),
             )
         }))
         .as_slice(),
@@ -319,7 +319,7 @@ struct TrieAccount {
 }
 
 impl TrieAccount {
-    fn new(acc: &Account) -> Self {
+    fn new(_address: &Address, acc: &Account) -> Self {
         Self {
             nonce: acc.info.nonce,
             balance: acc.info.balance,
@@ -598,9 +598,9 @@ fn execute_test(path: &Path) -> Result<(), TestError> {
                         }
                         // Check the state root.
                         let state = vm.db.clone().into_state();
-                        let state = state
-                            .iter()
-                            .filter(|(_, acc)| !acc.is_loaded_as_not_existing());
+                        let state = state.iter().filter(|(_, acc)| {
+                            !acc.is_loaded_as_not_existing() || acc.is_touched() && !acc.is_empty()
+                        });
                         let state_root = state_merkle_trie_root(state);
                         if state_root != test_case.hash {
                             let kind = TestErrorKind::StateRootMismatch {
