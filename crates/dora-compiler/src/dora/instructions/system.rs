@@ -249,6 +249,9 @@ impl<'c> ConversionPass<'c> {
 
         let size_is_not_zero = rewriter.make(rewriter.icmp_imm(IntCC::NotEqual, size, 0)?)?;
         if_here!(op, rewriter, size_is_not_zero, {
+            let gas = compute_copy_cost(&rewriter, size)?;
+            gas_or_fail!(op, rewriter, gas);
+            rewrite_ctx!(context, op, rewriter, _location, NoDefer);
             memory::resize_memory(context, op, &rewriter, syscall_ctx, dest_offset, size)?;
         });
         rewrite_ctx!(context, op, rewriter, location);
@@ -343,14 +346,14 @@ impl<'c> ConversionPass<'c> {
         let rewriter = Rewriter::new_with_op(context, *op);
 
         u256_to_64!(op, rewriter, size);
-        let gas = compute_copy_cost(&rewriter, size)?;
-        gas_or_fail!(op, rewriter, gas);
-        let rewriter = Rewriter::new_with_op(context, *op);
         u256_to_64!(op, rewriter, offset);
         u256_to_64!(op, rewriter, dest_offset);
 
         let size_is_not_zero = rewriter.make(rewriter.icmp_imm(IntCC::NotEqual, size, 0)?)?;
         if_here!(op, rewriter, size_is_not_zero, {
+            let gas = compute_copy_cost(&rewriter, size)?;
+            gas_or_fail!(op, rewriter, gas);
+            let rewriter = Rewriter::new_with_op(context, *op);
             memory::resize_memory(context, op, &rewriter, syscall_ctx, dest_offset, size)?;
         });
         rewrite_ctx!(context, op, rewriter, location);
