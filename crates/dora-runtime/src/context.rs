@@ -534,7 +534,7 @@ impl<'a, DB: Database> VMContext<'a, DB> {
                 let mut init_code_hash = B256::ZERO;
                 let created_address = match msg.salt {
                     Some(s) => {
-                        init_code_hash = keccak256(msg.caller);
+                        init_code_hash = keccak256(&msg.input);
                         msg.caller.create2(s.0, init_code_hash)
                     }
                     _ => msg.caller.create(old_nonce),
@@ -579,7 +579,7 @@ impl<'a, DB: Database> VMContext<'a, DB> {
                     gas_limit: msg.gas_limit,
                     depth: self.journaled_state.depth(),
                 })?;
-                self.create_return(&mut call_result, created_address, msg.input, checkpoint);
+                self.create_return(&mut call_result, created_address, checkpoint);
                 Ok(call_result)
             }
             CallKind::ExtCall
@@ -608,7 +608,6 @@ impl<'a, DB: Database> VMContext<'a, DB> {
         &mut self,
         result: &mut CallResult,
         address: Address,
-        code: Bytes,
         journal_checkpoint: JournalCheckpoint,
     ) {
         result.create_address = Some(address);
@@ -622,7 +621,7 @@ impl<'a, DB: Database> VMContext<'a, DB> {
         // if ok, check contract creation limit and calculate gas deduction on output len.
         //
         // EIP-3541: Reject new contract code starting with the 0xEF byte
-        if spec_id.is_enabled_in(SpecId::LONDON) && code.first() == Some(&0xEF) {
+        if spec_id.is_enabled_in(SpecId::LONDON) && result.output.first() == Some(&0xEF) {
             self.journaled_state.checkpoint_revert(journal_checkpoint);
             result.status = ExitStatusCode::CreateContractStartingWithEF;
             return;
@@ -630,13 +629,14 @@ impl<'a, DB: Database> VMContext<'a, DB> {
 
         // EIP-170: Contract code size limit
         // By default limit is 0x6000 (~25kb)
-        if spec_id.is_enabled_in(SpecId::SPURIOUS_DRAGON) && code.len() > self.cfg().max_code_size()
+        if spec_id.is_enabled_in(SpecId::SPURIOUS_DRAGON)
+            && result.output.len() > self.cfg().max_code_size()
         {
             self.journaled_state.checkpoint_revert(journal_checkpoint);
             result.status = ExitStatusCode::CreateContractSizeLimit;
             return;
         }
-        let gas_for_code = code.len() as u64 * gas_cost::CODEDEPOSIT;
+        let gas_for_code = result.output.len() as u64 * gas_cost::CODEDEPOSIT;
         if !result.record_cost(gas_for_code) {
             // record code deposit gas cost and check if we are out of gas.
             // EIP-2 point 3: If contract creation does not have enough gas to pay for the
@@ -654,7 +654,8 @@ impl<'a, DB: Database> VMContext<'a, DB> {
         self.journaled_state.checkpoint_commit();
 
         // Set the code to the journaled state.
-        self.journaled_state.set_code(address, code);
+        self.journaled_state
+            .set_code(address, result.output.clone());
 
         result.status = ExitStatusCode::Return;
     }
