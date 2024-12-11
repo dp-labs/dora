@@ -494,6 +494,7 @@ impl<'a, DB: Database> VMContext<'a, DB> {
                     let call_result = self.call_frame(Frame {
                         contract,
                         gas_limit: msg.gas_limit,
+                        depth: self.journaled_state.depth(),
                     })?;
                     self.call_return(&call_result.status, checkpoint);
                     Ok(call_result)
@@ -568,6 +569,7 @@ impl<'a, DB: Database> VMContext<'a, DB> {
                 let mut call_result = self.call_frame(Frame {
                     contract,
                     gas_limit: msg.gas_limit,
+                    depth: self.journaled_state.depth(),
                 })?;
                 self.create_return(&mut call_result, created_address, msg.input, checkpoint);
                 Ok(call_result)
@@ -1014,10 +1016,11 @@ impl<'a> RuntimeContext<'a> {
     /// ```no_check
     /// let context = RuntimeContext::new(env, journal, call_frame);
     /// ```
-    pub fn new(contract: Contract, host: &'a mut dyn Host, spec_id: SpecId) -> Self {
+    pub fn new(contract: Contract, depth: usize, host: &'a mut dyn Host, spec_id: SpecId) -> Self {
         Self {
             inner: InnerContext {
                 spec_id,
+                depth,
                 memory: Vec::with_capacity(4 * 1024),
                 ..Default::default()
             },
@@ -1107,7 +1110,7 @@ impl<'a> RuntimeContext<'a> {
             0
         };
         println!(
-            "time: {}ns, op: {}, opHex: {:x}, gas: 0x{:x}, memSize: {}, stack: {:?}, stackSize: {}",
+            "time: {}ns, op: {}, opHex: {:x}, gas: 0x{:x}, memSize: {}, stack: {:?}, stackSize: {}, depth: {}",
             nano_seconds,
             op,
             op,
@@ -1125,6 +1128,7 @@ impl<'a> RuntimeContext<'a> {
                 })
                 .collect::<Vec<_>>(),
             stack_size,
+            self.inner.depth,
         );
         // DO NOT free the stack pointer.
         stack.leak();
