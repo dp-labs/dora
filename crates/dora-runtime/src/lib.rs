@@ -24,6 +24,8 @@ pub enum ExitStatusCode {
     Return = 0,
     /// Encountered a `STOP` opcode
     Stop = 1,
+    /// Self-destruct the current contract.
+    SelfDestruct = 2,
 
     /* Revert Codes */
     /// Revert the transaction.
@@ -152,7 +154,10 @@ impl ExitStatusCode {
 
     #[inline]
     pub fn is_ok(&self) -> bool {
-        matches!(self, ExitStatusCode::Return | ExitStatusCode::Stop)
+        matches!(
+            self,
+            ExitStatusCode::Return | ExitStatusCode::Stop | ExitStatusCode::SelfDestruct
+        )
     }
 
     #[inline]
