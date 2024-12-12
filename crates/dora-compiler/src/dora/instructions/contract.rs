@@ -143,30 +143,35 @@ impl<'c> ConversionPass<'c> {
         let location = rewriter.get_insert_location();
         match call_type {
             CallType::Call | CallType::CallCode => {
-                syscall_ctx!(op, syscall_ctx);
-                // Static call value is zero check
-                let ctx_is_static_u8 = rewriter.make(func::call(
-                    context,
-                    FlatSymbolRefAttribute::new(context, symbols::CTX_IS_STATIC),
-                    &[syscall_ctx.into()],
-                    &[rewriter.intrinsics.i8_ty],
-                    location,
-                ))?;
-                let ctx_is_static =
-                    rewriter.make(rewriter.icmp_imm(IntCC::NotEqual, ctx_is_static_u8, 0)?)?;
-                let zero = rewriter.make(rewriter.iconst_256_from_u64(0)?)?;
                 let value = op.operand(2)?;
-                let value_is_not_zero =
-                    rewriter.make(rewriter.icmp(IntCC::NotEqual, value, zero))?;
-                let revert_flag =
-                    rewriter.make(arith::andi(ctx_is_static, value_is_not_zero, location))?;
+                if call_type == CallType::Call {
+                    syscall_ctx!(op, syscall_ctx);
+                    // Static call value is zero check
+                    let ctx_is_static_u8 = rewriter.make(func::call(
+                        context,
+                        FlatSymbolRefAttribute::new(context, symbols::CTX_IS_STATIC),
+                        &[syscall_ctx.into()],
+                        &[rewriter.intrinsics.i8_ty],
+                        location,
+                    ))?;
+                    let ctx_is_static = rewriter.make(rewriter.icmp_imm(
+                        IntCC::NotEqual,
+                        ctx_is_static_u8,
+                        0,
+                    )?)?;
+                    let zero = rewriter.make(rewriter.iconst_256_from_u64(0)?)?;
+                    let value_is_not_zero =
+                        rewriter.make(rewriter.icmp(IntCC::NotEqual, value, zero))?;
+                    let revert_flag =
+                        rewriter.make(arith::andi(ctx_is_static, value_is_not_zero, location))?;
 
-                maybe_revert_here!(
-                    op,
-                    rewriter,
-                    revert_flag,
-                    ExitStatusCode::CallNotAllowedInsideStatic
-                );
+                    maybe_revert_here!(
+                        op,
+                        rewriter,
+                        revert_flag,
+                        ExitStatusCode::CallNotAllowedInsideStatic
+                    );
+                }
                 Self::intern_call(context, op, value, 3, call_type)?;
             }
             CallType::Staticcall | CallType::Delegatecall => {
