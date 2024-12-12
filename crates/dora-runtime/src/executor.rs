@@ -48,13 +48,9 @@ impl Executor {
     /// ```no_check
     /// let executor = Executor::new(&module, &runtime_ctx, OptimizationLevel::Aggressive);
     /// ```
-    pub fn new(
-        module: &Module,
-        runtime_ctx: &RuntimeContext,
-        opt_level: OptimizationLevel,
-    ) -> Self {
+    pub fn new(module: &Module, opt_level: OptimizationLevel) -> Self {
         let engine = ExecutionEngine::new(module, opt_level as usize, &[], false);
-        runtime_ctx.register_symbols(&engine);
+        RuntimeContext::register_symbols(&engine);
         Self { engine }
     }
 

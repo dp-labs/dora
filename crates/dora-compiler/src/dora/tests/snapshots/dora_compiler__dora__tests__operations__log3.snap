@@ -11,10 +11,10 @@ module {
   llvm.mlir.global internal @dora_global_calldata_ptr() {addr_space = 0 : i32} : !llvm.ptr
   llvm.mlir.global internal @dora_global_calldata_size() {addr_space = 0 : i32} : i64
   llvm.mlir.global internal @dora_global_gas_counter() {addr_space = 0 : i32} : i64
-  llvm.mlir.global external @dora_global_ctx_is_static() {addr_space = 0 : i32} : !llvm.ptr
   func.func private @dora_fn_nop()
   func.func private @dora_fn_tracing(!llvm.ptr, i8, i64, !llvm.ptr, i64)
   func.func private @dora_fn_write_result(!llvm.ptr, i64, i64, i64, i8)
+  func.func private @dora_fn_is_static(!llvm.ptr) -> i8
   func.func private @dora_fn_exp(!llvm.ptr, !llvm.ptr, !llvm.ptr)
   func.func private @dora_fn_keccak256_hasher(!llvm.ptr, i64, i64, !llvm.ptr)
   func.func private @dora_fn_calldata(!llvm.ptr) -> !llvm.ptr
@@ -263,8 +263,9 @@ module {
     %86 = llvm.getelementptr %85[-1] : (!llvm.ptr) -> !llvm.ptr, i256
     %87 = llvm.load %86 : !llvm.ptr -> i256
     llvm.store %86, %84 : !llvm.ptr, !llvm.ptr
-    %88 = llvm.mlir.addressof @dora_global_ctx_is_static : !llvm.ptr
-    %89 = llvm.load %88 : !llvm.ptr -> i1
+    %88 = call @dora_fn_is_static(%arg0) : (!llvm.ptr) -> i8
+    %c0_i8 = arith.constant 0 : i8
+    %89 = arith.cmpi ne, %88, %c0_i8 : i8
     %c87_i8 = arith.constant 87 : i8
     cf.cond_br %89, ^bb1(%c87_i8 : i8), ^bb24
   ^bb24:  // pred: ^bb23
@@ -392,8 +393,8 @@ module {
     %137 = llvm.load %136 : !llvm.ptr -> !llvm.ptr
     %138 = llvm.getelementptr %135[0] : (!llvm.ptr) -> !llvm.ptr, i8
     %139 = llvm.load %138 : !llvm.ptr -> i8
-    %c0_i8 = arith.constant 0 : i8
-    %140 = arith.cmpi ne, %139, %c0_i8 : i8
+    %c0_i8_42 = arith.constant 0 : i8
+    %140 = arith.cmpi ne, %139, %c0_i8_42 : i8
     cf.cond_br %140, ^bb1(%139 : i8), ^bb38
   ^bb38:  // pred: ^bb37
     %141 = llvm.mlir.addressof @dora_global_memory_ptr : !llvm.ptr

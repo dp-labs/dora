@@ -64,6 +64,14 @@ pub fn call_frame<DB: Database>(
     let code_hash = frame.contract.hash.unwrap_or_default();
     let spec_id = ctx.spec_id();
     let artifact = ctx.db.get_artifact(code_hash);
+    let artifact = if let Ok(Some(artifact)) = artifact {
+        artifact
+    } else {
+        let artifact = build_artifact::<DB>(&frame.contract.code, ctx.spec_id())
+            .map_err(|e| EVMError::Custom(e.to_string()))?;
+        ctx.db.set_artifact(code_hash, artifact.clone());
+        artifact
+    };
     let mut runtime_context = RuntimeContext::new(
         frame.contract,
         frame.depth,
@@ -72,40 +80,36 @@ pub fn call_frame<DB: Database>(
         ctx,
         spec_id,
     );
-    if let Ok(Some(artifact)) = artifact {
-        artifact.execute(&mut runtime_context, frame.gas_limit);
-        Ok(CallResult::new_with_runtime_context_and_gas_limit(
-            &runtime_context,
-            frame.gas_limit,
-        ))
-    } else {
-        let artifact = run_with_context::<DB>(&mut runtime_context, frame.gas_limit)
-            .map_err(|e| EVMError::Custom(e.to_string()))?;
-        let result =
-            CallResult::new_with_runtime_context_and_gas_limit(&runtime_context, frame.gas_limit);
-        drop(runtime_context);
-        ctx.db.set_artifact(code_hash, artifact);
-        Ok(result)
-    }
+    artifact.execute(&mut runtime_context, frame.gas_limit);
+    Ok(CallResult::new_with_runtime_context_and_gas_limit(
+        &runtime_context,
+        frame.gas_limit,
+    ))
 }
 
 /// Run transaction with the runtime context.
 pub fn run_with_context<DB: Database>(
     runtime_context: &mut RuntimeContext,
     initial_gas: u64,
-) -> anyhow::Result<DB::Artifact> {
-    // Compile the contract code
-    let program = Program::from_opcodes(
+) -> anyhow::Result<u8> {
+    let artifact: DB::Artifact = build_artifact::<DB>(
         &runtime_context.contract.code,
         runtime_context.inner.spec_id,
-    );
+    )?;
+    Ok(artifact.execute(runtime_context, initial_gas))
+}
+
+/// Build opcode to the artifact
+pub fn build_artifact<DB: Database>(code: &[u8], spec_id: SpecId) -> anyhow::Result<DB::Artifact> {
+    // Compile the contract code
+    let program = Program::from_opcodes(code, spec_id);
     let context = Context::new();
     let compiler = EVMCompiler::new(&context);
     let mut module = compiler.compile(
         &program,
         &(),
         &CompileOptions {
-            spec_id: runtime_context.inner.spec_id,
+            spec_id,
             ..Default::default()
         },
     )?;
@@ -116,14 +120,13 @@ pub fn run_with_context<DB: Database>(
         &mut module.mlir_module,
         &dora::pass::PassOptions {
             program_code_size: program.code_size,
-            spec_id: runtime_context.inner.spec_id,
+            spec_id,
             ..Default::default()
         },
     )?;
     pass::run(&context.mlir_context, &mut module.mlir_module)?;
     debug_assert!(module.mlir_module.as_operation().verify());
-    let executor = Executor::new(module.module(), runtime_context, Default::default());
-    executor.execute(runtime_context, initial_gas);
+    let executor = Executor::new(module.module(), Default::default());
     Ok(DB::Artifact::new(executor))
 }
 
