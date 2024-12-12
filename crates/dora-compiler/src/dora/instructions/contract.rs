@@ -47,7 +47,6 @@ impl<'c> ConversionPass<'c> {
         let location = rewriter.get_insert_location();
         let uint256 = rewriter.intrinsics.i256_ty;
         let ptr_type = rewriter.ptr_ty();
-        u256_to_u64!(op, rewriter, offset);
         u256_to_u64!(op, rewriter, size);
         let size_is_not_zero = rewriter.make(rewriter.icmp_imm(IntCC::NotEqual, size, 0)?)?;
         if_here!(op, rewriter, size_is_not_zero, {
@@ -72,6 +71,7 @@ impl<'c> ConversionPass<'c> {
                 gas_or_fail!(op, rewriter, gas);
             }
             let rewriter = Rewriter::new_with_op(context, *op);
+            u256_to_u64!(op, rewriter, offset);
             memory::resize_memory(context, op, &rewriter, syscall_ctx, offset, size)?;
         });
         let rewriter = Rewriter::new_with_op(context, *op);
@@ -85,7 +85,7 @@ impl<'c> ConversionPass<'c> {
         let value_ptr =
             memory::allocate_u256_and_assign_value(context, &rewriter, value, location)?;
         let remaining_gas = gas::get_gas_counter(&rewriter)?;
-
+        let offset = rewriter.make(arith::trunci(offset, rewriter.intrinsics.i64_ty, location))?;
         let result_ptr = if is_create2 {
             let salt: Value<'_, '_> = op.operand(3)?;
             let salt_ptr =
@@ -283,11 +283,10 @@ impl<'c> ConversionPass<'c> {
         let rewriter = Rewriter::new_with_op(context, *op);
         let location = rewriter.get_insert_location();
         let uint8 = rewriter.intrinsics.i8_ty;
-
-        u256_to_u64!(op, rewriter, offset);
         u256_to_u64!(op, rewriter, size);
         let size_is_not_zero = rewriter.make(rewriter.icmp_imm(IntCC::NotEqual, size, 0)?)?;
         if_here!(op, rewriter, size_is_not_zero, {
+            u256_to_u64!(op, rewriter, offset);
             memory::resize_memory(context, op, &rewriter, syscall_ctx, offset, size)?;
         });
         let reason = rewriter.make(arith_constant!(
@@ -298,6 +297,7 @@ impl<'c> ConversionPass<'c> {
             location
         ))?;
         rewrite_ctx!(context, op, rewriter, location);
+        let offset = rewriter.make(arith::trunci(offset, rewriter.intrinsics.i64_ty, location))?;
         let gas_counter = gas::get_gas_counter(&rewriter)?;
         rewriter.create(func::call(
             context,
