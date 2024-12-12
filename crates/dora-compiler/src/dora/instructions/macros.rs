@@ -290,11 +290,18 @@ macro_rules! check_runtime_error {
 
 #[macro_export]
 macro_rules! ensure_non_staticcall {
-    ($op:expr, $rewriter:ident) => {
-        let ctx_is_static_ptr =
-            $rewriter.make($rewriter.addressof(CTX_IS_STATIC, $rewriter.ptr_ty()))?;
+    ($op:expr, $rewriter:ident, $syscall_ctx: ident) => {
+        let context = $rewriter.context();
+        let location = $rewriter.get_insert_location();
+        let ctx_is_static_u8 = $rewriter.make(func::call(
+            context,
+            FlatSymbolRefAttribute::new(context, symbols::CTX_IS_STATIC),
+            &[$syscall_ctx.into()],
+            &[$rewriter.intrinsics.i8_ty],
+            location,
+        ))?;
         let ctx_is_static =
-            $rewriter.make($rewriter.load(ctx_is_static_ptr, $rewriter.intrinsics.i1_ty))?;
+            $rewriter.make($rewriter.icmp_imm(IntCC::NotEqual, ctx_is_static_u8, 0)?)?;
         maybe_revert_here!(
             $op,
             $rewriter,

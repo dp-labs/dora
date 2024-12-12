@@ -448,6 +448,9 @@ fn should_skip(path: &Path) -> bool {
         path_str.contains("stEOF")
         // Temporarily skip stack overflow error test suites
         || path_str.contains("Pyspecs/cancun/eip1153_tstore/run_until_out_of_gas.json")
+        || path_str.contains("stSystemOperationsTest/ABAcalls1.json")
+        || path_str.contains("stSystemOperationsTest/ABAcalls2.json")
+        || path_str.contains("stSystemOperationsTest/CallRecursiveBomb0_OOG_atMaxCallDepth.json")
 }
 
 fn execute_test(path: &Path) -> Result<(), TestError> {

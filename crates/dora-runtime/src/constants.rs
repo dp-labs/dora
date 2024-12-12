@@ -1,7 +1,7 @@
 use thiserror::Error;
 
 pub const MAX_STACK_SIZE: usize = 1024;
-pub const CALL_STACK_LIMIT: usize = 64;
+pub const CALL_STACK_LIMIT: usize = 1024;
 
 // Global pointers and constants
 pub const GAS_COUNTER_GLOBAL: &str = "dora_global_gas_counter";

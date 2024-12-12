@@ -11,7 +11,7 @@ use crate::{
 };
 use crate::{check_runtime_error, ensure_non_staticcall, gas_or_fail, if_here};
 use dora_runtime::constants::GAS_COUNTER_GLOBAL;
-use dora_runtime::symbols::{self, CTX_IS_STATIC};
+use dora_runtime::symbols;
 use dora_runtime::ExitStatusCode;
 use melior::{
     dialect::{
@@ -261,7 +261,7 @@ impl<'c> ConversionPass<'c> {
         operands!(op, key, value);
         syscall_ctx!(op, syscall_ctx);
         let rewriter = Rewriter::new_with_op(context, *op);
-        ensure_non_staticcall!(op, rewriter);
+        ensure_non_staticcall!(op, rewriter, syscall_ctx);
         rewrite_ctx!(context, op, rewriter, location);
 
         let key_ptr = memory::allocate_u256_and_assign_value(context, &rewriter, key, location)?;
@@ -309,7 +309,7 @@ impl<'c> ConversionPass<'c> {
         operands!(op, offset, size);
         syscall_ctx!(op, syscall_ctx);
         let rewriter = Rewriter::new_with_op(context, *op);
-        ensure_non_staticcall!(op, rewriter);
+        ensure_non_staticcall!(op, rewriter, syscall_ctx);
         let rewriter = Rewriter::new_with_op(context, *op);
 
         // Check the log mem offset and size overflow error
@@ -364,7 +364,7 @@ impl<'c> ConversionPass<'c> {
         syscall_ctx!(op, syscall_ctx);
         // Ensure non static call before the gas computation.
         let rewriter = Rewriter::new_with_op(context, *op);
-        ensure_non_staticcall!(op, rewriter);
+        ensure_non_staticcall!(op, rewriter, syscall_ctx);
         rewrite_ctx!(context, op, rewriter, location);
         let ptr_type = rewriter.ptr_ty();
         let address_ptr =
