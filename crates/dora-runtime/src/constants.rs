@@ -312,25 +312,6 @@ pub mod call_opcode {
     pub const GAS_CAP_DIVISION_FACTOR: u64 = 64;
 }
 
-pub mod precompiles {
-    // Precompile costs and addresses
-    pub const ECRECOVER_COST: u64 = 3_000;
-    pub const ECRECOVER_ADDRESS: u64 = 0x01;
-    pub const SHA2_256_COST: u64 = 60;
-    pub const SHA2_256_ADDRESS: u64 = 0x02;
-    pub const RIPEMD_160_COST: u64 = 600;
-    pub const RIPEMD_160_ADDRESS: u64 = 0x03;
-    pub const IDENTITY_COST: u64 = 15;
-    pub const IDENTITY_ADDRESS: u64 = 0x04;
-    pub const MODEXP_ADDRESS: u64 = 0x05;
-    pub const BLAKE2F_ADDRESS: u64 = 0x09;
-
-    #[inline]
-    pub fn sha2_256_dynamic_cost(len: u64) -> u64 {
-        (len + 31) / 32 * 12
-    }
-}
-
 /// The type of a `*CALL*` instruction.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 #[repr(u8)]

@@ -10,7 +10,6 @@ pub mod gas;
 pub mod handler;
 pub mod host;
 pub mod journaled_state;
-pub mod precompiles;
 pub mod result;
 pub mod symbols;
 pub mod transaction;
@@ -109,6 +108,7 @@ impl ExitStatusCode {
         match value {
             x if x == Self::Return.to_u8() => Self::Return,
             x if x == Self::Stop.to_u8() => Self::Stop,
+            x if x == Self::SelfDestruct.to_u8() => Self::SelfDestruct,
             x if x == Self::Revert.to_u8() => Self::Revert,
             x if x == Self::CallTooDeep.to_u8() => Self::CallTooDeep,
             x if x == Self::OutOfFunds.to_u8() => Self::OutOfFunds,

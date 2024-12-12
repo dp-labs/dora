@@ -4,21 +4,19 @@ use std::fmt;
 use crate::account::{Account, EMPTY_CODE_HASH_BYTES};
 use crate::call::{CallKind, CallMessage, CallResult};
 use crate::constants::env::DORA_TRACING;
-use crate::constants::{
-    gas_cost, precompiles, CallType, BLOCK_HASH_HISTORY, CALL_STACK_LIMIT, MAX_STACK_SIZE,
-};
+use crate::constants::{gas_cost, CallType, BLOCK_HASH_HISTORY, CALL_STACK_LIMIT, MAX_STACK_SIZE};
 use crate::db::{Database, DatabaseError};
 use crate::env::{CfgEnv, Env};
 use crate::executor::ExecutionEngine;
 use crate::handler::{Frame, Handler};
 use crate::host::{AccountLoad, CodeLoad, Host, SStoreResult, SelfDestructResult, StateLoad};
 use crate::journaled_state::{JournalCheckpoint, JournalEntry, JournaledState};
-use crate::precompiles::{blake2f, ecrecover, identity, modexp, ripemd_160, sha2_256};
 use crate::result::EVMError;
 use crate::{gas, symbols, ExitStatusCode};
 use dora_primitives::spec::SpecId;
 use dora_primitives::{Address, Bytecode, Bytes, Bytes32, B256, U256};
-use revm_primitives::{keccak256, PrecompileErrors};
+use revm_precompile::{PrecompileSpecId, Precompiles};
+use revm_primitives::{keccak256, Precompile, PrecompileErrors};
 use sha3::{Digest, Keccak256};
 
 /// Converts a `U256` value to a `u64`, saturating to `MAX` if the value is too large.
@@ -58,6 +56,8 @@ pub struct VMContext<'a, DB: Database> {
     pub handler: Handler<'a, DB>,
     /// State with journaling support.
     pub journaled_state: JournaledState,
+    /// Precompiles that are available for evm.
+    pub precompiles: &'a Precompiles,
 }
 
 impl<'a, DB: Database> VMContext<'a, DB> {
@@ -69,6 +69,7 @@ impl<'a, DB: Database> VMContext<'a, DB> {
             env: Box::new(env),
             handler,
             journaled_state: JournaledState::new(spec_id, Default::default()),
+            precompiles: Precompiles::new(PrecompileSpecId::from_spec_id(spec_id)),
         }
     }
 
@@ -125,17 +126,9 @@ impl<'a, DB: Database> VMContext<'a, DB> {
     #[inline]
     pub fn set_precompiles(&mut self) {
         // Set warm loaded addresses.
-        self.journaled_state.warm_preloaded_addresses.extend(
-            &[
-                precompiles::ECRECOVER_ADDRESS,
-                precompiles::IDENTITY_ADDRESS,
-                precompiles::SHA2_256_ADDRESS,
-                precompiles::RIPEMD_160_ADDRESS,
-                precompiles::MODEXP_ADDRESS,
-                precompiles::BLAKE2F_ADDRESS,
-            ]
-            .map(|addr_u64| Bytes32::from(addr_u64).to_address()),
-        );
+        self.journaled_state
+            .warm_preloaded_addresses
+            .extend(self.precompiles.addresses());
     }
 
     /// Deducts the caller balance to the transaction limit.
@@ -369,16 +362,9 @@ impl<'a, DB: Database> VMContext<'a, DB> {
         call_frame_func(frame, self)
     }
 
-    fn is_precompile_address(address: Address) -> bool {
-        match address {
-            x if x == Bytes32::from(precompiles::ECRECOVER_ADDRESS).to_address() => true,
-            x if x == Bytes32::from(precompiles::IDENTITY_ADDRESS).to_address() => true,
-            x if x == Bytes32::from(precompiles::SHA2_256_ADDRESS).to_address() => true,
-            x if x == Bytes32::from(precompiles::RIPEMD_160_ADDRESS).to_address() => true,
-            x if x == Bytes32::from(precompiles::MODEXP_ADDRESS).to_address() => true,
-            x if x == Bytes32::from(precompiles::BLAKE2F_ADDRESS).to_address() => true,
-            _ => false,
-        }
+    #[inline]
+    fn is_precompile_address(&self, address: &Address) -> bool {
+        self.precompiles.get(address).is_some()
     }
 
     /// Call precompile contract
@@ -389,26 +375,14 @@ impl<'a, DB: Database> VMContext<'a, DB> {
         calldata: &Bytes,
         gas_limit: u64,
     ) -> Result<Option<CallResult>, EVMError> {
-        let result = match address {
-            x if x == Bytes32::from(precompiles::ECRECOVER_ADDRESS).to_address() => {
-                ecrecover(calldata, gas_limit)
+        let result = match self.precompiles.get(&address) {
+            Some(precompile) => {
+                let Precompile::Standard(func) = precompile else {
+                    return Ok(None);
+                };
+                func(calldata, gas_limit)
             }
-            x if x == Bytes32::from(precompiles::IDENTITY_ADDRESS).to_address() => {
-                identity(calldata, gas_limit)
-            }
-            x if x == Bytes32::from(precompiles::SHA2_256_ADDRESS).to_address() => {
-                sha2_256(calldata, gas_limit)
-            }
-            x if x == Bytes32::from(precompiles::RIPEMD_160_ADDRESS).to_address() => {
-                ripemd_160(calldata, gas_limit)
-            }
-            x if x == Bytes32::from(precompiles::MODEXP_ADDRESS).to_address() => {
-                modexp(calldata, gas_limit)
-            }
-            x if x == Bytes32::from(precompiles::BLAKE2F_ADDRESS).to_address() => {
-                blake2f(calldata, gas_limit)
-            }
-            _ => return Ok(None),
+            None => return Ok(None),
         };
         let mut call_result = CallResult::new_with_gas_limit(gas_limit);
         match result {
@@ -542,7 +516,7 @@ impl<'a, DB: Database> VMContext<'a, DB> {
                     _ => msg.caller.create(old_nonce),
                 };
                 // Created address is not allowed to be a precompile.
-                if Self::is_precompile_address(created_address) {
+                if self.is_precompile_address(&created_address) {
                     return Ok(CallResult::new_with_gas_limit_and_status(
                         msg.gas_limit,
                         ExitStatusCode::CreateCollision,
@@ -1300,7 +1274,7 @@ impl<'a> RuntimeContext<'a> {
             .call(call_msg)
             .unwrap_or_else(|_| CallResult::new_with_gas_limit(gas_limit));
         if std::env::var(DORA_TRACING).is_ok() {
-            println!("info: sub call result {:?}", call_result);
+            println!("info: sub call ret {:?}", call_result);
         }
         self.inner.returndata = call_result.output.to_vec();
         let ret_offset = ret_offset as usize;

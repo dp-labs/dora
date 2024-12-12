@@ -8,6 +8,7 @@ use dora_primitives::{SpecId, U256};
 use crate::{
     account::Account,
     call::{CallKind, CallMessage, CallResult},
+    constants::env::DORA_TRACING,
     context::VMContext,
     db::{Database, DatabaseError},
     env::{CfgEnv, TxEnv},
@@ -169,8 +170,14 @@ impl<'a, DB: Database> VM<'a, DB> {
                 is_static: false,
                 is_eof: false,
             };
+            if std::env::var(DORA_TRACING).is_ok() {
+                println!("info: tx call msg {:?}", call_msg);
+            }
             let mut result = ctx.call(call_msg)?;
             ctx.last_frame_return(&mut result);
+            if std::env::var(DORA_TRACING).is_ok() {
+                println!("info: tx call ret {:?}", result);
+            }
             result
         };
 
