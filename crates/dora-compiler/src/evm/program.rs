@@ -865,3 +865,11 @@ pub const fn stack_io(op: &Operation) -> (u8, u8) {
         Operation::Log(n) => (*n + 2, 0),
     }
 }
+
+/// Returns the number of section input of the given opcode.
+pub const fn stack_section_input(op: &Operation) -> u8 {
+    match op {
+        Operation::Dup(n) | Operation::DupN(n) => *n,
+        _ => stack_io(op).0,
+    }
+}
