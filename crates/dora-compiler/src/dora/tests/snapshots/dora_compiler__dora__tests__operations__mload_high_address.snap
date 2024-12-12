@@ -77,7 +77,7 @@ module {
     %8 = llvm.mlir.addressof @dora_global_gas_counter : !llvm.ptr
     llvm.store %arg1, %8 : i64, !llvm.ptr
     cf.br ^bb5
-  ^bb1(%9: i8):  // 19 preds: ^bb2, ^bb4, ^bb5, ^bb8, ^bb9, ^bb13, ^bb14, ^bb17, ^bb18, ^bb22, ^bb23, ^bb26, ^bb27, ^bb30, ^bb31, ^bb33, ^bb34, ^bb37, ^bb38
+  ^bb1(%9: i8):  // 21 preds: ^bb2, ^bb4, ^bb5, ^bb8, ^bb9, ^bb13, ^bb14, ^bb17, ^bb18, ^bb22, ^bb23, ^bb26, ^bb27, ^bb28, ^bb31, ^bb32, ^bb34, ^bb35, ^bb36, ^bb39, ^bb40
     %c0_i64_1 = arith.constant 0 : i64
     %10 = llvm.mlir.addressof @dora_global_gas_counter : !llvm.ptr
     %11 = llvm.load %10 : !llvm.ptr -> i64
@@ -163,7 +163,7 @@ module {
     %c0_i64_8 = arith.constant 0 : i64
     %43 = arith.cmpi ne, %c32_i64, %c0_i64_8 : i64
     cf.cond_br %43, ^bb26, ^bb12
-  ^bb12:  // 2 preds: ^bb11, ^bb29
+  ^bb12:  // 2 preds: ^bb11, ^bb30
     %44 = arith.trunci %38 : i256 to i64
     %45 = llvm.mlir.addressof @dora_global_memory_ptr : !llvm.ptr
     %46 = llvm.load %45 : !llvm.ptr -> !llvm.ptr
@@ -233,8 +233,8 @@ module {
     %c32_i64_18 = arith.constant 32 : i64
     %c0_i64_19 = arith.constant 0 : i64
     %72 = arith.cmpi ne, %c32_i64_18, %c0_i64_19 : i64
-    cf.cond_br %72, ^bb33, ^bb21
-  ^bb21:  // 2 preds: ^bb20, ^bb36
+    cf.cond_br %72, ^bb34, ^bb21
+  ^bb21:  // 2 preds: ^bb20, ^bb38
     %73 = arith.trunci %71 : i256 to i64
     %74 = llvm.mlir.addressof @dora_global_memory_ptr : !llvm.ptr
     %75 = llvm.load %74 : !llvm.ptr -> !llvm.ptr
@@ -278,142 +278,152 @@ module {
     call @dora_fn_write_result(%arg0, %c0_i64_26, %c0_i64_26, %91, %c1_i8) : (!llvm.ptr, i64, i64, i64, i8) -> ()
     return %c1_i8 : i8
   ^bb26:  // pred: ^bb11
-    %92 = arith.trunci %38 : i256 to i64
-    %c0_i64_27 = arith.constant 0 : i64
-    %93 = arith.cmpi slt, %92, %c0_i64_27 : i64
+    %c18446744073709551615_i256 = arith.constant 18446744073709551615 : i256
+    %92 = arith.cmpi sgt, %38, %c18446744073709551615_i256 : i256
     %c84_i8 = arith.constant 84 : i8
-    cf.cond_br %93, ^bb1(%c84_i8 : i8), ^bb27
+    cf.cond_br %92, ^bb1(%c84_i8 : i8), ^bb27
   ^bb27:  // pred: ^bb26
-    %94 = arith.addi %92, %c32_i64 : i64
-    %c0_i64_28 = arith.constant 0 : i64
-    %95 = arith.cmpi slt, %94, %c0_i64_28 : i64
-    %c84_i8_29 = arith.constant 84 : i8
-    cf.cond_br %95, ^bb1(%c84_i8_29 : i8), ^bb28
+    %93 = arith.trunci %38 : i256 to i64
+    %c0_i64_27 = arith.constant 0 : i64
+    %94 = arith.cmpi slt, %93, %c0_i64_27 : i64
+    %c84_i8_28 = arith.constant 84 : i8
+    cf.cond_br %94, ^bb1(%c84_i8_28 : i8), ^bb28
   ^bb28:  // pred: ^bb27
+    %95 = arith.addi %93, %c32_i64 : i64
+    %c0_i64_29 = arith.constant 0 : i64
+    %96 = arith.cmpi slt, %95, %c0_i64_29 : i64
+    %c84_i8_30 = arith.constant 84 : i8
+    cf.cond_br %96, ^bb1(%c84_i8_30 : i8), ^bb29
+  ^bb29:  // pred: ^bb28
     %c31_i64 = arith.constant 31 : i64
-    %c32_i64_30 = arith.constant 32 : i64
-    %96 = arith.addi %94, %c31_i64 : i64
-    %97 = arith.divui %96, %c32_i64_30 : i64
     %c32_i64_31 = arith.constant 32 : i64
-    %98 = arith.muli %97, %c32_i64_31 : i64
-    %99 = llvm.mlir.addressof @dora_global_memory_size : !llvm.ptr
-    %100 = llvm.load %99 : !llvm.ptr -> i64
-    %c31_i64_32 = arith.constant 31 : i64
-    %c32_i64_33 = arith.constant 32 : i64
-    %101 = arith.addi %100, %c31_i64_32 : i64
-    %102 = arith.divui %101, %c32_i64_33 : i64
-    %103 = arith.muli %102, %c32_i64_31 : i64
-    %104 = arith.cmpi ult, %103, %98 : i64
-    cf.cond_br %104, ^bb30, ^bb29
-  ^bb29:  // 2 preds: ^bb28, ^bb32
+    %97 = arith.addi %95, %c31_i64 : i64
+    %98 = arith.divui %97, %c32_i64_31 : i64
+    %c32_i64_32 = arith.constant 32 : i64
+    %99 = arith.muli %98, %c32_i64_32 : i64
+    %100 = llvm.mlir.addressof @dora_global_memory_size : !llvm.ptr
+    %101 = llvm.load %100 : !llvm.ptr -> i64
+    %c31_i64_33 = arith.constant 31 : i64
+    %c32_i64_34 = arith.constant 32 : i64
+    %102 = arith.addi %101, %c31_i64_33 : i64
+    %103 = arith.divui %102, %c32_i64_34 : i64
+    %104 = arith.muli %103, %c32_i64_32 : i64
+    %105 = arith.cmpi ult, %104, %99 : i64
+    cf.cond_br %105, ^bb31, ^bb30
+  ^bb30:  // 2 preds: ^bb29, ^bb33
     cf.br ^bb12
-  ^bb30:  // pred: ^bb28
-    %c3_i64_34 = arith.constant 3 : i64
-    %c512_i64 = arith.constant 512 : i64
-    %105 = arith.muli %102, %102 : i64
-    %106 = arith.divui %105, %c512_i64 : i64
-    %107 = arith.muli %102, %c3_i64_34 : i64
-    %108 = arith.addi %106, %107 : i64
+  ^bb31:  // pred: ^bb29
     %c3_i64_35 = arith.constant 3 : i64
-    %c512_i64_36 = arith.constant 512 : i64
-    %109 = arith.muli %97, %97 : i64
-    %110 = arith.divui %109, %c512_i64_36 : i64
-    %111 = arith.muli %97, %c3_i64_35 : i64
-    %112 = arith.addi %110, %111 : i64
-    %113 = arith.subi %112, %108 : i64
-    %114 = llvm.mlir.addressof @dora_global_gas_counter : !llvm.ptr
-    %115 = llvm.load %114 : !llvm.ptr -> i64
-    %116 = arith.cmpi ult, %115, %113 : i64
-    scf.if %116 {
+    %c512_i64 = arith.constant 512 : i64
+    %106 = arith.muli %103, %103 : i64
+    %107 = arith.divui %106, %c512_i64 : i64
+    %108 = arith.muli %103, %c3_i64_35 : i64
+    %109 = arith.addi %107, %108 : i64
+    %c3_i64_36 = arith.constant 3 : i64
+    %c512_i64_37 = arith.constant 512 : i64
+    %110 = arith.muli %98, %98 : i64
+    %111 = arith.divui %110, %c512_i64_37 : i64
+    %112 = arith.muli %98, %c3_i64_36 : i64
+    %113 = arith.addi %111, %112 : i64
+    %114 = arith.subi %113, %109 : i64
+    %115 = llvm.mlir.addressof @dora_global_gas_counter : !llvm.ptr
+    %116 = llvm.load %115 : !llvm.ptr -> i64
+    %117 = arith.cmpi ult, %116, %114 : i64
+    scf.if %117 {
     } else {
-      %158 = arith.subi %115, %113 : i64
-      llvm.store %158, %114 : i64, !llvm.ptr
+      %160 = arith.subi %116, %114 : i64
+      llvm.store %160, %115 : i64, !llvm.ptr
     }
-    %c80_i8_37 = arith.constant 80 : i8
-    cf.cond_br %116, ^bb1(%c80_i8_37 : i8), ^bb31
-  ^bb31:  // pred: ^bb30
-    %117 = call @dora_fn_extend_memory(%arg0, %98) : (!llvm.ptr, i64) -> !llvm.ptr
-    %118 = llvm.getelementptr %117[16] : (!llvm.ptr) -> !llvm.ptr, i8
-    %119 = llvm.load %118 : !llvm.ptr -> !llvm.ptr
-    %120 = llvm.getelementptr %117[0] : (!llvm.ptr) -> !llvm.ptr, i8
-    %121 = llvm.load %120 : !llvm.ptr -> i8
-    %c0_i8 = arith.constant 0 : i8
-    %122 = arith.cmpi ne, %121, %c0_i8 : i8
-    cf.cond_br %122, ^bb1(%121 : i8), ^bb32
+    %c80_i8_38 = arith.constant 80 : i8
+    cf.cond_br %117, ^bb1(%c80_i8_38 : i8), ^bb32
   ^bb32:  // pred: ^bb31
-    %123 = llvm.mlir.addressof @dora_global_memory_ptr : !llvm.ptr
-    llvm.store %119, %123 : !llvm.ptr, !llvm.ptr
-    %124 = llvm.mlir.addressof @dora_global_memory_size : !llvm.ptr
-    llvm.store %98, %124 : i64, !llvm.ptr
-    cf.br ^bb29
-  ^bb33:  // pred: ^bb20
-    %125 = arith.trunci %71 : i256 to i64
-    %c0_i64_38 = arith.constant 0 : i64
-    %126 = arith.cmpi slt, %125, %c0_i64_38 : i64
-    %c84_i8_39 = arith.constant 84 : i8
-    cf.cond_br %126, ^bb1(%c84_i8_39 : i8), ^bb34
-  ^bb34:  // pred: ^bb33
-    %127 = arith.addi %125, %c32_i64_18 : i64
-    %c0_i64_40 = arith.constant 0 : i64
-    %128 = arith.cmpi slt, %127, %c0_i64_40 : i64
-    %c84_i8_41 = arith.constant 84 : i8
-    cf.cond_br %128, ^bb1(%c84_i8_41 : i8), ^bb35
+    %118 = call @dora_fn_extend_memory(%arg0, %99) : (!llvm.ptr, i64) -> !llvm.ptr
+    %119 = llvm.getelementptr %118[16] : (!llvm.ptr) -> !llvm.ptr, i8
+    %120 = llvm.load %119 : !llvm.ptr -> !llvm.ptr
+    %121 = llvm.getelementptr %118[0] : (!llvm.ptr) -> !llvm.ptr, i8
+    %122 = llvm.load %121 : !llvm.ptr -> i8
+    %c0_i8 = arith.constant 0 : i8
+    %123 = arith.cmpi ne, %122, %c0_i8 : i8
+    cf.cond_br %123, ^bb1(%122 : i8), ^bb33
+  ^bb33:  // pred: ^bb32
+    %124 = llvm.mlir.addressof @dora_global_memory_ptr : !llvm.ptr
+    llvm.store %120, %124 : !llvm.ptr, !llvm.ptr
+    %125 = llvm.mlir.addressof @dora_global_memory_size : !llvm.ptr
+    llvm.store %99, %125 : i64, !llvm.ptr
+    cf.br ^bb30
+  ^bb34:  // pred: ^bb20
+    %c18446744073709551615_i256_39 = arith.constant 18446744073709551615 : i256
+    %126 = arith.cmpi sgt, %71, %c18446744073709551615_i256_39 : i256
+    %c84_i8_40 = arith.constant 84 : i8
+    cf.cond_br %126, ^bb1(%c84_i8_40 : i8), ^bb35
   ^bb35:  // pred: ^bb34
-    %c31_i64_42 = arith.constant 31 : i64
-    %c32_i64_43 = arith.constant 32 : i64
-    %129 = arith.addi %127, %c31_i64_42 : i64
-    %130 = arith.divui %129, %c32_i64_43 : i64
-    %c32_i64_44 = arith.constant 32 : i64
-    %131 = arith.muli %130, %c32_i64_44 : i64
-    %132 = llvm.mlir.addressof @dora_global_memory_size : !llvm.ptr
-    %133 = llvm.load %132 : !llvm.ptr -> i64
+    %127 = arith.trunci %71 : i256 to i64
+    %c0_i64_41 = arith.constant 0 : i64
+    %128 = arith.cmpi slt, %127, %c0_i64_41 : i64
+    %c84_i8_42 = arith.constant 84 : i8
+    cf.cond_br %128, ^bb1(%c84_i8_42 : i8), ^bb36
+  ^bb36:  // pred: ^bb35
+    %129 = arith.addi %127, %c32_i64_18 : i64
+    %c0_i64_43 = arith.constant 0 : i64
+    %130 = arith.cmpi slt, %129, %c0_i64_43 : i64
+    %c84_i8_44 = arith.constant 84 : i8
+    cf.cond_br %130, ^bb1(%c84_i8_44 : i8), ^bb37
+  ^bb37:  // pred: ^bb36
     %c31_i64_45 = arith.constant 31 : i64
     %c32_i64_46 = arith.constant 32 : i64
-    %134 = arith.addi %133, %c31_i64_45 : i64
-    %135 = arith.divui %134, %c32_i64_46 : i64
-    %136 = arith.muli %135, %c32_i64_44 : i64
-    %137 = arith.cmpi ult, %136, %131 : i64
-    cf.cond_br %137, ^bb37, ^bb36
-  ^bb36:  // 2 preds: ^bb35, ^bb39
+    %131 = arith.addi %129, %c31_i64_45 : i64
+    %132 = arith.divui %131, %c32_i64_46 : i64
+    %c32_i64_47 = arith.constant 32 : i64
+    %133 = arith.muli %132, %c32_i64_47 : i64
+    %134 = llvm.mlir.addressof @dora_global_memory_size : !llvm.ptr
+    %135 = llvm.load %134 : !llvm.ptr -> i64
+    %c31_i64_48 = arith.constant 31 : i64
+    %c32_i64_49 = arith.constant 32 : i64
+    %136 = arith.addi %135, %c31_i64_48 : i64
+    %137 = arith.divui %136, %c32_i64_49 : i64
+    %138 = arith.muli %137, %c32_i64_47 : i64
+    %139 = arith.cmpi ult, %138, %133 : i64
+    cf.cond_br %139, ^bb39, ^bb38
+  ^bb38:  // 2 preds: ^bb37, ^bb41
     cf.br ^bb21
-  ^bb37:  // pred: ^bb35
-    %c3_i64_47 = arith.constant 3 : i64
-    %c512_i64_48 = arith.constant 512 : i64
-    %138 = arith.muli %135, %135 : i64
-    %139 = arith.divui %138, %c512_i64_48 : i64
-    %140 = arith.muli %135, %c3_i64_47 : i64
-    %141 = arith.addi %139, %140 : i64
-    %c3_i64_49 = arith.constant 3 : i64
-    %c512_i64_50 = arith.constant 512 : i64
-    %142 = arith.muli %130, %130 : i64
-    %143 = arith.divui %142, %c512_i64_50 : i64
-    %144 = arith.muli %130, %c3_i64_49 : i64
-    %145 = arith.addi %143, %144 : i64
-    %146 = arith.subi %145, %141 : i64
-    %147 = llvm.mlir.addressof @dora_global_gas_counter : !llvm.ptr
-    %148 = llvm.load %147 : !llvm.ptr -> i64
-    %149 = arith.cmpi ult, %148, %146 : i64
-    scf.if %149 {
+  ^bb39:  // pred: ^bb37
+    %c3_i64_50 = arith.constant 3 : i64
+    %c512_i64_51 = arith.constant 512 : i64
+    %140 = arith.muli %137, %137 : i64
+    %141 = arith.divui %140, %c512_i64_51 : i64
+    %142 = arith.muli %137, %c3_i64_50 : i64
+    %143 = arith.addi %141, %142 : i64
+    %c3_i64_52 = arith.constant 3 : i64
+    %c512_i64_53 = arith.constant 512 : i64
+    %144 = arith.muli %132, %132 : i64
+    %145 = arith.divui %144, %c512_i64_53 : i64
+    %146 = arith.muli %132, %c3_i64_52 : i64
+    %147 = arith.addi %145, %146 : i64
+    %148 = arith.subi %147, %143 : i64
+    %149 = llvm.mlir.addressof @dora_global_gas_counter : !llvm.ptr
+    %150 = llvm.load %149 : !llvm.ptr -> i64
+    %151 = arith.cmpi ult, %150, %148 : i64
+    scf.if %151 {
     } else {
-      %158 = arith.subi %148, %146 : i64
-      llvm.store %158, %147 : i64, !llvm.ptr
+      %160 = arith.subi %150, %148 : i64
+      llvm.store %160, %149 : i64, !llvm.ptr
     }
-    %c80_i8_51 = arith.constant 80 : i8
-    cf.cond_br %149, ^bb1(%c80_i8_51 : i8), ^bb38
-  ^bb38:  // pred: ^bb37
-    %150 = call @dora_fn_extend_memory(%arg0, %131) : (!llvm.ptr, i64) -> !llvm.ptr
-    %151 = llvm.getelementptr %150[16] : (!llvm.ptr) -> !llvm.ptr, i8
-    %152 = llvm.load %151 : !llvm.ptr -> !llvm.ptr
-    %153 = llvm.getelementptr %150[0] : (!llvm.ptr) -> !llvm.ptr, i8
-    %154 = llvm.load %153 : !llvm.ptr -> i8
-    %c0_i8_52 = arith.constant 0 : i8
-    %155 = arith.cmpi ne, %154, %c0_i8_52 : i8
-    cf.cond_br %155, ^bb1(%154 : i8), ^bb39
-  ^bb39:  // pred: ^bb38
-    %156 = llvm.mlir.addressof @dora_global_memory_ptr : !llvm.ptr
-    llvm.store %152, %156 : !llvm.ptr, !llvm.ptr
-    %157 = llvm.mlir.addressof @dora_global_memory_size : !llvm.ptr
-    llvm.store %131, %157 : i64, !llvm.ptr
-    cf.br ^bb36
+    %c80_i8_54 = arith.constant 80 : i8
+    cf.cond_br %151, ^bb1(%c80_i8_54 : i8), ^bb40
+  ^bb40:  // pred: ^bb39
+    %152 = call @dora_fn_extend_memory(%arg0, %133) : (!llvm.ptr, i64) -> !llvm.ptr
+    %153 = llvm.getelementptr %152[16] : (!llvm.ptr) -> !llvm.ptr, i8
+    %154 = llvm.load %153 : !llvm.ptr -> !llvm.ptr
+    %155 = llvm.getelementptr %152[0] : (!llvm.ptr) -> !llvm.ptr, i8
+    %156 = llvm.load %155 : !llvm.ptr -> i8
+    %c0_i8_55 = arith.constant 0 : i8
+    %157 = arith.cmpi ne, %156, %c0_i8_55 : i8
+    cf.cond_br %157, ^bb1(%156 : i8), ^bb41
+  ^bb41:  // pred: ^bb40
+    %158 = llvm.mlir.addressof @dora_global_memory_ptr : !llvm.ptr
+    llvm.store %154, %158 : !llvm.ptr, !llvm.ptr
+    %159 = llvm.mlir.addressof @dora_global_memory_size : !llvm.ptr
+    llvm.store %133, %159 : i64, !llvm.ptr
+    cf.br ^bb38
   }
 }
