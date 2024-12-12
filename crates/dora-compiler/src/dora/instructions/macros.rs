@@ -269,6 +269,13 @@ macro_rules! check_op_oog {
 #[macro_export]
 macro_rules! u256_to_u64 {
     ($op:expr, $rewriter:ident, $size:ident) => {
+        let overflow = $rewriter.make($rewriter.icmp_imm(
+            IntCC::SignedGreaterThan,
+            $size,
+            u64::MAX as i64,
+        )?)?;
+        maybe_revert_here!($op, $rewriter, overflow, ExitStatusCode::InvalidOperandOOG);
+        let $rewriter = Rewriter::new_with_op($rewriter.context(), *$op);
         let $size = $rewriter.make(arith::trunci(
             $size,
             $rewriter.intrinsics.i64_ty,
