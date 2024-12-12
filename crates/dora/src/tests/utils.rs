@@ -99,7 +99,6 @@ pub(crate) fn default_env_and_db_setup(operations: Vec<Operation>) -> (Env, Memo
         Address::left_padding_from(&[40]),
         Bytecode::from(program.to_opcode()),
     );
-    println!("SAD: {}", hex::encode(&bytecode));
     env.tx.transact_to = TxKind::Call(address);
     env.block.coinbase = Address::left_padding_from(&[80]);
     let mut db = MemoryDB::new().with_contract(address, bytecode);
