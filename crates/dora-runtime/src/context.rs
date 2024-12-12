@@ -1377,6 +1377,10 @@ impl<'a> RuntimeContext<'a> {
         }
     }
 
+    pub extern "C" fn ctx_is_static(&mut self) -> u8 {
+        self.inner.is_static as u8
+    }
+
     pub extern "C" fn exp(&mut self, base: &Bytes32, exponent_ptr: &mut Bytes32) {
         let exponent = exponent_ptr.to_u256();
         *exponent_ptr = base.to_u256().pow(exponent).into();
@@ -1932,15 +1936,10 @@ type SymbolSignature = (&'static str, *const fn() -> ());
 
 impl<'a> RuntimeContext<'a> {
     /// Registers all the syscalls as symbols in the execution engine.
-    pub fn register_symbols(&self, engine: &ExecutionEngine) {
+    pub fn register_symbols(engine: &ExecutionEngine) {
         unsafe {
             // Global variables and syscalls with corresponding function signatures
             let symbols_and_signatures: &[SymbolSignature] = &[
-                // Global variables
-                (
-                    symbols::CTX_IS_STATIC,
-                    &self.inner.is_static as *const bool as *const _,
-                ),
                 // Debug functions
                 (symbols::NOP, RuntimeContext::nop as *const _),
                 (symbols::TRACING, RuntimeContext::tracing as *const _),
@@ -1948,6 +1947,10 @@ impl<'a> RuntimeContext<'a> {
                 (
                     symbols::WRITE_RESULT,
                     RuntimeContext::write_result as *const _,
+                ),
+                (
+                    symbols::CTX_IS_STATIC,
+                    RuntimeContext::ctx_is_static as *const _,
                 ),
                 (symbols::EXP, RuntimeContext::exp as *const _),
                 (

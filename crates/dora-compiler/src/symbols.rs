@@ -2,7 +2,6 @@ use crate::conversion::builder::OpBuilder;
 use dora_runtime::symbols;
 use melior::{
     dialect::func,
-    dialect::llvm::attributes::Linkage,
     ir::{
         attribute::TypeAttribute, r#type::FunctionType, Identifier, Module as MLIRModule, Region,
         Type,
@@ -22,9 +21,6 @@ pub(crate) fn declare_symbols(context: &MLIRContext, module: &MLIRModule) {
         Identifier::new(context, "sym_visibility"),
         builder.str_attr("private").into(),
     )];
-
-    // Globals declaration
-    builder.create(builder.global(symbols::CTX_IS_STATIC, ptr_type, Linkage::External));
     let function_signatures: &[(&str, &[Type<'_>], &[Type<'_>])] = &[
         (symbols::NOP, &[], &[]),
         (
@@ -37,6 +33,7 @@ pub(crate) fn declare_symbols(context: &MLIRContext, module: &MLIRModule) {
             &[ptr_type, uint64, uint64, uint64, uint8],
             &[],
         ),
+        (symbols::CTX_IS_STATIC, &[ptr_type], &[uint8]),
         (symbols::EXP, &[ptr_type, ptr_type, ptr_type], &[]),
         (
             symbols::KECCAK256_HASHER,

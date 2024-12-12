@@ -19,7 +19,6 @@ use dora_primitives::SpecId;
 use dora_runtime::constants::{gas_cost, GAS_COUNTER_GLOBAL};
 use dora_runtime::constants::{gas_cost::MAX_INITCODE_SIZE, CallType};
 use dora_runtime::symbols;
-use dora_runtime::symbols::CTX_IS_STATIC;
 use dora_runtime::ExitStatusCode;
 use melior::{
     dialect::{arith, cf, func, scf},
@@ -43,7 +42,7 @@ impl<'c> ConversionPass<'c> {
         operands!(op, value, offset, size);
         syscall_ctx!(op, syscall_ctx);
         let rewriter = Rewriter::new_with_op(context, *op);
-        ensure_non_staticcall!(op, rewriter);
+        ensure_non_staticcall!(op, rewriter, syscall_ctx);
         let rewriter = Rewriter::new_with_op(context, *op);
         let location = rewriter.get_insert_location();
         let uint256 = rewriter.intrinsics.i256_ty;
@@ -144,11 +143,17 @@ impl<'c> ConversionPass<'c> {
         let location = rewriter.get_insert_location();
         match call_type {
             CallType::Call | CallType::CallCode => {
+                syscall_ctx!(op, syscall_ctx);
                 // Static call value is zero check
-                let ctx_is_static_ptr =
-                    rewriter.make(rewriter.addressof(CTX_IS_STATIC, rewriter.ptr_ty()))?;
+                let ctx_is_static_u8 = rewriter.make(func::call(
+                    context,
+                    FlatSymbolRefAttribute::new(context, symbols::CTX_IS_STATIC),
+                    &[syscall_ctx.into()],
+                    &[rewriter.intrinsics.i8_ty],
+                    location,
+                ))?;
                 let ctx_is_static =
-                    rewriter.make(rewriter.load(ctx_is_static_ptr, rewriter.intrinsics.i1_ty))?;
+                    rewriter.make(rewriter.icmp_imm(IntCC::NotEqual, ctx_is_static_u8, 0)?)?;
                 let zero = rewriter.make(rewriter.iconst_256_from_u64(0)?)?;
                 let value = op.operand(2)?;
                 let value_is_not_zero =
