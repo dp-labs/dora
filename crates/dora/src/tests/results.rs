@@ -548,6 +548,20 @@ fn calldatacopy() {
 }
 
 #[test]
+fn calldatacopy_large_offset() {
+    let operations = vec![
+        Operation::Push((1, 32_u8.into())),
+        Operation::Push((1, 255_u8.into())),
+        Operation::Push0,
+        Operation::CalldataCopy,
+    ];
+    let result = run_result(operations);
+    assert!(result.status.is_ok());
+    assert_eq!(result.gas_used(), 3 + 3 + 2 + 3 + 3 + 3);
+    assert_eq!(result.memory, vec![0x00; 32]);
+}
+
+#[test]
 fn codesize() {
     let operations = vec![Operation::CodeSize, Operation::CodeSize];
     let result = run_result(operations);

@@ -41,6 +41,11 @@ pub(crate) fn declare_symbols(context: &MLIRContext, module: &MLIRModule) {
             &[],
         ),
         (symbols::CALLDATA, &[ptr_type], &[ptr_type]),
+        (
+            symbols::CALLDATA_COPY,
+            &[ptr_type, uint64, ptr_type, uint64],
+            &[],
+        ),
         (symbols::CALLDATA_SIZE, &[ptr_type], &[uint64]),
         (symbols::CHAINID, &[ptr_type], &[uint64]),
         (symbols::CALLVALUE, &[ptr_type, ptr_type], &[]),

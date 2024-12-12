@@ -22,8 +22,7 @@ use dora_runtime::symbols;
 use dora_runtime::ExitStatusCode;
 use melior::{
     dialect::{
-        arith::{self, CmpiPredicate},
-        cf, func,
+        arith, cf, func,
         llvm::{self, AllocaOptions, LoadStoreOptions},
         ods, scf,
     },
@@ -238,94 +237,31 @@ impl<'c> ConversionPass<'c> {
     }
 
     pub(crate) fn calldatacopy(context: &Context, op: &OperationRef<'_, '_>) -> Result<()> {
-        operands!(op, dest_offset, calldata_offset, size);
+        operands!(op, memory_offset, data_offset, size);
         syscall_ctx!(op, syscall_ctx);
         let rewriter = Rewriter::new_with_op(context, *op);
-        let uint64 = rewriter.intrinsics.i64_ty;
-        let ptr_type = rewriter.ptr_ty();
-
-        u256_to_u64!(op, rewriter, calldata_offset);
-        u256_to_u64!(op, rewriter, dest_offset);
         u256_to_u64!(op, rewriter, size);
-
         let size_is_not_zero = rewriter.make(rewriter.icmp_imm(IntCC::NotEqual, size, 0)?)?;
         if_here!(op, rewriter, size_is_not_zero, {
             let gas = compute_copy_cost(&rewriter, size)?;
             gas_or_fail!(op, rewriter, gas);
             rewrite_ctx!(context, op, rewriter, _location, NoDefer);
-            memory::resize_memory(context, op, &rewriter, syscall_ctx, dest_offset, size)?;
+            u256_to_u64!(op, rewriter, memory_offset);
+            memory::resize_memory(context, op, &rewriter, syscall_ctx, memory_offset, size)?;
         });
         rewrite_ctx!(context, op, rewriter, location);
-
-        let memory_ptr = memory::get_memory_pointer(context, &rewriter, location)?;
-        let memory_dest = rewriter.make(llvm::get_element_ptr_dynamic(
-            context,
-            memory_ptr,
-            &[dest_offset],
-            rewriter.intrinsics.i8_ty,
-            rewriter.intrinsics.ptr_ty,
+        let memory_offset = rewriter.make(arith::trunci(
+            memory_offset,
+            rewriter.intrinsics.i64_ty,
             location,
         ))?;
-        let calldata_size = rewriter.make(func::call(
+        let data_offset =
+            allocate_u256_and_assign_value(context, &rewriter, data_offset, location)?;
+        rewriter.create(func::call(
             context,
-            FlatSymbolRefAttribute::new(context, symbols::CALLDATA_SIZE),
-            &[syscall_ctx.into()],
-            &[uint64],
-            location,
-        ))?;
-        let flag = rewriter.make(arith::cmpi(
-            context,
-            CmpiPredicate::Ult,
-            calldata_offset,
-            calldata_size,
-            location,
-        ))?;
-        rewriter.create(scf::r#if(
-            flag,
+            FlatSymbolRefAttribute::new(context, symbols::CALLDATA_COPY),
+            &[syscall_ctx.into(), memory_offset, data_offset, size],
             &[],
-            {
-                let region = Region::new();
-                let block = region.append_block(Block::new(&[]));
-                let builder = OpBuilder::new_with_block(context, block);
-                let remaining_calldata_size =
-                    builder.make(arith::subi(calldata_size, calldata_offset, location))?;
-                let memcpy_len =
-                    builder.make(arith::minui(remaining_calldata_size, size, location))?;
-                let calldata_ptr = builder.make(func::call(
-                    builder.context(),
-                    FlatSymbolRefAttribute::new(builder.context(), symbols::CALLDATA),
-                    &[syscall_ctx.into()],
-                    &[ptr_type],
-                    builder.get_insert_location(),
-                ))?;
-                let calldata_src = builder.make(llvm::get_element_ptr_dynamic(
-                    context,
-                    calldata_ptr,
-                    &[calldata_offset],
-                    builder.intrinsics.i8_ty,
-                    builder.ptr_ty(),
-                    location,
-                ))?;
-                builder.create(
-                    ods::llvm::intr_memcpy(
-                        context,
-                        memory_dest,
-                        calldata_src,
-                        memcpy_len,
-                        IntegerAttribute::new(IntegerType::new(context, 1).into(), 0),
-                        location,
-                    )
-                    .into(),
-                );
-                builder.create(scf::r#yield(&[], location));
-                region
-            },
-            {
-                let region = Region::new();
-                let block = region.append_block(Block::new(&[]));
-                block.append_operation(scf::r#yield(&[], location));
-                region
-            },
             location,
         ));
         Ok(())
@@ -347,17 +283,20 @@ impl<'c> ConversionPass<'c> {
         let rewriter = Rewriter::new_with_op(context, *op);
 
         u256_to_u64!(op, rewriter, size);
-        u256_to_u64!(op, rewriter, memory_offset);
-
         let size_is_not_zero = rewriter.make(rewriter.icmp_imm(IntCC::NotEqual, size, 0)?)?;
         if_here!(op, rewriter, size_is_not_zero, {
             let gas = compute_copy_cost(&rewriter, size)?;
             gas_or_fail!(op, rewriter, gas);
             let rewriter = Rewriter::new_with_op(context, *op);
+            u256_to_u64!(op, rewriter, memory_offset);
             memory::resize_memory(context, op, &rewriter, syscall_ctx, memory_offset, size)?;
         });
         rewrite_ctx!(context, op, rewriter, location);
-
+        let memory_offset = rewriter.make(arith::trunci(
+            memory_offset,
+            rewriter.intrinsics.i64_ty,
+            location,
+        ))?;
         let code_offset =
             allocate_u256_and_assign_value(context, &rewriter, code_offset, location)?;
         rewriter.create(func::call(
@@ -395,8 +334,6 @@ impl<'c> ConversionPass<'c> {
         let gas = compute_copy_cost(&rewriter, size)?;
         gas_or_fail!(op, rewriter, gas);
         let rewriter = Rewriter::new_with_op(context, *op);
-        u256_to_u64!(op, rewriter, memory_offset);
-
         let data_offset_ptr = allocate_u256_and_assign_value(
             context,
             &rewriter,
@@ -405,9 +342,15 @@ impl<'c> ConversionPass<'c> {
         )?;
         let size_is_not_zero = rewriter.make(rewriter.icmp_imm(IntCC::NotEqual, size, 0)?)?;
         if_here!(op, rewriter, size_is_not_zero, {
+            u256_to_u64!(op, rewriter, memory_offset);
             memory::resize_memory(context, op, &rewriter, syscall_ctx, memory_offset, size)?;
         });
         rewrite_ctx!(context, op, rewriter, location);
+        let memory_offset = rewriter.make(arith::trunci(
+            memory_offset,
+            rewriter.intrinsics.i64_ty,
+            location,
+        ))?;
         let result_ptr = rewriter.make(func::call(
             context,
             FlatSymbolRefAttribute::new(context, symbols::RETURNDATA_COPY),
