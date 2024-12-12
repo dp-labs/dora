@@ -23,7 +23,7 @@ use melior::{
     Context as MLIRContext,
 };
 use num_bigint::BigUint;
-use program::stack_io;
+use program::{stack_io, stack_section_input};
 use revmc::{op_info_map, OpcodeInfo};
 use std::collections::BTreeMap;
 
@@ -323,8 +323,9 @@ impl<'c> EVMCompiler<'c> {
         op: &Operation,
     ) -> Result<BlockRef<'r, 'c>> {
         let (i, o) = stack_io(op);
+        let section_input = stack_section_input(op);
         let diff = o as i64 - i as i64;
-        let may_underflow = i > 0;
+        let may_underflow = section_input > 0;
         let may_overflow = diff > 0;
         let stack_check_block = region.append_block(Block::new(&[]));
         let builder = OpBuilder::new_with_block(ctx.context, stack_check_block);
@@ -341,7 +342,7 @@ impl<'c> EVMCompiler<'c> {
         // Check potential underflow/overflow
         if may_underflow && may_overflow {
             // Check underflow
-            let i = builder.make(builder.iconst_64(i as i64))?;
+            let i = builder.make(builder.iconst_64(section_input as i64))?;
             let underflow = builder.make(builder.icmp(IntCC::UnsignedLessThan, size_before, i))?;
             // Check overflow
             let overflow =
@@ -362,10 +363,11 @@ impl<'c> EVMCompiler<'c> {
                 location,
             ));
         } else if may_underflow {
+            // Whether revert (or underflow)
+            let i = builder.make(builder.iconst_64(section_input as i64))?;
             // Update the stack length for this operation.
             builder.create(builder.store(size_after, stack_size_ptr));
-            // Whether revert (or underflow)
-            let i = builder.make(builder.iconst_64(i as i64))?;
+
             let revert = builder.make(builder.icmp(IntCC::UnsignedLessThan, size_before, i))?;
 
             let code =

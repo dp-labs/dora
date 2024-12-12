@@ -203,6 +203,22 @@ fn push0_jumpi_stack_underflow() {
 }
 
 #[test]
+fn dup1_stack_underflow() {
+    let operations = vec![Operation::Dup(1), Operation::Dup(1)];
+    let result = run_result(operations);
+    assert!(result.status.is_error());
+    assert_eq!(result.gas_used(), 3)
+}
+
+#[test]
+fn push0_dup2_stack_underflow() {
+    let operations = vec![Operation::Push0, Operation::Dup(2)];
+    let result = run_result(operations);
+    assert!(result.status.is_error());
+    assert_eq!(result.gas_used(), 2 + 3)
+}
+
+#[test]
 fn addmod_1() {
     let operations = vec![
         Operation::Push((1, 5_u8.into())),
@@ -303,7 +319,7 @@ fn stack_push1_dup1() {
 fn stack_push1_dupn() {
     let operations = vec![
         Operation::Push((1, 1_u8.into())),
-        Operation::Dup(3),
+        Operation::Dup(1),
         Operation::Stop,
     ];
     let result = run_result(operations);
