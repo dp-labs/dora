@@ -31,11 +31,11 @@ impl<'c> ConversionPass<'c> {
         let rewriter = Rewriter::new_with_op(context, *op);
         let uint8 = IntegerType::new(context, 8);
         let uint256 = rewriter.intrinsics.i256_ty;
-        u256_to_u64!(op, rewriter, offset);
         let value_size = rewriter.make(rewriter.iconst_64(32))?;
         let size_is_not_zero =
             rewriter.make(rewriter.icmp_imm(IntCC::NotEqual, value_size, 0)?)?;
         if_here!(op, rewriter, size_is_not_zero, {
+            u256_to_u64!(op, rewriter, offset);
             memory::resize_memory(context, op, &rewriter, syscall_ctx, offset, value_size)?;
         });
         rewrite_ctx!(context, op, rewriter, location);
@@ -82,12 +82,13 @@ impl<'c> ConversionPass<'c> {
         } else {
             value
         };
-        u256_to_u64!(op, rewriter, offset);
+
         // Calculate value size (1 byte for mstore8, 32 bytes for mstore)
         let value_size = rewriter.make(rewriter.iconst_64(byte_size as i64))?;
         let size_is_not_zero =
             rewriter.make(rewriter.icmp_imm(IntCC::NotEqual, value_size, 0)?)?;
         if_here!(op, rewriter, size_is_not_zero, {
+            u256_to_u64!(op, rewriter, offset);
             memory::resize_memory(context, op, &rewriter, syscall_ctx, offset, value_size)?;
         });
         rewrite_ctx!(context, op, rewriter, location);
@@ -144,14 +145,20 @@ impl<'c> ConversionPass<'c> {
         let gas = compute_copy_cost(&rewriter, size)?;
         gas_or_fail!(op, rewriter, gas);
         let rewriter = Rewriter::new_with_op(context, *op);
-        u256_to_u64!(op, rewriter, dest_offset);
-        u256_to_u64!(op, rewriter, offset);
         let offset = rewriter.make(arith::maxui(dest_offset, offset, location))?;
         let size_is_not_zero = rewriter.make(rewriter.icmp_imm(IntCC::NotEqual, size, 0)?)?;
         if_here!(op, rewriter, size_is_not_zero, {
+            u256_to_u64!(op, rewriter, dest_offset);
+            u256_to_u64!(op, rewriter, offset);
             memory::resize_memory(context, op, &rewriter, syscall_ctx, dest_offset, size)?;
         });
         rewrite_ctx!(context, op, rewriter, location);
+        let offset = rewriter.make(arith::trunci(offset, rewriter.intrinsics.i64_ty, location))?;
+        let dest_offset = rewriter.make(arith::trunci(
+            dest_offset,
+            rewriter.intrinsics.i64_ty,
+            location,
+        ))?;
         let memory_ptr = load_by_addr!(rewriter, constants::MEMORY_PTR_GLOBAL, rewriter.ptr_ty());
         // memory_destination = memory_ptr + offset
         let source = rewriter.make(llvm::get_element_ptr_dynamic(
