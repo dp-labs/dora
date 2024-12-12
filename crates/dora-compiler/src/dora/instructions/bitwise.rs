@@ -242,7 +242,7 @@ impl<'c> ConversionPass<'c> {
         // Compare if the shift amount (operand 0) is less than 255
         let flag = rewriter.make(arith::cmpi(
             context,
-            CmpiPredicate::Ult,
+            CmpiPredicate::Ule,
             shift,
             value_255,
             location,
@@ -256,7 +256,7 @@ impl<'c> ConversionPass<'c> {
                 let block = region.append_block(Block::new(&[]));
                 let rewriter = Rewriter::new_with_block(context, block);
 
-                // if shift is less than 255
+                // if shift is less than or equal 255
                 let result = rewriter.make(arith::shli(value, shift, location))?;
                 rewriter.create(scf::r#yield(&[result], location));
                 region
@@ -297,7 +297,7 @@ impl<'c> ConversionPass<'c> {
         // Compare if the shift amount (operand 0) is less than 255
         let flag = rewriter.make(arith::cmpi(
             context,
-            CmpiPredicate::Ult,
+            CmpiPredicate::Ule,
             shift,
             value_255,
             location,
@@ -310,7 +310,7 @@ impl<'c> ConversionPass<'c> {
                 let block = region.append_block(Block::new(&[]));
                 let rewriter = Rewriter::new_with_block(context, block);
 
-                // if shift is less than 255
+                // if shift is less than or equal 255
                 let result = rewriter.make(arith::shrui(value, shift, location))?;
                 rewriter.create(scf::r#yield(&[result], location));
                 region
