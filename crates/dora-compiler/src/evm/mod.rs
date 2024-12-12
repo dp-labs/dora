@@ -128,7 +128,6 @@ impl<'c> Compiler for EVMCompiler<'c> {
         let op = OperationBuilder::new("builtin.module", Location::unknown(context))
             .add_regions([module_region])
             .build()?;
-        assert!(op.verify(), "module operation is not valid");
 
         let mlir_module = Module::from_operation(op).expect("module failed to create");
 
@@ -788,7 +787,7 @@ impl<'c> CtxType<'c> {
             ))
             .result(0)?;
 
-        let op = block.append_operation(cf::switch(
+        block.append_operation(cf::switch(
             context,
             &jumpdest_pcs,
             arg.into(),
@@ -798,7 +797,6 @@ impl<'c> CtxType<'c> {
             location,
         )?);
 
-        assert!(op.verify());
         Ok(())
     }
 
@@ -826,14 +824,14 @@ impl<'c> CtxType<'c> {
     /// * `block` - A reference to the block to which the jump operation will be added.
     /// * `pc_to_jump_to` - The program counter value to jump to.
     /// * `location` - The location context for the operation.
+    #[inline]
     pub fn add_jump_op(
         &mut self,
         block: BlockRef<'c, 'c>,
         pc_to_jump_to: Value,
         location: Location,
     ) {
-        let op = block.append_operation(cf::br(&self.jumptable_block, &[pc_to_jump_to], location));
-        assert!(op.verify());
+        block.append_operation(cf::br(&self.jumptable_block, &[pc_to_jump_to], location));
     }
 }
 
@@ -1104,8 +1102,7 @@ impl<'c> SetupBuilder<'c> {
     fn declare_globals(&self, globals: &[&str], ty: melior::ir::Type) -> Result<&Self> {
         let body = self.module.body();
         for global in globals {
-            let res = body.append_operation(self.builder.global(global, ty, Linkage::Internal));
-            assert!(res.verify());
+            body.append_operation(self.builder.global(global, ty, Linkage::Internal));
         }
         Ok(self)
     }
@@ -1122,15 +1119,13 @@ impl<'c> SetupBuilder<'c> {
             .result(0)?
             .into();
 
-        let store_op = self.block.append_operation(llvm::store(
+        self.block.append_operation(llvm::store(
             self.context,
             initial_value,
             global_ptr,
             self.location,
             LoadStoreOptions::default(),
         ));
-
-        assert!(store_op.verify());
         Ok(self)
     }
 
@@ -1140,14 +1135,13 @@ impl<'c> SetupBuilder<'c> {
             .append_operation(self.builder.addressof(global, self.builder.ptr_ty()))
             .result(0)?;
 
-        let res = self.block.append_operation(llvm::store(
+        self.block.append_operation(llvm::store(
             self.context,
             value,
             global_ptr.into(),
             self.location,
             LoadStoreOptions::default(),
         ));
-        assert!(res.verify());
         Ok(self)
     }
 
