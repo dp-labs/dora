@@ -140,12 +140,17 @@ impl<'c> ConversionPass<'c> {
         let gas = compute_copy_cost(&rewriter, size)?;
         gas_or_fail!(op, rewriter, gas);
         let rewriter = Rewriter::new_with_op(context, *op);
-        u256_to_u64!(op, rewriter, memory_offset);
         let size_is_not_zero = rewriter.make(rewriter.icmp_imm(IntCC::NotEqual, size, 0)?)?;
         if_here!(op, rewriter, size_is_not_zero, {
+            u256_to_u64!(op, rewriter, memory_offset);
             memory::resize_memory(context, op, &rewriter, syscall_ctx, memory_offset, size)?;
         });
         rewrite_ctx!(context, op, rewriter, location);
+        let memory_offset = rewriter.make(arith::trunci(
+            memory_offset,
+            rewriter.intrinsics.i64_ty,
+            location,
+        ))?;
         let address_ptr =
             memory::allocate_u256_and_assign_value(context, &rewriter, address, location)?;
         let code_offset =

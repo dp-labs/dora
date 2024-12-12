@@ -1443,6 +1443,25 @@ impl<'a> RuntimeContext<'a> {
         }
     }
 
+    pub extern "C" fn calldata_copy(
+        &mut self,
+        memory_offset: u64,
+        data_offset: &Bytes32,
+        size: u64,
+    ) {
+        let size = size as usize;
+        if size != 0 {
+            let data_offset = as_usize_saturated!(data_offset.to_u256());
+            let memory_offset = memory_offset as usize;
+            self.memory_set_data(
+                memory_offset,
+                data_offset,
+                size,
+                &self.contract.input.clone(),
+            );
+        }
+    }
+
     pub extern "C" fn code_copy(&mut self, code_offset: &Bytes32, size: u64, memory_offset: u64) {
         let size = size as usize;
         if size != 0 {
@@ -1959,6 +1978,10 @@ impl<'a> RuntimeContext<'a> {
                 (
                     symbols::CALLDATA_SIZE,
                     RuntimeContext::calldata_size as *const _,
+                ),
+                (
+                    symbols::CALLDATA_COPY,
+                    RuntimeContext::calldata_copy as *const _,
                 ),
                 (symbols::CODE_COPY, RuntimeContext::code_copy as *const _),
                 (symbols::ORIGIN, RuntimeContext::origin as *const _),

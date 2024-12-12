@@ -50,26 +50,6 @@ pub(crate) fn allocate_u256_and_assign_value<'c>(
     Ok(var_ptr)
 }
 
-pub(crate) fn get_memory_pointer<'c>(
-    context: &'c Context,
-    rewriter: &'c Rewriter,
-    location: Location<'c>,
-) -> Result<Value<'c, 'c>> {
-    // Define the pointer type
-    let ptr_type = rewriter.ptr_ty();
-
-    let memory_ptr_ptr =
-        rewriter.make(rewriter.addressof(constants::MEMORY_PTR_GLOBAL, ptr_type))?;
-    let memory_ptr = rewriter.make(llvm::load(
-        context,
-        memory_ptr_ptr,
-        ptr_type,
-        location,
-        LoadStoreOptions::default(),
-    ))?;
-    Ok(memory_ptr)
-}
-
 pub(crate) fn resize_memory<'c>(
     context: &'c Context,
     op: &OperationRef<'c, 'c>,
