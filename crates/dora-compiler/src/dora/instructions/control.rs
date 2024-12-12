@@ -29,15 +29,14 @@ impl<'c> ConversionPass<'c> {
         let rewriter = Rewriter::new_with_op(context, *op);
         let uint8 = rewriter.intrinsics.i8_ty;
 
-        u256_to_u64!(op, rewriter, offset);
         u256_to_u64!(op, rewriter, size);
-
         let size_is_not_zero = rewriter.make(rewriter.icmp_imm(IntCC::NotEqual, size, 0)?)?;
         if_here!(op, rewriter, size_is_not_zero, {
+            u256_to_u64!(op, rewriter, offset);
             memory::resize_memory(context, op, &rewriter, syscall_ctx, offset, size)?;
         });
         rewrite_ctx!(context, op, rewriter, location);
-
+        let offset = rewriter.make(arith::trunci(offset, rewriter.intrinsics.i64_ty, location))?;
         let gas_counter = gas::get_gas_counter(&rewriter)?;
         let reason = rewriter.make(arith_constant!(
             rewriter,
