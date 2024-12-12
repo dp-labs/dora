@@ -39,6 +39,7 @@ impl<'c> ConversionPass<'c> {
             memory::resize_memory(context, op, &rewriter, syscall_ctx, offset, value_size)?;
         });
         rewrite_ctx!(context, op, rewriter, location);
+        let offset = rewriter.make(arith::trunci(offset, rewriter.intrinsics.i64_ty, location))?;
         let memory_ptr = load_by_addr!(rewriter, constants::MEMORY_PTR_GLOBAL, rewriter.ptr_ty());
         let memory_destination = rewriter.make(llvm::get_element_ptr_dynamic(
             context,
@@ -92,6 +93,7 @@ impl<'c> ConversionPass<'c> {
             memory::resize_memory(context, op, &rewriter, syscall_ctx, offset, value_size)?;
         });
         rewrite_ctx!(context, op, rewriter, location);
+        let offset = rewriter.make(arith::trunci(offset, rewriter.intrinsics.i64_ty, location))?;
         let memory_ptr = load_by_addr!(rewriter, constants::MEMORY_PTR_GLOBAL, rewriter.ptr_ty());
         // Memory_destination = memory_ptr + offset
         let memory_destination = rewriter.make(llvm::get_element_ptr_dynamic(

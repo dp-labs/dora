@@ -9,6 +9,7 @@ pub const EXTEND_MEMORY: &str = "dora_fn_extend_memory";
 pub const MEMORY_SIZE: &str = "dora_fn_memory_size";
 pub const CALLDATA: &str = "dora_fn_calldata";
 pub const CALLDATA_SIZE: &str = "dora_fn_calldata_size";
+pub const CALLDATA_COPY: &str = "dora_fn_calldata_copy";
 pub const STACK: &str = "dora_fn_stack";
 pub const STACK_SIZE: &str = "dora_fn_stack_size";
 pub const EXP: &str = "dora_fn_exp";

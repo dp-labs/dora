@@ -208,23 +208,33 @@ impl<'c> ConversionPass<'c> {
         let uint8 = rewriter.intrinsics.i8_ty;
         let uint256 = rewriter.intrinsics.i256_ty;
         let ptr_type = rewriter.ptr_ty();
-        u256_to_u64!(op, rewriter, args_offset);
-        u256_to_u64!(op, rewriter, args_size);
-        u256_to_u64!(op, rewriter, ret_offset);
-        u256_to_u64!(op, rewriter, ret_size);
 
+        u256_to_u64!(op, rewriter, args_size);
         let size_is_not_zero =
             rewriter.make(rewriter.icmp_imm(IntCC::NotEqual, args_size, 0)?)?;
         if_here!(op, rewriter, size_is_not_zero, {
             // Input memory resize
+            u256_to_u64!(op, rewriter, args_offset);
             memory::resize_memory(context, op, &rewriter, syscall_ctx, args_offset, args_size)?;
         });
         let rewriter = Rewriter::new_with_op(context, *op);
+        u256_to_u64!(op, rewriter, ret_size);
         let size_is_not_zero = rewriter.make(rewriter.icmp_imm(IntCC::NotEqual, ret_size, 0)?)?;
         if_here!(op, rewriter, size_is_not_zero, {
             // Output memery resize
+            u256_to_u64!(op, rewriter, ret_offset);
             memory::resize_memory(context, op, &rewriter, syscall_ctx, ret_offset, ret_size)?;
         });
+        let args_offset = rewriter.make(arith::trunci(
+            args_offset,
+            rewriter.intrinsics.i64_ty,
+            location,
+        ))?;
+        let ret_offset = rewriter.make(arith::trunci(
+            ret_offset,
+            rewriter.intrinsics.i64_ty,
+            location,
+        ))?;
         let rewriter = Rewriter::new_with_op(context, *op);
         let remaining_gas = gas::get_gas_counter(&rewriter)?;
         let value_ptr =
