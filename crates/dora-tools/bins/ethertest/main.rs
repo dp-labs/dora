@@ -442,11 +442,48 @@ fn should_skip(path: &Path) -> bool {
     matches!(
         name,
         // JSON big int issue cases: https://github.com/ethereum/tests/issues/971
-        "ValueOverflow.json" |
-        "ValueOverflowParis.json"
+        "ValueOverflow.json"
+        | "ValueOverflowParis.json"
+
+        // Precompiles having storage is not possible
+        | "RevertPrecompiledTouch_storage.json"
+        | "RevertPrecompiledTouch.json"
+
+        // Txbyte is of type 02 and we don't parse tx bytes for this test to fail.
+        | "typeTwoBerlin.json"
+
+        // Skip test where basefee/accesslist/difficulty is present but it shouldn't be supported in
+        // London/Berlin/TheMerge. https://github.com/ethereum/tests/blob/5b7e1ab3ffaf026d99d20b17bb30f533a2c80c8b/GeneralStateTests/stExample/eip1559.json#L130
+        // It is expected to not execute these tests.
+        | "basefeeExample.json"
+        | "eip1559.json"
+        | "mergeTest.json"
+
+        // Test with some storage check.
+        | "RevertInCreateInInit_Paris.json"
+        | "RevertInCreateInInit.json"
+        | "dynamicAccountOverwriteEmpty.json"
+        | "dynamicAccountOverwriteEmpty_Paris.json"
+        | "RevertInCreateInInitCreate2Paris.json"
+        | "create2collisionStorage.json"
+        | "RevertInCreateInInitCreate2.json"
+        | "create2collisionStorageParis.json"
+        | "InitCollision.json"
+        | "InitCollisionParis.json"
+
+        // Skip evmone statetest
+        | "initcode_transaction_before_prague.json"
+        | "invalid_tx_non_existing_sender.json"
+        | "tx_non_existing_sender.json"
+        | "block_apply_withdrawal.json"
+        | "block_apply_ommers_reward.json"
+        | "known_block_hash.json"
+        | "eip7516_blob_base_fee.json"
+        | "create_tx_collision_storage.json"
+        | "create_collision_storage.json"
     ) ||// Temporarily skip EOF test suites: https://github.com/dp-labs/dora/issues/5
         path_str.contains("stEOF")
-        // Temporarily skip stack overflow error test suites
+        // Temporarily skip stack overflow error test suites: https://github.com/dp-labs/dora/issues/139
         || path_str.contains("Pyspecs/cancun/eip1153_tstore/run_until_out_of_gas.json")
         || path_str.contains("stSystemOperationsTest/ABAcalls1.json")
         || path_str.contains("stSystemOperationsTest/ABAcalls2.json")
