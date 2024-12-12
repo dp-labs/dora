@@ -67,10 +67,10 @@ pub fn call_frame<DB: Database>(
     let artifact = if let Ok(Some(artifact)) = artifact {
         artifact
     } else {
-        let artifact = build_artifact::<DB>(&frame.contract.code, ctx.spec_id())
-            .map_err(|e| EVMError::Custom(e.to_string()))?;
-        ctx.db.set_artifact(code_hash, artifact.clone());
-        artifact
+        // Issue: https://github.com/dp-labs/dora/issues/135
+        // ctx.db.set_artifact(code_hash, artifact.clone());
+        build_artifact::<DB>(&frame.contract.code, ctx.spec_id())
+            .map_err(|e| EVMError::Custom(e.to_string()))?
     };
     let mut runtime_context = RuntimeContext::new(
         frame.contract,
