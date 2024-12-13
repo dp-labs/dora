@@ -6,10 +6,51 @@ use crate::constants::gas_cost::{
     WARM_SSTORE_RESET,
 };
 use crate::env::AccessListItem;
-use crate::host::{AccountLoad, CodeLoad, SelfDestructResult, StateLoad};
+use crate::host::{AccountLoad, CodeLoad, SStoreResult, SelfDestructResult, StateLoad};
 use dora_primitives::spec::SpecId;
 use dora_primitives::U256;
 use revm_primitives::eip7702::PER_EMPTY_ACCOUNT_COST;
+
+#[inline]
+pub fn sstore_cost(spec_id: SpecId, result: &SStoreResult, gas: u64, is_cold: bool) -> Option<u64> {
+    // EIP-1706: Disable `SSTORE` if `gasleft` is less than call stipend.
+    if spec_id.is_enabled_in(SpecId::ISTANBUL) && gas <= CALL_STIPEND {
+        return None;
+    }
+    if spec_id.is_enabled_in(SpecId::BERLIN) {
+        // Berlin specification logic
+        let base_cost = match result {
+            SStoreResult::Slot(slot) => {
+                calculate_sstore_cost::<WARM_SLOAD_COST, WARM_SSTORE_RESET>(
+                    slot.original_value.to_u256(),
+                    slot.present_value.to_u256(),
+                    slot.new_value.to_u256(),
+                )
+            }
+            SStoreResult::Status(_status) => todo!(),
+        };
+        let additional_cost = if is_cold { COLD_SLOAD_COST } else { 0 };
+        Some(base_cost + additional_cost)
+    } else if spec_id.is_enabled_in(SpecId::ISTANBUL) {
+        // Istanbul specification logic
+        Some(match result {
+            SStoreResult::Slot(slot) => calculate_sstore_cost::<INSTANBUL_SLOAD_GAS, SSTORE_RESET>(
+                slot.original_value.to_u256(),
+                slot.present_value.to_u256(),
+                slot.new_value.to_u256(),
+            ),
+            SStoreResult::Status(_status) => todo!(),
+        })
+    } else {
+        // Frontier specification logic
+        Some(match result {
+            SStoreResult::Slot(slot) => {
+                frontier_sstore_cost(slot.present_value.to_u256(), slot.new_value.to_u256())
+            }
+            SStoreResult::Status(_status) => todo!(),
+        })
+    }
+}
 
 /// Calculates the gas cost of the `SSTORE` opcode based on the EVM specification and storage conditions.
 ///
@@ -25,7 +66,7 @@ use revm_primitives::eip7702::PER_EMPTY_ACCOUNT_COST;
 /// - `Some(u64)`: The gas cost for the operation if it is valid.
 /// - `None`: If the operation is invalid, such as when `gasleft` is less than the call stipend.
 #[inline]
-pub fn sstore_cost(
+pub fn sstore_slot_cost(
     spec_id: SpecId,
     original: U256,
     current: U256,
@@ -78,6 +119,20 @@ fn frontier_sstore_cost(current: U256, new: U256) -> u64 {
 }
 
 /// Calculates the refund amount for the `SSTORE` opcode based on the EVM specification.
+#[inline]
+pub fn sstore_refund(spec_id: SpecId, result: &SStoreResult) -> i64 {
+    match result {
+        SStoreResult::Slot(slot) => sstore_slot_refund(
+            spec_id,
+            slot.original_value.to_u256(),
+            slot.present_value.to_u256(),
+            slot.new_value.to_u256(),
+        ),
+        SStoreResult::Status(_status) => todo!(),
+    }
+}
+
+/// Calculates the refund amount for the `SSTORE` opcode based on the EVM specification.
 ///
 /// # Parameters
 /// - `spec_id`: The current EVM specification identifier.
@@ -88,7 +143,7 @@ fn frontier_sstore_cost(current: U256, new: U256) -> u64 {
 /// # Returns
 /// The refund amount as `i64`.
 #[inline]
-pub fn sstore_refund(spec_id: SpecId, original: U256, current: U256, new: U256) -> i64 {
+pub fn sstore_slot_refund(spec_id: SpecId, original: U256, current: U256, new: U256) -> i64 {
     if !spec_id.is_enabled_in(SpecId::ISTANBUL) {
         return if !current.is_zero() && new.is_zero() {
             REFUND_SSTORE_CLEARS

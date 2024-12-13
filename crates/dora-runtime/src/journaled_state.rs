@@ -5,7 +5,7 @@ use crate::{
     account::{Account, EMPTY_CODE_HASH, EMPTY_CODE_HASH_BYTES},
     context::Log,
     db::{Database, StorageSlot},
-    host::{AccountLoad, CodeLoad, SStoreResult, SelfDestructResult, StateLoad},
+    host::{AccountLoad, CodeLoad, SStoreResult, SStoreSlot, SelfDestructResult, StateLoad},
     ExitStatusCode,
 };
 use dora_primitives::{Address, Bytes, Bytes32, SpecId, B256, U256};
@@ -720,11 +720,11 @@ impl JournaledState {
         // new value is same as present, we don't need to do anything
         if present.data == new {
             return Ok(StateLoad::new(
-                SStoreResult {
+                SStoreResult::Slot(SStoreSlot {
                     original_value: Bytes32::from(slot.original_value()),
                     present_value: present.data,
                     new_value: new,
-                },
+                }),
                 present.is_cold,
             ));
         }
@@ -740,11 +740,11 @@ impl JournaledState {
         // insert value into present state.
         slot.present_value = new.to_u256();
         Ok(StateLoad::new(
-            SStoreResult {
+            SStoreResult::Slot(SStoreSlot {
                 original_value: Bytes32::from(slot.original_value()),
                 present_value: present.data,
                 new_value: new,
-            },
+            }),
             present.is_cold,
         ))
     }

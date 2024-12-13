@@ -257,7 +257,6 @@ impl Env {
 /// let cfg_env = CfgEnv { chain_id: 1 };
 /// ```
 #[derive(Clone, Debug)]
-#[non_exhaustive]
 pub struct CfgEnv {
     /// Chain ID of the EVM, it will be compared to the transaction's Chain ID.
     /// Chain ID is introduced EIP-155
