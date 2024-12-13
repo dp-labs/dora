@@ -74,7 +74,14 @@ pub(crate) fn run_result_with_spec(operations: Vec<Operation>, spec_id: SpecId) 
     let initial_gas = env.tx.gas_limit;
     let contract = Contract::new_with_env(
         &env,
-        Bytecode::from(Program::from(operations).to_opcode()),
+        Bytecode::from(
+            Program {
+                operations,
+                code_size: 0,
+                is_eof: false,
+            }
+            .to_opcode(),
+        ),
         None,
     );
     let mut host = DummyHost::new(env);
@@ -94,7 +101,11 @@ pub(crate) fn default_env_and_db_setup(operations: Vec<Operation>) -> (Env, Memo
     let mut env = Env::default();
     env.tx.gas_limit = INIT_GAS;
     env.block.gas_limit = Bytes32::from(INIT_GAS).into_u256();
-    let program = Program::from(operations);
+    let program = Program {
+        operations,
+        code_size: 0,
+        is_eof: false,
+    };
     let (address, bytecode) = (
         Address::left_padding_from(&[40]),
         Bytecode::from(program.to_opcode()),

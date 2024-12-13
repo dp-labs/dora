@@ -367,7 +367,9 @@ impl Host for DummyHost {
             | CallKind::Staticcall
             | CallKind::Create
             | CallKind::Create2 => CallResult::new_with_gas_limit(msg.gas_limit),
-            CallKind::ExtCall
+            CallKind::CallF
+            | CallKind::RetF
+            | CallKind::ExtCall
             | CallKind::ExtStaticcall
             | CallKind::ExtDelegatecall
             | CallKind::EofCreate => unimplemented!("{:?}", msg.kind),

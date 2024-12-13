@@ -12,14 +12,16 @@ use revm_primitives::Bytes;
 pub enum CallKind {
     Call = 0,
     CallCode = 1,
-    Delegatecall = 2,
-    Staticcall = 3,
-    ExtCall = 4,
-    ExtStaticcall = 5,
-    ExtDelegatecall = 6,
-    Create = 7,
-    Create2 = 8,
-    EofCreate = 9,
+    CallF = 2,
+    RetF = 3,
+    Delegatecall = 4,
+    Staticcall = 5,
+    ExtCall = 6,
+    ExtStaticcall = 7,
+    ExtDelegatecall = 8,
+    Create = 9,
+    Create2 = 10,
+    EofCreate = 11,
 }
 
 impl From<CallType> for CallKind {
@@ -67,7 +69,9 @@ pub struct CallMessage {
     /// Whether the call is a static call, or is initiated inside a static call.
     pub is_static: bool,
     /// Whether the call is initiated from EOF bytecode.
-    pub is_eof: bool,
+    pub is_eof_init: bool,
+    /// Whether the validate EOF bytecode
+    pub validate_eof: bool,
 }
 
 impl CallMessage {

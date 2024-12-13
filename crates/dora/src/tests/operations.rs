@@ -1706,7 +1706,14 @@ fn returndatacopy() {
     env.block.coinbase = Address::left_padding_from(&[80]);
     let contract = Contract::new_with_env(
         &env,
-        Bytecode::from(Program::from(operations).to_opcode()),
+        Bytecode::from(
+            Program {
+                operations,
+                code_size: 0,
+                is_eof: false,
+            }
+            .to_opcode(),
+        ),
         None,
     );
     let mut host = DummyHost::new(env);
@@ -1787,7 +1794,14 @@ fn returndatacopy_out_of_bounds() {
     env.block.coinbase = Address::left_padding_from(&[80]);
     let contract = Contract::new_with_env(
         &env,
-        Bytecode::from(Program::from(operations).to_opcode()),
+        Bytecode::from(
+            Program {
+                operations,
+                code_size: 0,
+                is_eof: false,
+            }
+            .to_opcode(),
+        ),
         None,
     );
     let mut host = DummyHost::new(env);

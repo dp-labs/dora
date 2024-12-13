@@ -291,6 +291,13 @@ impl<'c> ConversionPass<'c> {
         Ok(())
     }
 
+    pub(crate) fn dataload(context: &Context, op: &OperationRef<'_, '_>) -> Result<()> {
+        operands!(op, offset);
+        rewrite_ctx!(context, op, rewriter, location, NoDefer);
+
+        Ok(())
+    }
+
     pub(crate) fn codesize(
         context: &Context,
         op: &OperationRef<'_, '_>,

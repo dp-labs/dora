@@ -819,6 +819,8 @@ pub struct CompileOptions {
     ///
     /// Information was obtained from the [Ethereum Execution Specifications](https://github.com/ethereum/execution-specs)
     pub spec_id: SpecId,
+    /// A flag indicating whether to do validation for possible eof bytecode before compilation.
+    pub validate_eof: bool,
     /// A flag indicating whether to perform gas metering during compilation.
     pub gas_metering: bool,
     /// Check for stack overflow or underflow errors. Note that there is no need to check for EOF Bytecode,
@@ -832,6 +834,7 @@ impl Default for CompileOptions {
     fn default() -> Self {
         Self {
             spec_id: SpecId::CANCUN,
+            validate_eof: true,
             gas_metering: true,
             stack_bound_checks: true,
             inline: false,

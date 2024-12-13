@@ -1,3 +1,16 @@
+//! This macro file defines a series of macros primarily focused on operations involving operands, rewriting contexts, and handling system calls.
+
+/// Extracts operands from an operation.
+///
+/// `operands!` supports from 1 to 4 operands.
+/// Here are examples:
+///
+/// ```ignore
+/// operands!(op, input1);
+/// operands!(op, input1, input2);
+/// operands!(op, input1, input2, input3);
+/// operands!(op, input1, input2, input3, input4);
+/// ```
 #[macro_export]
 macro_rules! operands {
     ($op:expr, $o1:ident) => {
@@ -19,6 +32,20 @@ macro_rules! operands {
     };
 }
 
+/// Creates a rewriter context for operations, depending on deferred option.
+///
+/// `rewrite_ctx!` creates deffered or non-deffered rewirter depending on `NoDefer` option.
+/// There are two forms of this macro:
+///
+/// - Creates a `DeferredRewriter` context.
+/// ```ignore
+/// rewrite_ctx!(conext, op, rewriter, location);
+/// ```
+///
+/// - Crates a `Rewriter` context.
+/// ```ignore
+/// rewrite_ctx!(conext, op, rewriter, location, NoDefer);
+/// ```
 #[macro_export]
 macro_rules! rewrite_ctx {
     ($context:expr, $op:expr, $rewriter:ident, $loc:ident) => {
@@ -39,6 +66,7 @@ macro_rules! rewrite_ctx {
     };
 }
 
+/// Creates a syscall context from an operation.
 #[macro_export]
 macro_rules! block_argument {
     ($op:expr, $syscall_ctx:ident) => {
@@ -59,6 +87,7 @@ macro_rules! block_argument {
     };
 }
 
+/// Creates an arithmetic constant.
 #[macro_export]
 macro_rules! arith_constant {
     ($rewriter:expr, $context:expr, $ty:expr, $value:expr, $location:expr) => {
@@ -70,6 +99,7 @@ macro_rules! arith_constant {
     };
 }
 
+/// Macro to create a variable with default size of 1.
 #[macro_export]
 macro_rules! create_var {
     ($rewriter:expr, $context:expr, $location:expr) => {{
@@ -104,6 +134,7 @@ macro_rules! create_var {
     }};
 }
 
+/// Macro to load a variable from memory.
 #[macro_export]
 macro_rules! load_var {
     ($rewriter:expr, $context:expr, $arg:expr, $ltype:expr, $location:expr) => {{
@@ -187,6 +218,7 @@ macro_rules! load_var {
     }};
 }
 
+/// Macro to store a value at a specified address in memory.
 #[macro_export]
 macro_rules! store_var {
     ($rewriter:expr, $context:expr, $value:expr, $addr:expr, $location:expr) => {{
@@ -203,6 +235,7 @@ macro_rules! store_var {
     }};
 }
 
+/// Macro to implement conditional branching to revert execution based on specified conditions.
 #[macro_export]
 macro_rules! maybe_revert_here {
     ($op:expr, $rewriter:expr, $cond:expr, ExitStatusCode::$variant:ident) => {
@@ -255,6 +288,7 @@ macro_rules! maybe_revert_here {
     };
 }
 
+/// Macro to check for memory offset errors during operations and triggers a revert if an out-of-gas condition is detected.
 #[macro_export]
 macro_rules! check_op_oog {
     ($op:expr, $rewriter:ident, $size:expr) => {
@@ -266,6 +300,7 @@ macro_rules! check_op_oog {
     };
 }
 
+/// Macro to convert a 256-bit unsigned integer to a 64-bit representation while checking for overflow conditions.
 #[macro_export]
 macro_rules! u256_to_u64 {
     ($op:expr, $rewriter:ident, $size:ident) => {
@@ -285,6 +320,7 @@ macro_rules! u256_to_u64 {
     };
 }
 
+/// Macro to validate runtime errors and triggers reversion if an error condition is met, ensuring robust error management.
 #[macro_export]
 macro_rules! check_runtime_error {
     ($op:expr, $rewriter:ident, $error:expr) => {
@@ -295,6 +331,7 @@ macro_rules! check_runtime_error {
     };
 }
 
+/// Macro to verify that the current operation is not within a static call context, reverting if it is.
 #[macro_export]
 macro_rules! ensure_non_staticcall {
     ($op:expr, $rewriter:ident, $syscall_ctx: ident) => {
@@ -318,6 +355,7 @@ macro_rules! ensure_non_staticcall {
     };
 }
 
+/// Macro to check if there is enough gas available for an operation and manages gas consumption, reverting if out of gas.
 #[macro_export]
 macro_rules! gas_or_fail {
     ($op:expr, $rewriter:ident, $gas_value:expr, $gas_counter_ptr:expr) => {
@@ -365,6 +403,7 @@ macro_rules! gas_or_fail {
     };
 }
 
+/// Macro to facilitate conditional execution by creating branches based on specified conditions within the operation's context.
 #[macro_export]
 macro_rules! if_here {
     ($op:ident, $rewriter:ident, $cond:expr, $block:expr) => {

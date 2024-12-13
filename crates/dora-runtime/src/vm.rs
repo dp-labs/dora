@@ -168,7 +168,8 @@ impl<'a, DB: Database> VM<'a, DB> {
                 salt: None,
                 code_address: ctx.env.tx.get_address(),
                 is_static: false,
-                is_eof: false,
+                is_eof_init: false,
+                validate_eof: true,
             };
             if std::env::var(DORA_TRACING).is_ok() {
                 println!("info: tx call msg {:?}", call_msg);

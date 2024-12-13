@@ -81,7 +81,7 @@ pub fn call_frame<DB: Database>(
         frame.contract,
         frame.depth,
         frame.is_static,
-        frame.is_eof,
+        frame.is_eof_init,
         ctx,
         spec_id,
     );

@@ -211,6 +211,8 @@ impl<'c> ConversionPass<'c> {
                 Self::log(context, op, 3)?;
             } else if name == "dora.log4" {
                 Self::log(context, op, 4)?;
+            } else if name == "dora.dataload" {
+                Self::dataload(context, op)?;
             } else if name == "dora.create" {
                 Self::create(
                     context,

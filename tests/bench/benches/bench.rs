@@ -46,6 +46,7 @@ fn run_bench(c: &mut Criterion, bench: &Bench) {
             &(),
             &CompileOptions {
                 spec_id,
+                validate_eof: false,
                 stack_bound_checks: false,
                 gas_metering: false,
                 ..Default::default()

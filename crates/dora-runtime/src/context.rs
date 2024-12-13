@@ -498,7 +498,8 @@ impl<'a, DB: Database> VMContext<'a, DB> {
                         contract,
                         gas_limit: msg.gas_limit,
                         is_static: msg.is_static,
-                        is_eof: msg.is_eof,
+                        is_eof_init: msg.is_eof_init,
+                        validate_eof: msg.validate_eof,
                         depth: self.journaled_state.depth(),
                     })?;
                     self.call_return(&call_result.status, checkpoint);
@@ -575,13 +576,16 @@ impl<'a, DB: Database> VMContext<'a, DB> {
                     contract,
                     gas_limit: msg.gas_limit,
                     is_static: msg.is_static,
-                    is_eof: msg.is_eof,
+                    is_eof_init: msg.is_eof_init,
+                    validate_eof: msg.validate_eof,
                     depth: self.journaled_state.depth(),
                 })?;
                 self.create_return(&mut call_result, created_address, checkpoint);
                 Ok(call_result)
             }
-            CallKind::ExtCall
+            CallKind::CallF
+            | CallKind::RetF
+            | CallKind::ExtCall
             | CallKind::ExtStaticcall
             | CallKind::ExtDelegatecall
             | CallKind::EofCreate => unimplemented!("{:?}", msg.kind),
@@ -805,7 +809,7 @@ pub struct InnerContext {
     /// Whether the context is static.
     pub is_static: bool,
     /// Whether the context is EOF init.
-    pub is_eof: bool,
+    pub is_eof_init: bool,
     /// VM spec id
     pub spec_id: SpecId,
 }
@@ -1032,7 +1036,7 @@ impl<'a> RuntimeContext<'a> {
         contract: Contract,
         depth: usize,
         is_static: bool,
-        is_eof: bool,
+        is_eof_init: bool,
         host: &'a mut dyn Host,
         spec_id: SpecId,
     ) -> Self {
@@ -1042,7 +1046,7 @@ impl<'a> RuntimeContext<'a> {
                 depth,
                 memory: Vec::with_capacity(4 * 1024),
                 is_static,
-                is_eof,
+                is_eof_init,
                 ..Default::default()
             },
             host,
@@ -1285,7 +1289,8 @@ impl<'a> RuntimeContext<'a> {
             },
             code_address: to,
             is_static: self.inner.is_static || call_type == CallType::Staticcall,
-            is_eof: false,
+            is_eof_init: false,
+            validate_eof: true,
         };
         if std::env::var(DORA_TRACING).is_ok() {
             println!("info: sub call msg {:?}", call_msg);
@@ -1826,7 +1831,8 @@ impl<'a> RuntimeContext<'a> {
             recipient: Address::default(),
             code_address: Address::default(),
             is_static: self.inner.is_static,
-            is_eof: false,
+            is_eof_init: false,
+            validate_eof: true,
         };
         let call_result = match self.host.call(call_msg) {
             Ok(result) => result,

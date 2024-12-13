@@ -260,12 +260,16 @@ macro_rules! operations {
             $(
                 $variant,
             )*
+            // For opcodes variant
             PC { pc: usize },
             Jumpdest { pc: usize },
             Push((u8, BigUint)),
             Dup(u8),
             Swap(u8),
             Log(u8),
+            // For opcodes banned in EOF
+            CodeCopy,
+            // For opcodes in EOF
             DataLoadN(u16),
             RJump(u16),
             RJumpI(u16),
@@ -316,6 +320,9 @@ macro_rules! operations {
                         }
                         vec![Opcode::LOG0 as u8 + n]
                     },
+
+                    Operation::CodeCopy => vec![Opcode::CODECOPY as u8],
+
                     Operation::DataLoadN(_) => vec![Opcode::DATALOADN as u8],
                     Operation::RJump(_) => vec![Opcode::RJUMP as u8],
                     Operation::RJumpI(_) => vec![Opcode::RJUMPI as u8],
@@ -358,6 +365,14 @@ macro_rules! operations {
                         let index = (opcode as u8 - Opcode::LOG0 as u8) as u8;
                         Operation::Log(index)
                     }
+
+                    Opcode::CODECOPY => {
+                        if !is_eof {
+                            panic!("Banned opcode in EOF context: {:?}", Opcode::CODECOPY);
+                        }
+                        Operation::CodeCopy
+                    }
+
                     Opcode::DATALOADN if is_eof => {
                         *pc += 1;
                         let x = opcodes[*pc..(*pc + 2)]
@@ -472,6 +487,9 @@ macro_rules! operations {
                     Operation::Dup(n) => Opcode::DUP1 as usize + (*n as usize - 1),
                     Operation::Swap(n) => Opcode::SWAP1 as usize + (*n as usize - 1),
                     Operation::Log(n) => Opcode::LOG0 as usize + *n as usize,
+
+                    Operation::CodeCopy => Opcode::CODECOPY as usize,
+
                     Operation::DataLoadN(_) => Opcode::DATALOADN as usize,
                     Operation::RJump(_) => Opcode::RJUMP as usize,
                     Operation::RJumpI(_) => Opcode::RJUMPI as usize,
@@ -526,7 +544,6 @@ operations!(
     (CalldataSize, CALLDATASIZE),
     (CalldataCopy, CALLDATACOPY),
     (CodeSize, CODESIZE),
-    (CodeCopy, CODECOPY),
     (GasPrice, GASPRICE),
     (ExtCodeCopy, EXTCODECOPY),
     (ReturndataSize, RETURNDATASIZE),
@@ -614,6 +631,9 @@ pub struct Program {
 
     /// The total size of the bytecode (in bytes).
     pub code_size: u32,
+
+    /// Whether eof bytecode
+    pub is_eof: bool,
 }
 
 impl Program {
@@ -638,6 +658,7 @@ impl Program {
             Ok(Self {
                 operations,
                 code_size,
+                is_eof,
             })
         } else {
             Err(ParseError(failed_opcodes))
@@ -662,6 +683,7 @@ impl Program {
         Self {
             operations,
             code_size,
+            is_eof,
         }
     }
 
@@ -679,15 +701,9 @@ impl Program {
             .collect::<Vec<u8>>()
     }
 
-    /// FIXME: Alter below that returns `true` if the EVM program is EOF.
-    #[inline]
-    pub fn is_eof(&self) -> bool {
-        false
-    }
-
     /// Mark `PUSH<N>` followed by `JUMP[I]` as `STATIC_JUMP` and resolve the target.
     pub fn has_dynamic_jumps(&mut self) -> bool {
-        debug_assert!(!self.is_eof());
+        debug_assert!(!self.is_eof);
         for i in 0..self.operations.len() {
             let op = &self.operations[i];
             let is_jump = matches!(op, Operation::Jump | Operation::JumpI);
@@ -744,16 +760,6 @@ impl Program {
                 _ => 1,
             })
             .sum()
-    }
-}
-
-impl From<Vec<Operation>> for Program {
-    fn from(operations: Vec<Operation>) -> Self {
-        let code_size = Self::calculate_code_size(&operations);
-        Self {
-            operations,
-            code_size,
-        }
     }
 }
 
