@@ -82,17 +82,45 @@ pub struct SStoreSlot {
     pub new_value: Bytes32,
 }
 
+/// The effect of an attempt to modify a contract storage item.
+/// For the purpose of explaining the meaning of each element, the following
+/// notation is used:
+/// - 0 is zero value,
+/// - X != 0 (X is any value other than 0),
+/// - Y != 0, Y != X,  (Y is any value other than X and 0),
+/// - Z != 0, Z != X, Z != X (Z is any value other than Y and X and 0),
+/// - the "o -> c -> v" triple describes the change status in the context of:
+///   - o: original value (cold value before a transaction started),
+///   - c: current storage value,
+///   - v: new storage value to be set.
 #[repr(u32)]
 #[derive(Debug, Copy, Clone, Hash, PartialEq, Eq)]
 pub enum SStoreStatus {
+    /// The new/same value is assigned to the storage item without affecting the cost structure.
     Assigned = 0,
+    /// A new storage item is added by changing the current clean zero to a nonzero value.
+    /// `0 -> 0 -> Z`
     Added = 1,
+    /// A storage item is deleted by changing the current clean nonzero to the zero value.
+    /// `X -> X -> 0`
     Deleted = 2,
+    /// A storage item is modified by changing the current clean nonzero to other nonzero value.
+    /// `X -> X -> Z`
     Modified = 3,
+    /// A storage item is added by changing the current dirty zero to a nonzero value other than the original value.
+    /// `X -> 0 -> Z`
     DeletedAdded = 4,
+    /// A storage item is deleted by changing the current dirty nonzero to the zero value and the original value is not zero.
+    /// `X -> Y -> 0`
     ModifiedDeleted = 5,
+    /// A storage item is added by changing the current dirty zero to the original value.
+    /// `X -> 0 -> X`
     DeletedRestored = 6,
+    /// A storage item is deleted by changing the current dirty nonzero to the original zero value.
+    /// `0 -> Y -> 0`
     AddedDeleted = 7,
+    /// A storage item is modified by changing the current dirty nonzero to the original nonzero value other than the current value.
+    /// `X -> Y -> X`
     ModifiedRestored = 8,
 }
 

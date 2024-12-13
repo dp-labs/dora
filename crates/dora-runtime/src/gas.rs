@@ -6,7 +6,9 @@ use crate::constants::gas_cost::{
     WARM_SSTORE_RESET,
 };
 use crate::env::AccessListItem;
-use crate::host::{AccountLoad, CodeLoad, SStoreResult, SelfDestructResult, StateLoad};
+use crate::host::{
+    AccountLoad, CodeLoad, SStoreResult, SStoreStatus, SelfDestructResult, StateLoad,
+};
 use dora_primitives::spec::SpecId;
 use dora_primitives::U256;
 use revm_primitives::eip7702::PER_EMPTY_ACCOUNT_COST;
@@ -21,33 +23,39 @@ pub fn sstore_cost(spec_id: SpecId, result: &SStoreResult, gas: u64, is_cold: bo
         // Berlin specification logic
         let base_cost = match result {
             SStoreResult::Slot(slot) => {
-                calculate_sstore_cost::<WARM_SLOAD_COST, WARM_SSTORE_RESET>(
+                calculate_sstore_slot_cost::<WARM_SLOAD_COST, WARM_SSTORE_RESET>(
                     slot.original_value.to_u256(),
                     slot.present_value.to_u256(),
                     slot.new_value.to_u256(),
                 )
             }
-            SStoreResult::Status(_status) => todo!(),
+            SStoreResult::Status(status) => {
+                calculate_sstore_status_cost::<WARM_SLOAD_COST, WARM_SSTORE_RESET>(status)
+            }
         };
         let additional_cost = if is_cold { COLD_SLOAD_COST } else { 0 };
         Some(base_cost + additional_cost)
     } else if spec_id.is_enabled_in(SpecId::ISTANBUL) {
         // Istanbul specification logic
         Some(match result {
-            SStoreResult::Slot(slot) => calculate_sstore_cost::<INSTANBUL_SLOAD_GAS, SSTORE_RESET>(
-                slot.original_value.to_u256(),
-                slot.present_value.to_u256(),
-                slot.new_value.to_u256(),
-            ),
-            SStoreResult::Status(_status) => todo!(),
+            SStoreResult::Slot(slot) => {
+                calculate_sstore_slot_cost::<INSTANBUL_SLOAD_GAS, SSTORE_RESET>(
+                    slot.original_value.to_u256(),
+                    slot.present_value.to_u256(),
+                    slot.new_value.to_u256(),
+                )
+            }
+            SStoreResult::Status(status) => {
+                calculate_sstore_status_cost::<INSTANBUL_SLOAD_GAS, SSTORE_RESET>(status)
+            }
         })
     } else {
         // Frontier specification logic
         Some(match result {
             SStoreResult::Slot(slot) => {
-                frontier_sstore_cost(slot.present_value.to_u256(), slot.new_value.to_u256())
+                frontier_sstore_slot_cost(slot.present_value.to_u256(), slot.new_value.to_u256())
             }
-            SStoreResult::Status(_status) => todo!(),
+            SStoreResult::Status(status) => frontier_sstore_status_cost(status),
         })
     }
 }
@@ -80,23 +88,25 @@ pub fn sstore_slot_cost(
     }
     if spec_id.is_enabled_in(SpecId::BERLIN) {
         // Berlin specification logic
-        let base_cost =
-            calculate_sstore_cost::<WARM_SLOAD_COST, WARM_SSTORE_RESET>(original, current, new);
+        let base_cost = calculate_sstore_slot_cost::<WARM_SLOAD_COST, WARM_SSTORE_RESET>(
+            original, current, new,
+        );
         let additional_cost = if is_cold { COLD_SLOAD_COST } else { 0 };
         Some(base_cost + additional_cost)
     } else if spec_id.is_enabled_in(SpecId::ISTANBUL) {
         // Istanbul specification logic
-        Some(calculate_sstore_cost::<INSTANBUL_SLOAD_GAS, SSTORE_RESET>(
-            original, current, new,
-        ))
+        Some(calculate_sstore_slot_cost::<
+            INSTANBUL_SLOAD_GAS,
+            SSTORE_RESET,
+        >(original, current, new))
     } else {
         // Frontier specification logic
-        Some(frontier_sstore_cost(current, new))
+        Some(frontier_sstore_slot_cost(current, new))
     }
 }
 
 #[inline]
-fn calculate_sstore_cost<const SLOAD_GAS: u64, const SSTORE_RESET_GAS: u64>(
+fn calculate_sstore_slot_cost<const SLOAD_GAS: u64, const SSTORE_RESET_GAS: u64>(
     original: U256,
     current: U256,
     new: U256,
@@ -110,8 +120,28 @@ fn calculate_sstore_cost<const SLOAD_GAS: u64, const SSTORE_RESET_GAS: u64>(
 }
 
 #[inline]
-fn frontier_sstore_cost(current: U256, new: U256) -> u64 {
+fn calculate_sstore_status_cost<const SLOAD_GAS: u64, const SSTORE_RESET_GAS: u64>(
+    status: &SStoreStatus,
+) -> u64 {
+    match status {
+        SStoreStatus::Added => SSTORE_SET, // New value is set from zero.
+        SStoreStatus::Modified | SStoreStatus::Deleted => SSTORE_RESET_GAS, // Value is reset to a non-zero value.
+        _ => SLOAD_GAS,                                                     // Default case.
+    }
+}
+
+#[inline]
+fn frontier_sstore_slot_cost(current: U256, new: U256) -> u64 {
     if current.is_zero() && !new.is_zero() {
+        SSTORE_SET
+    } else {
+        SSTORE_RESET
+    }
+}
+
+#[inline]
+fn frontier_sstore_status_cost(status: &SStoreStatus) -> u64 {
+    if matches!(status, SStoreStatus::Added) {
         SSTORE_SET
     } else {
         SSTORE_RESET
@@ -128,7 +158,7 @@ pub fn sstore_refund(spec_id: SpecId, result: &SStoreResult) -> i64 {
             slot.present_value.to_u256(),
             slot.new_value.to_u256(),
         ),
-        SStoreResult::Status(_status) => todo!(),
+        SStoreResult::Status(status) => sstore_status_refund(spec_id, status),
     }
 }
 
@@ -142,7 +172,6 @@ pub fn sstore_refund(spec_id: SpecId, result: &SStoreResult) -> i64 {
 ///
 /// # Returns
 /// The refund amount as `i64`.
-#[inline]
 pub fn sstore_slot_refund(spec_id: SpecId, original: U256, current: U256, new: U256) -> i64 {
     if !spec_id.is_enabled_in(SpecId::ISTANBUL) {
         return if !current.is_zero() && new.is_zero() {
@@ -161,13 +190,10 @@ pub fn sstore_slot_refund(spec_id: SpecId, original: U256, current: U256, new: U
     if current == new {
         return 0;
     }
-
-    let mut refund: i64 = 0;
-
     if original == current && new.is_zero() {
         return sstore_clears_schedule;
     }
-
+    let mut refund: i64 = 0;
     if !original.is_zero() {
         if current.is_zero() {
             refund -= sstore_clears_schedule;
@@ -191,6 +217,51 @@ pub fn sstore_slot_refund(spec_id: SpecId, original: U256, current: U256, new: U
     }
 
     refund
+}
+
+/// Calculates the refund amount for the `SSTORE` opcode based on the EVM specification.
+///
+/// # Parameters
+/// - `spec_id`: The current EVM specification identifier.
+/// - `status`: The status of the `SSTORE` opcode.
+///
+/// # Returns
+/// The refund amount as `i64`.
+pub fn sstore_status_refund(spec_id: SpecId, status: &SStoreStatus) -> i64 {
+    if !spec_id.is_enabled_in(SpecId::ISTANBUL) {
+        return if matches!(
+            status,
+            SStoreStatus::Deleted | SStoreStatus::AddedDeleted | SStoreStatus::ModifiedDeleted
+        ) {
+            REFUND_SSTORE_CLEARS
+        } else {
+            0
+        };
+    }
+    let sstore_clears_schedule = if spec_id.is_enabled_in(SpecId::LONDON) {
+        (SSTORE_RESET - COLD_SLOAD_COST + ACCESS_LIST_STORAGE_KEY) as i64
+    } else {
+        REFUND_SSTORE_CLEARS
+    };
+    match status {
+        SStoreStatus::Assigned | SStoreStatus::Added | SStoreStatus::Modified => 0,
+        SStoreStatus::Deleted | SStoreStatus::ModifiedDeleted => sstore_clears_schedule,
+        SStoreStatus::DeletedAdded => -sstore_clears_schedule,
+        SStoreStatus::DeletedRestored
+        | SStoreStatus::ModifiedRestored
+        | SStoreStatus::AddedDeleted => {
+            let (sstore_reset_cost, sload_cost) = if spec_id.is_enabled_in(SpecId::BERLIN) {
+                (SSTORE_RESET - COLD_SLOAD_COST, WARM_SLOAD_COST)
+            } else {
+                (SSTORE_RESET, sload_cost(spec_id, false))
+            };
+            if matches!(status, SStoreStatus::AddedDeleted) {
+                (SSTORE_SET - sload_cost) as i64
+            } else {
+                (sstore_reset_cost - sload_cost) as i64
+            }
+        }
+    }
 }
 
 /// Returns number of words what would fit to provided number of bytes,
