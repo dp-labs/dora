@@ -11,10 +11,7 @@
 /// operands!(op, input1, input2, input3);
 /// operands!(op, input1, input2, input3, input4);
 /// operands!(op, input1, input2, input3, input4, input5);
-/// ```
 #[macro_export]
-macro_rules! operands {
-    ($op:expr, $o1:ident) => {
         let $o1 = $op.operand(0)?;
     };
     ($op:expr, $o1:ident, $o2:ident) => {
@@ -423,13 +420,9 @@ macro_rules! check_runtime_error {
 ///
 /// ```ignore
 /// use dora_runtime::ExitStatusCode;
-/// ensure_non_staticcall!(op, rewriter, syscall_ctx);
 /// ```
 #[macro_export(local_inner_macros)]
 macro_rules! ensure_non_staticcall {
-    ($op:expr, $rewriter:ident, $syscall_ctx: ident) => {
-        use dora_runtime::symbols;
-        let context = $rewriter.context();
         let location = $rewriter.get_insert_location();
         let ctx_is_static_u8 = $rewriter.make(func::call(
             context,
