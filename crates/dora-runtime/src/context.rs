@@ -1509,7 +1509,7 @@ impl<'a> RuntimeContext<'a> {
                 (),
             )));
         }
-        let result = match self
+        let mut result = match self
             .host
             .sstore(self.contract.target_address, *stg_key, *stg_value)
         {
@@ -1521,22 +1521,18 @@ impl<'a> RuntimeContext<'a> {
                 )))
             }
         };
-
-        let original = result.original_value.to_u256();
-        let current = result.present_value.to_u256();
-        let new = stg_value.to_u256();
+        if let SStoreResult::Slot(slot) = &mut result.data {
+            slot.new_value = *stg_value;
+        }
 
         match gas::sstore_cost(
             self.inner.spec_id,
-            original,
-            current,
-            new,
+            &result.data,
             gas_remaining,
             result.is_cold,
         ) {
             Some(gas_cost) => {
-                self.inner.gas_refunded +=
-                    gas::sstore_refund(self.inner.spec_id, original, current, new);
+                self.inner.gas_refunded += gas::sstore_refund(self.inner.spec_id, &result.data);
                 Box::into_raw(Box::new(RuntimeResult::success_with_gas((), gas_cost)))
             }
             None => Box::into_raw(Box::new(RuntimeResult::error(

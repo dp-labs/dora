@@ -65,14 +65,35 @@ pub trait Host {
 }
 
 /// Result of a `set_storage` action.
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub enum SStoreResult {
+    Slot(SStoreSlot),
+    Status(SStoreStatus),
+}
+
+/// Result of a `set_storage` action.
 #[derive(Debug, Clone, Default, PartialEq, Eq, Hash)]
-pub struct SStoreResult {
+pub struct SStoreSlot {
     /// Value of the storage when it is first read
     pub original_value: Bytes32,
     /// Current value of the storage
     pub present_value: Bytes32,
     /// New value that is set
     pub new_value: Bytes32,
+}
+
+#[repr(u32)]
+#[derive(Debug, Copy, Clone, Hash, PartialEq, Eq)]
+pub enum SStoreStatus {
+    Assigned = 0,
+    Added = 1,
+    Deleted = 2,
+    Modified = 3,
+    DeletedAdded = 4,
+    ModifiedDeleted = 5,
+    DeletedRestored = 6,
+    AddedDeleted = 7,
+    ModifiedRestored = 8,
 }
 
 /// Result of a `selfdestruct` action.
@@ -249,11 +270,11 @@ impl Host for DummyHost {
         let present = self.storage.insert(key, value);
 
         Some(StateLoad::new(
-            SStoreResult {
+            SStoreResult::Slot(SStoreSlot {
                 original_value: Bytes32::ZERO,
                 present_value: present.unwrap_or(Bytes32::ZERO),
                 new_value: Bytes32::ZERO,
-            },
+            }),
             present.is_none(),
         ))
     }

@@ -1,13 +1,16 @@
 #[cfg(test)]
 mod tests;
 
+pub use dora_compiler as compiler;
+pub use dora_primitives as primitives;
+pub use dora_runtime as runtime;
+
 use dora_compiler::{
     context::Context,
     dora,
     evm::{self, program::Program, CompileOptions, EVMCompiler},
     pass, Compiler,
 };
-pub use dora_primitives as primitives;
 use dora_primitives::{spec::SpecId, Bytecode, Bytes32};
 use dora_runtime::env::Env;
 use dora_runtime::executor::Executor;
