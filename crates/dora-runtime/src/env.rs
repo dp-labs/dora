@@ -17,8 +17,9 @@ use super::constants::{
     MAX_BLOB_NUMBER_PER_BLOCK, VERSIONED_HASH_VERSION_KZG,
 };
 use super::result::InvalidTransaction;
-use dora_primitives::{Address, Bytes, B256, U256};
-use revm_primitives::{calc_blob_gasprice, AuthorizationList, SpecId, GAS_PER_BLOB};
+use dora_primitives::{
+    calc_blob_gasprice, Address, AuthorizationList, Bytes, SpecId, B256, GAS_PER_BLOB, U256,
+};
 
 /// Represents the execution environment for the EVM, including block, transaction, and EVM configuration.
 ///

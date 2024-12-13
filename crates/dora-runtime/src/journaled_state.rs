@@ -8,8 +8,7 @@ use crate::{
     host::{AccountLoad, CodeLoad, SStoreResult, SStoreSlot, SelfDestructResult, StateLoad},
     ExitStatusCode,
 };
-use dora_primitives::{Address, Bytes, Bytes32, SpecId, B256, U256};
-use revm_primitives::keccak256;
+use dora_primitives::{keccak256, Address, Bytecode, Bytes, Bytes32, SpecId, B256, U256};
 use rustc_hash::{FxHashMap, FxHashSet};
 
 pub type State = FxHashMap<Address, Account>;
@@ -155,7 +154,7 @@ impl JournaledState {
             .push(JournalEntry::CodeChange { address });
 
         account.info.code_hash = hash;
-        account.info.code = Some(code);
+        account.info.code = Some(Bytecode::new_raw(code));
     }
 
     /// use it only if you know that acc is warm

@@ -3,8 +3,7 @@ use crate::{
     context::RuntimeContext,
     ExitStatusCode,
 };
-use dora_primitives::{Address, B256, U256};
-use revm_primitives::Bytes;
+use dora_primitives::{Address, Bytes, B256, U256};
 
 /// The kind of call-like instructions for the Host API.
 #[derive(Debug, Clone)]

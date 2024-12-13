@@ -4,8 +4,7 @@ use std::fmt::{self, Debug};
 
 use crate::db::{DbAccount, StorageSlot};
 use bitflags::bitflags;
-use dora_primitives::{Bytecode, B256, U256};
-use revm_primitives::{b256, SpecId};
+use dora_primitives::{b256, Bytecode, SpecId, B256, U256};
 use rustc_hash::FxHashMap;
 
 /// Keccak256 hash of an empty bytecode.
@@ -74,7 +73,10 @@ impl fmt::Debug for AccountInfo {
             .field("nonce", &self.nonce)
             .field("code_hash", &self.code_hash)
             // Use the hex output format
-            .field("code", &self.code.as_ref().map(hex::encode))
+            .field(
+                "code",
+                &hex::encode(self.code.clone().unwrap_or_else(Bytecode::new).bytecode()),
+            )
             .finish()
     }
 }

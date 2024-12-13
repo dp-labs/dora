@@ -9,9 +9,9 @@ use crate::env::AccessListItem;
 use crate::host::{
     AccountLoad, CodeLoad, SStoreResult, SStoreStatus, SelfDestructResult, StateLoad,
 };
+use dora_primitives::eip7702::PER_EMPTY_ACCOUNT_COST;
 use dora_primitives::spec::SpecId;
 use dora_primitives::U256;
-use revm_primitives::eip7702::PER_EMPTY_ACCOUNT_COST;
 
 #[inline]
 pub fn sstore_cost(spec_id: SpecId, result: &SStoreResult, gas: u64, is_cold: bool) -> Option<u64> {

@@ -12,9 +12,19 @@ use alloy_rlp::RlpMaxEncodedLen;
 use anyhow::Result;
 use clap::{Args, Parser, Subcommand};
 use dora::call_frame;
+use dora_primitives::alloy_primitives::Parity;
+use dora_primitives::calc_excess_blob_gas;
+use dora_primitives::keccak256;
 use dora_primitives::spec::SpecId;
 use dora_primitives::spec::SpecName;
+use dora_primitives::Authorization;
+use dora_primitives::AuthorizationList;
+use dora_primitives::Bytecode;
 use dora_primitives::Bytes;
+use dora_primitives::EvmStorageSlot;
+use dora_primitives::RecoveredAuthority;
+use dora_primitives::RecoveredAuthorization;
+use dora_primitives::Signature;
 use dora_primitives::{Address, B256, U256};
 use dora_runtime::account::Account;
 use dora_runtime::as_u64_saturated;
@@ -30,15 +40,6 @@ use dora_runtime::vm::VM;
 use hash_db::Hasher;
 use indicatif::{ProgressBar, ProgressDrawTarget};
 use plain_hasher::PlainHasher;
-use revm_primitives::alloy_primitives::Parity;
-use revm_primitives::calc_excess_blob_gas;
-use revm_primitives::keccak256;
-use revm_primitives::Authorization;
-use revm_primitives::AuthorizationList;
-use revm_primitives::EvmStorageSlot;
-use revm_primitives::RecoveredAuthority;
-use revm_primitives::RecoveredAuthorization;
-use revm_primitives::Signature;
 use serde::de::Visitor;
 use serde::{de, Deserialize, Serialize};
 use std::fmt;
@@ -283,11 +284,11 @@ pub enum TestErrorKind {
 }
 
 fn log_rlp_hash(logs: &[Log]) -> B256 {
-    let logs: Vec<revm_primitives::Log> = logs
+    let logs: Vec<dora_primitives::Log> = logs
         .iter()
-        .map(|l| revm_primitives::Log {
+        .map(|l| dora_primitives::Log {
             address: l.address,
-            data: revm_primitives::LogData::new_unchecked(
+            data: dora_primitives::LogData::new_unchecked(
                 l.data.topics.clone(),
                 l.data.data.clone().into(),
             ),
@@ -295,7 +296,7 @@ fn log_rlp_hash(logs: &[Log]) -> B256 {
         .collect();
     let mut out = Vec::with_capacity(alloy_rlp::list_length(&logs));
     alloy_rlp::encode_list(&logs, &mut out);
-    B256::from_slice(revm_primitives::keccak256(&out).as_slice())
+    B256::from_slice(dora_primitives::keccak256(&out).as_slice())
 }
 
 pub fn state_merkle_trie_root<'a>(
@@ -509,7 +510,10 @@ fn execute_test(path: &Path) -> Result<(), TestError> {
         // Mapping account into
         let mut db = MemoryDB::new();
         for (address, account_info) in suite.pre.iter() {
-            db = db.with_contract(address.to_owned(), account_info.code.0.clone());
+            db = db.with_contract(
+                address.to_owned(),
+                Bytecode::new_raw(account_info.code.0.clone()),
+            );
             db.set_account(
                 address.to_owned(),
                 account_info.nonce,

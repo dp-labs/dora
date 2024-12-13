@@ -1,10 +1,13 @@
 pub use revm_primitives::{
-    address, b256, fixed_bytes,
+    address, alloy_primitives, b256, calc_blob_gasprice, calc_excess_blob_gas, eip7702,
+    fixed_bytes,
     hex::{FromHex, ToHexExt},
-    keccak256, uint, Address, Bytes, FixedBytes, PrecompileOutput, SpecId, B256, I256, U256,
+    keccak256, uint, Address, Authorization, AuthorizationList, Bytecode, Bytes, EvmStorageSlot,
+    FixedBytes, Log, LogData, Precompile, PrecompileErrors, PrecompileOutput, RecoveredAuthority,
+    RecoveredAuthorization, Signature, SpecId, B256, GAS_PER_BLOB, I256, U256,
 };
 
-pub type Bytecode = Bytes;
+// pub type Bytecode = Bytes;
 
 pub mod config;
 pub mod spec;

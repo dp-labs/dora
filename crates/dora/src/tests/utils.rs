@@ -74,13 +74,14 @@ pub(crate) fn run_result_with_spec(operations: Vec<Operation>, spec_id: SpecId) 
     let initial_gas = env.tx.gas_limit;
     let contract = Contract::new_with_env(
         &env,
-        Bytecode::from(
+        Bytecode::new_raw(
             Program {
                 operations,
                 code_size: 0,
                 is_eof: false,
             }
-            .to_opcode(),
+            .to_opcode()
+            .into(),
         ),
         None,
     );
@@ -108,11 +109,11 @@ pub(crate) fn default_env_and_db_setup(operations: Vec<Operation>) -> (Env, Memo
     };
     let (address, bytecode) = (
         Address::left_padding_from(&[40]),
-        Bytecode::from(program.to_opcode()),
+        Bytes::from(program.to_opcode()),
     );
     env.tx.transact_to = TxKind::Call(address);
     env.block.coinbase = Address::left_padding_from(&[80]);
-    let mut db = MemoryDB::new().with_contract(address, bytecode);
+    let mut db = MemoryDB::new().with_contract(address, Bytecode::new_raw(bytecode));
     db.set_balance(address, U256::from(10));
     (env, db)
 }

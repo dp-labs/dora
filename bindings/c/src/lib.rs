@@ -4,7 +4,7 @@
 use dora::{
     build_artifact,
     compiler::evm::program::EOF_MAGIC_BYTES,
-    primitives::{Address, Bytes, Bytes32, SpecId},
+    primitives::{Address, Bytecode, Bytes32, SpecId},
     runtime::{
         artifact::{Artifact, SymbolArtifact},
         call::CallKind,
@@ -52,7 +52,7 @@ impl EvmcVm for DoraVM {
         let spec_id = evmc_revision_to_spec_id(revision);
         let contract = Contract {
             input: message.input().cloned().unwrap_or_else(Vec::new).into(),
-            code: code.to_owned().into(),
+            code: Bytecode::new_raw(code.to_owned().into()),
             hash: None,
             target_address: evmc_address_to_address(message.recipient()),
             code_address: evmc_address_to_address(message.code_address()),
@@ -221,7 +221,11 @@ fn call_kind_to_evmc_msg_kind(kind: CallKind) -> MessageKind {
         CallKind::Create => MessageKind::EVMC_CREATE,
         CallKind::Create2 => MessageKind::EVMC_CREATE2,
         CallKind::EofCreate => MessageKind::EVMC_EOFCREATE,
-        CallKind::ExtCall | CallKind::ExtStaticcall | CallKind::ExtDelegatecall => {
+        CallKind::CallF
+        | CallKind::RetF
+        | CallKind::ExtCall
+        | CallKind::ExtStaticcall
+        | CallKind::ExtDelegatecall => {
             unimplemented!("{:?}", kind)
         }
     }

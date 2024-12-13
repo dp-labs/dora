@@ -74,7 +74,8 @@ fn run_bench(c: &mut Criterion, bench: &Bench) {
     env.tx.data = Bytes::from(calldata.to_vec());
     env.tx.transact_to = TxKind::Call(Address::left_padding_from(&[40]));
     env.tx.caller = address!("6666000000000000000000000000000000000000");
-    let contract = Contract::new_with_env(&env, Bytecode::from(program.to_opcode()), None);
+    let contract =
+        Contract::new_with_env(&env, Bytecode::new_raw(program.to_opcode().into()), None);
     let mut host = DummyHost::new(env);
     let mut context = RuntimeContext::new(contract, 1, false, false, &mut host, SpecId::CANCUN);
     let executor = Executor::new(module.module(), Default::default());
@@ -193,7 +194,7 @@ fn run_uniswapv3_bench(c: &mut Criterion) {
     for (address, info) in state.clone() {
         let artifact = build_artifact::<MemoryDB>(&info.0, SpecId::CANCUN).unwrap();
         db.set_artifact(info.1.bytecode_hash, artifact);
-        db = db.with_contract(address, info.0.into());
+        db = db.with_contract(address, Bytecode::new_raw(info.0.into()));
         db.set_account(address, info.1.nonce, info.1.balance, info.1.storage);
     }
 

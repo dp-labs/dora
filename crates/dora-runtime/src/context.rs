@@ -14,9 +14,10 @@ use crate::journaled_state::{JournalCheckpoint, JournalEntry, JournaledState};
 use crate::result::EVMError;
 use crate::{gas, symbols, ExitStatusCode};
 use dora_primitives::spec::SpecId;
-use dora_primitives::{Address, Bytecode, Bytes, Bytes32, B256, U256};
+use dora_primitives::{
+    keccak256, Address, Bytecode, Bytes, Bytes32, Precompile, PrecompileErrors, B256, U256,
+};
 use revm_precompile::{PrecompileSpecId, Precompiles};
-use revm_primitives::{keccak256, Precompile, PrecompileErrors};
 use sha3::{Digest, Keccak256};
 
 /// Converts a `U256` value to a `u64`, saturating to `MAX` if the value is too large.
@@ -314,7 +315,13 @@ impl<'a, DB: Database> VMContext<'a, DB> {
     pub fn code(&mut self, address: Address) -> Result<CodeLoad<Bytes>, DB::Error> {
         let acc = self.journaled_state.load_code(address, &mut self.db)?;
         Ok(CodeLoad::new_not_delegated(
-            acc.info.code.as_ref().cloned().unwrap_or_else(Bytes::new),
+            acc.info
+                .code
+                .as_ref()
+                .cloned()
+                .unwrap_or_else(Bytecode::new)
+                .bytecode()
+                .clone(),
             acc.is_cold,
         ))
     }
@@ -565,7 +572,7 @@ impl<'a, DB: Database> VMContext<'a, DB> {
 
                 let contract = Contract {
                     input: Bytes::new(),
-                    code: msg.input.clone(),
+                    code: Bytecode::new_raw(msg.input.clone()),
                     hash: Some(init_code_hash),
                     target_address: created_address,
                     code_address: created_address,
@@ -1502,7 +1509,7 @@ impl<'a> RuntimeContext<'a> {
                 memory_offset,
                 code_offset,
                 size,
-                &self.contract.code.clone(),
+                &self.contract.code.bytecode().clone(),
             );
         }
     }
