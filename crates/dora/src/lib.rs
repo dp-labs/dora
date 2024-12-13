@@ -7,6 +7,7 @@ use dora_compiler::{
     evm::{self, program::Program, CompileOptions, EVMCompiler},
     pass, Compiler,
 };
+pub use dora_primitives as primitives;
 use dora_primitives::{spec::SpecId, Bytecode, Bytes32};
 use dora_runtime::env::Env;
 use dora_runtime::executor::Executor;
