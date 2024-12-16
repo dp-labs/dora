@@ -66,10 +66,10 @@ cargo install --git https://github.com/dp-labs/dora.git dora-cli
 
 ### Build from Source
 
-In the top level of the repo and run
+In the `crates/dora-cli` folder and run
 
 ```shell
-make build
+cargo build -r
 ```
 
 Then you can find the binary `dora` in the `target/release` folder.
