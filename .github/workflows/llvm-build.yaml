@@ -40,6 +40,13 @@ jobs:
         path: llvm-project
         ref: llvmorg-19.1.5
 
+    - name: Fetch LLVM Commit Hash
+      shell: bash
+      run: |
+        INSTALL_DIR="llvm-19-${{ matrix.config.target-os }}-${{ matrix.config.arch }}"
+        echo "LLVM installation directory name: ${INSTALL_DIR}"
+        echo "llvm_install_dir=${INSTALL_DIR}" >> ${GITHUB_ENV}
+
     - name: Setup QEMU
       uses: docker/setup-qemu-action@v3
     - name: Setup Docker Buildx
