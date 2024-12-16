@@ -1,0 +1,70 @@
+name: c-test
+
+on:
+  push:
+    branches:
+      - main
+      - master
+    tags:
+      - '*'
+  pull_request:
+    branches:
+      - main
+    paths:
+      - "bindings/c/**"
+      - ".github/workflows/c-test.yaml"
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}-${{ github.event_name }}
+  cancel-in-progress: true
+
+env:
+  LLVM_VERSION: "19"
+  RUST_VERSION: 1.82.0
+  MACOSX_DEPLOYMENT_TARGET: '12.0'
+
+permissions:
+  contents: read
+
+jobs:
+  build-and-test:
+    defaults:
+      run:
+        working-directory: "bindings/c"
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v4
+    - name: Install dependencies
+      run: |
+        sudo apt-get update
+        sudo apt-get install libgtest-dev ninja-build
+    - name: Install Rust toolchain
+      uses: actions-rs/toolchain@v1
+      with:
+        toolchain: ${{ env.RUST_VERSION }}
+        override: true
+        components: clippy, rustfmt
+    - name: Add LLVM deb repository
+      uses: myci-actions/add-deb-repo@11
+      with:
+        repo: deb http://apt.llvm.org/jammy/ llvm-toolchain-jammy-19 main
+        repo-name: llvm-repo
+        keys-asc: https://apt.llvm.org/llvm-snapshot.gpg.key
+    - name: Install LLVM
+      run: |
+        v=${{ env.LLVM_VERSION }}
+        sudo apt-get install llvm-${v} llvm-${v}-dev llvm-${v}-runtime clang-${v} clang-tools-${v} lld-${v} libpolly-${v}-dev libmlir-${v}-dev mlir-${v}-tools
+        echo "LLVM_SYS_${v}0_PREFIX=/usr/lib/llvm-${v}/" >> $GITHUB_ENV
+        echo "MLIR_SYS_${v}0_PREFIX=/usr/lib/llvm-${v}/" >> $GITHUB_ENV
+        echo "TABLEGEN_${v}0_PREFIX=/usr/lib/llvm-${v}/" >> $GITHUB_ENV
+        echo "PATH=/usr/lib/llvm-${v}/bin:$PATH" >> $GITHUB_ENV
+    - name: Example Test
+      shell: bash
+      run: |
+        cd examples
+        git clone https://github.com/ethereum/evmc
+        cargo build -r
+        cmake -S . -B build
+        cmake --build build --parallel
+        build/dora-c-example
