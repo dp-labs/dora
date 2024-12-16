@@ -59,7 +59,7 @@ mkdir build
 cd build
 
 # The following cmake command configures the build to be installed to /opt/llvm-19
-cmake -G Ninja ../llvm \
+cmake -G "Unix Makefiles" ../llvm \
    -DLLVM_ENABLE_PROJECTS="mlir;clang;clang-tools-extra;lld;polly" \
    -DLLVM_BUILD_EXAMPLES=OFF \
    -DLLVM_TARGETS_TO_BUILD="Native" \
@@ -70,7 +70,7 @@ cmake -G Ninja ../llvm \
    -DCMAKE_C_COMPILER=clang -DCMAKE_CXX_COMPILER=clang++ -DLLVM_ENABLE_LLD=ON \
    -DLLVM_ENABLE_ASSERTIONS=OFF
 
-ninja install
+make -j4
 ```
 
 </details>
