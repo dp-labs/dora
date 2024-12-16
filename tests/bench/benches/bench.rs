@@ -6,8 +6,8 @@ use criterion::{
 use dora_bench::benches::{get_benches, Bench};
 use dora_compiler::evm::{CompileOptions, Program};
 use dora_compiler::{dora, evm, pass, Compiler, Context, EVMCompiler};
+use dora_primitives::{address, Address, Bytecode};
 use dora_primitives::{spec::SpecId, Bytes};
-use dora_primitives::{Address, Bytecode};
 use dora_runtime::context::{Contract, RuntimeContext};
 use dora_runtime::env::{Env, TxKind};
 use dora_runtime::executor::Executor;
@@ -65,6 +65,7 @@ fn run_bench(c: &mut Criterion, bench: &Bench) {
     env.tx.gas_limit = gas_limit;
     env.tx.data = Bytes::from(calldata.to_vec());
     env.tx.transact_to = TxKind::Call(Address::left_padding_from(&[40]));
+    env.tx.caller = address!("6666000000000000000000000000000000000000");
     let contract = Contract::new_with_env(&env, Bytecode::from(program.to_opcode()), None);
     let mut host = DummyHost::new(env);
     let mut context = RuntimeContext::new(contract, 1, false, false, &mut host, SpecId::CANCUN);
@@ -73,7 +74,11 @@ fn run_bench(c: &mut Criterion, bench: &Bench) {
     let ctx = black_box(&mut context);
     let gas = black_box(gas_limit);
 
-    g.bench_function("dora", |b| b.iter(|| func(ctx, gas)));
+    g.bench_function("dora", |b| {
+        b.iter(|| {
+            func(ctx, gas);
+        })
+    });
 
     if let Some(native) = *native {
         g.bench_function("native", |b| b.iter(native));
