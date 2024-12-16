@@ -292,8 +292,14 @@ impl<'c> ConversionPass<'c> {
     }
 
     pub(crate) fn dataload(context: &Context, op: &OperationRef<'_, '_>) -> Result<()> {
-        operands!(op, _offset);
-        rewrite_ctx!(context, op, _rewriter, _location, NoDefer);
+        operands!(op, offset);
+        rewrite_ctx!(context, op, rewriter, location, NoDefer);
+
+        let eof_data_section_ptr = load_by_addr!(
+            rewriter,
+            constants::EOF_DATA_SECTION_PTR_GLOBAL,
+            rewriter.ptr_ty()
+        );
 
         Ok(())
     }

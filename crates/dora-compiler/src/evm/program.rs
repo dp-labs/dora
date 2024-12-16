@@ -104,9 +104,9 @@ impl fmt::Display for ParseError {
             .iter()
             .map(|err| {
                 let x: u8 = match err {
-                    OpcodeParseError::BannedOpcodeInEofContextError(opcode) => opcode.clone() as u8,
-                    OpcodeParseError::EofOpcodeInLegacyContextError(opcode) => opcode.clone() as u8,
-                    OpcodeParseError::OpcodeInvalidError(opcode) => opcode.clone(),
+                    OpcodeParseError::BannedOpcodeInEofContextError(opcode) => *opcode as u8,
+                    OpcodeParseError::EofOpcodeInLegacyContextError(opcode) => *opcode as u8,
+                    OpcodeParseError::OpcodeInvalidError(opcode) => *opcode,
                 };
                 format!("{:02X}", x)
             })
@@ -413,20 +413,55 @@ macro_rules! operations {
                     Operation::Staticcall => vec![Opcode::STATICCALL as u8],
 
                     Operation::DataLoad => vec![Opcode::DATALOAD as u8],
-                    Operation::DataLoadN(_) => vec![Opcode::DATALOADN as u8],
+                    Operation::DataLoadN(x) => {
+                        let mut opcode_bytes = vec![0; 3];
+                        opcode_bytes[0] = Opcode::DATALOADN as u8;
+                        opcode_bytes[1..].copy_from_slice(&x.to_be_bytes());
+                        opcode_bytes
+                    },
                     Operation::DataSize => vec![Opcode::DATASIZE as u8],
                     Operation::DataCopy => vec![Opcode::DATACOPY as u8],
-                    Operation::RJump(_) => vec![Opcode::RJUMP as u8],
-                    Operation::RJumpI(_) => vec![Opcode::RJUMPI as u8],
-                    Operation::RJumpV(_) => vec![Opcode::RJUMPV as u8],
-                    Operation::CallF(_) => vec![Opcode::CALLF as u8],
+                    Operation::RJump(x) => {
+                        let mut opcode_bytes = vec![0; 3];
+                        opcode_bytes[0] = Opcode::RJUMP as u8;
+                        opcode_bytes[1..].copy_from_slice(&x.to_be_bytes());
+                        opcode_bytes
+                    },
+                    Operation::RJumpI(x) => {
+                        let mut opcode_bytes = vec![0; 3];
+                        opcode_bytes[0] = Opcode::RJUMPI as u8;
+                        opcode_bytes[1..].copy_from_slice(&x.to_be_bytes());
+                        opcode_bytes
+                    },
+                    Operation::RJumpV((l, x)) => {
+                        if *l == 0 {
+                            panic!("Invalid RJumpV max index: 0");
+                        }
+                        let len = 1 + (*l as usize + 1) * 2;
+                        let mut opcode_bytes = vec![0; len];
+                        opcode_bytes[0] = Opcode::RJUMPV as u8;
+                        let bytes: Vec<u8> = x.iter().flat_map(|&value| value.to_be_bytes()).collect();
+                        opcode_bytes[len - bytes.len()..].copy_from_slice(&bytes);
+                        opcode_bytes
+                    },
+                    Operation::CallF(x) => {
+                        let mut opcode_bytes = vec![0; 3];
+                        opcode_bytes[0] = Opcode::CALLF as u8;
+                        opcode_bytes[1..].copy_from_slice(&x.to_be_bytes());
+                        opcode_bytes
+                    },
                     Operation::RetF => vec![Opcode::RETF as u8],
-                    Operation::JumpF(_) => vec![Opcode::JUMPF as u8],
-                    Operation::DupN(_) => vec![Opcode::DUPN as u8],
-                    Operation::SwapN(_) => vec![Opcode::SWAPN as u8],
-                    Operation::Exchange(_) => vec![Opcode::EXCHANGE as u8],
-                    Operation::EofCreate(_) => vec![Opcode::EOFCREATE as u8],
-                    Operation::ReturnContract(_) => vec![Opcode::RETURNCONTRACT as u8],
+                    Operation::JumpF(x) => {
+                        let mut opcode_bytes = vec![0; 3];
+                        opcode_bytes[0] = Opcode::JUMPF as u8;
+                        opcode_bytes[1..].copy_from_slice(&x.to_be_bytes());
+                        opcode_bytes
+                    },
+                    Operation::DupN(x) => vec![Opcode::DUPN as u8, x.to_be_bytes()[0]],
+                    Operation::SwapN(x) => vec![Opcode::SWAPN as u8, x.to_be_bytes()[0]],
+                    Operation::Exchange(x) => vec![Opcode::EXCHANGE as u8, x.to_be_bytes()[0]],
+                    Operation::EofCreate(x) => vec![Opcode::EOFCREATE as u8, x.to_be_bytes()[0]],
+                    Operation::ReturnContract(x) => vec![Opcode::RETURNCONTRACT as u8, x.to_be_bytes()[0]],
                     Operation::ReturndataLoad => vec![Opcode::RETURNDATALOAD as u8],
                     Operation::ExtCall => vec![Opcode::EXTCALL as u8],
                     Operation::ExtDelegatecall => vec![Opcode::EXTDELEGATECALL as u8],
@@ -532,6 +567,7 @@ macro_rules! operations {
                         let x = opcodes[*pc..(*pc + 2)]
                             .try_into()
                             .unwrap();
+                        *pc += 1; // *pc += 2 - 1;
 
                         Operation::DataLoadN(u16::from_be_bytes(x))
                     }
@@ -555,6 +591,7 @@ macro_rules! operations {
                         let x = opcodes[*pc..(*pc + 2)]
                             .try_into()
                             .unwrap();
+                        *pc += 1; // *pc += 2 - 1;
 
                         Operation::RJump(u16::from_be_bytes(x))
                     }
@@ -566,6 +603,7 @@ macro_rules! operations {
                         let x = opcodes[*pc..(*pc + 2)]
                             .try_into()
                             .unwrap();
+                        *pc += 1; // *pc += 2 - 1;
 
                         Operation::RJumpI(u16::from_be_bytes(x))
                     }
@@ -587,6 +625,7 @@ macro_rules! operations {
                                 .unwrap();
                             x2.push(u16::from_be_bytes(t2));
                         }
+                        *pc += 1; // *pc += 2 - 1;
 
                         Operation::RJumpV((x1, x2))
                     }
@@ -598,6 +637,7 @@ macro_rules! operations {
                         let x = opcodes[*pc..(*pc + 2)]
                             .try_into()
                             .unwrap();
+                        *pc += 1; // *pc += 2 - 1;
 
                         Operation::CallF(u16::from_be_bytes(x))
                     }
@@ -615,6 +655,7 @@ macro_rules! operations {
                         let x = opcodes[*pc..(*pc + 2)]
                             .try_into()
                             .unwrap();
+                        *pc += 1; // *pc += 2 - 1;
 
                         Operation::JumpF(u16::from_be_bytes(x))
                     }
