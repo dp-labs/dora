@@ -8,7 +8,7 @@ Dora supports both EVM and WASM, allowing interoperability between the two. This
 to benefit from the EVM ecosystem while gaining efficiency improvements and access to existing libraries in
 high-level languages like Rust, C++, Go, and Java. The main process of the execution layer is as follows:
 
-![](../../img/arch.png)
+![](../../imgs/arch.png)
 
 ## Dialect Conversion
 
