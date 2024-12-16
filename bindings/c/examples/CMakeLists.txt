@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.18...3.27)
+cmake_minimum_required(VERSION 3.10...3.27)
 
 if(NOT EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/evmc/.git)
     message(FATAL_ERROR "Git submodules not initialized, execute:\n  git submodule update --init")
