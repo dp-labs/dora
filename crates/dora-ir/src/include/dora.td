@@ -1248,8 +1248,8 @@ def Dora_Call : Dora_Op<"call"> {
   let assemblyFormat = "$gas `,` $address `,` $value `,` $inputOffset `,` $inputLength `,` $outputOffset `,` $outputLength `:` type($gas) `->` type($success)";
 }
 
-// CallCode Operation
-def Dora_CallCode : Dora_Op<"callcode"> {
+// Callcode Operation
+def Dora_Callcode : Dora_Op<"callcode"> {
   let summary = "Calls a contract's code without modifying its storage.";
   let description = [{
     This operation is similar to `call`, but it uses the caller's storage rather than the storage of the called contract.

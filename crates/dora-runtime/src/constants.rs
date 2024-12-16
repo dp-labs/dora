@@ -314,7 +314,7 @@ pub enum CallType {
     /// `DELEGATECALL`.
     Delegatecall,
     /// `CALLCODE`.
-    CallCode,
+    Callcode,
 }
 
 /// The kind of a `EXT*CALL` instruction.
@@ -341,7 +341,7 @@ impl TryFrom<u8> for CallType {
             x if x == CallType::Call as u8 => Ok(CallType::Call),
             x if x == CallType::Staticcall as u8 => Ok(CallType::Staticcall),
             x if x == CallType::Delegatecall as u8 => Ok(CallType::Delegatecall),
-            x if x == CallType::CallCode as u8 => Ok(CallType::CallCode),
+            x if x == CallType::Callcode as u8 => Ok(CallType::Callcode),
             _ => Err(CallTypeParseError),
         }
     }

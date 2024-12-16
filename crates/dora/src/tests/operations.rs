@@ -3285,7 +3285,7 @@ fn callcode() {
         Operation::Push((1_u8, BigUint::from(32_u32))),
         Operation::Push((1_u8, BigUint::from(64_u32))),
         Operation::Push((1_u8, BigUint::from(64_u32))),
-        Operation::CallCode,
+        Operation::Callcode,
         // Return result
         Operation::Push0,
         Operation::MStore,
@@ -3320,7 +3320,7 @@ fn callcode_1() {
         Operation::Push((1_u8, BigUint::from(0_u8))),
         Operation::Dup(6),
         Operation::Push((2_u8, BigUint::from_bytes_be(&[0xFF, 0xFF]))),
-        Operation::CallCode,
+        Operation::Callcode,
         Operation::Push((1_u8, BigUint::from(1_u8))),
         Operation::Push((1_u8, BigUint::from(0_u8))),
         Operation::SStore,
@@ -3331,7 +3331,7 @@ fn callcode_1() {
         Operation::Push((1_u8, BigUint::from(0_u8))),
         Operation::Dup(7),
         Operation::Push((2_u8, BigUint::from_bytes_be(&[0xFF, 0xFF]))),
-        Operation::CallCode,
+        Operation::Callcode,
         // Return result
         Operation::Push0,
         Operation::MStore,

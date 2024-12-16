@@ -215,7 +215,7 @@ fn evmc_status_to_status(status: StatusCode) -> ExitStatusCode {
 fn call_kind_to_evmc_msg_kind(kind: CallKind) -> MessageKind {
     match kind {
         CallKind::Call => MessageKind::EVMC_CALL,
-        CallKind::CallCode => MessageKind::EVMC_CALLCODE,
+        CallKind::Callcode => MessageKind::EVMC_CALLCODE,
         CallKind::Delegatecall => MessageKind::EVMC_DELEGATECALL,
         CallKind::Staticcall => MessageKind::EVMC_CALL,
         CallKind::Create => MessageKind::EVMC_CREATE,

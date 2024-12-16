@@ -362,7 +362,7 @@ impl Host for DummyHost {
     fn call(&mut self, msg: CallMessage) -> Result<CallResult, EVMError> {
         Ok(match msg.kind {
             CallKind::Call
-            | CallKind::CallCode
+            | CallKind::Callcode
             | CallKind::Delegatecall
             | CallKind::Staticcall
             | CallKind::Create

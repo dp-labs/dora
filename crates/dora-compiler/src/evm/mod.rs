@@ -394,7 +394,7 @@ impl<'c> EVMCompiler<'c> {
             Operation::Call => EVMCompiler::call(ctx, region),
             Operation::CallF(x) => EVMCompiler::callf(ctx, region, *x),
             Operation::RetF => EVMCompiler::retf(ctx, region),
-            Operation::CallCode => EVMCompiler::callcode(ctx, region),
+            Operation::Callcode => EVMCompiler::callcode(ctx, region),
             Operation::Delegatecall => EVMCompiler::delegatecall(ctx, region),
             Operation::Staticcall => EVMCompiler::staticcall(ctx, region),
             Operation::Return => EVMCompiler::creturn(ctx, region),

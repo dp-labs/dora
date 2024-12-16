@@ -75,7 +75,7 @@ impl fmt::Debug for AccountInfo {
             // Use the hex output format
             .field(
                 "code",
-                &hex::encode(self.code.clone().unwrap_or_else(Bytecode::new).bytecode()),
+                &hex::encode(self.code.clone().unwrap_or_default().bytecode()),
             )
             .finish()
     }

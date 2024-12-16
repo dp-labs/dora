@@ -444,7 +444,7 @@ impl<'a, DB: Database> VMContext<'a, DB> {
             ));
         }
         match msg.kind {
-            CallKind::Call | CallKind::CallCode | CallKind::Delegatecall | CallKind::Staticcall => {
+            CallKind::Call | CallKind::Callcode | CallKind::Delegatecall | CallKind::Staticcall => {
                 // Make account warm and loaded
                 let _ = self
                     .journaled_state
@@ -1264,7 +1264,7 @@ impl<'a> RuntimeContext<'a> {
             return &self.inner.result as _;
         }
         // Add call stipend if there is value to be transferred.
-        if matches!(call_type, CallType::Call | CallType::CallCode) && transfers_value {
+        if matches!(call_type, CallType::Call | CallType::Callcode) && transfers_value {
             gas_limit = gas_limit.saturating_add(gas_cost::CALL_STIPEND);
         }
         let call_msg = CallMessage {
@@ -1289,7 +1289,7 @@ impl<'a> RuntimeContext<'a> {
                 self.contract.target_address
             },
             salt: None,
-            recipient: if matches!(call_type, CallType::Delegatecall | CallType::CallCode) {
+            recipient: if matches!(call_type, CallType::Delegatecall | CallType::Callcode) {
                 self.contract.target_address
             } else {
                 to

@@ -151,7 +151,7 @@ impl<'c> ConversionPass<'c> {
         let rewriter = Rewriter::new_with_op(context, *op);
         let location = rewriter.get_insert_location();
         match call_type {
-            CallType::Call | CallType::CallCode => {
+            CallType::Call | CallType::Callcode => {
                 let value = op.operand(2)?;
                 if call_type == CallType::Call {
                     block_argument!(op, syscall_ctx);

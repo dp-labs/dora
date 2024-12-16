@@ -10,7 +10,7 @@ use dora_primitives::{Address, Bytes, B256, U256};
 #[repr(u8)]
 pub enum CallKind {
     Call = 0,
-    CallCode = 1,
+    Callcode = 1,
     CallF = 2,
     RetF = 3,
     Delegatecall = 4,
@@ -29,7 +29,7 @@ impl From<CallType> for CallKind {
             CallType::Call => CallKind::Call,
             CallType::Staticcall => CallKind::Staticcall,
             CallType::Delegatecall => CallKind::Delegatecall,
-            CallType::CallCode => CallKind::CallCode,
+            CallType::Callcode => CallKind::Callcode,
         }
     }
 }

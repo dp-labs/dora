@@ -1040,8 +1040,8 @@ def EVM_Call : EVM_Op<"call"> {
   let assemblyFormat = "$gas `,` $address `,` $value `,` $inputOffset `,` $inputLength `,` $outputOffset `,` $outputLength `:` type($gas) `->` type($success)";
 }
 
-// CallCode Operation
-def EVM_CallCode : EVM_Op<"callcode"> {
+// Callcode Operation
+def EVM_Callcode : EVM_Op<"callcode"> {
   let summary = "Calls a contract's code without modifying its storage.";
   let description = [{
     This operation is similar to `call`, but it uses the caller's storage rather than the storage of the called contract.

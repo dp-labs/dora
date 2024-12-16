@@ -232,7 +232,7 @@ impl<'c> ConversionPass<'c> {
             } else if name == "dora.call" {
                 Self::call(context, op, CallType::Call)?;
             } else if name == "dora.callcode" {
-                Self::call(context, op, CallType::CallCode)?;
+                Self::call(context, op, CallType::Callcode)?;
             } else if name == "dora.return" {
                 Self::creturn(context, op)?;
             } else if name == "dora.delegatecall" {
