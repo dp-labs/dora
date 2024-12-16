@@ -1,0 +1,187 @@
+name: Build & Release
+
+on:
+  push:
+    branches:
+      - 'main'
+    tags:
+      - '*'
+  pull_request:
+    branches:
+      - main
+  workflow_dispatch:
+
+env:
+  LLVM_VERSION: "19"
+  RUST_VERSION: 1.82.0
+  MACOSX_DEPLOYMENT_TARGET: '12.0'
+
+jobs:
+  setup:
+    name: Set up
+    runs-on: ubuntu-latest
+    steps:
+      - name: Set up env vars
+        id: setup
+        shell: bash
+        run: |
+          VERSION=${GITHUB_REF/refs\/tags\//}
+          echo "VERSION=${VERSION}" >> $GITHUB_OUTPUT
+          echo $VERSION
+
+  build:
+    name: Build on ${{ matrix.build }}
+    runs-on: ${{ matrix.os }}
+    needs: setup
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - build: linux-amd64
+            os: ubuntu-22.04
+            artifact_name: 'dora-linux-amd64'
+          - build: macos-amd64
+            os: macos-13
+            artifact_name: 'dora-darwin-amd64'
+          - build: macos-arm64
+            os: macos-14
+            artifact_name: 'dora-darwin-arm64'
+    env:
+      TARGET: ${{ matrix.target }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Rust toolchain
+        uses: actions-rs/toolchain@v1
+        with:
+          toolchain: ${{ env.RUST_VERSION }}
+          override: true
+          components: clippy, rustfmt
+
+      - name: Add LLVM deb repository
+        uses: myci-actions/add-deb-repo@11
+        if: startsWith(matrix.build, 'linux')
+        with:
+          repo: deb http://apt.llvm.org/jammy/ llvm-toolchain-jammy-19 main
+          repo-name: llvm-repo
+          keys-asc: https://apt.llvm.org/llvm-snapshot.gpg.key
+      - name: Install LLVM (Linux)
+        if: startsWith(matrix.build, 'linux')
+        run: |
+          v=${{ env.LLVM_VERSION }}
+          sudo apt-get install llvm-${v} llvm-${v}-dev llvm-${v}-runtime clang-${v} clang-tools-${v} lld-${v} libpolly-${v}-dev libmlir-${v}-dev mlir-${v}-tools
+          echo "LLVM_SYS_${v}0_PREFIX=/usr/lib/llvm-${v}/" >> $GITHUB_ENV
+          echo "MLIR_SYS_${v}0_PREFIX=/usr/lib/llvm-${v}/" >> $GITHUB_ENV
+          echo "TABLEGEN_${v}0_PREFIX=/usr/lib/llvm-${v}/" >> $GITHUB_ENV
+          echo "PATH=/usr/lib/llvm-${v}/bin:$PATH" >> $GITHUB_ENV
+
+      - name: Install LLVM (macOS Apple Silicon)
+        if: startsWith(matrix.build, 'macos')
+        run: |
+          v=${{ env.LLVM_VERSION }}
+          brew install "llvm@${v}"
+          echo "LLVM_SYS_${v}0_PREFIX=$(brew --prefix llvm@${v})" >> $GITHUB_ENV
+          echo "MLIR_SYS_${v}0_PREFIX=$(brew --prefix llvm@${v})" >> $GITHUB_ENV
+          echo "TABLEGEN_${v}0_PREFIX=$(brew --prefix llvm@${v})" >> $GITHUB_ENV
+          echo "PATH=$(brew --prefix)/opt/llvm@${v}/bin:$PATH" >> $GITHUB_ENV
+          echo "LIBRARY_PATH=/opt/homebrew/lib:$LIBRARY_PATH" >> $GITHUB_ENV
+
+      - name: Install MSVC dev-cmd (Windows)
+        uses: ilammy/msvc-dev-cmd@v1
+        if: startsWith(matrix.build, 'windows')
+
+      - name: Dist
+        run: |
+          make dist
+      - name: Upload Artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.artifact_name }}
+          path: dist
+          if-no-files-found: error
+          retention-days: 2
+
+  release:
+    needs: [setup, build]
+    runs-on: ubuntu-latest
+    if: "startsWith(github.ref, 'refs/tags/')"
+    steps:
+      - name: Download the Artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+      - name: Create Release
+        id: create_release
+        uses: actions/create-release@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tag_name: ${{ needs.setup.outputs.VERSION }}
+          release_name: Release ${{ needs.setup.outputs.VERSION }}
+          draft: true
+          prerelease: false
+
+      - name: Upload Release Asset Linux amd64
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          asset_path: artifacts/dora-linux-amd64/dora.tar.gz
+          asset_name: dora-linux-amd64.tar.gz
+          asset_content_type: application/gzip
+
+      - name: Upload Release Asset Mac amd64
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          asset_path: artifacts/dora-darwin-amd64/dora.tar.gz
+          asset_name: dora-darwin-amd64.tar.gz
+          asset_content_type: application/gzip
+
+      - name: Upload Release Asset Mac arm64
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          asset_path: artifacts/dora-darwin-arm64/dora.tar.gz
+          asset_name: dora-darwin-arm64.tar.gz
+          asset_content_type: application/gzip
+
+      - name: Setup QEMU
+        uses: docker/setup-qemu-action@v3
+      - name: Setup Docker Buildx
+        id: buildx
+        uses: docker/setup-buildx-action@v3
+      - name: Docker login ghcr.io
+        uses: docker/login-action@9780b0c442fbb1117ed29e0efdff1e18412f7567 # v3.3.0
+        with:
+          registry: ghcr.io
+          username: dp-labs-bot
+          password: ${{ secrets.DEPLOY_ACCESS_TOKEN }}
+
+      - name: Extract metadata (tags, labels) for Docker
+        id: meta
+        uses: docker/metadata-action@369eb591f429131d6889c46b94e711f089e6ca96 # v5.6.1
+        with:
+          images: |
+            ghcr.io/dp-labs/dora
+
+      - name: Extract dora binary to dist
+        run: tar -xf artifacts/dora-darwin-arm64/dora.tar.gz -C dist/
+
+      - name: Build and push Docker image
+        uses: docker/build-push-action@v6
+        with:
+          sbom: true
+          provenance: true
+          push: true
+          builder: ${{ steps.buildx.outputs.name }}
+          context: .
+          file: .github/release/Dockerfile
+          platforms: linux/amd64
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
