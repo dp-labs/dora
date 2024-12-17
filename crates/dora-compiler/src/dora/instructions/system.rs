@@ -295,12 +295,187 @@ impl<'c> ConversionPass<'c> {
         operands!(op, offset);
         rewrite_ctx!(context, op, rewriter, location, NoDefer);
 
-        let eof_data_section_ptr = load_by_addr!(
+        let uint1 = rewriter.intrinsics.i1_ty;
+        let uint8 = rewriter.intrinsics.i8_ty;
+        let uint64 = rewriter.intrinsics.i64_ty;
+        let uint256 = rewriter.intrinsics.i256_ty;
+        let ptr_type = rewriter.intrinsics.ptr_ty;
+
+        let data_section_ptr = load_by_addr!(
             rewriter,
-            constants::EOF_DATA_SECTION_PTR_GLOBAL,
+            constants::DATA_SECTION_PTR_GLOBAL,
             rewriter.ptr_ty()
         );
+        // Define the maximum slice width (32 bytes)
+        let max_slice_width = rewriter.make(rewriter.iconst_256_from_u64(32)?)?;
+        let data_section_size =
+            load_by_addr!(rewriter, constants::DATA_SECTION_SIZE_GLOBAL, uint64);
+        // Convert `data_section_size` from u64 to u256
+        let data_section_size =
+            rewriter.make(arith::extui(data_section_size, uint256, location))?;
+        // Compare offset with data section size
+        let offset_cmpi = rewriter.make(arith::cmpi(
+            context,
+            arith::CmpiPredicate::Ult,
+            offset,
+            data_section_size,
+            location,
+        ))?;
+        let zero = rewriter.make(rewriter.iconst_256(BigUint::from(0_u8))?)?;
 
+        rewriter.make(scf::r#if(
+            offset_cmpi,
+            &[uint256],
+            {
+                let region = Region::new();
+                let offset_ok_block = region.append_block(Block::new(&[]));
+                let rewriter = Rewriter::new_with_block(context, offset_ok_block);
+                // A stack slot is a u256 ptr
+                let stack_slot_ptr = create_var!(rewriter, context, location);
+                rewriter.create(llvm::store(
+                    context,
+                    zero,
+                    stack_slot_ptr,
+                    location,
+                    LoadStoreOptions::new(),
+                ));
+                // Calculate data section pointer at offset
+                let data_section_ptr_at_offset = rewriter.make(llvm::get_element_ptr_dynamic(
+                    context,
+                    data_section_ptr,
+                    &[op.operand(0)?],
+                    uint8,
+                    ptr_type,
+                    location,
+                ))?;
+                // Calculate length of slice (min(data_section_size - offset, 32))
+                let len_sub =
+                    rewriter.make(arith::subi(data_section_size, op.operand(0)?, location))?;
+                let len_min = rewriter.make(arith::minui(len_sub, max_slice_width, location))?;
+
+                // Copy data_section[offset..offset + len] to the stack slot
+                rewriter.create(
+                    ods::llvm::intr_memcpy(
+                        context,
+                        stack_slot_ptr,
+                        data_section_ptr_at_offset,
+                        len_min,
+                        IntegerAttribute::new(uint1, 0),
+                        location,
+                    )
+                    .into(),
+                );
+                let mut value = rewriter.make(rewriter.load(stack_slot_ptr, uint256))?;
+                if cfg!(target_endian = "little") {
+                    // convert it to big endian
+                    value = rewriter.make(llvm::intr_bswap(value, uint256, location))?;
+                }
+                rewriter.create(scf::r#yield(&[value], location));
+                region
+            },
+            {
+                let region = Region::new();
+                let offset_bad_block = region.append_block(Block::new(&[]));
+                let builder = OpBuilder::new_with_block(context, offset_bad_block);
+                builder.create(scf::r#yield(&[zero], location));
+                region
+            },
+            location,
+        ))?;
+        Ok(())
+    }
+
+    pub(crate) fn dataloadn(context: &Context, op: &OperationRef<'_, '_>) -> Result<()> {
+        operands!(op, offset);
+        rewrite_ctx!(context, op, rewriter, location, NoDefer);
+
+        let uint1 = rewriter.intrinsics.i1_ty;
+        let uint8 = rewriter.intrinsics.i8_ty;
+        let uint64 = rewriter.intrinsics.i64_ty;
+        let uint256 = rewriter.intrinsics.i256_ty;
+        let ptr_type = rewriter.intrinsics.ptr_ty;
+
+        let data_section_ptr = load_by_addr!(
+            rewriter,
+            constants::DATA_SECTION_PTR_GLOBAL,
+            rewriter.ptr_ty()
+        );
+        // Define the maximum slice width (32 bytes)
+        let max_slice_width = rewriter.make(rewriter.iconst_256_from_u64(32)?)?;
+        let data_section_size =
+            load_by_addr!(rewriter, constants::DATA_SECTION_SIZE_GLOBAL, uint64);
+        // Convert `data_section_size` from u64 to u256
+        let data_section_size =
+            rewriter.make(arith::extui(data_section_size, uint256, location))?;
+        // Compare offset with data section size
+        let offset_cmpi = rewriter.make(arith::cmpi(
+            context,
+            arith::CmpiPredicate::Ult,
+            offset,
+            data_section_size,
+            location,
+        ))?;
+        let zero = rewriter.make(rewriter.iconst_256(BigUint::from(0_u8))?)?;
+
+        rewriter.make(scf::r#if(
+            offset_cmpi,
+            &[uint256],
+            {
+                let region = Region::new();
+                let offset_ok_block = region.append_block(Block::new(&[]));
+                let rewriter = Rewriter::new_with_block(context, offset_ok_block);
+                // A stack slot is a u256 ptr
+                let stack_slot_ptr = create_var!(rewriter, context, location);
+                rewriter.create(llvm::store(
+                    context,
+                    zero,
+                    stack_slot_ptr,
+                    location,
+                    LoadStoreOptions::new(),
+                ));
+                // Calculate data section pointer at offset
+                let data_section_ptr_at_offset = rewriter.make(llvm::get_element_ptr_dynamic(
+                    context,
+                    data_section_ptr,
+                    &[op.operand(0)?],
+                    uint8,
+                    ptr_type,
+                    location,
+                ))?;
+                // Calculate length of slice (min(data_section_size - offset, 32))
+                let len_sub =
+                    rewriter.make(arith::subi(data_section_size, op.operand(0)?, location))?;
+                let len_min = rewriter.make(arith::minui(len_sub, max_slice_width, location))?;
+
+                // Copy data_section[offset..offset + len] to the stack slot
+                rewriter.create(
+                    ods::llvm::intr_memcpy(
+                        context,
+                        stack_slot_ptr,
+                        data_section_ptr_at_offset,
+                        len_min,
+                        IntegerAttribute::new(uint1, 0),
+                        location,
+                    )
+                    .into(),
+                );
+                let mut value = rewriter.make(rewriter.load(stack_slot_ptr, uint256))?;
+                if cfg!(target_endian = "little") {
+                    // convert it to big endian
+                    value = rewriter.make(llvm::intr_bswap(value, uint256, location))?;
+                }
+                rewriter.create(scf::r#yield(&[value], location));
+                region
+            },
+            {
+                let region = Region::new();
+                let offset_bad_block = region.append_block(Block::new(&[]));
+                let builder = OpBuilder::new_with_block(context, offset_bad_block);
+                builder.create(scf::r#yield(&[zero], location));
+                region
+            },
+            location,
+        ))?;
         Ok(())
     }
 
