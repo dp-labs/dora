@@ -25,7 +25,7 @@ pub(crate) fn declare_symbols(context: &MLIRContext, module: &MLIRModule) {
         (symbols::NOP, &[], &[]),
         (
             symbols::TRACING,
-            &[ptr_type, uint8, uint64, ptr_type, uint64],
+            &[ptr_type, uint8, uint64, ptr_type, ptr_type],
             &[],
         ),
         (

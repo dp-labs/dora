@@ -1,7 +1,6 @@
 use dora_primitives::SpecId;
 use dora_runtime::constants::env::DORA_TRACING;
-use dora_runtime::constants::STACK_SIZE_GLOBAL;
-use dora_runtime::{constants::STACK_PTR_GLOBAL, ExitStatusCode};
+use dora_runtime::ExitStatusCode;
 use dora_runtime::{
     constants::{
         CALLDATA_PTR_GLOBAL, CALLDATA_SIZE_GLOBAL, GAS_COUNTER_GLOBAL, MAIN_ENTRYPOINT,
@@ -12,7 +11,7 @@ use dora_runtime::{
 use melior::{
     dialect::{
         arith, cf, func,
-        llvm::{self, attributes::Linkage, AllocaOptions, LoadStoreOptions},
+        llvm::{self, attributes::Linkage, LoadStoreOptions},
     },
     ir::{
         attribute::{FlatSymbolRefAttribute, IntegerAttribute, StringAttribute, TypeAttribute},
@@ -330,10 +329,9 @@ impl<'c> EVMCompiler<'c> {
         let stack_check_block = region.append_block(Block::new(&[]));
         let builder = OpBuilder::new_with_block(ctx.context, stack_check_block);
         let location = builder.get_insert_location();
-        let stack_size_ptr =
-            builder.make(builder.addressof(STACK_SIZE_GLOBAL, builder.ptr_ty()))?;
         let stack_max_size = builder.make(builder.iconst_64(MAX_STACK_SIZE as i64))?;
-        let size_before = builder.make(builder.load(stack_size_ptr, builder.intrinsics.i64_ty))?;
+        let size_before =
+            builder.make(builder.load(ctx.values.stack_size_ptr, builder.intrinsics.i64_ty))?;
         let size_after = builder.make(arith::addi(
             size_before,
             builder.make(builder.iconst_64(diff))?,
@@ -347,8 +345,6 @@ impl<'c> EVMCompiler<'c> {
             // Check overflow
             let overflow =
                 builder.make(builder.icmp(IntCC::UnsignedLessThan, stack_max_size, size_after))?;
-            // Update the stack length for this operation.
-            builder.create(builder.store(size_after, stack_size_ptr));
             // Whether revert
             let revert = builder.make(arith::xori(underflow, overflow, location))?;
             let code =
@@ -365,8 +361,6 @@ impl<'c> EVMCompiler<'c> {
         } else if may_underflow {
             // Whether revert (or underflow)
             let i = builder.make(builder.iconst_64(section_input as i64))?;
-            // Update the stack length for this operation.
-            builder.create(builder.store(size_after, stack_size_ptr));
 
             let revert = builder.make(builder.icmp(IntCC::UnsignedLessThan, size_before, i))?;
 
@@ -382,8 +376,6 @@ impl<'c> EVMCompiler<'c> {
                 location,
             ));
         } else if may_overflow {
-            // Update the stack length for this operation.
-            builder.create(builder.store(size_after, stack_size_ptr));
             // Whether revert (or overflow)
             let revert =
                 builder.make(builder.icmp(IntCC::UnsignedLessThan, stack_max_size, size_after))?;
@@ -400,8 +392,6 @@ impl<'c> EVMCompiler<'c> {
                 location,
             ));
         } else {
-            // Update the stack length for this operation.
-            builder.create(builder.store(size_after, stack_size_ptr));
             builder.create(cf::br(&block_start, &[], location));
         }
         Ok(stack_check_block)
@@ -429,16 +419,6 @@ impl<'c> EVMCompiler<'c> {
                 .create(builder.iconst(builder.intrinsics.i8_ty, op.opcode() as i64))
                 .result(0)?
                 .into();
-            // Get address of stack pointer global
-            let stack_ptr_ptr =
-                builder.make(builder.addressof(STACK_PTR_GLOBAL, builder.ptr_ty()))?;
-            // Load stack pointer
-            let stack_ptr = builder.make(builder.load(stack_ptr_ptr, builder.ptr_ty()))?;
-            let stack_size_ptr =
-                builder.make(builder.addressof(STACK_SIZE_GLOBAL, builder.ptr_ty()))?;
-            let stack_size =
-                builder.make(builder.load(stack_size_ptr, builder.intrinsics.i64_ty))?;
-
             builder.create(func::call(
                 builder.context(),
                 FlatSymbolRefAttribute::new(builder.context(), symbols::TRACING),
@@ -446,8 +426,8 @@ impl<'c> EVMCompiler<'c> {
                     ctx.values.syscall_ctx,
                     opcode,
                     gas_counter,
-                    stack_ptr,
-                    stack_size,
+                    ctx.values.stack_ptr,
+                    ctx.values.stack_size_ptr,
                 ],
                 &[],
                 builder.get_insert_location(),
@@ -506,7 +486,16 @@ impl<'c> EVMCompiler<'c> {
             TypeAttribute::new(
                 FunctionType::new(
                     context,
-                    &[self.intrinsics.ptr_ty, self.intrinsics.i64_ty],
+                    &[
+                        // RuntimeContext
+                        self.intrinsics.ptr_ty,
+                        // Initial gas
+                        self.intrinsics.i64_ty,
+                        // Stack pointer
+                        self.intrinsics.ptr_ty,
+                        // Stack size pointer
+                        self.intrinsics.ptr_ty,
+                    ],
                     &[self.intrinsics.i8_ty],
                 )
                 .into(),
@@ -690,6 +679,10 @@ pub struct CtxType<'c> {
 pub struct CtxValues<'c> {
     /// The system call context value used during EVM execution.
     pub syscall_ctx: Value<'c, 'c>,
+    /// The address of the global stack pointer
+    pub stack_ptr: Value<'c, 'c>,
+    /// The address of the global stack size
+    pub stack_size_ptr: Value<'c, 'c>,
 }
 
 impl<'c> CtxType<'c> {
@@ -720,10 +713,11 @@ impl<'c> CtxType<'c> {
         let location = Location::unknown(&context.mlir_context);
         let syscall_ctx = block.add_argument(intrinsics.ptr_ty, location);
         let initial_gas = block.add_argument(intrinsics.i64_ty, location);
+        let stack_ptr = block.add_argument(intrinsics.ptr_ty, location);
+        let stack_size_ptr = block.add_argument(intrinsics.ptr_ty, location);
         let op_builder = OpBuilder::new(&context.mlir_context);
 
         SetupBuilder::new(&context.mlir_context, module, block, &op_builder)
-            .stack()?
             .memory()?
             .calldata(syscall_ctx)?
             .gas_counter(initial_gas)?
@@ -736,7 +730,11 @@ impl<'c> CtxType<'c> {
         Ok(CtxType {
             context: &context.mlir_context,
             program,
-            values: CtxValues { syscall_ctx },
+            values: CtxValues {
+                syscall_ctx,
+                stack_ptr,
+                stack_size_ptr,
+            },
             revert_block,
             jumptable_block,
             jumpdest_blocks: Default::default(),
@@ -963,26 +961,6 @@ impl<'c> SetupBuilder<'c> {
         }
     }
 
-    /// Declares and allocates a global stack pointer.
-    ///
-    /// This method initializes the stack pointer used in the execution context.
-    ///
-    /// # Returns
-    /// A reference to `self` for method chaining.
-    ///
-    /// # Errors
-    /// Returns an error if global declarations or stack allocation fails.
-    pub fn stack(&self) -> Result<&Self> {
-        let ptr_type = self.builder.intrinsics.ptr_ty;
-        self.declare_globals(&[STACK_PTR_GLOBAL], ptr_type)?
-            .allocate_stack()?;
-        self.declare_globals(&[STACK_SIZE_GLOBAL], self.builder.intrinsics.i64_ty)?;
-        let zero = self.constant(0)?;
-        self.initialize_global(STACK_SIZE_GLOBAL, ptr_type, zero)?;
-
-        Ok(self)
-    }
-
     /// Declares globals for memory pointer and size, and initializes the memory size to zero.
     ///
     /// This method sets up the memory structure required for EVM execution.
@@ -1144,37 +1122,6 @@ impl<'c> SetupBuilder<'c> {
             self.location,
             LoadStoreOptions::default(),
         ));
-        Ok(self)
-    }
-
-    fn allocate_stack(&self) -> Result<&Self> {
-        let ptr_type = self.builder.intrinsics.ptr_ty;
-        let uint256 = self.builder.intrinsics.i256_ty;
-
-        let stack_size = self
-            .block
-            .append_operation(arith::constant(
-                self.context,
-                IntegerAttribute::new(uint256, MAX_STACK_SIZE as i64).into(),
-                self.location,
-            ))
-            .result(0)?
-            .into();
-
-        let stack_baseptr = self
-            .block
-            .append_operation(llvm::alloca(
-                self.context,
-                stack_size,
-                ptr_type,
-                self.location,
-                AllocaOptions::new().elem_type(Some(TypeAttribute::new(uint256))),
-            ))
-            .result(0)?
-            .into();
-
-        self.store_to_global(STACK_PTR_GLOBAL, stack_baseptr)?;
-
         Ok(self)
     }
 }

@@ -1,9 +1,8 @@
-use std::fmt::Debug;
-
 use crate::{
-    context::{MainFunc, RuntimeContext},
+    context::{MainFunc, RuntimeContext, Stack},
     executor::Executor,
 };
+use std::fmt::Debug;
 
 /// Artifact represents an abstraction of a compilation product for EVM/WASM bytecode.
 /// This versatile concept can be implemented in various forms, including intermediate
@@ -35,7 +34,13 @@ pub trait Artifact: Default + Debug + Clone {
     ///
     /// # Returns
     /// A u8 value, typically representing an execution status or error code.
-    fn execute(&self, runtime_context: &mut RuntimeContext, initial_gas: u64) -> u8;
+    fn execute(
+        &self,
+        runtime_context: &mut RuntimeContext,
+        initial_gas: u64,
+        stack: &mut Stack,
+        stack_size: &mut u64,
+    ) -> u8;
 }
 
 /// A memory artifact that represents a compiled symbol as a raw pointer.
@@ -87,9 +92,15 @@ impl Artifact for SymbolArtifact {
     /// It assumes that the stored entry_ptr is valid and points to a correctly compiled
     /// function matching the MainFunc<DB> signature. Incorrect use could lead to undefined behavior.
     #[inline]
-    fn execute(&self, runtime_context: &mut RuntimeContext, initial_gas: u64) -> u8 {
+    fn execute(
+        &self,
+        runtime_context: &mut RuntimeContext,
+        initial_gas: u64,
+        stack: &mut Stack,
+        stack_size: &mut u64,
+    ) -> u8 {
         let ptr = self.entry_ptr as *mut ();
         let func: MainFunc = unsafe { std::mem::transmute(ptr) };
-        func(runtime_context, initial_gas)
+        func(runtime_context, initial_gas, stack, stack_size)
     }
 }

@@ -12,7 +12,6 @@ use dora_compiler::{
     pass, Compiler,
 };
 use dora_primitives::{spec::SpecId, Bytecode, Bytes32};
-use dora_runtime::env::Env;
 use dora_runtime::executor::Executor;
 use dora_runtime::{
     artifact::Artifact,
@@ -23,6 +22,7 @@ use dora_runtime::{
     vm::VM,
 };
 use dora_runtime::{context::RuntimeContext, env::TxKind};
+use dora_runtime::{context::Stack, env::Env};
 use dora_runtime::{
     db::{Database, MemoryDB},
     result::ResultAndState,
@@ -85,7 +85,12 @@ pub fn call_frame<DB: Database>(
         ctx,
         spec_id,
     );
-    artifact.execute(&mut runtime_context, frame.gas_limit);
+    artifact.execute(
+        &mut runtime_context,
+        frame.gas_limit,
+        &mut Stack::new(),
+        &mut 0,
+    );
     Ok(CallResult::new_with_runtime_context_and_gas_limit(
         &runtime_context,
         frame.gas_limit,
@@ -101,7 +106,7 @@ pub fn run_with_context<DB: Database>(
         &runtime_context.contract.code,
         runtime_context.inner.spec_id,
     )?;
-    Ok(artifact.execute(runtime_context, initial_gas))
+    Ok(artifact.execute(runtime_context, initial_gas, &mut Stack::new(), &mut 0))
 }
 
 /// Build opcode to the artifact
