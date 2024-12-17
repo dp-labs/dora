@@ -104,7 +104,7 @@ pub fn run_with_context<DB: Database>(
     initial_gas: u64,
 ) -> anyhow::Result<u8> {
     let artifact: DB::Artifact = build_artifact::<DB>(
-        &runtime_context.contract.code.bytecode(),
+        runtime_context.contract.code.bytecode(),
         runtime_context.inner.spec_id,
     )?;
     let mut initial_gas = initial_gas;
