@@ -72,7 +72,7 @@ pub fn call_frame<DB: Database>(
         artifact
     } else {
         // Issue: https://github.com/dp-labs/dora/issues/135
-        let artifact = build_artifact::<DB>(&frame.contract.code.bytecode(), ctx.spec_id())
+        let artifact = build_artifact::<DB>(frame.contract.code.bytecode(), ctx.spec_id())
             .map_err(|e| EVMError::Custom(e.to_string()))?;
         ctx.db.set_artifact(code_hash, artifact.clone());
         artifact
