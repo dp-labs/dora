@@ -1,6 +1,7 @@
 use alloy_sol_types::{sol, SolCall};
 use dora_primitives::{keccak256, Address, U256};
 use dora_runtime::{account::AccountStatus, db::DbAccount};
+use ruint::UintTryFrom;
 use rustc_hash::FxHashMap;
 
 use super::{address_to_u256, indices_to_u256, str_to_u256};
@@ -8,6 +9,7 @@ use super::{address_to_u256, indices_to_u256, str_to_u256};
 pub const ERC20_BYTECODE_HEX: &str = include_str!("./contract.hex");
 
 /// ERC20 contract
+#[derive(Debug, Default)]
 pub struct ERC20Contract {
     /// Storage Slot 0
     pub balances: FxHashMap<Address, U256>,
@@ -28,7 +30,40 @@ sol! {
 }
 
 impl ERC20Contract {
-    pub fn to_db_account(&self) -> DbAccount {
+    pub fn new<U, V>(name: &str, symbol: &str, decimals: U, initial_supply: V) -> Self
+    where
+        U256: UintTryFrom<U> + UintTryFrom<V>,
+    {
+        Self {
+            name: String::from(name),
+            symbol: String::from(symbol),
+            decimals: U256::from(decimals),
+            total_supply: U256::from(initial_supply),
+            balances: FxHashMap::default(),
+            allowances: FxHashMap::default(),
+        }
+    }
+
+    pub fn add_balances(&mut self, addresses: &[Address], amount: U256) -> &mut Self {
+        for address in addresses {
+            self.balances.insert(*address, amount);
+        }
+        self
+    }
+
+    pub fn add_allowances(
+        &mut self,
+        addresses: &[Address],
+        spender: Address,
+        amount: U256,
+    ) -> &mut Self {
+        for address in addresses {
+            self.allowances.insert((*address, spender), amount);
+        }
+        self
+    }
+
+    pub fn to_db_account(&self) -> (Vec<u8>, DbAccount) {
         let bytecode = hex::decode(ERC20_BYTECODE_HEX).unwrap();
         let hash = keccak256(&bytecode);
 
@@ -57,14 +92,17 @@ impl ERC20Contract {
             );
         }
 
-        DbAccount {
-            nonce: 1,
-            balance: U256::ZERO,
-            storage,
-            bytecode_hash: hash,
-            status: AccountStatus::Created,
-            ..Default::default()
-        }
+        (
+            bytecode,
+            DbAccount {
+                nonce: 1,
+                balance: U256::ZERO,
+                storage,
+                bytecode_hash: hash,
+                status: AccountStatus::Created,
+                ..Default::default()
+            },
+        )
     }
 
     #[inline]

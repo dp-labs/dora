@@ -1,5 +1,7 @@
 pub use revm_primitives::{
-    address, b256, keccak256, uint, Address, Bytes, PrecompileOutput, SpecId, B256, U256,
+    address, b256, fixed_bytes,
+    hex::{FromHex, ToHexExt},
+    keccak256, uint, Address, Bytes, FixedBytes, PrecompileOutput, SpecId, B256, I256, U256,
 };
 
 pub type Bytecode = Bytes;

@@ -1,16 +1,16 @@
-use dora_primitives::{keccak256, Address, B256, U256};
+use dora_primitives::{keccak256, Address, B256, I256, U256};
 use ruint::aliases::U160;
 
 pub mod erc20;
-pub mod uniswap;
+pub mod uniswapv3;
 
 pub(crate) fn str_to_u256(text: &str) -> U256 {
     assert!(text.len() < 32);
-    let encoded_as_b256 = B256::bit_or(
+    let str_b256 = B256::bit_or(
         B256::right_padding_from(text.as_bytes()),
         B256::left_padding_from(&[(text.len() * 2) as u8]),
     );
-    encoded_as_b256.into()
+    str_b256.into()
 }
 
 pub(crate) fn indices_to_u256(slot: U256, indices: &[U256]) -> U256 {
@@ -22,7 +22,19 @@ pub(crate) fn indices_to_u256(slot: U256, indices: &[U256]) -> U256 {
     result.into()
 }
 
+#[inline]
 pub(crate) fn address_to_u256(address: Address) -> U256 {
-    let encoded_as_u160: U160 = address.into();
-    U256::from(encoded_as_u160)
+    let address_u160: U160 = address.into();
+    U256::from(address_u160)
+}
+
+#[inline]
+pub(crate) fn tick_to_u256(tick: i32) -> U256 {
+    let tick_i256 = I256::try_from(tick).unwrap();
+    tick_i256.into_raw()
+}
+
+#[inline]
+pub(crate) fn keccak256_slice_list(slice_list: &[&[u8]]) -> B256 {
+    keccak256(slice_list.concat())
 }
