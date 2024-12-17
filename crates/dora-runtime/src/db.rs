@@ -270,6 +270,7 @@ impl MemoryDB {
     /// ```no_check
     /// let db = MemoryDB::new();
     /// ```
+    #[inline]
     pub fn new() -> Self {
         Self::default()
     }
@@ -433,7 +434,7 @@ impl MemoryDB {
             .unwrap_or_default()
     }
 
-    fn store_contract(&mut self, account: &AccountInfo) {
+    pub fn store_contract(&mut self, account: &AccountInfo) {
         if let Some(code) = account.code.as_ref() {
             self.contracts
                 .entry(account.code_hash)
