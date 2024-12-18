@@ -40,12 +40,22 @@ macro_rules! rewrite_ctx {
 }
 
 #[macro_export]
-macro_rules! syscall_ctx {
+macro_rules! block_argument {
     ($op:expr, $syscall_ctx:ident) => {
         let func_op = $op.parent_operation().unwrap();
         let region = func_op.region(0).unwrap();
         let func_block = region.first_block().unwrap();
         let $syscall_ctx = func_block.argument(0).unwrap();
+    };
+    ($op:expr, $syscall_ctx:ident, $gas_counter_ptr:ident) => {
+        let func_op = $op.parent_operation().unwrap();
+        let region = func_op.region(0).unwrap();
+        let func_block = region.first_block().unwrap();
+        let $syscall_ctx = func_block.argument(0).unwrap();
+        use melior::ir::ValueLike;
+        let $gas_counter_ptr: melior::ir::Value<'_, '_> = func_block.argument(1).unwrap().into();
+        let $gas_counter_ptr: melior::ir::Value<'_, '_> =
+            unsafe { melior::ir::Value::from_raw($gas_counter_ptr.to_raw()) };
     };
 }
 
@@ -320,11 +330,9 @@ macro_rules! ensure_non_staticcall {
 
 #[macro_export]
 macro_rules! gas_or_fail {
-    ($op:expr, $rewriter:ident, $gas_value:expr) => {
-        let gas_counter_ptr =
-            $rewriter.make($rewriter.addressof(GAS_COUNTER_GLOBAL, $rewriter.ptr_ty()))?;
+    ($op:expr, $rewriter:ident, $gas_value:expr, $gas_counter_ptr:expr) => {
         let gas_counter =
-            $rewriter.make($rewriter.load(gas_counter_ptr, $rewriter.intrinsics.i64_ty))?;
+            $rewriter.make($rewriter.load($gas_counter_ptr.into(), $rewriter.intrinsics.i64_ty))?;
         let out_of_gas = $rewriter.make(arith::cmpi(
             $rewriter.context(),
             arith::CmpiPredicate::Ult,
@@ -354,7 +362,7 @@ macro_rules! gas_or_fail {
                 rewriter.create(melior::dialect::llvm::store(
                     rewriter.context(),
                     new_gas_counter,
-                    gas_counter_ptr,
+                    $gas_counter_ptr,
                     rewriter.get_insert_location(),
                     melior::dialect::llvm::LoadStoreOptions::default(),
                 ));

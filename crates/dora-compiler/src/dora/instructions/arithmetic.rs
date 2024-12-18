@@ -1,6 +1,7 @@
 use crate::{
     arith_constant,
     backend::IntCC,
+    block_argument,
     conversion::{
         builder::OpBuilder,
         rewriter::{DeferredRewriter, Rewriter},
@@ -9,11 +10,11 @@ use crate::{
         conversion::ConversionPass, gas::compute_exp_cost, memory::allocate_u256_and_assign_value,
     },
     errors::Result,
-    gas_or_fail, maybe_revert_here, operands, rewrite_ctx, syscall_ctx,
+    gas_or_fail, maybe_revert_here, operands, rewrite_ctx,
 };
 use dora_primitives::SpecId;
+use dora_runtime::symbols;
 use dora_runtime::ExitStatusCode;
-use dora_runtime::{constants::GAS_COUNTER_GLOBAL, symbols};
 use melior::{
     dialect::{arith, cf, func, ods::llvm, scf},
     ir::{
@@ -199,10 +200,11 @@ impl<'c> ConversionPass<'c> {
         spec_id: &SpecId,
     ) -> Result<()> {
         operands!(op, l, r);
+        block_argument!(op, _system_ctx, gas_counter_ptr);
         let rewriter = Rewriter::new_with_op(context, *op);
         let gas = compute_exp_cost(&rewriter, r, spec_id)?;
-        gas_or_fail!(op, rewriter, gas);
-        syscall_ctx!(op, syscall_ctx);
+        gas_or_fail!(op, rewriter, gas, gas_counter_ptr);
+        block_argument!(op, syscall_ctx);
         rewrite_ctx!(context, op, rewriter, location);
         // Note the power i256 overflow, thus we use the pow runtime function to deal this situation.
         let base_ptr = allocate_u256_and_assign_value(context, &rewriter, l, location)?;

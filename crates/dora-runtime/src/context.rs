@@ -62,7 +62,7 @@ impl Default for Stack {
 /// Function type for the main entrypoint of the generated code.
 pub type MainFunc = extern "C" fn(
     *mut RuntimeContext,
-    initial_gas: u64,
+    initial_gas: *mut u64,
     stack: *mut Stack,
     stack_size: *mut u64,
 ) -> u8;

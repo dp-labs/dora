@@ -37,7 +37,7 @@ pub trait Artifact: Default + Debug + Clone {
     fn execute(
         &self,
         runtime_context: &mut RuntimeContext,
-        initial_gas: u64,
+        initial_gas: &mut u64,
         stack: &mut Stack,
         stack_size: &mut u64,
     ) -> u8;
@@ -95,7 +95,7 @@ impl Artifact for SymbolArtifact {
     fn execute(
         &self,
         runtime_context: &mut RuntimeContext,
-        initial_gas: u64,
+        initial_gas: &mut u64,
         stack: &mut Stack,
         stack_size: &mut u64,
     ) -> u8 {

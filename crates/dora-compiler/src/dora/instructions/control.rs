@@ -1,14 +1,14 @@
 use crate::{
     arith_constant,
     backend::IntCC,
-    check_op_oog,
+    block_argument, check_op_oog,
     conversion::{
         builder::OpBuilder,
         rewriter::{DeferredRewriter, Rewriter},
     },
-    dora::{conversion::ConversionPass, gas, memory},
+    dora::{conversion::ConversionPass, memory},
     errors::Result,
-    if_here, maybe_revert_here, operands, rewrite_ctx, syscall_ctx, u256_to_u64,
+    if_here, maybe_revert_here, operands, rewrite_ctx, u256_to_u64,
 };
 use dora_runtime::symbols;
 use dora_runtime::ExitStatusCode;
@@ -25,7 +25,7 @@ use melior::{
 impl<'c> ConversionPass<'c> {
     pub(crate) fn revert(context: &Context, op: &OperationRef<'_, '_>) -> Result<()> {
         operands!(op, offset, size);
-        syscall_ctx!(op, syscall_ctx);
+        block_argument!(op, syscall_ctx, gas_counter_ptr);
         let rewriter = Rewriter::new_with_op(context, *op);
         let uint8 = rewriter.intrinsics.i8_ty;
 
@@ -33,11 +33,20 @@ impl<'c> ConversionPass<'c> {
         let size_is_not_zero = rewriter.make(rewriter.icmp_imm(IntCC::NotEqual, size, 0)?)?;
         if_here!(op, rewriter, size_is_not_zero, {
             u256_to_u64!(op, rewriter, offset);
-            memory::resize_memory(context, op, &rewriter, syscall_ctx, offset, size)?;
+            memory::resize_memory(
+                context,
+                op,
+                &rewriter,
+                syscall_ctx,
+                gas_counter_ptr,
+                offset,
+                size,
+            )?;
         });
         rewrite_ctx!(context, op, rewriter, location);
         let offset = rewriter.make(arith::trunci(offset, rewriter.intrinsics.i64_ty, location))?;
-        let gas_counter = gas::get_gas_counter(&rewriter)?;
+        let gas_counter =
+            rewriter.make(rewriter.load(gas_counter_ptr, rewriter.intrinsics.i64_ty))?;
         let reason = rewriter.make(arith_constant!(
             rewriter,
             context,
