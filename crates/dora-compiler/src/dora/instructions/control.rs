@@ -15,7 +15,7 @@ use melior::{
     Context,
 };
 
-impl<'c> ConversionPass<'c> {
+impl ConversionPass<'_> {
     pub(crate) fn revert(context: &Context, op: &OperationRef<'_, '_>) -> Result<()> {
         operands!(op, offset, size);
         block_argument!(op, syscall_ctx, gas_counter_ptr);

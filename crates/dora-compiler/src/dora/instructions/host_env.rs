@@ -19,7 +19,7 @@ use melior::{
     Context,
 };
 
-impl<'c> ConversionPass<'c> {
+impl ConversionPass<'_> {
     pub(crate) fn chainid(context: &Context, op: &OperationRef<'_, '_>) -> Result<()> {
         block_argument!(op, syscall_ctx);
         rewrite_ctx!(context, op, rewriter, location);

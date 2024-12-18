@@ -164,7 +164,7 @@ impl<'c, 'a> OpBuilder<'c, 'a> {
     }
 }
 
-impl<'c, 'a> IRTypes for OpBuilder<'c, 'a> {
+impl<'c> IRTypes for OpBuilder<'c, '_> {
     type Type = Type<'c>;
     type Value = Value<'c, 'c>;
     type Region = Region<'c>;

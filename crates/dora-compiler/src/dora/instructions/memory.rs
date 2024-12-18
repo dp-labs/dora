@@ -21,7 +21,7 @@ use melior::{
     Context,
 };
 
-impl<'c> ConversionPass<'c> {
+impl ConversionPass<'_> {
     pub(crate) fn mload(context: &Context, op: &OperationRef<'_, '_>) -> Result<()> {
         operands!(op, offset);
         block_argument!(op, syscall_ctx, gas_counter_ptr);

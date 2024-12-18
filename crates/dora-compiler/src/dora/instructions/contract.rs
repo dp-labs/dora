@@ -24,7 +24,7 @@ use melior::{
 };
 use std::mem::offset_of;
 
-impl<'c> ConversionPass<'c> {
+impl ConversionPass<'_> {
     pub(crate) fn create(
         context: &Context,
         op: &OperationRef<'_, '_>,

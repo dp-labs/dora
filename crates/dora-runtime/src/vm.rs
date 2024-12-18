@@ -402,7 +402,7 @@ impl<'a, DB: Database> Deref for VM<'a, DB> {
     }
 }
 
-impl<'a, DB: Database> DerefMut for VM<'a, DB> {
+impl<DB: Database> DerefMut for VM<'_, DB> {
     fn deref_mut(&mut self) -> &mut Self::Target {
         &mut self.context
     }

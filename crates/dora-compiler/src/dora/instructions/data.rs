@@ -22,7 +22,7 @@ use melior::{
 };
 use num_bigint::BigUint;
 
-impl<'c> ConversionPass<'c> {
+impl ConversionPass<'_> {
     pub(crate) fn dataload(context: &Context, op: &OperationRef<'_, '_>) -> Result<()> {
         operands!(op, offset);
         block_argument!(op, syscall_ctx);

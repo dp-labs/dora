@@ -58,7 +58,7 @@ impl<'c, 'a> Deref for Rewriter<'c, 'a> {
     }
 }
 
-impl<'c, 'a> DerefMut for Rewriter<'c, 'a> {
+impl DerefMut for Rewriter<'_, '_> {
     fn deref_mut(&mut self) -> &mut Self::Target {
         &mut self.builder
     }
@@ -260,7 +260,7 @@ impl<'c, 'a> Replacer<'c, 'a> for Rewriter<'c, 'a> {
     }
 }
 
-impl<'c, 'a> Rewriter<'c, 'a> {
+impl<'c> Rewriter<'c, '_> {
     /// Erases an operation that is known to have no uses.
     ///
     /// # Parameters
@@ -381,7 +381,7 @@ impl<'c, 'a> Deref for DeferredRewriter<'c, 'a> {
     }
 }
 
-impl<'c, 'a> DerefMut for DeferredRewriter<'c, 'a> {
+impl DerefMut for DeferredRewriter<'_, '_> {
     fn deref_mut(&mut self) -> &mut Self::Target {
         &mut self.rewriter
     }

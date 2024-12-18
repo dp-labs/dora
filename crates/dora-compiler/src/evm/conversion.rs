@@ -49,7 +49,7 @@ pub struct ConversionPass<'c> {
     pub ctx: &'c Context,
 }
 
-impl<'c> ConversionPass<'c> {
+impl ConversionPass<'_> {
     /// Executes the conversion pass on the provided operation.
     ///
     /// This function transforms specific EVM (Ethereum Virtual Machine) operations into equivalent
@@ -909,7 +909,7 @@ impl<'c> RunExternalPass<'c> for ConversionPass<'c> {
     }
 }
 
-impl<'c> ConversionPass<'c> {
+impl ConversionPass<'_> {
     pub fn into_pass(self) -> Pass {
         create_external(
             self,

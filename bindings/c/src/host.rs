@@ -68,7 +68,7 @@ impl<'a> EvmcDelegateHost<'a> {
     }
 }
 
-impl<'a> Host for EvmcDelegateHost<'a> {
+impl Host for EvmcDelegateHost<'_> {
     #[inline]
     fn env(&self) -> &Env {
         &self.env

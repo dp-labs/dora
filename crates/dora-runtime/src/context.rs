@@ -671,7 +671,7 @@ impl<'a, DB: Database> VMContext<'a, DB> {
     }
 }
 
-impl<'a, DB: Database> Host for VMContext<'a, DB> {
+impl<DB: Database> Host for VMContext<'_, DB> {
     #[inline]
     fn env(&self) -> &Env {
         &self.env
@@ -1120,7 +1120,7 @@ impl<'a> RuntimeContext<'a> {
 }
 
 // System call functions
-impl<'a> RuntimeContext<'a> {
+impl RuntimeContext<'_> {
     extern "C" fn nop() {}
 
     extern "C" fn tracing(
@@ -1481,12 +1481,8 @@ impl<'a> RuntimeContext<'a> {
         if size != 0 {
             let data_offset = as_usize_saturated!(data_offset.to_u256());
             let memory_offset = memory_offset as usize;
-            self.memory_set_data(
-                memory_offset,
-                data_offset,
-                size,
-                &self.contract.code.eof().expect("eof").data().to_vec(),
-            );
+            let eof_data = self.contract.code.eof().expect("eof").data().to_vec();
+            self.memory_set_data(memory_offset, data_offset, size, &eof_data);
         }
     }
 
@@ -1962,7 +1958,7 @@ impl<'a> RuntimeContext<'a> {
 
 type SymbolSignature = (&'static str, *const fn() -> ());
 
-impl<'a> RuntimeContext<'a> {
+impl RuntimeContext<'_> {
     /// Registers all the syscalls as symbols in the execution engine.
     pub fn register_symbols(engine: &ExecutionEngine) {
         unsafe {

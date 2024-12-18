@@ -40,7 +40,7 @@ pub struct ConversionPass<'c> {
     pub limit_contract_code_size: Option<usize>,
 }
 
-impl<'c> ConversionPass<'c> {
+impl ConversionPass<'_> {
     /// Runs the conversion pass on a given operation, walking through the operations in the program
     /// and transforming specific Dora IR operations to their LLVM/MLIR equivalents.
     ///
@@ -273,7 +273,7 @@ impl<'c> RunExternalPass<'c> for ConversionPass<'c> {
     }
 }
 
-impl<'c> ConversionPass<'c> {
+impl ConversionPass<'_> {
     pub fn into_pass(self) -> Pass {
         create_external(
             self,
