@@ -10,7 +10,6 @@ use crate::{
 use crate::{check_op_oog, check_runtime_error, gas_or_fail, if_here, maybe_revert_here};
 use block::BlockArgument;
 use dora_runtime::constants;
-use dora_runtime::constants::GAS_COUNTER_GLOBAL;
 use dora_runtime::symbols;
 use dora_runtime::ExitStatusCode;
 use melior::dialect::arith::CmpiPredicate;
@@ -55,6 +54,7 @@ pub(crate) fn resize_memory<'c>(
     op: &OperationRef<'c, 'c>,
     rewriter: &'c Rewriter,
     syscall_ctx: BlockArgument<'c, 'c>,
+    gas_counter_ptr: Value<'c, 'c>,
     offset: Value<'c, 'c>,
     len: Value<'c, 'c>,
 ) -> Result<()> {
@@ -92,7 +92,7 @@ pub(crate) fn resize_memory<'c>(
         let memory_cost_before = memory_gas_cost(&rewriter, memory_size_words)?;
         let memory_cost_after = memory_gas_cost(&rewriter, required_size_words)?;
         let gas = rewriter.make(arith::subi(memory_cost_after, memory_cost_before, location))?;
-        gas_or_fail!(op, rewriter, gas);
+        gas_or_fail!(op, rewriter, gas, gas_counter_ptr);
         let rewriter = Rewriter::new_with_op(context, *op);
         let result_ptr = rewriter.make(func::call(
             context,

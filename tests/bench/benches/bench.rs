@@ -78,14 +78,14 @@ fn run_bench(c: &mut Criterion, bench: &Bench) {
     let executor = Executor::new(module.module(), Default::default());
     let func = executor.get_main_entrypoint();
     let ctx = black_box(&mut context);
-    let gas = black_box(gas_limit);
 
     g.bench_function("dora", |b| {
         b.iter(|| {
-            func(ctx, gas, &mut Stack::new(), &mut 0);
+            let mut gas = black_box(gas_limit);
+            func(ctx, &mut gas, &mut Stack::new(), &mut 0);
+            assert!(ctx.status().is_ok());
         })
     });
-
     if let Some(native) = *native {
         g.bench_function("native", |b| b.iter(native));
     }
@@ -225,7 +225,8 @@ fn run_uniswapv3_bench(c: &mut Criterion) {
     let mut g = mk_group(c, "uniswapv3");
     g.bench_function("dora", |b| {
         b.iter(|| {
-            let _result = run_evm(env.clone(), db.clone(), SpecId::CANCUN).unwrap();
+            let result = run_evm(env.clone(), db.clone(), SpecId::CANCUN).unwrap();
+            assert!(result.result.is_success());
         })
     });
 

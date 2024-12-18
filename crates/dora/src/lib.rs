@@ -85,9 +85,10 @@ pub fn call_frame<DB: Database>(
         ctx,
         spec_id,
     );
+    let mut initial_gas = frame.gas_limit;
     artifact.execute(
         &mut runtime_context,
-        frame.gas_limit,
+        &mut initial_gas,
         &mut Stack::new(),
         &mut 0,
     );
@@ -106,7 +107,8 @@ pub fn run_with_context<DB: Database>(
         &runtime_context.contract.code,
         runtime_context.inner.spec_id,
     )?;
-    Ok(artifact.execute(runtime_context, initial_gas, &mut Stack::new(), &mut 0))
+    let mut initial_gas = initial_gas;
+    Ok(artifact.execute(runtime_context, &mut initial_gas, &mut Stack::new(), &mut 0))
 }
 
 /// Build opcode to the artifact

@@ -2,9 +2,7 @@ use dora_primitives::SpecId;
 use dora_runtime::constants::env::DORA_TRACING;
 use dora_runtime::ExitStatusCode;
 use dora_runtime::{
-    constants::{
-        GAS_COUNTER_GLOBAL, MAIN_ENTRYPOINT, MAX_STACK_SIZE, MEMORY_PTR_GLOBAL, MEMORY_SIZE_GLOBAL,
-    },
+    constants::{MAIN_ENTRYPOINT, MAX_STACK_SIZE, MEMORY_PTR_GLOBAL, MEMORY_SIZE_GLOBAL},
     symbols,
 };
 use melior::{
@@ -409,9 +407,8 @@ impl<'c> EVMCompiler<'c> {
         let builder = OpBuilder::new_with_block(ctx.context, gas_check_block);
         let location = builder.get_insert_location();
         // Get address of gas counter global
-        let gas_counter_ptr =
-            builder.make(builder.addressof(GAS_COUNTER_GLOBAL, builder.ptr_ty()))?;
-        let gas_counter = builder.make(builder.load(gas_counter_ptr, builder.intrinsics.i64_ty))?;
+        let gas_counter =
+            builder.make(builder.load(ctx.values.gas_counter_ptr, builder.intrinsics.i64_ty))?;
         let gas_value = builder.make(builder.iconst_64(base_gas as i64))?;
         if std::env::var(DORA_TRACING).is_ok() {
             let opcode = builder
@@ -462,7 +459,7 @@ impl<'c> EVMCompiler<'c> {
         builder.create(llvm::store(
             builder.context(),
             new_gas_counter,
-            gas_counter_ptr,
+            ctx.values.gas_counter_ptr,
             location,
             LoadStoreOptions::default(),
         ));
@@ -488,8 +485,8 @@ impl<'c> EVMCompiler<'c> {
                     &[
                         // RuntimeContext
                         self.intrinsics.ptr_ty,
-                        // Initial gas
-                        self.intrinsics.i64_ty,
+                        // Gas counter ptr
+                        self.intrinsics.ptr_ty,
                         // Stack pointer
                         self.intrinsics.ptr_ty,
                         // Stack size pointer
@@ -547,9 +544,8 @@ impl<'c> EVMCompiler<'c> {
             .result(0)?
             .into();
 
-        let gas_counter_ptr =
-            builder.make(builder.addressof(GAS_COUNTER_GLOBAL, builder.ptr_ty()))?;
-        let gas_counter = builder.make(builder.load(gas_counter_ptr, builder.intrinsics.i64_ty))?;
+        let gas_counter =
+            builder.make(builder.load(ctx.values.gas_counter_ptr, builder.intrinsics.i64_ty))?;
 
         builder.create(func::call(
             builder.context(),
@@ -678,9 +674,11 @@ pub struct CtxType<'c> {
 pub struct CtxValues<'c> {
     /// The system call context value used during EVM execution.
     pub syscall_ctx: Value<'c, 'c>,
-    /// The address of the global stack pointer
+    /// The gas counter pointer used during EVM execution and it's type is a `*mut u64`.
+    pub gas_counter_ptr: Value<'c, 'c>,
+    /// The address of the global stack pointer and it's type is a `*mut Stack`
     pub stack_ptr: Value<'c, 'c>,
-    /// The address of the global stack size
+    /// The address of the global stack size and it's type is a `*mut u64`.
     pub stack_size_ptr: Value<'c, 'c>,
 }
 
@@ -711,17 +709,20 @@ impl<'c> CtxType<'c> {
         let intrinsics = Intrinsics::declare(context);
         let location = Location::unknown(&context.mlir_context);
         let syscall_ctx = block.add_argument(intrinsics.ptr_ty, location);
-        let initial_gas = block.add_argument(intrinsics.i64_ty, location);
+        let gas_counter_ptr = block.add_argument(intrinsics.ptr_ty, location);
         let stack_ptr = block.add_argument(intrinsics.ptr_ty, location);
         let stack_size_ptr = block.add_argument(intrinsics.ptr_ty, location);
         let op_builder = OpBuilder::new(&context.mlir_context);
 
         SetupBuilder::new(&context.mlir_context, module, block, &op_builder)
             .memory()?
-            .gas_counter(initial_gas)?
             .declare_symbols()?;
 
-        let revert_block = region.append_block(revert_block(&context.mlir_context, syscall_ctx)?);
+        let revert_block = region.append_block(revert_block(
+            &context.mlir_context,
+            syscall_ctx,
+            gas_counter_ptr,
+        )?);
         let uint256 = op_builder.intrinsics.i256_ty;
         let jumptable_block = region.append_block(Block::new(&[(uint256, location)]));
 
@@ -730,6 +731,7 @@ impl<'c> CtxType<'c> {
             program,
             values: CtxValues {
                 syscall_ctx,
+                gas_counter_ptr,
                 stack_ptr,
                 stack_size_ptr,
             },
@@ -855,7 +857,11 @@ impl<'c> CtxType<'c> {
 /// - Creation of a reason constant based on the exit status code for errors.
 /// - A call to `WRITE_RESULT` with the syscall context and error information.
 /// - A return operation that provides the reason for the revert.
-pub fn revert_block<'c>(context: &'c MLIRContext, syscall_ctx: Value<'c, 'c>) -> Result<Block<'c>> {
+pub fn revert_block<'c>(
+    context: &'c MLIRContext,
+    syscall_ctx: Value<'c, 'c>,
+    gas_counter_ptr: Value<'c, 'c>,
+) -> Result<Block<'c>> {
     let builder = OpBuilder::new(context);
     let block = Block::new(&[(builder.intrinsics.i8_ty, builder.unknown_loc())]);
     let location = builder.unknown_loc();
@@ -866,10 +872,6 @@ pub fn revert_block<'c>(context: &'c MLIRContext, syscall_ctx: Value<'c, 'c>) ->
         .into();
     let reason = block.argument(0)?.into();
 
-    let gas_counter_ptr = block
-        .append_operation(builder.addressof(GAS_COUNTER_GLOBAL, builder.ptr_ty()))
-        .result(0)?
-        .into();
     let gas_counter = block
         .append_operation(builder.load(gas_counter_ptr, builder.intrinsics.i64_ty))
         .result(0)?
@@ -979,27 +981,6 @@ impl<'c> SetupBuilder<'c> {
         Ok(self)
     }
 
-    /// Declares a global for the gas counter and initializes it with the provided initial gas value.
-    ///
-    /// This method sets up the gas tracking mechanism for EVM execution.
-    ///
-    /// # Parameters
-    /// * `initial_gas` - The value representing the initial amount of gas available for execution.
-    ///
-    /// # Returns
-    /// A reference to `self` for method chaining.
-    ///
-    /// # Errors
-    /// Returns an error if global declarations or initialization fails.
-    pub fn gas_counter(&self, initial_gas: Value<'c, 'c>) -> Result<&Self> {
-        let uint64 = self.builder.intrinsics.i64_ty;
-
-        self.declare_globals(&[GAS_COUNTER_GLOBAL], uint64)?
-            .store_to_global(GAS_COUNTER_GLOBAL, initial_gas)?;
-
-        Ok(self)
-    }
-
     /// Declares the necessary symbols within the module.
     ///
     /// This method sets up the symbol context for further operations.
@@ -1053,22 +1034,6 @@ impl<'c> SetupBuilder<'c> {
             self.context,
             initial_value,
             global_ptr,
-            self.location,
-            LoadStoreOptions::default(),
-        ));
-        Ok(self)
-    }
-
-    fn store_to_global(&self, global: &str, value: Value<'c, 'c>) -> Result<&Self> {
-        let global_ptr = self
-            .block
-            .append_operation(self.builder.addressof(global, self.builder.ptr_ty()))
-            .result(0)?;
-
-        self.block.append_operation(llvm::store(
-            self.context,
-            value,
-            global_ptr.into(),
             self.location,
             LoadStoreOptions::default(),
         ));

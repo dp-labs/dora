@@ -1,8 +1,7 @@
-use crate::{conversion::rewriter::Rewriter, errors::Result, load_by_addr};
+use crate::{conversion::rewriter::Rewriter, errors::Result};
 use dora_primitives::spec::SpecId;
-use dora_runtime::constants::{
-    self,
-    gas_cost::{self, COPY_WORD_COST, INITCODE_WORD_COST, KECCAK256_WORD_COST},
+use dora_runtime::constants::gas_cost::{
+    self, COPY_WORD_COST, INITCODE_WORD_COST, KECCAK256_WORD_COST,
 };
 use melior::{
     dialect::{
@@ -11,15 +10,6 @@ use melior::{
     },
     ir::{Block, Location, Region, Value},
 };
-
-pub(crate) fn get_gas_counter<'c>(rewriter: &'c Rewriter) -> Result<Value<'c, 'c>> {
-    let gas_counter = load_by_addr!(
-        rewriter,
-        constants::GAS_COUNTER_GLOBAL,
-        rewriter.intrinsics.i64_ty
-    );
-    Ok(gas_counter)
-}
 
 /// Calculate the cost of the `EXP` opcode.
 pub(crate) fn compute_exp_cost<'c>(

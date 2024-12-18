@@ -4,8 +4,6 @@ pub const MAX_STACK_SIZE: usize = 1024;
 pub const CALL_STACK_LIMIT: usize = 1024;
 
 // Global pointers and constants
-pub const GAS_COUNTER_GLOBAL: &str = "dora_global_gas_counter";
-pub const CODE_PTR_GLOBAL: &str = "dora_global_code_ptr_global";
 pub const MEMORY_PTR_GLOBAL: &str = "dora_global_memory_ptr";
 pub const MEMORY_SIZE_GLOBAL: &str = "dora_global_memory_size";
 pub const MAIN_ENTRYPOINT: &str = "main";
