@@ -3,8 +3,7 @@ use dora_runtime::constants::env::DORA_TRACING;
 use dora_runtime::ExitStatusCode;
 use dora_runtime::{
     constants::{
-        CALLDATA_PTR_GLOBAL, CALLDATA_SIZE_GLOBAL, GAS_COUNTER_GLOBAL, MAIN_ENTRYPOINT,
-        MAX_STACK_SIZE, MEMORY_PTR_GLOBAL, MEMORY_SIZE_GLOBAL,
+        GAS_COUNTER_GLOBAL, MAIN_ENTRYPOINT, MAX_STACK_SIZE, MEMORY_PTR_GLOBAL, MEMORY_SIZE_GLOBAL,
     },
     symbols,
 };
@@ -719,7 +718,6 @@ impl<'c> CtxType<'c> {
 
         SetupBuilder::new(&context.mlir_context, module, block, &op_builder)
             .memory()?
-            .calldata(syscall_ctx)?
             .gas_counter(initial_gas)?
             .declare_symbols()?;
 
@@ -977,54 +975,6 @@ impl<'c> SetupBuilder<'c> {
         self.declare_globals(&[MEMORY_SIZE_GLOBAL], uint64)?;
         let zero = self.constant(0)?;
         self.initialize_global(MEMORY_SIZE_GLOBAL, ptr_type, zero)?;
-
-        Ok(self)
-    }
-
-    /// Declares globals for calldata pointer and size, retrieves their values from the syscall context,
-    /// and stores them in the globals.
-    ///
-    /// This method sets up the calldata structure for EVM execution.
-    ///
-    /// # Parameters
-    /// * `syscall_ctx` - The value representing the syscall context used to retrieve calldata information.
-    ///
-    /// # Returns
-    /// A reference to `self` for method chaining.
-    ///
-    /// # Errors
-    /// Returns an error if global declarations or data retrieval fails.
-    pub fn calldata(&self, syscall_ctx: Value<'c, 'c>) -> Result<&Self> {
-        let ptr_type = self.builder.intrinsics.ptr_ty;
-        let uint64 = self.builder.intrinsics.i64_ty;
-        self.declare_globals(&[CALLDATA_PTR_GLOBAL], ptr_type)?;
-        self.declare_globals(&[CALLDATA_SIZE_GLOBAL], uint64)?;
-
-        let calldata_ptr = self
-            .block
-            .append_operation(func::call(
-                self.context,
-                FlatSymbolRefAttribute::new(self.context, symbols::CALLDATA),
-                &[syscall_ctx],
-                &[ptr_type],
-                self.location,
-            ))
-            .result(0)?
-            .into();
-        self.store_to_global(CALLDATA_PTR_GLOBAL, calldata_ptr)?;
-
-        let calldata_size = self
-            .block
-            .append_operation(func::call(
-                self.context,
-                FlatSymbolRefAttribute::new(self.context, symbols::CALLDATA_SIZE),
-                &[syscall_ctx],
-                &[uint64],
-                self.location,
-            ))
-            .result(0)?
-            .into();
-        self.store_to_global(CALLDATA_SIZE_GLOBAL, calldata_size)?;
 
         Ok(self)
     }
