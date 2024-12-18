@@ -188,16 +188,6 @@ macro_rules! load_var {
 }
 
 #[macro_export]
-macro_rules! load_by_addr {
-    ($rewriter:expr, $name:expr, $rtn_type:expr) => {
-        $rewriter.make($rewriter.load(
-            $rewriter.make($rewriter.addressof($name, $rewriter.ptr_ty()))?,
-            $rtn_type,
-        ))?
-    };
-}
-
-#[macro_export]
 macro_rules! store_var {
     ($rewriter:expr, $context:expr, $value:expr, $addr:expr, $location:expr) => {{
         llvm::store(

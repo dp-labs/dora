@@ -1436,13 +1436,19 @@ impl<'a> RuntimeContext<'a> {
         address.copy_from(&self.host.env().tx.caller);
     }
 
-    pub extern "C" fn extend_memory(&mut self, new_size: u64) -> *mut RuntimeResult<*mut u8> {
+    pub extern "C" fn memory_ptr(&mut self) -> *mut u8 {
+        self.inner.memory.as_mut_ptr() as _
+    }
+
+    pub extern "C" fn memory_size(&mut self) -> u64 {
+        self.inner.memory.len() as _
+    }
+
+    pub extern "C" fn extend_memory(&mut self, new_size: u64) -> *mut RuntimeResult<()> {
         // Note the overflow on the 32-bit machine for the max memory e.g., 4GB
         let new_size = new_size as usize;
         if new_size <= self.inner.memory.len() {
-            return Box::into_raw(Box::new(RuntimeResult::success(
-                self.inner.memory.as_mut_ptr() as _,
-            )));
+            return Box::into_raw(Box::new(RuntimeResult::success(())));
         }
         // Check the memory usage bound
         match self
@@ -1452,13 +1458,11 @@ impl<'a> RuntimeContext<'a> {
         {
             Ok(()) => {
                 self.inner.memory.resize(new_size, 0);
-                Box::into_raw(Box::new(RuntimeResult::success(
-                    self.inner.memory.as_mut_ptr() as _,
-                )))
+                Box::into_raw(Box::new(RuntimeResult::success(())))
             }
             Err(_) => Box::into_raw(Box::new(RuntimeResult::error(
                 ExitStatusCode::MemoryLimitOOG.to_u8(),
-                std::ptr::null_mut(),
+                (),
             ))),
         }
     }
@@ -1969,6 +1973,11 @@ impl<'a> RuntimeContext<'a> {
                 (
                     symbols::EXTEND_MEMORY,
                     RuntimeContext::extend_memory as *const _,
+                ),
+                (symbols::MEMORY_PTR, RuntimeContext::memory_ptr as *const _),
+                (
+                    symbols::MEMORY_SIZE,
+                    RuntimeContext::memory_size as *const _,
                 ),
                 (symbols::SLOAD, RuntimeContext::sload as *const _),
                 (symbols::SSTORE, RuntimeContext::sstore as *const _),

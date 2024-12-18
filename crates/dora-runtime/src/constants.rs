@@ -3,12 +3,9 @@ use thiserror::Error;
 pub const MAX_STACK_SIZE: usize = 1024;
 pub const CALL_STACK_LIMIT: usize = 1024;
 
-// Global pointers and constants
-pub const MEMORY_PTR_GLOBAL: &str = "dora_global_memory_ptr";
-pub const MEMORY_SIZE_GLOBAL: &str = "dora_global_memory_size";
+/// MLIR main entry point name.
 pub const MAIN_ENTRYPOINT: &str = "main";
-
-// Versioning and blob constants
+/// Versioning and blob constants
 pub const VERSIONED_HASH_VERSION_KZG: u8 = 0x01;
 /// Target number of the blob per block.
 pub const TARGET_BLOB_NUMBER_PER_BLOCK: u64 = 3;
