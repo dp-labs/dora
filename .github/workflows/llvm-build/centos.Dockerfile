@@ -23,9 +23,13 @@ RUN sed -i s/mirror.centos.org/vault.centos.org/g /etc/yum.repos.d/*.repo
 RUN sed -i s/^#.*baseurl=http/baseurl=http/g /etc/yum.repos.d/*.repo
 RUN sed -i s/^mirrorlist=http/#mirrorlist=http/g /etc/yum.repos.d/*.repo
 
-RUN yum install --assumeyes --nogpgcheck llvm-toolset-13.0
+RUN yum -y install centos-release-scl
+RUN yum-config-manager --enable rhel-server-rhscl-7-rpms
+RUN yum -y install llvm-toolset-7.0
+
+# RUN yum install --assumeyes --nogpgcheck llvm-toolset-13.0
 RUN yum install --assumeyes rh-python38-python-devel rh-python38-python-pip
-SHELL [ "/usr/bin/scl", "enable", "llvm-toolset-13.0", "rh-python38" ]
+SHELL [ "/usr/bin/scl", "enable", "llvm-toolset-7.0", "rh-python38" ]
 
 RUN python3 -m pip install --upgrade pip
 RUN python3 -m pip install --upgrade cmake ninja sccache
@@ -35,7 +39,7 @@ RUN python3 -m pip install -r /source/llvm-project/mlir/python/requirements.txt
 
 # Configure, Build, Test, and Install LLVM
 RUN cmake -GNinja -Bbuild \
-  -DLLVM_ENABLE_PROJECTS="mlir;clang;clang-tools-extra;lld;polly" \
+  -DLLVM_ENABLE_PROJECTS="mlir" \
   -DCMAKE_BUILD_TYPE=Release \
   -DCMAKE_C_COMPILER=clang \
   -DCMAKE_CXX_COMPILER=clang++ \
