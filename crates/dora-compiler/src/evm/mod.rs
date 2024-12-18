@@ -5,6 +5,7 @@ use dora_runtime::{
     constants::{MAIN_ENTRYPOINT, MAX_STACK_SIZE},
     symbols,
 };
+use melior::dialect::llvm::AllocaOptions;
 use melior::{
     dialect::{
         arith, cf, func,
@@ -336,6 +337,8 @@ impl<'c> EVMCompiler<'c> {
         ))?;
         // Check potential underflow/overflow
         if may_underflow && may_overflow {
+            // Update the stack length for this operation.
+            builder.create(builder.store(size_after, ctx.values.stack_size_ptr));
             // Check underflow
             let i = builder.make(builder.iconst_64(section_input as i64))?;
             let underflow = builder.make(builder.icmp(IntCC::UnsignedLessThan, size_before, i))?;
@@ -356,6 +359,8 @@ impl<'c> EVMCompiler<'c> {
                 location,
             ));
         } else if may_underflow {
+            // Update the stack length for this operation.
+            builder.create(builder.store(size_after, ctx.values.stack_size_ptr));
             // Whether revert (or underflow)
             let i = builder.make(builder.iconst_64(section_input as i64))?;
 
@@ -373,10 +378,11 @@ impl<'c> EVMCompiler<'c> {
                 location,
             ));
         } else if may_overflow {
+            // Update the stack length for this operation.
+            builder.create(builder.store(size_after, ctx.values.stack_size_ptr));
             // Whether revert (or overflow)
             let revert =
                 builder.make(builder.icmp(IntCC::UnsignedLessThan, stack_max_size, size_after))?;
-
             let code =
                 builder.make(builder.iconst_8(ExitStatusCode::StackOverflow.to_u8() as i8))?;
             builder.create(cf::cond_br(
@@ -389,6 +395,8 @@ impl<'c> EVMCompiler<'c> {
                 location,
             ));
         } else {
+            // Update the stack length for this operation.
+            builder.create(builder.store(size_after, ctx.values.stack_size_ptr));
             builder.create(cf::br(&block_start, &[], location));
         }
         Ok(stack_check_block)
@@ -678,6 +686,8 @@ pub struct CtxValues<'c> {
     pub gas_counter_ptr: Value<'c, 'c>,
     /// The address of the global stack pointer and it's type is a `*mut Stack`
     pub stack_ptr: Value<'c, 'c>,
+    /// The address of the global stack top pointer and it's type is a `*mut *mut Stack`
+    pub stack_top_ptr: Value<'c, 'c>,
     /// The address of the global stack size and it's type is a `*mut u64`.
     pub stack_size_ptr: Value<'c, 'c>,
 }
@@ -712,16 +722,32 @@ impl<'c> CtxType<'c> {
         let gas_counter_ptr = block.add_argument(intrinsics.ptr_ty, location);
         let stack_ptr = block.add_argument(intrinsics.ptr_ty, location);
         let stack_size_ptr = block.add_argument(intrinsics.ptr_ty, location);
-        let op_builder = OpBuilder::new(&context.mlir_context);
+        let builder = OpBuilder::new(&context.mlir_context);
 
         SetupBuilder::new(&context.mlir_context, module).declare_symbols()?;
+
+        let array_size = block
+            .append_operation(builder.iconst_64(0))
+            .result(0)?
+            .into();
+        let stack_top_ptr = block
+            .append_operation(llvm::alloca(
+                &context.mlir_context,
+                array_size,
+                builder.ptr_ty(),
+                location,
+                AllocaOptions::new().elem_type(Some(TypeAttribute::new(builder.intrinsics.ptr_ty))),
+            ))
+            .result(0)?
+            .into();
+        block.append_operation(builder.store(stack_ptr, stack_top_ptr));
 
         let revert_block = region.append_block(revert_block(
             &context.mlir_context,
             syscall_ctx,
             gas_counter_ptr,
         )?);
-        let uint256 = op_builder.intrinsics.i256_ty;
+        let uint256 = builder.intrinsics.i256_ty;
         let jumptable_block = region.append_block(Block::new(&[(uint256, location)]));
 
         Ok(CtxType {
@@ -731,6 +757,7 @@ impl<'c> CtxType<'c> {
                 syscall_ctx,
                 gas_counter_ptr,
                 stack_ptr,
+                stack_top_ptr,
                 stack_size_ptr,
             },
             revert_block,
