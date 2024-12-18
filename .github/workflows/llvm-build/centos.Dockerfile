@@ -18,6 +18,7 @@ RUN sed -i s/^mirrorlist=http/#mirrorlist=http/g /etc/yum.repos.d/*.repo
 # Install build dependencies
 RUN yum install --assumeyes centos-release-scl
 
+
 # The definition of insanity is doing the same thing and expecting a different result
 RUN sed -i s/mirror.centos.org/vault.centos.org/g /etc/yum.repos.d/*.repo
 RUN sed -i s/^#.*baseurl=http/baseurl=http/g /etc/yum.repos.d/*.repo
