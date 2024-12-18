@@ -11,7 +11,7 @@ use dora_compiler::evm::{CompileOptions, Program};
 use dora_compiler::{dora, evm, pass, Compiler, Context, EVMCompiler};
 use dora_primitives::{address, fixed_bytes, uint, Address, Bytecode, B256, U256};
 use dora_primitives::{spec::SpecId, Bytes};
-use dora_runtime::context::{Contract, RuntimeContext};
+use dora_runtime::context::{Contract, RuntimeContext, Stack};
 use dora_runtime::db::{Database, MemoryDB};
 use dora_runtime::env::{Env, TxEnv, TxKind};
 use dora_runtime::executor::Executor;
@@ -82,7 +82,7 @@ fn run_bench(c: &mut Criterion, bench: &Bench) {
 
     g.bench_function("dora", |b| {
         b.iter(|| {
-            func(ctx, gas);
+            func(ctx, gas, &mut Stack::new(), &mut 0);
         })
     });
 

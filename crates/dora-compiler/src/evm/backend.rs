@@ -3,7 +3,7 @@ use crate::conversion::builder::OpBuilder;
 use crate::errors::{CompileError, Result};
 use crate::value::ToContextValue;
 use dora_ir::IRTypes;
-use dora_runtime::constants::{MAX_STACK_SIZE, STACK_PTR_GLOBAL};
+use dora_runtime::constants::MAX_STACK_SIZE;
 use melior::dialect::arith::CmpiPredicate;
 use melior::dialect::llvm::LoadStoreOptions;
 use melior::dialect::{arith, cf, func, llvm};
@@ -165,44 +165,47 @@ impl<'a, 'c> crate::backend::Builder for EVMBuilder<'a, 'c> {
 
     fn stack_push(&mut self, value: Self::Value) -> Result<()> {
         let value = unsafe { Value::from_raw(value.to_raw()) };
-
         let builder = &self.builder;
-        // Get address of stack pointer global
-        let stack_ptr_ptr = builder.make(builder.addressof(STACK_PTR_GLOBAL, builder.ptr_ty()))?;
-        // Load stack pointer
-        let stack_ptr = builder.make(builder.load(stack_ptr_ptr, builder.ptr_ty()))?;
-        builder.create(builder.store(value, stack_ptr));
-        // Increment stack pointer
-        let new_stack_ptr = builder.make(llvm::get_element_ptr(
+        let stack_size = builder
+            .make(builder.load(self.ctx.values.stack_size_ptr, builder.intrinsics.i64_ty))?;
+        // Load stack top pointer
+        let stack_top_ptr = builder.make(llvm::get_element_ptr_dynamic(
             builder.context(),
-            stack_ptr,
-            DenseI32ArrayAttribute::new(builder.context(), &[1]),
+            self.ctx.values.stack_ptr,
+            &[stack_size],
             builder.intrinsics.i256_ty,
             builder.ptr_ty(),
             builder.get_insert_location(),
         ))?;
-        builder.create(builder.store(new_stack_ptr, stack_ptr_ptr));
-
+        let size_after = builder.make(arith::addi(
+            stack_size,
+            builder.make(builder.iconst_64(1))?,
+            builder.get_insert_location(),
+        ))?;
+        builder.create(builder.store(size_after, self.ctx.values.stack_size_ptr));
+        builder.create(builder.store(value, stack_top_ptr));
         Ok(())
     }
 
     fn stack_pop(&mut self) -> Result<Self::Value> {
         let builder = &self.builder;
-        // Get address of stack pointer global
-        let stack_ptr_ptr = builder.make(builder.addressof(STACK_PTR_GLOBAL, builder.ptr_ty()))?;
-        // Load stack pointer
-        let stack_ptr = builder.make(builder.load(stack_ptr_ptr, builder.ptr_ty()))?;
-        // Decrement stack pointer
-        let old_stack_ptr = builder.make(llvm::get_element_ptr(
+        let stack_size = builder
+            .make(builder.load(self.ctx.values.stack_size_ptr, builder.intrinsics.i64_ty))?;
+        let size_after = builder.make(arith::subi(
+            stack_size,
+            builder.make(builder.iconst_64(1))?,
+            builder.get_insert_location(),
+        ))?;
+        let stack_ptr = builder.make(llvm::get_element_ptr_dynamic(
             builder.context(),
-            stack_ptr,
-            DenseI32ArrayAttribute::new(builder.context(), &[-1]),
+            self.ctx.values.stack_ptr,
+            &[size_after],
             builder.intrinsics.i256_ty,
             builder.ptr_ty(),
             builder.get_insert_location(),
         ))?;
-        let value = builder.make(builder.load(old_stack_ptr, builder.intrinsics.i256_ty))?;
-        builder.create(builder.store(old_stack_ptr, stack_ptr_ptr));
+        builder.create(builder.store(size_after, self.ctx.values.stack_size_ptr));
+        let value = builder.make(builder.load(stack_ptr, builder.intrinsics.i256_ty))?;
         Ok(unsafe { Value::from_raw(value.to_raw()) })
     }
 
@@ -213,16 +216,22 @@ impl<'a, 'c> crate::backend::Builder for EVMBuilder<'a, 'c> {
 
     fn stack_peek_nth(&mut self, n: usize) -> Result<Self::Value> {
         debug_assert!(n < MAX_STACK_SIZE);
-
         let builder = &self.builder;
-        // Get address of stack pointer global
-        let stack_ptr_ptr = builder.make(builder.addressof(STACK_PTR_GLOBAL, builder.ptr_ty()))?;
-        // Load stack pointer
-        let stack_ptr = builder.make(builder.load(stack_ptr_ptr, builder.ptr_ty()))?;
+        let stack_size = builder
+            .make(builder.load(self.ctx.values.stack_size_ptr, builder.intrinsics.i64_ty))?;
+        // Load stack top pointer
+        let stack_top_ptr = builder.make(llvm::get_element_ptr_dynamic(
+            builder.context(),
+            self.ctx.values.stack_ptr,
+            &[stack_size],
+            builder.intrinsics.i256_ty,
+            builder.ptr_ty(),
+            builder.get_insert_location(),
+        ))?;
         // n-th stack pointer
         let nth_stack_ptr = builder.make(llvm::get_element_ptr(
             builder.context(),
-            stack_ptr,
+            stack_top_ptr,
             DenseI32ArrayAttribute::new(builder.context(), &[-(n as i32)]),
             builder.intrinsics.i256_ty,
             builder.ptr_ty(),
@@ -236,14 +245,21 @@ impl<'a, 'c> crate::backend::Builder for EVMBuilder<'a, 'c> {
         let n = n + 1;
         let m = m + 1;
         let builder = &self.builder;
-        // Get address of stack pointer global
-        let stack_ptr_ptr = builder.make(builder.addressof(STACK_PTR_GLOBAL, builder.ptr_ty()))?;
-        // Load stack pointer
-        let stack_ptr = builder.make(builder.load(stack_ptr_ptr, builder.ptr_ty()))?;
+        let stack_size = builder
+            .make(builder.load(self.ctx.values.stack_size_ptr, builder.intrinsics.i64_ty))?;
+        // Load stack top pointer
+        let stack_top_ptr = builder.make(llvm::get_element_ptr_dynamic(
+            builder.context(),
+            self.ctx.values.stack_ptr,
+            &[stack_size],
+            builder.intrinsics.i256_ty,
+            builder.ptr_ty(),
+            builder.get_insert_location(),
+        ))?;
         // n-th stack pointer
         let nth_stack_ptr = builder.make(llvm::get_element_ptr(
             builder.context(),
-            stack_ptr,
+            stack_top_ptr,
             DenseI32ArrayAttribute::new(builder.context(), &[-(n as i32)]),
             builder.intrinsics.i256_ty,
             builder.ptr_ty(),
@@ -252,7 +268,7 @@ impl<'a, 'c> crate::backend::Builder for EVMBuilder<'a, 'c> {
         // m-th stack pointer
         let mth_stack_ptr = builder.make(llvm::get_element_ptr(
             builder.context(),
-            stack_ptr,
+            stack_top_ptr,
             DenseI32ArrayAttribute::new(builder.context(), &[-(m as i32)]),
             builder.intrinsics.i256_ty,
             builder.ptr_ty(),
