@@ -16,7 +16,9 @@ pub(crate) fn declare_symbols(context: &MLIRContext, module: &MLIRModule) {
 
     let ptr_type = builder.intrinsics.ptr_ty;
     let uint8 = builder.intrinsics.i8_ty;
+    let uint16 = builder.intrinsics.i16_ty;
     let uint64 = builder.intrinsics.i64_ty;
+
     let attributes = &[(
         Identifier::new(context, "sym_visibility"),
         builder.str_attr("private").into(),
@@ -47,6 +49,8 @@ pub(crate) fn declare_symbols(context: &MLIRContext, module: &MLIRModule) {
             &[],
         ),
         (symbols::CALLDATA_SIZE, &[ptr_type], &[uint64]),
+        (symbols::DATA_SECTION, &[ptr_type], &[ptr_type]),
+        (symbols::DATA_SECTION_SIZE, &[ptr_type], &[uint16]),
         (symbols::CHAINID, &[ptr_type], &[uint64]),
         (symbols::CALLVALUE, &[ptr_type, ptr_type], &[]),
         (symbols::CALLER, &[ptr_type, ptr_type], &[]),

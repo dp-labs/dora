@@ -1444,6 +1444,14 @@ impl<'a> RuntimeContext<'a> {
         self.contract.input.len() as u64
     }
 
+    pub extern "C" fn data_section(&mut self) -> *mut u8 {
+        self.contract.code.eof().expect("eof").data().as_ptr() as _
+    }
+
+    pub extern "C" fn data_section_size(&self) -> u16 {
+        self.contract.code.eof().expect("eof").header.data_size
+    }
+
     extern "C" fn origin(&self, address: &mut Bytes32) {
         address.copy_from(&self.host.env().tx.caller);
     }
@@ -1986,6 +1994,14 @@ impl<'a> RuntimeContext<'a> {
                 (
                     symbols::CALLDATA_SIZE,
                     RuntimeContext::calldata_size as *const _,
+                ),
+                (
+                    symbols::DATA_SECTION,
+                    RuntimeContext::data_section as *const _,
+                ),
+                (
+                    symbols::DATA_SECTION_SIZE,
+                    RuntimeContext::data_section_size as *const _,
                 ),
                 (
                     symbols::CALLDATA_COPY,

@@ -2,7 +2,7 @@
 
 /// Extracts operands from an operation.
 ///
-/// `operands!` supports from 1 to 4 operands.
+/// [`operands!`] supports from 1 to 4 operands.
 /// Here are examples:
 ///
 /// ```ignore
@@ -34,22 +34,22 @@ macro_rules! operands {
 
 /// Creates a rewriter context for operations, depending on deferred option.
 ///
-/// `rewrite_ctx!` creates deffered or non-deffered rewirter depending on `NoDefer` option.
+/// [`rewrite_ctx!`] creates deffered or non-deffered rewirter depending on `NoDefer` option.
 /// There are two forms of this macro:
 ///
-/// - Creates a `DeferredRewriter` context.
+/// - Creates a [DeferredRewriter](crate::conversion::rewriter::DeferredRewriter) context.
 /// ```ignore
 /// rewrite_ctx!(conext, op, rewriter, location);
 /// ```
 ///
-/// - Crates a `Rewriter` context.
+/// - Crates a [Rewriter](crate::conversion::rewriter::Rewriter) context.
 /// ```ignore
 /// rewrite_ctx!(conext, op, rewriter, location, NoDefer);
 /// ```
 #[macro_export]
 macro_rules! rewrite_ctx {
     ($context:expr, $op:expr, $rewriter:ident, $loc:ident) => {
-        let r = DeferredRewriter::new_with_op($context, *$op);
+        let r = crate::conversion::rewriter::DeferredRewriter::new_with_op($context, *$op);
         let l = r.get_insert_location();
 
         let ($rewriter, $loc) = (r, l);
@@ -59,14 +59,20 @@ macro_rules! rewrite_ctx {
         }
     };
     ($context:expr, $op:expr, $rewriter:ident, $loc:ident, NoDefer) => {
-        let r = Rewriter::new_with_op($context, *$op);
+        let r = crate::conversion::rewriter::Rewriter::new_with_op($context, *$op);
         let l = r.get_insert_location();
 
         let ($rewriter, $loc) = (r, l);
     };
 }
 
-/// Creates a syscall context from an operation.
+/// Gets syscall context from an operation.
+///
+/// [`syscall_ctx!`] serves as a general macro before calling context symbols.
+///
+/// ```ignore
+/// syscall_ctx!(op, syscall_ctx);
+/// ```
 #[macro_export]
 macro_rules! block_argument {
     ($op:expr, $syscall_ctx:ident) => {
@@ -100,7 +106,7 @@ macro_rules! arith_constant {
 }
 
 /// Macro to create a variable with default size of 1.
-#[macro_export]
+#[macro_export(local_inner_macros)]
 macro_rules! create_var {
     ($rewriter:expr, $context:expr, $location:expr) => {{
         let array_size = $rewriter.make(arith_constant!(
@@ -289,7 +295,7 @@ macro_rules! maybe_revert_here {
 }
 
 /// Macro to check for memory offset errors during operations and triggers a revert if an out-of-gas condition is detected.
-#[macro_export]
+#[macro_export(local_inner_macros)]
 macro_rules! check_op_oog {
     ($op:expr, $rewriter:ident, $size:expr) => {
         // Check the memory offset halt error
@@ -301,7 +307,7 @@ macro_rules! check_op_oog {
 }
 
 /// Macro to convert a 256-bit unsigned integer to a 64-bit representation while checking for overflow conditions.
-#[macro_export]
+#[macro_export(local_inner_macros)]
 macro_rules! u256_to_u64 {
     ($op:expr, $rewriter:ident, $size:ident) => {
         let overflow = $rewriter.make($rewriter.icmp_imm(
@@ -321,7 +327,7 @@ macro_rules! u256_to_u64 {
 }
 
 /// Macro to validate runtime errors and triggers reversion if an error condition is met, ensuring robust error management.
-#[macro_export]
+#[macro_export(local_inner_macros)]
 macro_rules! check_runtime_error {
     ($op:expr, $rewriter:ident, $error:expr) => {
         // Check the runtime halt error
@@ -332,7 +338,7 @@ macro_rules! check_runtime_error {
 }
 
 /// Macro to verify that the current operation is not within a static call context, reverting if it is.
-#[macro_export]
+#[macro_export(local_inner_macros)]
 macro_rules! ensure_non_staticcall {
     ($op:expr, $rewriter:ident, $syscall_ctx: ident) => {
         let context = $rewriter.context();
@@ -356,7 +362,7 @@ macro_rules! ensure_non_staticcall {
 }
 
 /// Macro to check if there is enough gas available for an operation and manages gas consumption, reverting if out of gas.
-#[macro_export]
+#[macro_export(local_inner_macros)]
 macro_rules! gas_or_fail {
     ($op:expr, $rewriter:ident, $gas_value:expr, $gas_counter_ptr:expr) => {
         let gas_counter =
