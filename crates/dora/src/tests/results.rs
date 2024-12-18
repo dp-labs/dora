@@ -284,6 +284,29 @@ fn exp_overflow() {
 }
 
 #[test]
+fn sar_mstore_return() {
+    let operations = vec![
+        Operation::Push((1_u8, 2_u8.into())),
+        Operation::Push((1_u8, 1_u8.into())),
+        Operation::Sar,
+        // Return result
+        Operation::Push0,
+        Operation::MStore,
+        Operation::Push((1, 32_u8.into())),
+        Operation::Push0,
+        Operation::Return,
+    ];
+    let result = run_result(operations);
+    assert!(result.status.is_ok());
+    assert_eq!(result.memory, {
+        let mut data = vec![0x00; 32];
+        data[31] = 0x01;
+        data
+    });
+    assert_eq!(result.gas_used(), 3 + 3 + 3 + 2 + 3 + 3 + 3 + 2)
+}
+
+#[test]
 fn push0_not_found_in_merge_spec() {
     let operations = vec![Operation::Push0];
     let result = run_result_with_spec(operations, SpecId::MERGE);

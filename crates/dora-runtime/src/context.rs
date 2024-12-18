@@ -43,8 +43,29 @@ macro_rules! as_usize_saturated {
     };
 }
 
+#[repr(C)]
+pub struct Stack([Bytes32; MAX_STACK_SIZE]);
+
+impl Stack {
+    #[inline]
+    pub const fn new() -> Self {
+        Self([Bytes32::ZERO; MAX_STACK_SIZE])
+    }
+}
+
+impl Default for Stack {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 /// Function type for the main entrypoint of the generated code.
-pub type MainFunc = extern "C" fn(&mut RuntimeContext, initial_gas: u64) -> u8;
+pub type MainFunc = extern "C" fn(
+    *mut RuntimeContext,
+    initial_gas: u64,
+    stack: *mut Stack,
+    stack_size: *mut u64,
+) -> u8;
 
 /// The main context for smart contract execution environment.
 pub struct VMContext<'a, DB: Database> {
@@ -1091,13 +1112,12 @@ impl<'a> RuntimeContext<'a> {
         &mut self,
         op: u8,
         gas: u64,
-        stack_top_ptr: *mut Bytes32,
-        stack_size: u64,
+        stack_ptr: *mut Bytes32,
+        stack_size_ptr: *mut u64,
     ) {
-        let stack = unsafe {
-            let stack_bottom_ptr = stack_top_ptr.sub(stack_size as usize);
-            Vec::<Bytes32>::from_raw_parts(stack_bottom_ptr, stack_size as usize, MAX_STACK_SIZE)
-        };
+        let stack_size = unsafe { *stack_size_ptr } as usize;
+        let stack =
+            unsafe { Vec::<Bytes32>::from_raw_parts(stack_ptr, stack_size, MAX_STACK_SIZE) };
         let nano_seconds = if let Ok(duration_since_epoch) =
             std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH)
         {

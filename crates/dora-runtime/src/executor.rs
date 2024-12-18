@@ -1,5 +1,5 @@
 use crate::constants::MAIN_ENTRYPOINT;
-use crate::context::{MainFunc, RuntimeContext};
+use crate::context::{MainFunc, RuntimeContext, Stack};
 use dora_primitives::config::OptimizationLevel;
 use melior::ir::Module;
 use melior::StringRef;
@@ -71,9 +71,15 @@ impl Executor {
     /// ```no_check
     /// let result_code = executor.execute(&mut runtime_ctx, initial_gas);
     /// ```
-    pub fn execute(&self, context: &mut RuntimeContext, initial_gas: u64) -> u8 {
+    pub fn execute(
+        &self,
+        context: &mut RuntimeContext,
+        initial_gas: u64,
+        stack: &mut Stack,
+        stack_size: &mut u64,
+    ) -> u8 {
         let main_fn = self.get_main_entrypoint();
-        main_fn(context, initial_gas)
+        main_fn(context, initial_gas, stack, stack_size)
     }
 
     /// Retrieves the main entry point function from the execution engine.
