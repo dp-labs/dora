@@ -1,9 +1,6 @@
 use crate::{
-    arith_constant,
-    conversion::rewriter::{DeferredRewriter, Rewriter},
-    dora::conversion::ConversionPass,
-    errors::Result,
-    operands, rewrite_ctx,
+    arith_constant, conversion::rewriter::Rewriter, dora::conversion::ConversionPass,
+    errors::Result, operands, rewrite_ctx,
 };
 use melior::{
     dialect::{

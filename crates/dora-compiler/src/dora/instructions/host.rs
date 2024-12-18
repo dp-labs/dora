@@ -1,13 +1,13 @@
 use crate::backend::IntCC;
 use crate::dora::gas::{compute_copy_cost, compute_log_dynamic_cost};
 use crate::{
-    arith_constant, block_argument, check_op_oog,
+    block_argument,
     conversion::builder::OpBuilder,
-    conversion::rewriter::{DeferredRewriter, Rewriter},
+    conversion::rewriter::Rewriter,
     create_var,
     dora::{conversion::ConversionPass, memory},
     errors::{CompileError, Result},
-    load_var, maybe_revert_here, operands, rewrite_ctx, u256_to_u64,
+    load_var, operands, rewrite_ctx, u256_to_u64,
 };
 use crate::{check_runtime_error, ensure_non_staticcall, gas_or_fail, if_here};
 use dora_runtime::symbols;

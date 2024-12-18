@@ -1,14 +1,11 @@
 use crate::{
     arith_constant,
     backend::IntCC,
-    block_argument, check_op_oog,
-    conversion::{
-        builder::OpBuilder,
-        rewriter::{DeferredRewriter, Rewriter},
-    },
+    block_argument,
+    conversion::{builder::OpBuilder, rewriter::Rewriter},
     dora::{conversion::ConversionPass, memory},
     errors::Result,
-    if_here, maybe_revert_here, operands, rewrite_ctx, u256_to_u64,
+    if_here, operands, rewrite_ctx, u256_to_u64,
 };
 use dora_runtime::symbols;
 use dora_runtime::ExitStatusCode;

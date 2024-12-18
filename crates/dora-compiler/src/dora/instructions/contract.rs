@@ -1,11 +1,8 @@
 use crate::{
     arith_constant,
     backend::IntCC,
-    block_argument, check_op_oog, check_runtime_error,
-    conversion::{
-        builder::OpBuilder,
-        rewriter::{DeferredRewriter, Rewriter},
-    },
+    block_argument, check_runtime_error,
+    conversion::{builder::OpBuilder, rewriter::Rewriter},
     dora::{
         conversion::ConversionPass,
         gas::{compute_create2_cost, compute_initcode_cost},

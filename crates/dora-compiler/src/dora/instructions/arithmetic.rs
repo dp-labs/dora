@@ -2,15 +2,12 @@ use crate::{
     arith_constant,
     backend::IntCC,
     block_argument,
-    conversion::{
-        builder::OpBuilder,
-        rewriter::{DeferredRewriter, Rewriter},
-    },
+    conversion::{builder::OpBuilder, rewriter::Rewriter},
     dora::{
         conversion::ConversionPass, gas::compute_exp_cost, memory::allocate_u256_and_assign_value,
     },
     errors::Result,
-    gas_or_fail, maybe_revert_here, operands, rewrite_ctx,
+    gas_or_fail, operands, rewrite_ctx,
 };
 use dora_primitives::SpecId;
 use dora_runtime::symbols;

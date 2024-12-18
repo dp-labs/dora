@@ -1,10 +1,7 @@
 use crate::{
     backend::IntCC,
-    block_argument, check_op_oog, check_runtime_error,
-    conversion::{
-        builder::OpBuilder,
-        rewriter::{DeferredRewriter, Rewriter},
-    },
+    block_argument, check_runtime_error,
+    conversion::{builder::OpBuilder, rewriter::Rewriter},
     create_var,
     dora::{
         conversion::ConversionPass,
@@ -12,7 +9,7 @@ use crate::{
         memory::{self, allocate_u256_and_assign_value},
     },
     errors::Result,
-    gas_or_fail, if_here, load_var, maybe_revert_here, operands, rewrite_ctx, u256_to_u64,
+    gas_or_fail, if_here, load_var, operands, rewrite_ctx, u256_to_u64,
 };
 use dora_runtime::symbols;
 use dora_runtime::ExitStatusCode;

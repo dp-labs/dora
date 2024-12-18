@@ -2,11 +2,11 @@ use crate::backend::IntCC;
 use crate::conversion::builder::OpBuilder;
 use crate::dora::gas::compute_copy_cost;
 use crate::{
-    block_argument, check_op_oog,
-    conversion::rewriter::{DeferredRewriter, Rewriter},
+    block_argument,
+    conversion::rewriter::Rewriter,
     dora::{conversion::ConversionPass, memory},
     errors::Result,
-    maybe_revert_here, operands, rewrite_ctx,
+    operands, rewrite_ctx,
 };
 use crate::{gas_or_fail, if_here, u256_to_u64};
 use dora_runtime::{symbols, ExitStatusCode};

@@ -1,9 +1,10 @@
 use crate::{
+    block_argument,
     conversion::{builder::OpBuilder, rewriter::Rewriter},
     create_var,
     dora::conversion::ConversionPass,
     errors::Result,
-    operands, rewrite_ctx, syscall_ctx,
+    operands, rewrite_ctx,
 };
 use dora_runtime::symbols;
 use melior::{
@@ -22,9 +23,9 @@ use num_bigint::BigUint;
 
 impl<'c> ConversionPass<'c> {
     pub(crate) fn dataload(context: &Context, op: &OperationRef<'_, '_>) -> Result<()> {
+        block_argument!(op, syscall_ctx);
         operands!(op, offset);
-        syscall_ctx!(op, syscall_ctx);
-        rewrite_ctx!(context, op, rewriter, location, NoDefer);
+        rewrite_ctx!(context, op, rewriter, location);
 
         // List data types needed
         let uint1 = rewriter.intrinsics.i1_ty;
@@ -127,7 +128,7 @@ impl<'c> ConversionPass<'c> {
     }
 
     pub(crate) fn datasize(context: &Context, op: &OperationRef<'_, '_>) -> Result<()> {
-        syscall_ctx!(op, syscall_ctx);
+        block_argument!(op, syscall_ctx);
         rewrite_ctx!(context, op, rewriter, location);
 
         let uint16 = rewriter.intrinsics.i16_ty;

@@ -1,7 +1,5 @@
 use crate::{
-    arith_constant, block_argument,
-    conversion::rewriter::DeferredRewriter,
-    create_var,
+    block_argument, create_var,
     dora::{conversion::ConversionPass, memory},
     errors::Result,
     load_var, operands, rewrite_ctx,

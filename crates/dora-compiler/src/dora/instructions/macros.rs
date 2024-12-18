@@ -66,12 +66,23 @@ macro_rules! rewrite_ctx {
     };
 }
 
-/// Gets syscall context from an operation.
+/// Extracts arguments from the first block of a parent operation.
 ///
-/// [`syscall_ctx!`] serves as a general macro before calling context symbols.
+/// [`block_argument!`] serves as a general macro for every MLIR/LLVM code.
+///
+/// There are two forms of this macro:
+///
+/// - Extracts `syscall_ctx` which is the first argument from the first block.
 ///
 /// ```ignore
-/// syscall_ctx!(op, syscall_ctx);
+/// block_argument!(op, syscall_ctx);
+/// ```
+///
+/// - Extracts `syscall_ctx` and `gas_counter_ptr` which is the send argument from the first block
+///   and converted to [Value](melior::ir::Value) type.
+///
+/// ```ignore
+/// block_argument!(op, syscall_ctx, gas_counter_ptr);
 /// ```
 #[macro_export]
 macro_rules! block_argument {
