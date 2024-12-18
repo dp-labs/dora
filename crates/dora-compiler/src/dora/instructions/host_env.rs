@@ -9,10 +9,10 @@ use melior::{
     dialect::{
         arith::{self},
         func,
-        llvm::{self, AllocaOptions, LoadStoreOptions},
+        llvm::{self},
     },
     ir::{
-        attribute::{FlatSymbolRefAttribute, IntegerAttribute, TypeAttribute},
+        attribute::{FlatSymbolRefAttribute, TypeAttribute},
         operation::OperationRef,
         r#type::IntegerType,
     },

@@ -216,6 +216,8 @@ impl<'c> ConversionPass<'c> {
                 Self::dataload(context, op)?;
             } else if name == "dora.datasize" {
                 Self::datasize(context, op)?;
+            } else if name == "dora.datacopy" {
+                Self::datacopy(context, op)?;
             } else if name == "dora.create" {
                 Self::create(
                     context,

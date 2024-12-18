@@ -1,16 +1,17 @@
 use crate::{
+    backend::IntCC,
     block_argument,
     conversion::{builder::OpBuilder, rewriter::Rewriter},
     create_var,
-    dora::conversion::ConversionPass,
+    dora::{conversion::ConversionPass, gas, memory},
     errors::Result,
-    operands, rewrite_ctx,
+    gas_or_fail, if_here, operands, rewrite_ctx, u256_to_u64,
 };
-use dora_runtime::symbols;
+use dora_runtime::{symbols, ExitStatusCode};
 use melior::{
     dialect::{
         arith, func,
-        llvm::{self, AllocaOptions, LoadStoreOptions},
+        llvm::{self, LoadStoreOptions},
         ods, scf,
     },
     ir::{
@@ -23,8 +24,8 @@ use num_bigint::BigUint;
 
 impl<'c> ConversionPass<'c> {
     pub(crate) fn dataload(context: &Context, op: &OperationRef<'_, '_>) -> Result<()> {
-        block_argument!(op, syscall_ctx);
         operands!(op, offset);
+        block_argument!(op, syscall_ctx);
         rewrite_ctx!(context, op, rewriter, location);
 
         // List data types needed
@@ -140,6 +141,45 @@ impl<'c> ConversionPass<'c> {
             &[uint16],
             location,
         ))?;
+        Ok(())
+    }
+
+    pub(crate) fn datacopy(context: &Context, op: &OperationRef<'_, '_>) -> Result<()> {
+        operands!(op, memory_offset, data_offset, size);
+        block_argument!(op, syscall_ctx, gas_counter_ptr);
+        let rewriter = Rewriter::new_with_op(context, *op);
+        u256_to_u64!(op, rewriter, size);
+        let size_is_not_zero = rewriter.make(rewriter.icmp_imm(IntCC::NotEqual, size, 0)?)?;
+        if_here!(op, rewriter, size_is_not_zero, {
+            let gas = gas::compute_copy_cost(&rewriter, size)?;
+            gas_or_fail!(op, rewriter, gas, gas_counter_ptr);
+            rewrite_ctx!(context, op, rewriter, _location, NoDefer);
+            u256_to_u64!(op, rewriter, memory_offset);
+            memory::resize_memory(
+                context,
+                op,
+                &rewriter,
+                syscall_ctx,
+                gas_counter_ptr,
+                memory_offset,
+                size,
+            )?;
+        });
+        rewrite_ctx!(context, op, rewriter, location);
+        let memory_offset = rewriter.make(arith::trunci(
+            memory_offset,
+            rewriter.intrinsics.i64_ty,
+            location,
+        ))?;
+        let data_offset =
+            memory::allocate_u256_and_assign_value(context, &rewriter, data_offset, location)?;
+        rewriter.create(func::call(
+            context,
+            FlatSymbolRefAttribute::new(context, symbols::DATA_SECTION_COPY),
+            &[syscall_ctx.into(), memory_offset, data_offset, size],
+            &[],
+            location,
+        ));
         Ok(())
     }
 }

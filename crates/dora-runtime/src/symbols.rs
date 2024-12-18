@@ -13,6 +13,7 @@ pub const CALLDATA_SIZE: &str = "dora_fn_calldata_size";
 pub const CALLDATA_COPY: &str = "dora_fn_calldata_copy";
 pub const DATA_SECTION: &str = "dora_fn_data_section";
 pub const DATA_SECTION_SIZE: &str = "dora_fn_data_section_size";
+pub const DATA_SECTION_COPY: &str = "dora_fn_data_section_copy";
 pub const STACK: &str = "dora_fn_stack";
 pub const STACK_SIZE: &str = "dora_fn_stack_size";
 pub const EXP: &str = "dora_fn_exp";

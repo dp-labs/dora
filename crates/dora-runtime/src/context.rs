@@ -36,7 +36,7 @@ macro_rules! as_u64_saturated {
     };
 }
 
-/// Converts a `U256` value to a `usize`, saturating to `MAX` if the value is too large.
+/// Converts a [U256] value to a [usize], saturating to [MAX][usize] if the value is too large.
 #[macro_export]
 macro_rules! as_usize_saturated {
     ($v:expr) => {
@@ -1444,12 +1444,50 @@ impl<'a> RuntimeContext<'a> {
         self.contract.input.len() as u64
     }
 
+    pub extern "C" fn calldata_copy(
+        &mut self,
+        memory_offset: u64,
+        data_offset: &Bytes32,
+        size: u64,
+    ) {
+        let size = size as usize;
+        if size != 0 {
+            let data_offset = as_usize_saturated!(data_offset.to_u256());
+            let memory_offset = memory_offset as usize;
+            self.memory_set_data(
+                memory_offset,
+                data_offset,
+                size,
+                &self.contract.input.clone(),
+            );
+        }
+    }
+
     pub extern "C" fn data_section(&mut self) -> *mut u8 {
         self.contract.code.eof().expect("eof").data().as_ptr() as _
     }
 
     pub extern "C" fn data_section_size(&self) -> u16 {
         self.contract.code.eof().expect("eof").header.data_size
+    }
+
+    pub extern "C" fn data_section_copy(
+        &mut self,
+        memory_offset: u64,
+        data_offset: &Bytes32,
+        size: u64,
+    ) {
+        let size = size as usize;
+        if size != 0 {
+            let data_offset = as_usize_saturated!(data_offset.to_u256());
+            let memory_offset = memory_offset as usize;
+            self.memory_set_data(
+                memory_offset,
+                data_offset,
+                size,
+                &self.contract.code.eof().expect("eof").data().to_vec(),
+            );
+        }
     }
 
     extern "C" fn origin(&self, address: &mut Bytes32) {
@@ -1493,21 +1531,7 @@ impl<'a> RuntimeContext<'a> {
         }
     }
 
-    extern "C" fn calldata_copy(&mut self, memory_offset: u64, data_offset: &Bytes32, size: u64) {
-        let size = size as usize;
-        if size != 0 {
-            let data_offset = as_usize_saturated!(data_offset.to_u256());
-            let memory_offset = memory_offset as usize;
-            self.memory_set_data(
-                memory_offset,
-                data_offset,
-                size,
-                &self.contract.input.clone(),
-            );
-        }
-    }
-
-    extern "C" fn code_copy(&mut self, code_offset: &Bytes32, size: u64, memory_offset: u64) {
+    extern "C" fn code_copy(&mut self, memory_offset: u64, code_offset: &Bytes32, size: u64) {
         let size = size as usize;
         if size != 0 {
             let code_offset =
@@ -1996,6 +2020,10 @@ impl<'a> RuntimeContext<'a> {
                     RuntimeContext::calldata_size as *const _,
                 ),
                 (
+                    symbols::CALLDATA_COPY,
+                    RuntimeContext::calldata_copy as *const _,
+                ),
+                (
                     symbols::DATA_SECTION,
                     RuntimeContext::data_section as *const _,
                 ),
@@ -2004,8 +2032,8 @@ impl<'a> RuntimeContext<'a> {
                     RuntimeContext::data_section_size as *const _,
                 ),
                 (
-                    symbols::CALLDATA_COPY,
-                    RuntimeContext::calldata_copy as *const _,
+                    symbols::DATA_SECTION_COPY,
+                    RuntimeContext::data_section_copy as *const _,
                 ),
                 (symbols::CODE_COPY, RuntimeContext::code_copy as *const _),
                 (symbols::ORIGIN, RuntimeContext::origin as *const _),

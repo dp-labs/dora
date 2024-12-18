@@ -7,7 +7,7 @@ use melior::{
         arith::{self, CmpiPredicate},
         scf,
     },
-    ir::{attribute::IntegerAttribute, operation::OperationRef, Block, Region},
+    ir::{operation::OperationRef, Block, Region},
     Context,
 };
 use num_bigint::BigUint;

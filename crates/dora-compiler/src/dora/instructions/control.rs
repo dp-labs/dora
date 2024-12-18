@@ -2,7 +2,7 @@ use crate::{
     arith_constant,
     backend::IntCC,
     block_argument,
-    conversion::{builder::OpBuilder, rewriter::Rewriter},
+    conversion::rewriter::Rewriter,
     dora::{conversion::ConversionPass, memory},
     errors::Result,
     if_here, operands, rewrite_ctx, u256_to_u64,
@@ -10,12 +10,8 @@ use crate::{
 use dora_runtime::symbols;
 use dora_runtime::ExitStatusCode;
 use melior::{
-    dialect::{arith, cf, func},
-    ir::{
-        attribute::{FlatSymbolRefAttribute, IntegerAttribute},
-        operation::OperationRef,
-        Block,
-    },
+    dialect::{arith, func},
+    ir::{attribute::FlatSymbolRefAttribute, operation::OperationRef, Block},
     Context,
 };
 

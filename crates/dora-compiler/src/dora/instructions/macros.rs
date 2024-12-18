@@ -49,7 +49,7 @@ macro_rules! operands {
 #[macro_export]
 macro_rules! rewrite_ctx {
     ($context:expr, $op:expr, $rewriter:ident, $loc:ident) => {
-        let r = crate::conversion::rewriter::DeferredRewriter::new_with_op($context, *$op);
+        let r = $crate::conversion::rewriter::DeferredRewriter::new_with_op($context, *$op);
         let l = r.get_insert_location();
 
         let ($rewriter, $loc) = (r, l);
@@ -59,7 +59,7 @@ macro_rules! rewrite_ctx {
         }
     };
     ($context:expr, $op:expr, $rewriter:ident, $loc:ident, NoDefer) => {
-        let r = crate::conversion::rewriter::Rewriter::new_with_op($context, *$op);
+        let r = $crate::conversion::rewriter::Rewriter::new_with_op($context, *$op);
         let l = r.get_insert_location();
 
         let ($rewriter, $loc) = (r, l);
@@ -93,14 +93,13 @@ macro_rules! block_argument {
         let $syscall_ctx = func_block.argument(0).unwrap();
     };
     ($op:expr, $syscall_ctx:ident, $gas_counter_ptr:ident) => {
+        use melior::ir::{Value, ValueLike};
         let func_op = $op.parent_operation().unwrap();
         let region = func_op.region(0).unwrap();
         let func_block = region.first_block().unwrap();
         let $syscall_ctx = func_block.argument(0).unwrap();
-        use melior::ir::ValueLike;
-        let $gas_counter_ptr: melior::ir::Value<'_, '_> = func_block.argument(1).unwrap().into();
-        let $gas_counter_ptr: melior::ir::Value<'_, '_> =
-            unsafe { melior::ir::Value::from_raw($gas_counter_ptr.to_raw()) };
+        let $gas_counter_ptr: Value<'_, '_> = func_block.argument(1).unwrap().into();
+        let $gas_counter_ptr: Value<'_, '_> = unsafe { Value::from_raw($gas_counter_ptr.to_raw()) };
     };
 }
 
@@ -110,7 +109,7 @@ macro_rules! arith_constant {
     ($rewriter:expr, $context:expr, $ty:expr, $value:expr, $location:expr) => {
         arith::constant(
             $context,
-            IntegerAttribute::new($ty.into(), $value).into(),
+            melior::ir::attribute::IntegerAttribute::new($ty.into(), $value).into(),
             $location,
         )
     };
@@ -120,6 +119,7 @@ macro_rules! arith_constant {
 #[macro_export(local_inner_macros)]
 macro_rules! create_var {
     ($rewriter:expr, $context:expr, $location:expr) => {{
+        use melior::dialect::llvm::{self, AllocaOptions};
         let array_size = $rewriter.make(arith_constant!(
             $rewriter,
             $context,
@@ -138,6 +138,7 @@ macro_rules! create_var {
         ))?
     }};
     ($rewriter:expr, $context:expr, $elm_type:expr, $location:expr) => {{
+        use melior::dialect::llvm::{self, AllocaOptions};
         let array_size = $rewriter.make(arith_constant!(
             $rewriter, $context, $elm_type, 1_i64, $location
         ))?;
@@ -155,6 +156,7 @@ macro_rules! create_var {
 #[macro_export]
 macro_rules! load_var {
     ($rewriter:expr, $context:expr, $arg:expr, $ltype:expr, $location:expr) => {{
+        use melior::dialect::llvm::{self, LoadStoreOptions};
         $rewriter.make(llvm::load(
             $context,
             $arg,
@@ -164,11 +166,15 @@ macro_rules! load_var {
         ))?
     }};
     ($rewriter:expr, $context:expr, $syscall_ctx:expr, $symbol:expr, $args:expr, $ltype:expr, $location:expr) => {{
+        use melior::dialect::{
+            func,
+            llvm::{self, LoadStoreOptions},
+        };
         let ptr_type = $rewriter.ptr_ty();
         let args = [&[$syscall_ctx.into()][..], &$args[..]].concat();
         $rewriter.create(func::call(
             $context,
-            FlatSymbolRefAttribute::new($context, $symbol),
+            melior::ir::attribute::FlatSymbolRefAttribute::new($context, $symbol),
             &args,
             &[ptr_type],
             $location,
@@ -182,11 +188,15 @@ macro_rules! load_var {
         ))?
     }};
     ($rewriter:expr, $context:expr, $syscall_ctx:expr, $symbol:expr, $args:expr, $laddr:expr, $ltype:expr, $location:expr) => {{
+        use melior::dialect::{
+            func,
+            llvm::{self, LoadStoreOptions},
+        };
         let ptr_type = $rewriter.ptr_ty();
         let args = [&[$syscall_ctx.into()][..], &$args[..]].concat();
         $rewriter.create(func::call(
             $context,
-            FlatSymbolRefAttribute::new($context, $symbol),
+            melior::ir::attribute::FlatSymbolRefAttribute::new($context, $symbol),
             &args,
             &[ptr_type],
             $location,
@@ -200,10 +210,14 @@ macro_rules! load_var {
         ))?
     }};
     ($rewriter:expr, $context:expr, $syscall_ctx:expr, $symbol:expr, $args:expr, $rtn_types:expr, $laddr:expr, $ltype:expr, $location:expr) => {{
+        use melior::dialect::{
+            func,
+            llvm::{self, LoadStoreOptions},
+        };
         let args = [&[$syscall_ctx.into()][..], &$args[..]].concat();
         $rewriter.create(func::call(
             $context,
-            FlatSymbolRefAttribute::new($context, $symbol),
+            melior::ir::attribute::FlatSymbolRefAttribute::new($context, $symbol),
             &args,
             &$rtn_types,
             $location,
@@ -217,10 +231,14 @@ macro_rules! load_var {
         ))?
     }};
     ($rewriter:expr, $context:expr, $syscall_ctx:expr, $symbol:expr, $args:expr, $rtn_types:expr, $laddr:expr, $ltype:expr, $location:expr, $extra_options:expr) => {{
+        use melior::dialect::{
+            func,
+            llvm::{self, LoadStoreOptions},
+        };
         let args = [&[$syscall_ctx.into()][..], &$args[..]].concat();
         $rewriter.create(func::call(
             $context,
-            FlatSymbolRefAttribute::new($context, $symbol),
+            melior::ir::attribute::FlatSymbolRefAttribute::new($context, $symbol),
             &args,
             &rtn_types,
             $location,
@@ -239,6 +257,7 @@ macro_rules! load_var {
 #[macro_export]
 macro_rules! store_var {
     ($rewriter:expr, $context:expr, $value:expr, $addr:expr, $location:expr) => {{
+        use melior::dialect::llvm::{self, LoadStoreOptions};
         llvm::store(
             $context,
             $value,
@@ -248,11 +267,17 @@ macro_rules! store_var {
         )
     }};
     ($rewriter:expr, $context:expr, $value:expr, $addr:expr, $location:expr, $extra_options:expr) => {{
-        llvm::store($context, $value, $addr, $location, $extra_options)
+        melior::dialect::llvm::store($context, $value, $addr, $location, $extra_options)
     }};
 }
 
 /// Macro to implement conditional branching to revert execution based on specified conditions.
+///
+/// ```ignore
+/// use dora_runtime::ExitStatusCode;
+///
+/// maybe_revert_here!(op, rewriter, revert_flag, ExitStatus::Return);
+/// ```
 #[macro_export]
 macro_rules! maybe_revert_here {
     ($op:expr, $rewriter:expr, $cond:expr, ExitStatusCode::$variant:ident) => {
@@ -262,8 +287,11 @@ macro_rules! maybe_revert_here {
                     if let Some(revert_block) = setup_block.next_in_region() {
                         if let Some(insert_point) = $rewriter.get_insert_point() {
                             let next_block = $rewriter.split_block(block, Some(insert_point))?;
-                            let builder = OpBuilder::new_with_block($rewriter.context(), block);
-                            builder.create(cf::cond_br(
+                            let builder = $crate::conversion::builder::OpBuilder::new_with_block(
+                                $rewriter.context(),
+                                block,
+                            );
+                            builder.create(melior::dialect::cf::cond_br(
                                 $rewriter.context(),
                                 $cond,
                                 &revert_block,
@@ -287,8 +315,11 @@ macro_rules! maybe_revert_here {
                     if let Some(revert_block) = setup_block.next_in_region() {
                         if let Some(insert_point) = $rewriter.get_insert_point() {
                             let next_block = $rewriter.split_block(block, Some(insert_point))?;
-                            let builder = OpBuilder::new_with_block($rewriter.context(), block);
-                            builder.create(cf::cond_br(
+                            let builder = $crate::conversion::builder::OpBuilder::new_with_block(
+                                $rewriter.context(),
+                                block,
+                            );
+                            builder.create(melior::dialect::cf::cond_br(
                                 $rewriter.context(),
                                 $cond,
                                 &revert_block,
@@ -306,29 +337,44 @@ macro_rules! maybe_revert_here {
 }
 
 /// Macro to check for memory offset errors during operations and triggers a revert if an out-of-gas condition is detected.
+///
+/// ```ignore
+/// use dora_runtime::ExitSatusCode;
+///
+/// check_op_oog!(op, rewriter, size);
+/// ```
 #[macro_export(local_inner_macros)]
 macro_rules! check_op_oog {
     ($op:expr, $rewriter:ident, $size:expr) => {
         // Check the memory offset halt error
         let zero = $rewriter.make($rewriter.iconst_64(0))?;
-        let overflow = $rewriter.make($rewriter.icmp(IntCC::SignedLessThan, $size, zero))?;
+        let overflow =
+            $rewriter.make($rewriter.icmp($crate::backend::IntCC::SignedLessThan, $size, zero))?;
         maybe_revert_here!($op, $rewriter, overflow, ExitStatusCode::InvalidOperandOOG);
-        let $rewriter = Rewriter::new_with_op($rewriter.context(), *$op);
+        let $rewriter =
+            $crate::conversion::rewriter::Rewriter::new_with_op($rewriter.context(), *$op);
     };
 }
 
 /// Macro to convert a 256-bit unsigned integer to a 64-bit representation while checking for overflow conditions.
+///
+/// ```ignore
+/// use dora_runtime::ExitStatusCode;
+///
+/// u256_u64!(op, rewriter, size);
+/// ```
 #[macro_export(local_inner_macros)]
 macro_rules! u256_to_u64 {
     ($op:expr, $rewriter:ident, $size:ident) => {
         let overflow = $rewriter.make($rewriter.icmp_imm(
-            IntCC::SignedGreaterThan,
+            $crate::backend::IntCC::SignedGreaterThan,
             $size,
             u64::MAX as i64,
         )?)?;
         maybe_revert_here!($op, $rewriter, overflow, ExitStatusCode::InvalidOperandOOG);
-        let $rewriter = Rewriter::new_with_op($rewriter.context(), *$op);
-        let $size = $rewriter.make(arith::trunci(
+        let $rewriter =
+            $crate::conversion::rewriter::Rewriter::new_with_op($rewriter.context(), *$op);
+        let $size = $rewriter.make(melior::dialect::arith::trunci(
             $size,
             $rewriter.intrinsics.i64_ty,
             $rewriter.get_insert_location(),
@@ -343,26 +389,37 @@ macro_rules! check_runtime_error {
     ($op:expr, $rewriter:ident, $error:expr) => {
         // Check the runtime halt error
         let zero = $rewriter.make($rewriter.iconst_8(0))?;
-        let has_error = $rewriter.make($rewriter.icmp(IntCC::NotEqual, $error, zero))?;
+        let has_error =
+            $rewriter.make($rewriter.icmp($crate::backend::IntCC::NotEqual, $error, zero))?;
         maybe_revert_here!($op, $rewriter, has_error, $error);
     };
 }
 
 /// Macro to verify that the current operation is not within a static call context, reverting if it is.
+///
+/// ```ignore
+/// use dora_runtime::ExitStatusCode;
+///
+/// ensure_non_staticcall!(op, rewriter, syscall_ctx);
+/// ```
 #[macro_export(local_inner_macros)]
 macro_rules! ensure_non_staticcall {
     ($op:expr, $rewriter:ident, $syscall_ctx: ident) => {
+        use dora_runtime::symbols;
         let context = $rewriter.context();
         let location = $rewriter.get_insert_location();
         let ctx_is_static_u8 = $rewriter.make(func::call(
             context,
-            FlatSymbolRefAttribute::new(context, symbols::CTX_IS_STATIC),
+            melior::ir::attribute::FlatSymbolRefAttribute::new(context, symbols::CTX_IS_STATIC),
             &[$syscall_ctx.into()],
             &[$rewriter.intrinsics.i8_ty],
             location,
         ))?;
-        let ctx_is_static =
-            $rewriter.make($rewriter.icmp_imm(IntCC::NotEqual, ctx_is_static_u8, 0)?)?;
+        let ctx_is_static = $rewriter.make($rewriter.icmp_imm(
+            $crate::backend::IntCC::NotEqual,
+            ctx_is_static_u8,
+            0,
+        )?)?;
         maybe_revert_here!(
             $op,
             $rewriter,
@@ -373,45 +430,64 @@ macro_rules! ensure_non_staticcall {
 }
 
 /// Macro to check if there is enough gas available for an operation and manages gas consumption, reverting if out of gas.
+///
+/// ```ignore
+/// use dora_runtime::ExitStatusCode;
+///
+/// gas_or_fail!(op, rewriter, gas, gas_counter_ptr);
+/// ```
 #[macro_export(local_inner_macros)]
 macro_rules! gas_or_fail {
     ($op:expr, $rewriter:ident, $gas_value:expr, $gas_counter_ptr:expr) => {
         let gas_counter =
             $rewriter.make($rewriter.load($gas_counter_ptr.into(), $rewriter.intrinsics.i64_ty))?;
-        let out_of_gas = $rewriter.make(arith::cmpi(
+        let out_of_gas = $rewriter.make(melior::dialect::arith::cmpi(
             $rewriter.context(),
-            arith::CmpiPredicate::Ult,
+            melior::dialect::arith::CmpiPredicate::Ult,
             gas_counter,
             $gas_value,
             $rewriter.get_insert_location(),
         ))?;
-        $rewriter.create(scf::r#if(
+        $rewriter.create(melior::dialect::scf::r#if(
             out_of_gas,
             &[],
             {
-                let region = Region::new();
+                let region = melior::ir::Region::new();
                 let block = region.append_block(Block::new(&[]));
-                let rewriter = Rewriter::new_with_block($rewriter.context(), block);
-                rewriter.create(scf::r#yield(&[], rewriter.get_insert_location()));
+                let rewriter = $crate::conversion::rewriter::Rewriter::new_with_block(
+                    $rewriter.context(),
+                    block,
+                );
+                rewriter.create(melior::dialect::scf::r#yield(
+                    &[],
+                    rewriter.get_insert_location(),
+                ));
                 region
             },
             {
-                let region = Region::new();
+                use melior::dialect::llvm::{self, LoadStoreOptions};
+                let region = melior::ir::Region::new();
                 let block = region.append_block(Block::new(&[]));
-                let rewriter = Rewriter::new_with_block($rewriter.context(), block);
-                let new_gas_counter = rewriter.make(arith::subi(
+                let rewriter = $crate::conversion::rewriter::Rewriter::new_with_block(
+                    $rewriter.context(),
+                    block,
+                );
+                let new_gas_counter = rewriter.make(melior::dialect::arith::subi(
                     gas_counter,
                     $gas_value,
                     rewriter.get_insert_location(),
                 ))?;
-                rewriter.create(melior::dialect::llvm::store(
+                rewriter.create(llvm::store(
                     rewriter.context(),
                     new_gas_counter,
                     $gas_counter_ptr,
                     rewriter.get_insert_location(),
-                    melior::dialect::llvm::LoadStoreOptions::default(),
+                    LoadStoreOptions::default(),
                 ));
-                rewriter.create(scf::r#yield(&[], rewriter.get_insert_location()));
+                rewriter.create(melior::dialect::scf::r#yield(
+                    &[],
+                    rewriter.get_insert_location(),
+                ));
                 region
             },
             $rewriter.get_insert_location(),
@@ -427,6 +503,8 @@ macro_rules! if_here {
         if let Some(block) = $op.block() {
             if let Some(region) = block.parent_region() {
                 if let Some(insert_point) = $rewriter.get_insert_point() {
+                    use melior::dialect::cf;
+                    use $crate::conversion::rewriter::Rewriter;
                     let if_block = region.append_block(Block::new(&[]));
                     let next_block = $rewriter.split_block(block, Some(insert_point))?;
                     let rewriter = Rewriter::new_with_block($rewriter.context(), block);

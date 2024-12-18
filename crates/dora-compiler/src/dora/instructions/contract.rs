@@ -2,7 +2,7 @@ use crate::{
     arith_constant,
     backend::IntCC,
     block_argument, check_runtime_error,
-    conversion::{builder::OpBuilder, rewriter::Rewriter},
+    conversion::rewriter::Rewriter,
     dora::{
         conversion::ConversionPass,
         gas::{compute_create2_cost, compute_initcode_cost},
@@ -18,12 +18,8 @@ use dora_runtime::constants::{gas_cost::MAX_INITCODE_SIZE, CallType};
 use dora_runtime::symbols;
 use dora_runtime::ExitStatusCode;
 use melior::{
-    dialect::{arith, cf, func, scf},
-    ir::{
-        attribute::{FlatSymbolRefAttribute, IntegerAttribute},
-        operation::OperationRef,
-        Block, Region, Value,
-    },
+    dialect::{arith, func},
+    ir::{attribute::FlatSymbolRefAttribute, operation::OperationRef, Block, Value},
     Context,
 };
 use std::mem::offset_of;

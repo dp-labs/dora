@@ -2,7 +2,6 @@ use crate::backend::IntCC;
 use crate::dora::gas::{compute_copy_cost, compute_log_dynamic_cost};
 use crate::{
     block_argument,
-    conversion::builder::OpBuilder,
     conversion::rewriter::Rewriter,
     create_var,
     dora::{conversion::ConversionPass, memory},
@@ -15,14 +14,12 @@ use dora_runtime::ExitStatusCode;
 use melior::{
     dialect::{
         arith::{self},
-        cf, func,
-        llvm::{self, AllocaOptions, LoadStoreOptions},
-        scf,
+        func,
     },
     ir::{
-        attribute::{FlatSymbolRefAttribute, IntegerAttribute, TypeAttribute},
+        attribute::{FlatSymbolRefAttribute, TypeAttribute},
         operation::OperationRef,
-        Block, Region, Value,
+        Block,
     },
     Context,
 };

@@ -1,5 +1,4 @@
 use crate::backend::IntCC;
-use crate::conversion::builder::OpBuilder;
 use crate::dora::gas::compute_copy_cost;
 use crate::{
     block_argument,
@@ -15,13 +14,10 @@ use melior::ir::attribute::FlatSymbolRefAttribute;
 use melior::{
     dialect::{
         arith::{self},
-        cf,
         llvm::{self, LoadStoreOptions},
-        ods, scf,
+        ods,
     },
-    ir::{
-        attribute::IntegerAttribute, operation::OperationRef, r#type::IntegerType, Block, Region,
-    },
+    ir::{attribute::IntegerAttribute, operation::OperationRef, r#type::IntegerType, Block},
     Context,
 };
 

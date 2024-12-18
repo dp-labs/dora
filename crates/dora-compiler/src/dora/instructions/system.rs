@@ -15,8 +15,8 @@ use dora_runtime::symbols;
 use dora_runtime::ExitStatusCode;
 use melior::{
     dialect::{
-        arith, cf, func,
-        llvm::{self, AllocaOptions, LoadStoreOptions},
+        arith, func,
+        llvm::{self, LoadStoreOptions},
         ods, scf,
     },
     ir::{
@@ -330,7 +330,7 @@ impl<'c> ConversionPass<'c> {
         rewriter.create(func::call(
             context,
             FlatSymbolRefAttribute::new(context, symbols::CODE_COPY),
-            &[syscall_ctx.into(), code_offset, size, memory_offset],
+            &[syscall_ctx.into(), memory_offset, code_offset, size],
             &[],
             location,
         ));
