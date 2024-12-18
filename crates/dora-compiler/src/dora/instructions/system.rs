@@ -13,10 +13,9 @@ use crate::{
         memory::{self, allocate_u256_and_assign_value},
     },
     errors::Result,
-    gas_or_fail, if_here, load_by_addr, load_var, maybe_revert_here, operands, rewrite_ctx,
-    syscall_ctx, u256_to_u64,
+    gas_or_fail, if_here, load_var, maybe_revert_here, operands, rewrite_ctx, syscall_ctx,
+    u256_to_u64,
 };
-use dora_runtime::constants;
 use dora_runtime::constants::GAS_COUNTER_GLOBAL;
 use dora_runtime::symbols;
 use dora_runtime::ExitStatusCode;
@@ -132,22 +131,33 @@ impl<'c> ConversionPass<'c> {
     }
 
     pub(crate) fn calldataload(context: &Context, op: &OperationRef<'_, '_>) -> Result<()> {
+        syscall_ctx!(op, syscall_ctx);
         operands!(op, offset);
         rewrite_ctx!(context, op, rewriter, location);
 
         let uint1 = rewriter.intrinsics.i1_ty;
         let uint8 = rewriter.intrinsics.i8_ty;
-        let uint64 = rewriter.intrinsics.i64_ty;
         let uint256 = rewriter.intrinsics.i256_ty;
         let ptr_type = rewriter.intrinsics.ptr_ty;
 
-        let calldata_ptr =
-            load_by_addr!(rewriter, constants::CALLDATA_PTR_GLOBAL, rewriter.ptr_ty());
-        // Define the maximum slice width (32 bytes)
-        let max_slice_width = rewriter.make(rewriter.iconst_256_from_u64(32)?)?;
-        let calldata_size = load_by_addr!(rewriter, constants::CALLDATA_SIZE_GLOBAL, uint64);
+        let calldata_ptr = rewriter.make(func::call(
+            context,
+            FlatSymbolRefAttribute::new(context, symbols::CALLDATA),
+            &[syscall_ctx.into()],
+            &[ptr_type],
+            location,
+        ))?;
+        let calldata_size = rewriter.make(func::call(
+            context,
+            FlatSymbolRefAttribute::new(context, symbols::CALLDATA_SIZE),
+            &[syscall_ctx.into()],
+            &[rewriter.intrinsics.i64_ty],
+            location,
+        ))?;
         // convert calldata_size from u64 to u256
         let calldata_size = rewriter.make(arith::extui(calldata_size, uint256, location))?;
+        // Define the maximum slice width (32 bytes)
+        let max_slice_width = rewriter.make(rewriter.iconst_256_from_u64(32)?)?;
         // Compare offset with calldata size
         let offset_cmpi = rewriter.make(arith::cmpi(
             context,

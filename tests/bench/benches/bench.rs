@@ -225,7 +225,7 @@ fn run_uniswapv3_bench(c: &mut Criterion) {
     let mut g = mk_group(c, "uniswapv3");
     g.bench_function("dora", |b| {
         b.iter(|| {
-            let _ = run_evm(env.clone(), db.clone(), SpecId::CANCUN);
+            let _result = run_evm(env.clone(), db.clone(), SpecId::CANCUN).unwrap();
         })
     });
 
