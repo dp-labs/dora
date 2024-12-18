@@ -1,10 +1,10 @@
 use crate::{
-    arith_constant,
+    arith_constant, block_argument,
     conversion::rewriter::DeferredRewriter,
     create_var,
     dora::{conversion::ConversionPass, memory},
     errors::Result,
-    load_var, operands, rewrite_ctx, syscall_ctx,
+    load_var, operands, rewrite_ctx,
 };
 use dora_runtime::symbols;
 use melior::{
@@ -23,7 +23,7 @@ use melior::{
 
 impl<'c> ConversionPass<'c> {
     pub(crate) fn chainid(context: &Context, op: &OperationRef<'_, '_>) -> Result<()> {
-        syscall_ctx!(op, syscall_ctx);
+        block_argument!(op, syscall_ctx);
         rewrite_ctx!(context, op, rewriter, location);
 
         let chainid = rewriter.make(func::call(
@@ -38,7 +38,7 @@ impl<'c> ConversionPass<'c> {
     }
 
     pub(crate) fn coinbase(context: &Context, op: &OperationRef<'_, '_>) -> Result<()> {
-        syscall_ctx!(op, syscall_ctx);
+        block_argument!(op, syscall_ctx);
         rewrite_ctx!(context, op, rewriter, location);
         let uint160 = IntegerType::new(context, 160).into();
 
@@ -65,7 +65,7 @@ impl<'c> ConversionPass<'c> {
     }
 
     pub(crate) fn timestamp(context: &Context, op: &OperationRef<'_, '_>) -> Result<()> {
-        syscall_ctx!(op, syscall_ctx);
+        block_argument!(op, syscall_ctx);
         rewrite_ctx!(context, op, rewriter, location);
 
         let timestamp_ptr = create_var!(rewriter, context, location);
@@ -84,7 +84,7 @@ impl<'c> ConversionPass<'c> {
     }
 
     pub(crate) fn number(context: &Context, op: &OperationRef<'_, '_>) -> Result<()> {
-        syscall_ctx!(op, syscall_ctx);
+        block_argument!(op, syscall_ctx);
         rewrite_ctx!(context, op, rewriter, location);
 
         let number_ptr = create_var!(rewriter, context, location);
@@ -103,7 +103,7 @@ impl<'c> ConversionPass<'c> {
     }
 
     pub(crate) fn prevrandao(context: &Context, op: &OperationRef<'_, '_>) -> Result<()> {
-        syscall_ctx!(op, syscall_ctx);
+        block_argument!(op, syscall_ctx);
         rewrite_ctx!(context, op, rewriter, location);
 
         let prevrandao_ptr = create_var!(rewriter, context, location);
@@ -122,7 +122,7 @@ impl<'c> ConversionPass<'c> {
     }
 
     pub(crate) fn gaslimit(context: &Context, op: &OperationRef<'_, '_>) -> Result<()> {
-        syscall_ctx!(op, syscall_ctx);
+        block_argument!(op, syscall_ctx);
         rewrite_ctx!(context, op, rewriter, location);
 
         let gaslimit_ptr = create_var!(rewriter, context, location);
@@ -141,7 +141,7 @@ impl<'c> ConversionPass<'c> {
     }
 
     pub(crate) fn gasprice(context: &Context, op: &OperationRef<'_, '_>) -> Result<()> {
-        syscall_ctx!(op, syscall_ctx);
+        block_argument!(op, syscall_ctx);
         rewrite_ctx!(context, op, rewriter, location);
 
         let gasprice_ptr = create_var!(rewriter, context, location);
@@ -160,7 +160,7 @@ impl<'c> ConversionPass<'c> {
     }
 
     pub(crate) fn basefee(context: &Context, op: &OperationRef<'_, '_>) -> Result<()> {
-        syscall_ctx!(op, syscall_ctx);
+        block_argument!(op, syscall_ctx);
         rewrite_ctx!(context, op, rewriter, location);
 
         let basefee_ptr = create_var!(rewriter, context, location);
@@ -179,7 +179,7 @@ impl<'c> ConversionPass<'c> {
     }
 
     pub(crate) fn origin(context: &Context, op: &OperationRef<'_, '_>) -> Result<()> {
-        syscall_ctx!(op, syscall_ctx);
+        block_argument!(op, syscall_ctx);
         rewrite_ctx!(context, op, rewriter, location);
 
         let origin_ptr = create_var!(rewriter, context, location);
@@ -199,7 +199,7 @@ impl<'c> ConversionPass<'c> {
 
     pub(crate) fn blobhash(context: &Context, op: &OperationRef<'_, '_>) -> Result<()> {
         operands!(op, index);
-        syscall_ctx!(op, syscall_ctx);
+        block_argument!(op, syscall_ctx);
         rewrite_ctx!(context, op, rewriter, location);
 
         let index_ptr =
@@ -219,7 +219,7 @@ impl<'c> ConversionPass<'c> {
     }
 
     pub(crate) fn blobbasefee(context: &Context, op: &OperationRef<'_, '_>) -> Result<()> {
-        syscall_ctx!(op, syscall_ctx);
+        block_argument!(op, syscall_ctx);
         rewrite_ctx!(context, op, rewriter, location);
 
         let blobbasefee_ptr = create_var!(rewriter, context, location);

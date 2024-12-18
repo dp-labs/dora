@@ -74,7 +74,7 @@ impl Executor {
     pub fn execute(
         &self,
         context: &mut RuntimeContext,
-        initial_gas: u64,
+        initial_gas: &mut u64,
         stack: &mut Stack,
         stack_size: &mut u64,
     ) -> u8 {
