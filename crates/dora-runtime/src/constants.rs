@@ -8,8 +8,6 @@ pub const GAS_COUNTER_GLOBAL: &str = "dora_global_gas_counter";
 pub const CODE_PTR_GLOBAL: &str = "dora_global_code_ptr_global";
 pub const MEMORY_PTR_GLOBAL: &str = "dora_global_memory_ptr";
 pub const MEMORY_SIZE_GLOBAL: &str = "dora_global_memory_size";
-pub const CALLDATA_PTR_GLOBAL: &str = "dora_global_calldata_ptr";
-pub const CALLDATA_SIZE_GLOBAL: &str = "dora_global_calldata_size";
 pub const MAIN_ENTRYPOINT: &str = "main";
 
 // Versioning and blob constants
