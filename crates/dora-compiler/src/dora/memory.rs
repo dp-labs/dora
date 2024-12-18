@@ -9,7 +9,6 @@ use crate::{
 };
 use crate::{check_op_oog, check_runtime_error, gas_or_fail, if_here, maybe_revert_here};
 use block::BlockArgument;
-use dora_runtime::constants;
 use dora_runtime::symbols;
 use dora_runtime::ExitStatusCode;
 use melior::dialect::arith::CmpiPredicate;
@@ -68,14 +67,12 @@ pub(crate) fn resize_memory<'c>(
     let rounded_required_size =
         rewriter.make(arith::muli(required_size_words, contant_32, location))?;
     // Load memory size
-    let memory_size_ptr =
-        rewriter.make(rewriter.addressof(constants::MEMORY_SIZE_GLOBAL, rewriter.ptr_ty()))?;
-    let memory_size = rewriter.make(llvm::load(
+    let memory_size = rewriter.make(func::call(
         context,
-        memory_size_ptr,
-        rewriter.intrinsics.i64_ty,
+        FlatSymbolRefAttribute::new(context, symbols::MEMORY_SIZE),
+        &[syscall_ctx.into()],
+        &[rewriter.intrinsics.i64_ty],
         location,
-        LoadStoreOptions::default(),
     ))?;
     let memory_size_words = num_words(&rewriter, memory_size, location)?;
     let rounded_memory_size =
@@ -101,39 +98,13 @@ pub(crate) fn resize_memory<'c>(
             &[ptr_type],
             location,
         ))?;
-        let new_memory_ptr = rewriter.get_field_value(
-            result_ptr,
-            offset_of!(dora_runtime::context::RuntimeResult<*mut u8>, value),
-            ptr_type,
-        )?;
         let error = rewriter.get_field_value(
             result_ptr,
-            offset_of!(dora_runtime::context::RuntimeResult<*mut u8>, error),
+            offset_of!(dora_runtime::context::RuntimeResult<()>, error),
             rewriter.intrinsics.i8_ty,
         )?;
         // Check the runtime memory resize halt error
         check_runtime_error!(op, rewriter, error);
-        let rewriter = Rewriter::new_with_op(context, *op);
-        // Load memory ptr
-        let memory_ptr_ptr =
-            rewriter.make(rewriter.addressof(constants::MEMORY_PTR_GLOBAL, ptr_type))?;
-        rewriter.create(llvm::store(
-            context,
-            new_memory_ptr,
-            memory_ptr_ptr,
-            location,
-            LoadStoreOptions::default(),
-        ));
-        // Load memory size
-        let memory_size_ptr =
-            rewriter.make(rewriter.addressof(constants::MEMORY_SIZE_GLOBAL, ptr_type))?;
-        rewriter.create(llvm::store(
-            context,
-            rounded_required_size,
-            memory_size_ptr,
-            location,
-            LoadStoreOptions::default(),
-        ));
     });
     Ok(())
 }

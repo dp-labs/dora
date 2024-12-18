@@ -63,6 +63,8 @@ pub(crate) fn declare_symbols(context: &MLIRContext, module: &MLIRModule) {
         ),
         (symbols::STORE_IN_GASLIMIT_PTR, &[ptr_type, ptr_type], &[]),
         (symbols::EXTEND_MEMORY, &[ptr_type, uint64], &[ptr_type]),
+        (symbols::MEMORY_PTR, &[ptr_type], &[ptr_type]),
+        (symbols::MEMORY_SIZE, &[ptr_type], &[uint64]),
         (
             symbols::CODE_COPY,
             &[ptr_type, ptr_type, uint64, uint64],

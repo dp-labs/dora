@@ -6,10 +6,12 @@ use crate::{
     conversion::rewriter::{DeferredRewriter, Rewriter},
     dora::{conversion::ConversionPass, memory},
     errors::Result,
-    load_by_addr, maybe_revert_here, operands, rewrite_ctx,
+    maybe_revert_here, operands, rewrite_ctx,
 };
 use crate::{gas_or_fail, if_here, u256_to_u64};
-use dora_runtime::{constants, ExitStatusCode};
+use dora_runtime::{symbols, ExitStatusCode};
+use melior::dialect::func;
+use melior::ir::attribute::FlatSymbolRefAttribute;
 use melior::{
     dialect::{
         arith::{self},
@@ -47,7 +49,13 @@ impl<'c> ConversionPass<'c> {
         });
         rewrite_ctx!(context, op, rewriter, location);
         let offset = rewriter.make(arith::trunci(offset, rewriter.intrinsics.i64_ty, location))?;
-        let memory_ptr = load_by_addr!(rewriter, constants::MEMORY_PTR_GLOBAL, rewriter.ptr_ty());
+        let memory_ptr = rewriter.make(func::call(
+            context,
+            FlatSymbolRefAttribute::new(context, symbols::MEMORY_PTR),
+            &[syscall_ctx.into()],
+            &[rewriter.ptr_ty()],
+            location,
+        ))?;
         let memory_destination = rewriter.make(llvm::get_element_ptr_dynamic(
             context,
             memory_ptr,
@@ -109,7 +117,13 @@ impl<'c> ConversionPass<'c> {
         });
         rewrite_ctx!(context, op, rewriter, location);
         let offset = rewriter.make(arith::trunci(offset, rewriter.intrinsics.i64_ty, location))?;
-        let memory_ptr = load_by_addr!(rewriter, constants::MEMORY_PTR_GLOBAL, rewriter.ptr_ty());
+        let memory_ptr = rewriter.make(func::call(
+            context,
+            FlatSymbolRefAttribute::new(context, symbols::MEMORY_PTR),
+            &[syscall_ctx.into()],
+            &[rewriter.ptr_ty()],
+            location,
+        ))?;
         // Memory_destination = memory_ptr + offset
         let memory_destination = rewriter.make(llvm::get_element_ptr_dynamic(
             context,
@@ -143,11 +157,17 @@ impl<'c> ConversionPass<'c> {
     }
 
     pub(crate) fn msize(context: &Context, op: &OperationRef<'_, '_>) -> Result<()> {
+        block_argument!(op, syscall_ctx);
         rewrite_ctx!(context, op, rewriter, location);
 
-        let uint64 = rewriter.intrinsics.i64_ty;
         let uint256 = rewriter.intrinsics.i256_ty;
-        let memory_size = load_by_addr!(rewriter, constants::MEMORY_SIZE_GLOBAL, uint64);
+        let memory_size = rewriter.make(func::call(
+            context,
+            FlatSymbolRefAttribute::new(context, symbols::MEMORY_SIZE),
+            &[syscall_ctx.into()],
+            &[rewriter.intrinsics.i64_ty],
+            location,
+        ))?;
         rewriter.make(arith::extui(memory_size, uint256, location))?;
         Ok(())
     }
@@ -178,7 +198,13 @@ impl<'c> ConversionPass<'c> {
             )?;
         });
         rewrite_ctx!(context, op, rewriter, location);
-        let memory_ptr = load_by_addr!(rewriter, constants::MEMORY_PTR_GLOBAL, rewriter.ptr_ty());
+        let memory_ptr = rewriter.make(func::call(
+            context,
+            FlatSymbolRefAttribute::new(context, symbols::MEMORY_PTR),
+            &[syscall_ctx.into()],
+            &[rewriter.ptr_ty()],
+            location,
+        ))?;
         // memory_destination = memory_ptr + offset
         let source = rewriter.make(llvm::get_element_ptr_dynamic(
             context,
