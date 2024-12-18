@@ -34,6 +34,8 @@ include(GNUInstallDirs)
 
 set(include_dir ${CMAKE_CURRENT_SOURCE_DIR}/include)
 
+set(CMAKE_CXX_FLAGS "${CMAKE_C_FLAGS} -std=c++17")
+
 # INSTALL
 # Get cargo target dir using cargo locate-project
 # We should do this because the target dir is different for development and release
