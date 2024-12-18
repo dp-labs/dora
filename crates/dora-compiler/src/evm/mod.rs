@@ -2,13 +2,13 @@ use dora_primitives::SpecId;
 use dora_runtime::constants::env::DORA_TRACING;
 use dora_runtime::ExitStatusCode;
 use dora_runtime::{
-    constants::{MAIN_ENTRYPOINT, MAX_STACK_SIZE, MEMORY_PTR_GLOBAL, MEMORY_SIZE_GLOBAL},
+    constants::{MAIN_ENTRYPOINT, MAX_STACK_SIZE},
     symbols,
 };
 use melior::{
     dialect::{
         arith, cf, func,
-        llvm::{self, attributes::Linkage, LoadStoreOptions},
+        llvm::{self, LoadStoreOptions},
     },
     ir::{
         attribute::{FlatSymbolRefAttribute, IntegerAttribute, StringAttribute, TypeAttribute},
@@ -714,9 +714,7 @@ impl<'c> CtxType<'c> {
         let stack_size_ptr = block.add_argument(intrinsics.ptr_ty, location);
         let op_builder = OpBuilder::new(&context.mlir_context);
 
-        SetupBuilder::new(&context.mlir_context, module, block, &op_builder)
-            .memory()?
-            .declare_symbols()?;
+        SetupBuilder::new(&context.mlir_context, module).declare_symbols()?;
 
         let revert_block = region.append_block(revert_block(
             &context.mlir_context,
@@ -921,18 +919,8 @@ pub fn revert_block<'c>(
 pub struct SetupBuilder<'c> {
     /// The MLIR context used for managing types, operations, and modules.
     context: &'c MLIRContext,
-
     /// The module that contains the operations generated during execution.
     module: &'c Module<'c>,
-
-    /// The block in which operations are generated.
-    block: &'c Block<'c>,
-
-    /// The operation builder used to create MLIR operations.
-    builder: &'c OpBuilder<'c, 'c>,
-
-    /// The location information used for debugging purposes.
-    location: Location<'c>,
 }
 
 impl<'c> SetupBuilder<'c> {
@@ -946,39 +934,8 @@ impl<'c> SetupBuilder<'c> {
     ///
     /// # Returns
     /// A new instance of `SetupBuilder`.
-    pub fn new(
-        context: &'c MLIRContext,
-        module: &'c Module<'c>,
-        block: &'c Block<'c>,
-        op_builder: &'c OpBuilder<'c, 'c>,
-    ) -> Self {
-        Self {
-            context,
-            module,
-            block,
-            builder: op_builder,
-            location: Location::unknown(context),
-        }
-    }
-
-    /// Declares globals for memory pointer and size, and initializes the memory size to zero.
-    ///
-    /// This method sets up the memory structure required for EVM execution.
-    ///
-    /// # Returns
-    /// A reference to `self` for method chaining.
-    ///
-    /// # Errors
-    /// Returns an error if global declarations or initialization fails.
-    pub fn memory(&self) -> Result<&Self> {
-        let ptr_type = self.builder.intrinsics.ptr_ty;
-        let uint64 = self.builder.intrinsics.i64_ty;
-        self.declare_globals(&[MEMORY_PTR_GLOBAL], ptr_type)?;
-        self.declare_globals(&[MEMORY_SIZE_GLOBAL], uint64)?;
-        let zero = self.constant(0)?;
-        self.initialize_global(MEMORY_SIZE_GLOBAL, ptr_type, zero)?;
-
-        Ok(self)
+    pub fn new(context: &'c MLIRContext, module: &'c Module<'c>) -> Self {
+        Self { context, module }
     }
 
     /// Declares the necessary symbols within the module.
@@ -990,53 +947,9 @@ impl<'c> SetupBuilder<'c> {
     ///
     /// # Errors
     /// Returns an error if symbol declaration fails.
+    #[inline]
     pub fn declare_symbols(&self) -> Result<&Self> {
         symbols_ctx::declare_symbols(self.context, self.module);
-        Ok(self)
-    }
-
-    fn constant(&self, integer: i64) -> Result<Value> {
-        let uint64 = self.builder.intrinsics.i64_ty;
-        let constant = self
-            .block
-            .append_operation(arith::constant(
-                self.context,
-                IntegerAttribute::new(uint64, integer).into(),
-                self.location,
-            ))
-            .result(0)?
-            .into();
-
-        Ok(constant)
-    }
-
-    fn declare_globals(&self, globals: &[&str], ty: melior::ir::Type) -> Result<&Self> {
-        let body = self.module.body();
-        for global in globals {
-            body.append_operation(self.builder.global(global, ty, Linkage::Internal));
-        }
-        Ok(self)
-    }
-
-    fn initialize_global(
-        &self,
-        global: &str,
-        ty: melior::ir::Type,
-        initial_value: Value<'c, 'c>,
-    ) -> Result<&Self> {
-        let global_ptr = self
-            .block
-            .append_operation(self.builder.addressof(global, ty))
-            .result(0)?
-            .into();
-
-        self.block.append_operation(llvm::store(
-            self.context,
-            initial_value,
-            global_ptr,
-            self.location,
-            LoadStoreOptions::default(),
-        ));
         Ok(self)
     }
 }

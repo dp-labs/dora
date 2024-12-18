@@ -6,6 +6,7 @@ pub const CTX_IS_STATIC: &str = "dora_fn_is_static";
 // System functions
 pub const WRITE_RESULT: &str = "dora_fn_write_result";
 pub const EXTEND_MEMORY: &str = "dora_fn_extend_memory";
+pub const MEMORY_PTR: &str = "dora_fn_memory_ptr";
 pub const MEMORY_SIZE: &str = "dora_fn_memory_size";
 pub const CALLDATA: &str = "dora_fn_calldata";
 pub const CALLDATA_SIZE: &str = "dora_fn_calldata_size";
