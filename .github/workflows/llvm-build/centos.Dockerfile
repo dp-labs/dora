@@ -35,6 +35,7 @@ RUN python3 -m pip install -r /source/llvm-project/mlir/python/requirements.txt
 
 # Configure, Build, Test, and Install LLVM
 RUN cmake -GNinja -Bbuild \
+  -DLLVM_ENABLE_PROJECTS="mlir;clang;clang-tools-extra;lld;polly" \
   -DCMAKE_BUILD_TYPE=Release \
   -DCMAKE_C_COMPILER=clang \
   -DCMAKE_CXX_COMPILER=clang++ \
@@ -48,7 +49,6 @@ RUN cmake -GNinja -Bbuild \
   -DLLVM_BUILD_TOOLS=ON \
   -DLLVM_ENABLE_ASSERTIONS=ON \
   -DMLIR_ENABLE_BINDINGS_PYTHON=ON \
-  -DLLVM_ENABLE_PROJECTS=mlir \
   -DLLVM_BUILD_EXAMPLES=OFF \
   -DLLVM_ENABLE_TERMINFO=OFF \
   -DLLVM_INSTALL_UTILS=ON \
