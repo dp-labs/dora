@@ -43,16 +43,7 @@ Check out contract examples [here](./examples/).
 
 ## Benchmarks
 
-Dora performed well in basic test cases. The benchmark results are shown below. For more benchmark tests, see [here](./tests/bench/).
-
-- `Fib(70)`
-
-![7891731069869_ pic](https://github.com/user-attachments/assets/acc20aae-9f98-4323-b4e4-b64cb1536515)
-
-- `Counter`
-
-![7881731069869_ pic](https://github.com/user-attachments/assets/bac100ed-01ea-4106-aaf1-1b486624713f)
-
+Dora performed well in basic test cases. The benchmark tests and results are shown [here](./tests/bench/).
 
 ## Installation
 
