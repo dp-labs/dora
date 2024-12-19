@@ -118,7 +118,7 @@ jobs:
           tag_name: ${{ env.VERSION }}
           token: ${{ secrets.DEPLOY_ACCESS_TOKEN }}
           generate_release_notes: true
-          name: Production
+          name: ${{ env.VERSION }} Release
           files: |
             dora-linux-amd64.tar.gz
             dora-darwin-amd64.tar.gz
@@ -144,7 +144,9 @@ jobs:
             ghcr.io/dp-labs/dora
 
       - name: Extract dora binary to dist
-        run: tar -xf dora-linux-amd64.tar.gz -C dist/
+        run: |
+          mkdir dist
+          tar -xf dora-linux-amd64.tar.gz -C dist/
 
       - name: Build and push Docker image
         uses: docker/build-push-action@v6
