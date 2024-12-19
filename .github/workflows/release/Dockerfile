@@ -1,4 +1,4 @@
-FROM debian:11-slim AS image
+FROM ubuntu:22.04 AS image
 # Run `make dist` before this command or build the artifact in CI.
 COPY dist/bin/dora /usr/local/bin/dora
 
