@@ -165,7 +165,7 @@ impl<'c> EVMCompiler<'c> {
     pub fn generate_code_for_op(
         ctx: &mut CtxType<'c>,
         region: &'c Region<'c>,
-        op: Operation,
+        op: &Operation,
         options: &<EVMCompiler<'c> as Compiler>::Options,
     ) -> Result<(BlockRef<'c, 'c>, BlockRef<'c, 'c>)> {
         let op_infos = op_info_map(unsafe {
@@ -300,15 +300,11 @@ impl<'c> EVMCompiler<'c> {
         let is_eof = false;
         // Stack overflow/underflow check.
         if !is_eof && options.stack_bound_checks {
-            block_start = Self::stack_bound_checks_block(ctx, region, block_start, &op)?;
+            block_start = Self::stack_bound_checks_block(ctx, region, block_start, op)?;
         }
         // Static gas metering needs to be done before stack checking.
         if options.gas_metering {
-            block_start = Self::gas_metering_block(ctx, region, block_start, &op, &op_info)?;
-        }
-        // Register the jump dest block.
-        if let Operation::Jumpdest { pc } = op {
-            ctx.register_jump_destination(pc, block_start);
+            block_start = Self::gas_metering_block(ctx, region, block_start, op, &op_info)?;
         }
         Ok((block_start, block_end))
     }
@@ -522,12 +518,17 @@ impl<'c> EVMCompiler<'c> {
 
         let setup_block = main_region.append_block(Block::new(&[]));
 
-        let mut ctx = CtxType::new(self.ctx, module, &main_region, &setup_block, program)?;
+        let mut ctx =
+            CtxType::new_main_func_ctx(self.ctx, module, &main_region, &setup_block, program)?;
         let mut last_block = setup_block;
         // Generate code for the program
         for op in &ctx.program.operations {
             let (block_start, block_end) =
-                EVMCompiler::generate_code_for_op(&mut ctx, &main_region, op.clone(), options)?;
+                EVMCompiler::generate_code_for_op(&mut ctx, &main_region, op, options)?;
+            // Register the jump dest block.
+            if let Operation::Jumpdest { pc } = op {
+                ctx.register_jump_destination(*pc, block_start);
+            }
             last_block.append_operation(cf::br(&block_start, &[], location));
             last_block = block_end;
         }
@@ -536,7 +537,7 @@ impl<'c> EVMCompiler<'c> {
         let return_block = main_region.append_block(Block::new(&[]));
         last_block.append_operation(cf::br(&return_block, &[], location));
         EVMCompiler::return_empty_result(&ctx, return_block, ExitStatusCode::Stop)?;
-        module.body().append_operation(main_func.clone());
+        module.body().append_operation(main_func);
         Ok(())
     }
 
@@ -709,7 +710,7 @@ impl<'c> CtxType<'c> {
     /// # Returns
     /// A `Result<Self>` containing the new `CtxType` instance on success, or an
     /// error if the initialization fails.
-    pub fn new(
+    pub fn new_main_func_ctx(
         context: &'c Context,
         module: &'c Module,
         region: &'c Region,

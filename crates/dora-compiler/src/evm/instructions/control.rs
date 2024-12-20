@@ -104,13 +104,12 @@ impl<'c> EVMCompiler<'c> {
     }
 
     pub(crate) fn jumpdest<'r>(
-        ctx: &mut CtxType<'c>,
+        _ctx: &mut CtxType<'c>,
         region: &'r Region<'c>,
-        pc: usize,
+        _pc: usize,
     ) -> Result<(BlockRef<'r, 'c>, BlockRef<'r, 'c>)> {
         let start_block = region.append_block(Block::new(&[]));
-        // Register jumpdest block in context
-        ctx.register_jump_destination(pc, start_block);
+        // Nothing to do here, register the start block in the outer op loop.
         Ok((start_block, start_block))
     }
 
