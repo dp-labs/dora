@@ -48,6 +48,7 @@ fn run_bench(c: &mut Criterion, bench: &Bench) {
                 spec_id,
                 stack_bound_checks: false,
                 gas_metering: false,
+                ..Default::default()
             },
         )
         .unwrap();

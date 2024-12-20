@@ -17,7 +17,14 @@ macro_rules! assert_snapshot {
         let context = Context::new();
         let compiler = EVMCompiler::new(&context);
         let mut module = compiler
-            .compile(&program, &(), &CompileOptions::default())
+            .compile(
+                &program,
+                &(),
+                &CompileOptions {
+                    inline: true,
+                    ..Default::default()
+                },
+            )
             .expect("failed to compile program");
         crate::evm::pass::run(&context.mlir_context, &mut module.mlir_module).unwrap();
         crate::dora::pass::run_storage_pass(&context.mlir_context, &mut module.mlir_module)
