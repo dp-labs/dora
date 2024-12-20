@@ -6,9 +6,9 @@ pub enum OptimizationLevel {
     /// Less optimizations.
     Less,
     /// Default optimizations.
-    #[default]
     Default,
     /// Aggressive optimizations.
+    #[default]
     Aggressive,
 }
 
