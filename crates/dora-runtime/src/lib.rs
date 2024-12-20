@@ -18,13 +18,14 @@ pub mod vm;
 #[repr(u8)]
 #[derive(Debug, Clone)]
 pub enum ExitStatusCode {
+    Continue = 0,
     /* Success Codes */
     /// Encountered a `RETURN` opcode
-    Return = 0,
+    Return = 1,
     /// Encountered a `STOP` opcode
-    Stop = 1,
+    Stop = 2,
     /// Self-destruct the current contract.
-    SelfDestruct = 2,
+    SelfDestruct = 3,
 
     /* Revert Codes */
     /// Revert the transaction.
@@ -106,6 +107,7 @@ impl ExitStatusCode {
     }
     pub fn from_u8(value: u8) -> Self {
         match value {
+            x if x == Self::Continue.to_u8() => Self::Continue,
             x if x == Self::Return.to_u8() => Self::Return,
             x if x == Self::Stop.to_u8() => Self::Stop,
             x if x == Self::SelfDestruct.to_u8() => Self::SelfDestruct,

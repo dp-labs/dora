@@ -255,7 +255,7 @@ opcodes! {
 
 macro_rules! operations {
     ($(($variant:ident, $opcode:ident)),* $(,)?) => {
-        #[derive(Debug, Clone)]
+        #[derive(Debug, Clone, Hash, PartialEq, Eq)]
         pub enum Operation {
             $(
                 $variant,

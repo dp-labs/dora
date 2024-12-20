@@ -117,9 +117,10 @@ fn evmc_address_to_address(address: &evmc_address) -> Address {
 #[inline]
 fn status_to_evmc_status(status: ExitStatusCode) -> StatusCode {
     match status {
-        ExitStatusCode::Return | ExitStatusCode::Stop | ExitStatusCode::SelfDestruct => {
-            StatusCode::EVMC_SUCCESS
-        }
+        ExitStatusCode::Continue
+        | ExitStatusCode::Return
+        | ExitStatusCode::Stop
+        | ExitStatusCode::SelfDestruct => StatusCode::EVMC_SUCCESS,
         ExitStatusCode::Revert
         | ExitStatusCode::OutOfFunds
         | ExitStatusCode::CreateInitCodeStartingEF00

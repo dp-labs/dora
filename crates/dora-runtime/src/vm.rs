@@ -208,7 +208,7 @@ impl<'a, DB: Database> VM<'a, DB> {
         let (state, logs) = self.journaled_state.finalize();
 
         let result = match exit_status {
-            ExitStatusCode::Return => ExecutionResult::Success {
+            ExitStatusCode::Continue | ExitStatusCode::Return => ExecutionResult::Success {
                 reason: SuccessReason::Return,
                 gas_used,
                 gas_refunded,
