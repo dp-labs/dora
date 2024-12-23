@@ -10,6 +10,9 @@ use mlir_sys::{
 use std::fmt::Debug;
 use std::rc::Rc;
 
+/// The stack size at runtime, used for recursive program execution to prevent stack overflow
+pub const RUNTIME_STACK_SIZE: usize = 64 * 1024 * 1024;
+
 /// A struct that wraps around the MLIR-based execution engine for executing compiled EVM code.
 ///
 /// The `Executor` is responsible for managing the execution engine and invoking the main entry point of the compiled
