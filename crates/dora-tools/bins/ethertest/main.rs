@@ -23,6 +23,7 @@ use dora_runtime::context::VMContext;
 use dora_runtime::db::{Database, MemoryDB};
 use dora_runtime::env::Env;
 use dora_runtime::env::TxKind;
+use dora_runtime::executor::RUNTIME_STACK_SIZE;
 use dora_runtime::handler::Handler;
 use dora_runtime::transaction::TransactionType;
 use dora_runtime::vm::VM;
@@ -844,15 +845,19 @@ fn main() -> Result<()> {
                 let tests = find_all_json_tests(path);
                 let pb = ProgressBar::new(tests.len() as u64);
                 pb.set_draw_target(ProgressDrawTarget::stdout());
-
-                for test_path in tests {
-                    match execute_test(&test_path) {
-                        Ok(_) => pb.inc(1),
-                        Err(e) => error!("Test failed: {:?}", e),
-                    }
-                }
-
-                pb.finish_with_message("All tests completed");
+                let builder = std::thread::Builder::new().stack_size(RUNTIME_STACK_SIZE);
+                let handle = builder
+                    .spawn(move || {
+                        for test_path in tests {
+                            match execute_test(&test_path) {
+                                Ok(_) => pb.inc(1),
+                                Err(e) => error!("Test failed: {:?}", e),
+                            }
+                        }
+                        pb.finish_with_message("All tests completed");
+                    })
+                    .unwrap();
+                handle.join().unwrap();
             }
             Ok(())
         }
