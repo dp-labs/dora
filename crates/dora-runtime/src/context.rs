@@ -798,6 +798,8 @@ pub struct InnerContext {
     gas_refunded: i64,
     /// The exit status code of the VM execution.
     exit_status: Option<ExitStatusCode>,
+    /// The instruction result buffer.
+    result: RuntimeResult<u64>,
     /// Depth in the call stack.
     pub depth: usize,
     /// Whether the context is static.
@@ -964,12 +966,14 @@ pub struct Log {
 
 /// A generic struct to represent the result of a runtime function call.
 #[repr(C)]
+#[derive(Debug, Clone, Default)]
 pub struct RuntimeResult<T> {
     /// The error, if any, encountered during execution.
     pub error: u8,
     /// The gas consumed during the execution of the function call.
     pub gas_used: u64,
     /// The result value of the function call. None indicates no value returned.
+    /// Note: make sure the value is defined at the last of the structure.
     pub value: T,
 }
 
@@ -1175,24 +1179,24 @@ impl<'a> RuntimeContext<'a> {
         memory_offset: u64,
         data_offset: &Bytes32,
         size: u64,
-    ) -> *mut RuntimeResult<()> {
+    ) -> *const RuntimeResult<()> {
         let data_offset = as_usize_saturated!(data_offset.to_u256());
         let memory_offset = memory_offset as usize;
         let size = size as usize;
         let (data_end, overflow) = data_offset.overflowing_add(size);
         // Check bounds
         if overflow || data_end > self.inner.returndata.len() {
-            return Box::into_raw(Box::new(RuntimeResult::error(
-                ExitStatusCode::OutOfOffset.to_u8(),
-                (),
-            )));
+            self.inner.result.error = ExitStatusCode::OutOfOffset.to_u8();
+            return unsafe {
+                &*(&self.inner.result as *const RuntimeResult<u64> as *const RuntimeResult<()>)
+            };
         }
         // Copy calldata to memory
         if size != 0 {
             self.inner.memory[memory_offset..memory_offset + size]
                 .copy_from_slice(&self.inner.returndata[data_offset..data_end]);
         }
-        Box::into_raw(Box::new(RuntimeResult::success(())))
+        unsafe { &*(&self.inner.result as *const RuntimeResult<u64> as *const RuntimeResult<()>) }
     }
 
     pub extern "C" fn call(
@@ -1206,7 +1210,7 @@ impl<'a> RuntimeContext<'a> {
         ret_size: u64,
         original_remaining_gas: u64,
         call_type: u8,
-    ) -> *mut RuntimeResult<u8> {
+    ) -> *const RuntimeResult<u64> {
         let args_offset = args_offset as usize;
         let args_size = args_size as usize;
         let call_type =
@@ -1216,10 +1220,9 @@ impl<'a> RuntimeContext<'a> {
         let mut account_load = match self.host.load_account_delegated(to) {
             Some(account_load) => account_load,
             None => {
-                return Box::into_raw(Box::new(RuntimeResult::error(
-                    ExitStatusCode::FatalExternalError.to_u8(),
-                    0,
-                )));
+                self.inner.result.error = ExitStatusCode::FatalExternalError.to_u8();
+                self.inner.result.value = 0;
+                return &self.inner.result as _;
             }
         };
         if call_type != CallType::Call {
@@ -1230,10 +1233,9 @@ impl<'a> RuntimeContext<'a> {
         // original_gas - gas_cost
         let (gas_remaining, overflow) = original_remaining_gas.overflowing_sub(gas_cost);
         if overflow {
-            return Box::into_raw(Box::new(RuntimeResult::error(
-                ExitStatusCode::OutOfGas.to_u8(),
-                1,
-            )));
+            self.inner.result.error = ExitStatusCode::OutOfGas.to_u8();
+            self.inner.result.value = 1;
+            return &self.inner.result as _;
         }
         let local_gas_limit = as_u64_saturated!(local_gas_limit.to_u256());
         // EIP-150: Gas cost changes for IO-heavy operations
@@ -1246,10 +1248,9 @@ impl<'a> RuntimeContext<'a> {
         // original_gas - gas_cost - gas_limit
         let (gas_remaining, overflow) = gas_remaining.overflowing_sub(gas_limit);
         if overflow {
-            return Box::into_raw(Box::new(RuntimeResult::error(
-                ExitStatusCode::OutOfGas.to_u8(),
-                1,
-            )));
+            self.inner.result.error = ExitStatusCode::OutOfGas.to_u8();
+            self.inner.result.value = 1;
+            return &self.inner.result as _;
         }
         // Add call stipend if there is value to be transferred.
         if matches!(call_type, CallType::Call | CallType::CallCode) && transfers_value {
@@ -1307,25 +1308,20 @@ impl<'a> RuntimeContext<'a> {
             // Copy call output to the memory.
             self.inner.memory[ret_offset..ret_offset + target_len]
                 .copy_from_slice(&self.inner.returndata[..target_len]);
-            Box::into_raw(Box::new(RuntimeResult::success_with_gas(
-                1,
-                original_remaining_gas - gas_remaining,
-            )))
+            self.inner.result.value = 1;
+            self.inner.result.gas_used = original_remaining_gas - gas_remaining;
         } else if call_result.status.is_revert() {
             let gas_remaining = gas_remaining + call_result.gas_remaining;
             // Copy call output to the memory.
             self.inner.memory[ret_offset..ret_offset + target_len]
                 .copy_from_slice(&self.inner.returndata[..target_len]);
-            Box::into_raw(Box::new(RuntimeResult::success_with_gas(
-                0,
-                original_remaining_gas - gas_remaining,
-            )))
+            self.inner.result.value = 0;
+            self.inner.result.gas_used = original_remaining_gas - gas_remaining;
         } else {
-            Box::into_raw(Box::new(RuntimeResult::success_with_gas(
-                0,
-                original_remaining_gas - gas_remaining,
-            )))
+            self.inner.result.value = 0;
+            self.inner.result.gas_used = original_remaining_gas - gas_remaining;
         }
+        &self.inner.result as _
     }
 
     fn memory_set_data(
@@ -1358,16 +1354,20 @@ impl<'a> RuntimeContext<'a> {
     pub extern "C" fn store_in_selfbalance_ptr(
         &mut self,
         balance: &mut Bytes32,
-    ) -> *mut RuntimeResult<()> {
+    ) -> *const RuntimeResult<()> {
         match self.host.balance(self.contract.target_address) {
             Some(state) => {
                 *balance = state.data;
-                Box::into_raw(Box::new(RuntimeResult::success(())))
+                unsafe {
+                    &*(&self.inner.result as *const RuntimeResult<u64> as *const RuntimeResult<()>)
+                }
             }
-            None => Box::into_raw(Box::new(RuntimeResult::error(
-                ExitStatusCode::FatalExternalError.to_u8(),
-                (),
-            ))),
+            None => {
+                self.inner.result.error = ExitStatusCode::FatalExternalError.to_u8();
+                unsafe {
+                    &*(&self.inner.result as *const RuntimeResult<u64> as *const RuntimeResult<()>)
+                }
+            }
         }
     }
 
@@ -1444,11 +1444,13 @@ impl<'a> RuntimeContext<'a> {
         self.inner.memory.len() as _
     }
 
-    pub extern "C" fn extend_memory(&mut self, new_size: u64) -> *mut RuntimeResult<()> {
+    pub extern "C" fn extend_memory(&mut self, new_size: u64) -> *const RuntimeResult<()> {
         // Note the overflow on the 32-bit machine for the max memory e.g., 4GB
         let new_size = new_size as usize;
         if new_size <= self.inner.memory.len() {
-            return Box::into_raw(Box::new(RuntimeResult::success(())));
+            return unsafe {
+                &*(&self.inner.result as *const RuntimeResult<u64> as *const RuntimeResult<()>)
+            };
         }
         // Check the memory usage bound
         match self
@@ -1458,12 +1460,16 @@ impl<'a> RuntimeContext<'a> {
         {
             Ok(()) => {
                 self.inner.memory.resize(new_size, 0);
-                Box::into_raw(Box::new(RuntimeResult::success(())))
+                unsafe {
+                    &*(&self.inner.result as *const RuntimeResult<u64> as *const RuntimeResult<()>)
+                }
             }
-            Err(_) => Box::into_raw(Box::new(RuntimeResult::error(
-                ExitStatusCode::MemoryLimitOOG.to_u8(),
-                (),
-            ))),
+            Err(_) => {
+                self.inner.result.error = ExitStatusCode::MemoryLimitOOG.to_u8();
+                unsafe {
+                    &*(&self.inner.result as *const RuntimeResult<u64> as *const RuntimeResult<()>)
+                }
+            }
         }
     }
 
@@ -1505,20 +1511,22 @@ impl<'a> RuntimeContext<'a> {
         &mut self,
         stg_key: &Bytes32,
         stg_value: &mut Bytes32,
-    ) -> *mut RuntimeResult<()> {
+    ) -> *const RuntimeResult<()> {
         let result = match self.host.sload(self.contract.target_address, *stg_key) {
             Some(result) => result,
             None => {
-                return Box::into_raw(Box::new(RuntimeResult::error(
-                    ExitStatusCode::FatalExternalError.to_u8(),
-                    (),
-                )))
+                self.inner.result.error = ExitStatusCode::FatalExternalError.to_u8();
+                return unsafe {
+                    &*(&self.inner.result as *const RuntimeResult<u64> as *const RuntimeResult<()>)
+                };
             }
         };
         *stg_value = result.data;
 
         let gas_cost = gas::sload_cost(self.inner.spec_id, result.is_cold);
-        Box::into_raw(Box::new(RuntimeResult::success_with_gas((), gas_cost)))
+
+        self.inner.result.gas_used = gas_cost;
+        unsafe { &*(&self.inner.result as *const RuntimeResult<u64> as *const RuntimeResult<()>) }
     }
 
     pub extern "C" fn sstore(
@@ -1526,12 +1534,12 @@ impl<'a> RuntimeContext<'a> {
         stg_key: &Bytes32,
         stg_value: &Bytes32,
         gas_remaining: u64,
-    ) -> *mut RuntimeResult<()> {
+    ) -> *const RuntimeResult<()> {
         if self.inner.is_static {
-            return Box::into_raw(Box::new(RuntimeResult::error(
-                ExitStatusCode::StateChangeDuringStaticcall.to_u8(),
-                (),
-            )));
+            self.inner.result.error = ExitStatusCode::StateChangeDuringStaticcall.to_u8();
+            return unsafe {
+                &*(&self.inner.result as *const RuntimeResult<u64> as *const RuntimeResult<()>)
+            };
         }
         let mut result = match self
             .host
@@ -1539,10 +1547,10 @@ impl<'a> RuntimeContext<'a> {
         {
             Some(result) => result,
             None => {
-                return Box::into_raw(Box::new(RuntimeResult::error(
-                    ExitStatusCode::FatalExternalError.to_u8(),
-                    (),
-                )))
+                self.inner.result.error = ExitStatusCode::FatalExternalError.to_u8();
+                return unsafe {
+                    &*(&self.inner.result as *const RuntimeResult<u64> as *const RuntimeResult<()>)
+                };
             }
         };
         if let SStoreResult::Slot(slot) = &mut result.data {
@@ -1556,14 +1564,13 @@ impl<'a> RuntimeContext<'a> {
             result.is_cold,
         ) {
             Some(gas_cost) => {
-                self.inner.gas_refunded += gas::sstore_refund(self.inner.spec_id, &result.data);
-                Box::into_raw(Box::new(RuntimeResult::success_with_gas((), gas_cost)))
+                self.inner.result.gas_used = gas_cost;
             }
-            None => Box::into_raw(Box::new(RuntimeResult::error(
-                ExitStatusCode::OutOfGas.to_u8(),
-                (),
-            ))),
+            None => {
+                self.inner.result.error = ExitStatusCode::OutOfGas.to_u8();
+            }
         }
+        unsafe { &*(&self.inner.result as *const RuntimeResult<u64> as *const RuntimeResult<()>) }
     }
 
     pub extern "C" fn append_log(&mut self, offset: u64, size: u64) {
@@ -1629,18 +1636,16 @@ impl<'a> RuntimeContext<'a> {
         *number = self.host.env().block.number.into();
     }
 
-    pub extern "C" fn block_hash(&mut self, number: &mut Bytes32) -> *mut RuntimeResult<()> {
-        let hash = match self.host.block_hash(as_u64_saturated!(number.as_u256())) {
-            Some(hash) => hash,
+    pub extern "C" fn block_hash(&mut self, number: &mut Bytes32) -> *const RuntimeResult<()> {
+        match self.host.block_hash(as_u64_saturated!(number.as_u256())) {
+            Some(hash) => {
+                *number = hash;
+            }
             None => {
-                return Box::into_raw(Box::new(RuntimeResult::error(
-                    ExitStatusCode::FatalExternalError.to_u8(),
-                    (),
-                )))
+                self.inner.result.error = ExitStatusCode::FatalExternalError.to_u8();
             }
         };
-        *number = hash;
-        Box::into_raw(Box::new(RuntimeResult::success(())))
+        unsafe { &*(&self.inner.result as *const RuntimeResult<u64> as *const RuntimeResult<()>) }
     }
 
     fn create_log(&mut self, offset: u64, size: u64, topics: Vec<B256>) {
@@ -1657,25 +1662,20 @@ impl<'a> RuntimeContext<'a> {
         });
     }
 
-    pub extern "C" fn extcodesize(&mut self, address: &Bytes32) -> *mut RuntimeResult<u64> {
+    pub extern "C" fn extcodesize(&mut self, address: &Bytes32) -> *const RuntimeResult<u64> {
         let (code, load) = match self.host.code(address.to_address()) {
             Some(code_load) => code_load.into_components(),
             None => {
-                return Box::into_raw(Box::new(RuntimeResult::error(
-                    ExitStatusCode::FatalExternalError.to_u8(),
-                    0,
-                )))
+                self.inner.result.error = ExitStatusCode::FatalExternalError.to_u8();
+                return &self.inner.result as _;
             }
         };
         let size = code.len();
-
         let gas_cost = gas::extcodesize_gas_cost(self.inner.spec_id, load);
 
-        Box::into_raw(Box::new(RuntimeResult {
-            gas_used: gas_cost,
-            error: 0,
-            value: size as u64,
-        }))
+        self.inner.result.value = size as u64;
+        self.inner.result.gas_used = gas_cost;
+        &self.inner.result as _
     }
 
     #[allow(clippy::clone_on_copy)]
@@ -1706,25 +1706,25 @@ impl<'a> RuntimeContext<'a> {
     }
 
     /// This function reads an address pointer and set the balance of the address to the same pointer
-    pub extern "C" fn store_in_balance(&mut self, address: &mut Bytes32) -> *mut RuntimeResult<()> {
+    pub extern "C" fn store_in_balance(
+        &mut self,
+        address: &mut Bytes32,
+    ) -> *const RuntimeResult<()> {
         let addr = address.to_address();
         let result = match self.host.balance(addr) {
             Some(result) => result,
             None => {
-                return Box::into_raw(Box::new(RuntimeResult::error(
-                    ExitStatusCode::FatalExternalError.to_u8(),
-                    (),
-                )))
+                self.inner.result.error = ExitStatusCode::FatalExternalError.to_u8();
+                return unsafe {
+                    &*(&self.inner.result as *const RuntimeResult<u64> as *const RuntimeResult<()>)
+                };
             }
         };
         *address = result.data;
         let gas_cost = gas::balance_gas_cost(self.inner.spec_id, result.is_cold);
 
-        Box::into_raw(Box::new(RuntimeResult {
-            gas_used: gas_cost,
-            error: 0,
-            value: (),
-        }))
+        self.inner.result.gas_used = gas_cost;
+        unsafe { &*(&self.inner.result as *const RuntimeResult<u64> as *const RuntimeResult<()>) }
     }
 
     pub extern "C" fn blob_hash(&mut self, index: &mut Bytes32) {
@@ -1752,15 +1752,15 @@ impl<'a> RuntimeContext<'a> {
         code_offset: &Bytes32,
         size: u64,
         memory_offset: u64,
-    ) -> *mut RuntimeResult<()> {
+    ) -> *const RuntimeResult<()> {
         let addr = address_value.to_address();
         let (code, load) = match self.host.code(addr) {
             Some(code_load) => code_load.into_components(),
             None => {
-                return Box::into_raw(Box::new(RuntimeResult::error(
-                    ExitStatusCode::FatalExternalError.to_u8(),
-                    (),
-                )))
+                self.inner.result.error = ExitStatusCode::FatalExternalError.to_u8();
+                return unsafe {
+                    &*(&self.inner.result as *const RuntimeResult<u64> as *const RuntimeResult<()>)
+                };
             }
         };
         let code_offset = as_usize_saturated!(code_offset.to_u256());
@@ -1771,28 +1771,27 @@ impl<'a> RuntimeContext<'a> {
             self.memory_set_data(memory_offset, code_offset, size, &code);
         }
         let gas_cost = gas::extcodecopy_gas_cost(self.inner.spec_id, load);
-        Box::into_raw(Box::new(RuntimeResult::success_with_gas((), gas_cost)))
+
+        self.inner.result.gas_used = gas_cost;
+        unsafe { &*(&self.inner.result as *const RuntimeResult<u64> as *const RuntimeResult<()>) }
     }
 
-    pub extern "C" fn ext_code_hash(&mut self, address: &mut Bytes32) -> *mut RuntimeResult<()> {
+    pub extern "C" fn ext_code_hash(&mut self, address: &mut Bytes32) -> *const RuntimeResult<()> {
         let addr = Address::from(address as &Bytes32);
         let (hash, load) = match self.host.code_hash(addr) {
             Some(code_load) => code_load.into_components(),
             None => {
-                return Box::into_raw(Box::new(RuntimeResult::error(
-                    ExitStatusCode::FatalExternalError.to_u8(),
-                    (),
-                )))
+                self.inner.result.error = ExitStatusCode::FatalExternalError.to_u8();
+                return unsafe {
+                    &*(&self.inner.result as *const RuntimeResult<u64> as *const RuntimeResult<()>)
+                };
             }
         };
         *address = hash;
         let gas_cost = gas::extcodehash_gas_cost(self.inner.spec_id, load);
 
-        Box::into_raw(Box::new(RuntimeResult {
-            gas_used: gas_cost,
-            error: 0,
-            value: (),
-        }))
+        self.inner.result.gas_used = gas_cost;
+        unsafe { &*(&self.inner.result as *const RuntimeResult<u64> as *const RuntimeResult<()>) }
     }
 
     fn create_aux(
@@ -1802,7 +1801,7 @@ impl<'a> RuntimeContext<'a> {
         value: &mut Bytes32,
         original_remaining_gas: u64,
         salt: Option<&Bytes32>,
-    ) -> *mut RuntimeResult<u8> {
+    ) -> *const RuntimeResult<()> {
         let offset = offset as usize;
         let size = size as usize;
         let memory_len = self.inner.memory.len();
@@ -1820,10 +1819,10 @@ impl<'a> RuntimeContext<'a> {
         // Original remainning gas - sub call gas limit
         let (gas_remaining, overflow) = original_remaining_gas.overflowing_sub(gas_limit);
         if overflow {
-            return Box::into_raw(Box::new(RuntimeResult::error(
-                ExitStatusCode::OutOfGas.to_u8(),
-                1,
-            )));
+            self.inner.result.error = ExitStatusCode::OutOfGas.to_u8();
+            return unsafe {
+                &*(&self.inner.result as *const RuntimeResult<u64> as *const RuntimeResult<()>)
+            };
         }
 
         let call_msg = CallMessage {
@@ -1846,10 +1845,10 @@ impl<'a> RuntimeContext<'a> {
         let call_result = match self.host.call(call_msg) {
             Ok(result) => result,
             Err(_) => {
-                return Box::into_raw(Box::new(RuntimeResult::error(
-                    ExitStatusCode::FatalExternalError.to_u8(),
-                    0,
-                )))
+                self.inner.result.error = ExitStatusCode::FatalExternalError.to_u8();
+                return unsafe {
+                    &*(&self.inner.result as *const RuntimeResult<u64> as *const RuntimeResult<()>)
+                };
             }
         };
         self.inner.returndata = if call_result.status.is_revert() {
@@ -1864,24 +1863,16 @@ impl<'a> RuntimeContext<'a> {
             value.copy_from(&call_result.create_address.unwrap_or_default());
             let gas_remaining = gas_remaining + call_result.gas_remaining;
             self.inner.gas_refunded += call_result.gas_refunded;
-            Box::into_raw(Box::new(RuntimeResult::success_with_gas(
-                0,
-                original_remaining_gas - gas_remaining,
-            )))
+            self.inner.result.gas_used = original_remaining_gas - gas_remaining;
         } else if call_result.status.is_revert() {
             *value = Bytes32::ZERO;
             let gas_remaining = gas_remaining + call_result.gas_remaining;
-            Box::into_raw(Box::new(RuntimeResult::success_with_gas(
-                0,
-                original_remaining_gas - gas_remaining,
-            )))
+            self.inner.result.gas_used = original_remaining_gas - gas_remaining;
         } else {
             *value = Bytes32::ZERO;
-            Box::into_raw(Box::new(RuntimeResult::success_with_gas(
-                0,
-                original_remaining_gas - gas_remaining,
-            )))
+            self.inner.result.gas_used = original_remaining_gas - gas_remaining;
         }
+        unsafe { &*(&self.inner.result as *const RuntimeResult<u64> as *const RuntimeResult<()>) }
     }
 
     pub extern "C" fn create(
@@ -1890,7 +1881,7 @@ impl<'a> RuntimeContext<'a> {
         offset: u64,
         value: &mut Bytes32,
         remaining_gas: u64,
-    ) -> *mut RuntimeResult<u8> {
+    ) -> *const RuntimeResult<()> {
         self.create_aux(size, offset, value, remaining_gas, None)
     }
 
@@ -1901,14 +1892,14 @@ impl<'a> RuntimeContext<'a> {
         value: &mut Bytes32,
         remaining_gas: u64,
         salt: &Bytes32,
-    ) -> *mut RuntimeResult<u8> {
+    ) -> *const RuntimeResult<()> {
         self.create_aux(size, offset, value, remaining_gas, Some(salt))
     }
 
     pub extern "C" fn selfdestruct(
         &mut self,
         receiver_address: &Bytes32,
-    ) -> *mut RuntimeResult<u64> {
+    ) -> *const RuntimeResult<u64> {
         let receiver_address = Address::from(receiver_address);
         let result = match self
             .host
@@ -1916,22 +1907,18 @@ impl<'a> RuntimeContext<'a> {
         {
             Some(result) => result,
             None => {
-                return Box::into_raw(Box::new(RuntimeResult::error(
-                    ExitStatusCode::FatalExternalError.to_u8(),
-                    0,
-                )))
+                self.inner.result.error = ExitStatusCode::FatalExternalError.to_u8();
+                return &self.inner.result as _;
             }
         };
         // EIP-3529: Reduction in refunds
         if !self.inner.spec_id.is_enabled_in(SpecId::LONDON) && !result.previously_destroyed {
             self.inner.gas_refunded += gas_cost::SELFDESTRUCT;
         }
+        let gas_cost = gas::selfdestruct_cost(self.inner.spec_id, &result);
 
-        Box::into_raw(Box::new(RuntimeResult {
-            error: 0,
-            gas_used: gas::selfdestruct_cost(self.inner.spec_id, &result),
-            value: 0,
-        }))
+        self.inner.result.gas_used = gas_cost;
+        &self.inner.result as _
     }
 
     pub extern "C" fn tload(&mut self, stg_key: &Bytes32, stg_value: &mut Bytes32) {

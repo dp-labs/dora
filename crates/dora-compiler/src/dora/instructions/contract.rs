@@ -124,7 +124,7 @@ impl<'c> ConversionPass<'c> {
         };
         let error = rewriter.get_field_value(
             result_ptr,
-            offset_of!(dora_runtime::context::RuntimeResult<*mut u8>, error),
+            offset_of!(dora_runtime::context::RuntimeResult<()>, error),
             rewriter.intrinsics.i8_ty,
         )?;
         // Check the runtime halt error
@@ -132,7 +132,7 @@ impl<'c> ConversionPass<'c> {
         rewrite_ctx!(context, op, rewriter, _location, NoDefer);
         let gas = rewriter.get_field_value(
             result_ptr,
-            offset_of!(dora_runtime::context::RuntimeResult<*mut u8>, gas_used),
+            offset_of!(dora_runtime::context::RuntimeResult<()>, gas_used),
             rewriter.intrinsics.i64_ty,
         )?;
         gas_or_fail!(op, rewriter, gas, gas_counter_ptr);
@@ -215,6 +215,7 @@ impl<'c> ConversionPass<'c> {
         );
 
         let uint8 = rewriter.intrinsics.i8_ty;
+        let uint64 = rewriter.intrinsics.i64_ty;
         let uint256 = rewriter.intrinsics.i256_ty;
         let ptr_type = rewriter.ptr_ty();
 
@@ -295,12 +296,12 @@ impl<'c> ConversionPass<'c> {
         ))?;
         let result = rewriter.get_field_value(
             result_ptr,
-            offset_of!(dora_runtime::context::RuntimeResult<u8>, value),
-            uint8,
+            offset_of!(dora_runtime::context::RuntimeResult<u64>, value),
+            uint64,
         )?;
         let error = rewriter.get_field_value(
             result_ptr,
-            offset_of!(dora_runtime::context::RuntimeResult<*mut u8>, error),
+            offset_of!(dora_runtime::context::RuntimeResult<u64>, error),
             rewriter.intrinsics.i8_ty,
         )?;
         // Check the runtime halt error
@@ -308,7 +309,7 @@ impl<'c> ConversionPass<'c> {
         rewrite_ctx!(context, op, rewriter, _location, NoDefer);
         let gas = rewriter.get_field_value(
             result_ptr,
-            offset_of!(dora_runtime::context::RuntimeResult<*mut u8>, gas_used),
+            offset_of!(dora_runtime::context::RuntimeResult<u64>, gas_used),
             rewriter.intrinsics.i64_ty,
         )?;
         gas_or_fail!(op, rewriter, gas, gas_counter_ptr);

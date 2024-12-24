@@ -251,7 +251,7 @@ impl<'c> ConversionPass<'c> {
         ))?;
         let error = rewriter.get_field_value(
             result_ptr,
-            offset_of!(dora_runtime::context::RuntimeResult<*mut u8>, error),
+            offset_of!(dora_runtime::context::RuntimeResult<()>, error),
             rewriter.intrinsics.i8_ty,
         )?;
         // Check the runtime sstore halt error
