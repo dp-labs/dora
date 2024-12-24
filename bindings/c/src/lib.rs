@@ -31,7 +31,7 @@ lazy_static! {
         Mutex::new(FxHashMap::default());
 }
 
-#[evmc_declare_vm("dora", "evm, ewasm, precompiles", "12.0.0")]
+#[evmc_declare_vm("dora", "evm, ewasm, precompiles", "11.0.0")]
 pub struct DoraVM {}
 
 impl EvmcVm for DoraVM {
@@ -130,7 +130,6 @@ fn evmc_revision_to_spec_id(revision: Revision) -> SpecId {
         EVMC_SHANGHAI => SpecId::SHANGHAI,
         EVMC_CANCUN => SpecId::CANCUN,
         EVMC_PRAGUE => SpecId::PRAGUE,
-        EVMC_OSAKA => SpecId::OSAKA,
     }
 }
 
@@ -220,8 +219,10 @@ fn call_kind_to_evmc_msg_kind(kind: CallKind) -> MessageKind {
         CallKind::Staticcall => MessageKind::EVMC_CALL,
         CallKind::Create => MessageKind::EVMC_CREATE,
         CallKind::Create2 => MessageKind::EVMC_CREATE2,
-        CallKind::EofCreate => MessageKind::EVMC_EOFCREATE,
-        CallKind::ExtCall | CallKind::ExtStaticcall | CallKind::ExtDelegatecall => {
+        CallKind::EofCreate
+        | CallKind::ExtCall
+        | CallKind::ExtStaticcall
+        | CallKind::ExtDelegatecall => {
             unimplemented!("{:?}", kind)
         }
     }
