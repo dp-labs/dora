@@ -2095,7 +2095,7 @@ impl RuntimeContext<'_> {
                 is_eof_init: true,
                 validate_eof: true,
             };
-            if let Err(_) = self.host.call(call_msg) {
+            if self.host.call(call_msg).is_err() {
                 return Box::into_raw(Box::new(RuntimeResult::error(
                     ExitStatusCode::FatalExternalError.to_u8(),
                     0,
