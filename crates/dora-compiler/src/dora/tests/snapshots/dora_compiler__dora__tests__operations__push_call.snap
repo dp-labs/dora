@@ -144,7 +144,7 @@ module {
     %c0_i8_10 = arith.constant 0 : i8
     %42 = call @dora_fn_call(%arg0, %40, %41, %39, %36, %29, %37, %33, %38, %c0_i8_10) : (!llvm.ptr, !llvm.ptr, !llvm.ptr, !llvm.ptr, i64, i64, i64, i64, i64, i8) -> !llvm.ptr
     %43 = llvm.getelementptr %42[16] : (!llvm.ptr) -> !llvm.ptr, i8
-    %44 = llvm.load %43 : !llvm.ptr -> i8
+    %44 = llvm.load %43 : !llvm.ptr -> i64
     %45 = llvm.getelementptr %42[0] : (!llvm.ptr) -> !llvm.ptr, i8
     %46 = llvm.load %45 : !llvm.ptr -> i8
     %c0_i8_11 = arith.constant 0 : i8
@@ -163,7 +163,7 @@ module {
     %c80_i8 = arith.constant 80 : i8
     cf.cond_br %51, ^bb1(%c80_i8 : i8), ^bb12
   ^bb12:  // pred: ^bb11
-    %52 = arith.extui %44 : i8 to i256
+    %52 = arith.extui %44 : i64 to i256
     %53 = llvm.load %arg4 : !llvm.ptr -> !llvm.ptr
     llvm.store %52, %53 : i256, !llvm.ptr
     %54 = llvm.getelementptr %53[1] : (!llvm.ptr) -> !llvm.ptr, i256
