@@ -243,11 +243,6 @@ impl<'a> Host for EvmcDelegateHost<'a> {
                 transmute::<[u8; 32], evmc_bytes32>(Bytes32::from(msg.value).to_be_bytes()),
                 transmute::<B256, evmc_bytes32>(msg.salt.unwrap_or_default()),
                 transmute::<Address, evmc_address>(msg.code_address),
-                if msg.input.len() > 0 {
-                    Some(&msg.input.0)
-                } else {
-                    None
-                },
             ));
             Ok(CallResult {
                 status: evmc_status_to_status(result.status_code()),
