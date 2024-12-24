@@ -2,12 +2,13 @@
 // Licensed under the Apache License, Version 2.0.
 
 use dora::{
+    build_artifact,
     compiler::evm::program::EOF_MAGIC_BYTES,
-    primitives::{Address, Bytes32, SpecId},
-    run_with_context,
+    primitives::{Address, Bytes, Bytes32, SpecId},
     runtime::{
+        artifact::{Artifact, SymbolArtifact},
         call::CallKind,
-        context::{Contract, RuntimeContext},
+        context::{Contract, RuntimeContext, Stack},
         db::MemoryDB,
         ExitStatusCode,
     },
@@ -16,11 +17,19 @@ use evmc_declare::evmc_declare_vm;
 use evmc_sys::evmc_address;
 use evmc_vm::*;
 use host::EvmcDelegateHost;
+use lazy_static::lazy_static;
+use rustc_hash::FxHashMap;
+use std::sync::Mutex;
 
 mod host;
 
 #[cfg(test)]
 mod tests;
+
+lazy_static! {
+    static ref ARTIFACTS: Mutex<FxHashMap<Bytes, SymbolArtifact>> =
+        Mutex::new(FxHashMap::default());
+}
 
 #[evmc_declare_vm("dora", "evm, ewasm, precompiles", "12.0.0")]
 pub struct DoraVM {}
@@ -59,30 +68,46 @@ impl EvmcVm for DoraVM {
             &mut host,
             spec_id,
         );
-        if run_with_context::<MemoryDB>(&mut runtime_context, message.gas() as u64).is_err() {
-            // Compile errors
-            ExecutionResult::failure()
+        let mut artifacts = ARTIFACTS.lock().unwrap();
+        let artifact = if let Some(artifact) = artifacts.get(&runtime_context.contract.code) {
+            artifact.clone()
         } else {
-            // Runtime errors
-            let exit_code = runtime_context.status();
-            if exit_code.is_ok() {
-                ExecutionResult::success(
-                    runtime_context.gas_remaining() as i64,
-                    runtime_context.gas_refunded() as i64,
-                    Some(runtime_context.return_values()),
-                )
-            } else if exit_code.is_revert() {
-                ExecutionResult::new(
-                    status_to_evmc_status(exit_code),
-                    runtime_context.gas_remaining() as i64,
-                    0,
-                    Some(runtime_context.return_values()),
-                )
-            } else if exit_code.is_error() {
-                ExecutionResult::new(status_to_evmc_status(exit_code), 0, 0, None)
-            } else {
-                ExecutionResult::failure()
-            }
+            let Ok(artifact) = build_artifact::<MemoryDB>(
+                &runtime_context.contract.code,
+                runtime_context.inner.spec_id,
+            ) else {
+                return ExecutionResult::failure();
+            };
+            artifacts.insert(runtime_context.contract.code.to_owned(), artifact.clone());
+            artifact
+        };
+        drop(artifacts);
+        let mut initial_gas = message.gas() as u64;
+        artifact.execute(
+            &mut runtime_context,
+            &mut initial_gas,
+            &mut Stack::new(),
+            &mut 0,
+        );
+        // Runtime errors
+        let exit_code = runtime_context.status();
+        if exit_code.is_ok() {
+            ExecutionResult::success(
+                runtime_context.gas_remaining() as i64,
+                runtime_context.gas_refunded() as i64,
+                Some(runtime_context.return_values()),
+            )
+        } else if exit_code.is_revert() {
+            ExecutionResult::new(
+                status_to_evmc_status(exit_code),
+                runtime_context.gas_remaining() as i64,
+                0,
+                Some(runtime_context.return_values()),
+            )
+        } else if exit_code.is_error() {
+            ExecutionResult::new(status_to_evmc_status(exit_code), 0, 0, None)
+        } else {
+            ExecutionResult::failure()
         }
     }
 }

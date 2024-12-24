@@ -1,3 +1,5 @@
+#![allow(clippy::arc_with_non_send_sync)]
+
 use crate::constants::MAIN_ENTRYPOINT;
 use crate::context::{MainFunc, RuntimeContext, Stack};
 use dora_primitives::config::OptimizationLevel;
@@ -8,7 +10,7 @@ use mlir_sys::{
     mlirExecutionEngineRegisterSymbol, MlirExecutionEngine,
 };
 use std::fmt::Debug;
-use std::rc::Rc;
+use std::sync::Arc;
 
 /// The stack size at runtime, used for recursive program execution to prevent stack overflow
 pub const RUNTIME_STACK_SIZE: usize = 64 * 1024 * 1024;
@@ -117,13 +119,16 @@ impl Executor {
 /// A shared reference execution engine for the artifact cache.
 #[derive(Debug)]
 pub struct ExecutionEngine {
-    raw: Rc<MlirExecutionEngine>,
+    raw: Arc<MlirExecutionEngine>,
 }
+
+unsafe impl Send for ExecutionEngine {}
+unsafe impl Sync for ExecutionEngine {}
 
 impl Clone for ExecutionEngine {
     fn clone(&self) -> Self {
         ExecutionEngine {
-            raw: Rc::clone(&self.raw),
+            raw: Arc::clone(&self.raw),
         }
     }
 }
@@ -131,7 +136,7 @@ impl Clone for ExecutionEngine {
 impl Default for ExecutionEngine {
     fn default() -> Self {
         Self {
-            raw: Rc::new(MlirExecutionEngine {
+            raw: Arc::new(MlirExecutionEngine {
                 ptr: std::ptr::null_mut(),
             }),
         }
@@ -148,7 +153,7 @@ impl ExecutionEngine {
     ) -> Self {
         Self {
             raw: unsafe {
-                Rc::new(mlirExecutionEngineCreate(
+                Arc::new(mlirExecutionEngineCreate(
                     module.to_raw(),
                     optimization_level as i32,
                     shared_library_paths.len() as i32,
@@ -184,7 +189,7 @@ impl ExecutionEngine {
 
 impl Drop for ExecutionEngine {
     fn drop(&mut self) {
-        if Rc::strong_count(&self.raw) == 1 {
+        if Arc::strong_count(&self.raw) == 1 {
             unsafe { mlirExecutionEngineDestroy(*self.raw) }
         }
     }
