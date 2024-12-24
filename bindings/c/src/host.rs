@@ -89,7 +89,7 @@ impl<'a> Host for EvmcDelegateHost<'a> {
             );
             let result = self.context.get_storage(&addr, &key);
             Some(StateLoad::new(
-                transmute::<evmc_bytes32, Bytes32>(result),
+                Bytes32::from_be_bytes(result.bytes),
                 is_cold,
             ))
         }
