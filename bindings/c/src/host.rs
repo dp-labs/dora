@@ -82,7 +82,7 @@ impl<'a> Host for EvmcDelegateHost<'a> {
     fn sload(&mut self, addr: Address, key: Bytes32) -> Option<StateLoad<Bytes32>> {
         unsafe {
             let addr = transmute::<Address, evmc_address>(addr);
-            let key = transmute::<Bytes32, evmc_bytes32>(key);
+            let key = transmute::<Bytes32, evmc_bytes32>(key.to_be());
             let is_cold = matches!(
                 self.context.access_storage(&addr, &key),
                 evmc_access_status::EVMC_ACCESS_COLD
@@ -103,8 +103,8 @@ impl<'a> Host for EvmcDelegateHost<'a> {
     ) -> Option<StateLoad<SStoreResult>> {
         unsafe {
             let addr = transmute::<Address, evmc_address>(addr);
-            let key = transmute::<Bytes32, evmc_bytes32>(key);
-            let value = transmute::<Bytes32, evmc_bytes32>(value);
+            let key = transmute::<Bytes32, evmc_bytes32>(key.to_be());
+            let value = transmute::<Bytes32, evmc_bytes32>(value.to_be());
             let is_cold = matches!(
                 self.context.access_storage(&addr, &key),
                 evmc_access_status::EVMC_ACCESS_COLD
@@ -120,7 +120,7 @@ impl<'a> Host for EvmcDelegateHost<'a> {
     fn tload(&mut self, addr: Address, key: Bytes32) -> Bytes32 {
         unsafe {
             let addr = transmute::<Address, evmc_address>(addr);
-            let key = transmute::<Bytes32, evmc_bytes32>(key);
+            let key = transmute::<Bytes32, evmc_bytes32>(key.to_be());
             let result = self.context.get_storage(&addr, &key);
             Bytes32::from_be_bytes(result.bytes)
         }
@@ -129,8 +129,8 @@ impl<'a> Host for EvmcDelegateHost<'a> {
     fn tstore(&mut self, addr: Address, key: Bytes32, value: Bytes32) {
         unsafe {
             let addr = transmute::<Address, evmc_address>(addr);
-            let key = transmute::<Bytes32, evmc_bytes32>(key);
-            let value = transmute::<Bytes32, evmc_bytes32>(value);
+            let key = transmute::<Bytes32, evmc_bytes32>(key.to_be());
+            let value = transmute::<Bytes32, evmc_bytes32>(value.to_be());
             self.context.set_storage(&addr, &key, &value);
         }
     }
