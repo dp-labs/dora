@@ -11,16 +11,15 @@ use dora_primitives::{Address, Bytes, B256, U256};
 pub enum CallKind {
     Call = 0,
     Callcode = 1,
-    CallF = 2,
-    RetF = 3,
-    Delegatecall = 4,
-    Staticcall = 5,
-    ExtCall = 6,
-    ExtStaticcall = 7,
-    ExtDelegatecall = 8,
-    Create = 9,
-    Create2 = 10,
-    EofCreate = 11,
+    Delegatecall = 2,
+    Staticcall = 3,
+    ExtCall = 4,
+    ExtStaticcall = 5,
+    ExtDelegatecall = 6,
+    Create = 7,
+    Create2 = 8,
+    EofCreate = 9,
+    ReturnContract = 10,
 }
 
 impl From<CallType> for CallKind {

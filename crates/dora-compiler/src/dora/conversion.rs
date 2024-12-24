@@ -37,7 +37,7 @@ pub struct ConversionPass<'c> {
     /// The size of the program's bytecode (in bytes).
     pub program_code_size: u32,
     pub spec_id: SpecId,
-    pub limit_contract_code_size: Option<usize>,
+    pub limit_contract_code_size: usize,
 }
 
 impl ConversionPass<'_> {
@@ -218,6 +218,10 @@ impl ConversionPass<'_> {
                 Self::datasize(context, op)?;
             } else if name == "dora.datacopy" {
                 Self::datacopy(context, op)?;
+            } else if name == "dora.eofcreate" {
+                Self::eofcreate(context, op, self.limit_contract_code_size)?;
+            } else if name == "dora.returncontract" {
+                Self::returncontract(context, op, self.limit_contract_code_size)?;
             } else if name == "dora.create" {
                 Self::create(
                     context,

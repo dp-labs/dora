@@ -11,7 +11,7 @@ use melior::{
     ir::{Block, Location, Region, Value},
 };
 
-/// Calculate the cost of the `EXP` opcode.
+/// Calculates the cost of the `EXP` opcode.
 pub(crate) fn compute_exp_cost<'c>(
     rewriter: &'c Rewriter,
     exponent: Value<'c, 'c>, /*i256*/
@@ -91,7 +91,7 @@ pub(crate) fn compute_exp_cost<'c>(
 }
 
 /// Returns number of words what would fit to provided number of bytes,
-/// i.e. it rounds up the number bytes to number of words (len + 31) / 32.
+/// i.e. it rounds up the number bytes to number of words `(len + 31) / 32`.
 pub(crate) fn num_words<'c>(
     rewriter: &'c Rewriter,
     len: Value<'c, 'c>,
@@ -108,9 +108,12 @@ pub(crate) fn num_words<'c>(
     Ok(memory_size_word)
 }
 
-/// Calculate the cost of buffer per word.
-/// num_words = (memory_byte_size + 31) / 32
-/// cost = num_words * multiple
+/// Calculates the cost of buffer per word.
+///
+/// ```no_check
+/// num_words   = (memory_byte_size + 31) / 32
+/// cost        = num_words * multiple
+/// ```
 pub(crate) fn compute_per_word_cost<'c>(
     rewriter: &'c Rewriter,
     len: Value<'c, 'c>, /*i64*/
@@ -124,9 +127,12 @@ pub(crate) fn compute_per_word_cost<'c>(
     ))
 }
 
-/// This function computes copying cost (excluding expansion), which is given by the following equations
-/// memory_size_word = (memory_byte_size + 31) / 32
-/// memory_cost = 3 * memory_size_word
+/// Computes copying cost (excluding expansion), which is given by the following equations:
+///
+/// ```no_check
+/// memory_size_word    = (memory_byte_size + 31) / 32
+/// memory_cost         = 3 * memory_size_word
+/// ```
 #[inline]
 pub(crate) fn compute_copy_cost<'c>(
     rewriter: &'c Rewriter,
@@ -135,9 +141,12 @@ pub(crate) fn compute_copy_cost<'c>(
     compute_per_word_cost(rewriter, memory_byte_size, COPY_WORD_COST)
 }
 
-/// This function computes keccak256 cost, which is given by the following equations
-/// memory_size_word = (memory_byte_size + 31) / 32
-/// memory_cost = 6 * memory_size_word
+/// Computes keccak256 cost, which is given by the following equations:
+///
+/// ```no_check
+/// memory_size_word    = (memory_byte_size + 31) / 32
+/// memory_cost         = 6 * memory_size_word
+/// ```
 #[inline]
 pub(crate) fn compute_keccak256_cost<'c>(
     rewriter: &'c Rewriter,
@@ -146,9 +155,12 @@ pub(crate) fn compute_keccak256_cost<'c>(
     compute_per_word_cost(rewriter, memory_byte_size, KECCAK256_WORD_COST)
 }
 
-/// This function computes init code cost, which is given by the following equations
-/// memory_size_word = (memory_byte_size + 31) / 32
-/// memory_cost = 2 * memory_size_word
+/// Computes init code cost, which is given by the following equations:
+///
+/// ```no_check
+/// memory_size_word    = (memory_byte_size + 31) / 32
+/// memory_cost         = 2 * memory_size_word
+/// ```
 #[inline]
 pub(crate) fn compute_initcode_cost<'c>(
     rewriter: &'c Rewriter,
@@ -157,12 +169,15 @@ pub(crate) fn compute_initcode_cost<'c>(
     compute_per_word_cost(rewriter, memory_byte_size, INITCODE_WORD_COST)
 }
 
-/// This function computes create2 cost, which is given by the following equations
-/// size_word = (len + 31) / 32
+/// Computes eofcreate/create2 cost, which is given by the following equations:
+///
+/// ```no_check
+/// size_word   = (len + 31) / 32
 /// memory_cost = 6 * size_word
-/// cost = len * memory_cost
+/// cost        = len * memory_cost
+/// ```
 #[inline]
-pub(crate) fn compute_create2_cost<'c>(
+pub(crate) fn compute_eofcreate_create2_cost<'c>(
     rewriter: &'c Rewriter,
     len: Value<'c, 'c>,
 ) -> Result<Value<'c, 'c>> {
@@ -173,9 +188,11 @@ pub(crate) fn compute_create2_cost<'c>(
     ))
 }
 
-/// This function computes LOG opcode cost, which is given by the following equations
-/// computes dynamic_gas = 8 * size
-/// Note: 375 * topic_count is the static gas
+/// Computes LOG opcode cost, which is given by the following equations:
+///
+/// Computes `dynamic_gas = 8 * size`.
+///
+/// Note: `375 * topic_count` is the static gas.
 pub(crate) fn compute_log_dynamic_cost<'c>(
     rewriter: &'c Rewriter,
     size: Value<'c, 'c>,
@@ -186,8 +203,9 @@ pub(crate) fn compute_log_dynamic_cost<'c>(
     Ok(size_x_8)
 }
 
-// This function computes memory gas cost, which is given by the following equations.
-// memory_cost = (memory_size_word ** 2) / 512 + (3 * memory_size_word)
+/// Computes memory gas cost, which is given by the following equations:
+///
+/// `memory_cost = (memory_size_word ** 2) / 512 + (3 * memory_size_word)`
 pub(crate) fn memory_gas_cost<'c>(
     rewriter: &'c Rewriter,
     memory_size_word: Value<'c, 'c>,

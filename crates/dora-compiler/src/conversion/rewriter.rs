@@ -18,29 +18,34 @@ use std::{
     ops::{Deref, DerefMut},
 };
 
-/// The `Rewriter` struct provides a high-level interface for transforming and rewriting
-/// MLIR operations within a given context. It leverages the `OpBuilder` to manage the insertion
-/// and modification of operations, making it suitable for tasks like replacing operations, modifying
-/// the operation sequence, and adjusting the MLIR structure.
+/// The [`Rewriter`] struct provides a high-level interface for transforming and rewriting
+/// MLIR operations within a given context.
+///
+/// It leverages the [`OpBuilder`] to manage the insertion and modification of operations,
+/// making it suitable for tasks like replacing operations, modifying the operation sequence,
+/// and adjusting the MLIR structure.
 ///
 /// # Fields:
-/// - `builder`: An `OpBuilder` instance used to construct and modify operations. This field
-///   provides the core functionality for operation insertion, replacement, and manipulation within
-///   the MLIR context.
+/// - `builder`: An [`OpBuilder`] instance used to construct and modify operations.
+///   
+///   This field provides the core functionality for operation insertion, replacement,
+///   and manipulation within the MLIR context.
 ///
 /// # Purpose:
-/// The `Rewriter` struct is intended for use in situations where MLIR operations need to be rewritten
-/// or transformed. By encapsulating an `OpBuilder`, it allows users to make modifications to existing
-/// operations and insert new ones with ease.
+/// The [`Rewriter`] struct is intended for use in situations where MLIR operations need to be rewritten
+/// or transformed.
+///
+/// By encapsulating an [`OpBuilder`], it allows users to make modifications to existing operations and
+/// insert new ones with ease.
 ///
 /// # Example Usage:
-/// ```no_check
+/// ```ignore
 /// let rewriter = Rewriter::new(&mlir_context);
 /// // Use the rewriter to modify operations or replace existing ones.
 /// ```
 ///
 /// # Notes:
-/// - The `Rewriter` simplifies the process of rewriting MLIR operations by utilizing the `OpBuilder` for
+/// - The [`Rewriter`] simplifies the process of rewriting MLIR operations by utilizing the [`OpBuilder`] for
 ///   operation construction and modification.
 /// - The `builder` field provides all the necessary tools for interacting with the MLIR context, allowing
 ///   fine-grained control over where and how operations are modified or inserted.

@@ -326,8 +326,6 @@ macro_rules! operations {
                 $variant,
             )*
             // For opcodes variant
-            PC { pc: usize },
-            Jumpdest { pc: usize },
             Push((u8, BigUint)),
             Dup(u8),
             Swap(u8),
@@ -338,10 +336,18 @@ macro_rules! operations {
             ExtCodeSize,
             ExtCodeCopy,
             ExtCodeHash,
+            Jump,
+            JumpI,
+            PC { pc: usize },
+            Gas,
+            Jumpdest { pc: usize },
+            Create,
             Call,
             Callcode,
             Delegatecall,
+            Create2,
             Staticcall,
+            Selfdestruct,
             // For EOF opcodes
             DataLoad,
             DataLoadN(u16),
@@ -370,8 +376,6 @@ macro_rules! operations {
                     $(
                         Operation::$variant => vec![Opcode::$opcode as u8],
                     )*
-                    Operation::PC { .. } => vec![Opcode::PC as u8],
-                    Operation::Jumpdest { .. } => vec![Opcode::JUMPDEST as u8],
                     Operation::Push((n, x)) => {
                         if !(1..=32).contains(n) {
                             panic!("Invalid PUSH size: {}", n);
@@ -407,10 +411,18 @@ macro_rules! operations {
                     Operation::ExtCodeSize => vec![Opcode::EXTCODESIZE as u8],
                     Operation::ExtCodeCopy => vec![Opcode::EXTCODECOPY as u8],
                     Operation::ExtCodeHash => vec![Opcode::EXTCODEHASH as u8],
+                    Operation::Jump => vec![Opcode::JUMP as u8],
+                    Operation::JumpI => vec![Opcode::JUMPI as u8],
+                    Operation::PC { .. } => vec![Opcode::PC as u8],
+                    Operation::Gas => vec![Opcode::GAS as u8],
+                    Operation::Jumpdest { .. } => vec![Opcode::JUMPDEST as u8],
+                    Operation::Create => vec![Opcode::CREATE as u8],
                     Operation::Call => vec![Opcode::CALL as u8],
                     Operation::Callcode => vec![Opcode::CALLCODE as u8],
                     Operation::Delegatecall => vec![Opcode::DELEGATECALL as u8],
+                    Operation::Create2 => vec![Opcode::CREATE2 as u8],
                     Operation::Staticcall => vec![Opcode::STATICCALL as u8],
+                    Operation::Selfdestruct => vec![Opcode::SELFDESTRUCT as u8],
 
                     Operation::DataLoad => vec![Opcode::DATALOAD as u8],
                     Operation::DataLoadN(x) => {
@@ -474,8 +486,6 @@ macro_rules! operations {
                     $(
                         Opcode::$opcode => Operation::$variant,
                     )*
-                    Opcode::PC => Operation::PC { pc: *pc },
-                    Opcode::JUMPDEST => Operation::Jumpdest { pc: *pc },
                     opcode if Opcode::PUSH1 as u8 <= opcode as u8 && opcode as u8 <= Opcode::PUSH32 as u8 => {
                             *pc += 1;
                             let n = (opcode as u8 - Opcode::PUSH0 as u8) as usize;
@@ -528,6 +538,42 @@ macro_rules! operations {
                         }
                         Operation::ExtCodeHash
                     }
+                    Opcode::JUMP => {
+                        if is_eof {
+                            return Err(OpcodeParseError::BannedOpcodeInEofContextError(opcode));
+                        }
+                        Operation::Jump
+                    }
+                    Opcode::JUMPI => {
+                        if is_eof {
+                            return Err(OpcodeParseError::BannedOpcodeInEofContextError(opcode));
+                        }
+                        Operation::JumpI
+                    }
+                    Opcode::PC => {
+                        if is_eof {
+                            return Err(OpcodeParseError::BannedOpcodeInEofContextError(opcode));
+                        }
+                        Operation::PC { pc: *pc }
+                    }
+                    Opcode::GAS => {
+                        if is_eof {
+                            return Err(OpcodeParseError::BannedOpcodeInEofContextError(opcode));
+                        }
+                        Operation::Gas
+                    }
+                    Opcode::JUMPDEST => {
+                        if is_eof {
+                            return Err(OpcodeParseError::OpcodeInvalidError(opcode as u8));
+                        }
+                        Operation::Jumpdest { pc: *pc }
+                    }
+                    Opcode::CREATE => {
+                        if is_eof {
+                            return Err(OpcodeParseError::BannedOpcodeInEofContextError(opcode));
+                        }
+                        Operation::Create
+                    }
                     Opcode::CALL => {
                         if is_eof {
                             return Err(OpcodeParseError::BannedOpcodeInEofContextError(opcode));
@@ -541,16 +587,29 @@ macro_rules! operations {
                         Operation::Callcode
                     }
                     Opcode::DELEGATECALL => {
+                        // TODO : https://eips.ethereum.org/EIPS/eip-3540#eof1-contracts-can-only-delegatecall-eof1-contracts
                         if is_eof {
                             return Err(OpcodeParseError::BannedOpcodeInEofContextError(opcode));
                         }
                         Operation::Delegatecall
+                    }
+                    Opcode::CREATE2 => {
+                        if is_eof {
+                            return Err(OpcodeParseError::BannedOpcodeInEofContextError(opcode));
+                        }
+                        Operation::Create2
                     }
                     Opcode::STATICCALL => {
                         if is_eof {
                             return Err(OpcodeParseError::BannedOpcodeInEofContextError(opcode));
                         }
                         Operation::Staticcall
+                    }
+                    Opcode::SELFDESTRUCT => {
+                        if is_eof {
+                            return Err(OpcodeParseError::BannedOpcodeInEofContextError(opcode));
+                        }
+                        Operation::Selfdestruct
                     }
 
                     Opcode::DATALOAD => {
@@ -748,8 +807,6 @@ macro_rules! operations {
                     $(
                         Operation::$variant => Opcode::$opcode as usize,
                     )*
-                    Operation::PC { .. } => Opcode::PC as usize,
-                    Operation::Jumpdest { .. } => Opcode::JUMPDEST as usize,
                     Operation::Push((n, _)) => Opcode::PUSH0 as usize + *n as usize,
                     Operation::Dup(n) => Opcode::DUP1 as usize + (*n as usize - 1),
                     Operation::Swap(n) => Opcode::SWAP1 as usize + (*n as usize - 1),
@@ -760,10 +817,18 @@ macro_rules! operations {
                     Operation::ExtCodeSize => Opcode::EXTCODESIZE as usize,
                     Operation::ExtCodeCopy => Opcode::EXTCODECOPY as usize,
                     Operation::ExtCodeHash => Opcode::EXTCODEHASH as usize,
+                    Operation::Jump => Opcode::JUMP as usize,
+                    Operation::JumpI => Opcode::JUMPI as usize,
+                    Operation::PC { .. } => Opcode::PC as usize,
+                    Operation::Gas => Opcode::GAS as usize,
+                    Operation::Jumpdest { .. } => Opcode::JUMPDEST as usize,
+                    Operation::Create => Opcode::CREATE as usize,
                     Operation::Call => Opcode::CALL as usize,
                     Operation::Callcode => Opcode::CALLCODE as usize,
                     Operation::Delegatecall => Opcode::DELEGATECALL as usize,
+                    Operation::Create2 => Opcode::CREATE2 as usize,
                     Operation::Staticcall => Opcode::STATICCALL as usize,
+                    Operation::Selfdestruct => Opcode::SELFDESTRUCT as usize,
 
                     Operation::DataLoad => Opcode::DATALOAD as usize,
                     Operation::DataLoadN(_) => Opcode::DATALOADN as usize,
@@ -846,20 +911,14 @@ operations!(
     (MStore8, MSTORE8),
     (SLoad, SLOAD),
     (SStore, SSTORE),
-    (Jump, JUMP),
-    (JumpI, JUMPI),
     (MSize, MSIZE),
-    (Gas, GAS),
     (TLoad, TLOAD),
     (TStore, TSTORE),
     (MCopy, MCOPY),
     (Push0, PUSH0),
-    (Create, CREATE),
     (Return, RETURN),
-    (Create2, CREATE2),
     (Revert, REVERT),
     (Invalid, INVALID),
-    (SelfDestruct, SELFDESTRUCT),
 );
 
 /// Represents a program that has been parsed and is ready for execution. The `Program` struct
@@ -1129,7 +1188,7 @@ pub const fn stack_io(op: &Operation) -> (u8, u8) {
         Operation::ExtStaticcall => (3, 1),
         Operation::Revert => (2, 0),
         Operation::Invalid => (0, 0),
-        Operation::SelfDestruct => (1, 0),
+        Operation::Selfdestruct => (1, 0),
         Operation::PC { .. } => (0, 1),
         Operation::Jumpdest { .. } => (0, 0),
         Operation::Push(_) => (0, 1),

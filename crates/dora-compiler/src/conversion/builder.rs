@@ -199,10 +199,34 @@ impl<'c, 'a> OpBuilder<'c, 'a> {
         self.intrinsics.unknown_loc
     }
 
+    /// Returns the `i8` integer type intrinsic, representing a 8-bit unsigned integer.
+    #[inline]
+    pub fn uint8_ty(&self) -> Type<'c> {
+        self.intrinsics.i8_ty
+    }
+
+    /// Returns the `i16` integer type intrinsic, representing a 16-bit unsigned integer.
+    #[inline]
+    pub fn uint16_ty(&self) -> Type<'c> {
+        self.intrinsics.i16_ty
+    }
+
+    /// Returns the `i64` integer type intrinsic, representing a 64-bit unsigned integer.
+    #[inline]
+    pub fn uint64_ty(&self) -> Type<'c> {
+        self.intrinsics.i64_ty
+    }
+
     /// Returns the `i256` integer type intrinsic, representing a 256-bit unsigned integer.
     #[inline]
     pub fn uint256_ty(&self) -> Type<'c> {
         self.intrinsics.i256_ty
+    }
+
+    /// Returns the index(`usize`) type intrinsic.
+    #[inline]
+    pub fn index_ty(&self) -> Type<'c> {
+        self.intrinsics.index_ty
     }
 
     /// Returns the pointer type intrinsic.

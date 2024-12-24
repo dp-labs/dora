@@ -1984,7 +1984,7 @@ fn push_selfdestruct() {
                 0xDE, 0xF0, 0x12, 0x34, 0x56, 0x78
             ])
         )),
-        Operation::SelfDestruct,
+        Operation::Selfdestruct,
     ]);
 }
 
@@ -1992,7 +1992,7 @@ fn push_selfdestruct() {
 fn push_selfdestruct_zero_address() {
     assert_snapshot!(vec![
         Operation::Push((1_u8, BigUint::from(0_u32))),
-        Operation::SelfDestruct,
+        Operation::Selfdestruct,
     ]);
 }
 

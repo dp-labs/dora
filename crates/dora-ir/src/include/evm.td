@@ -1183,8 +1183,8 @@ def EVM_Invalid : EVM_Op<"invalid"> {
   let assemblyFormat = "";
 }
 
-// SelfDestruct Operation
-def EVM_SelfDestruct : EVM_Op<"selfdestruct"> {
+// Selfdestruct Operation
+def EVM_Selfdestruct : EVM_Op<"selfdestruct"> {
   let summary = "Terminates the contract and sends its balance to a specified address.";
   let description = [{
     This operation takes one `i256` operand from the stack, which is the address to send the remaining balance to, and terminates the contract, removing it from the blockchain.

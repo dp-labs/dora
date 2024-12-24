@@ -14,10 +14,11 @@ pub(crate) fn declare_symbols(context: &MLIRContext, module: &MLIRModule) {
     let builder = OpBuilder::new_with_block(context, block);
     let location = builder.get_insert_location();
 
-    let ptr_type = builder.intrinsics.ptr_ty;
     let uint8 = builder.intrinsics.i8_ty;
     let uint16 = builder.intrinsics.i16_ty;
     let uint64 = builder.intrinsics.i64_ty;
+    let index_type = builder.index_ty();
+    let ptr_type = builder.intrinsics.ptr_ty;
 
     let attributes = &[(
         Identifier::new(context, "sym_visibility"),
@@ -137,6 +138,16 @@ pub(crate) fn declare_symbols(context: &MLIRContext, module: &MLIRModule) {
         (symbols::BLOB_HASH, &[ptr_type, ptr_type], &[]),
         (symbols::BLOCK_HASH, &[ptr_type, ptr_type], &[ptr_type]),
         (symbols::EXT_CODE_HASH, &[ptr_type, ptr_type], &[ptr_type]),
+        (
+            symbols::EOFCREATE,
+            &[ptr_type, uint8, uint64, uint64, ptr_type, uint64, ptr_type],
+            &[ptr_type],
+        ),
+        (
+            symbols::RETURNCONTRACT,
+            &[ptr_type, uint8, uint64, uint64, index_type, uint64, uint8],
+            &[ptr_type],
+        ),
         (
             symbols::CREATE,
             &[ptr_type, uint64, uint64, ptr_type, uint64],

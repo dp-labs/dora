@@ -177,7 +177,7 @@ impl Account {
     /// assert!(!account.is_selfdestructed());
     /// ```
     pub fn is_selfdestructed(&self) -> bool {
-        self.status.contains(AccountStatus::SelfDestructed)
+        self.status.contains(AccountStatus::Selfdestructed)
     }
 
     /// Checks if the account was newly created.
@@ -225,12 +225,12 @@ impl Account {
 
     /// Mark account as self destructed.
     pub fn mark_selfdestruct(&mut self) {
-        self.status |= AccountStatus::SelfDestructed;
+        self.status |= AccountStatus::Selfdestructed;
     }
 
     /// Unmark account as self destructed.
     pub fn unmark_selfdestruct(&mut self) {
-        self.status -= AccountStatus::SelfDestructed;
+        self.status -= AccountStatus::Selfdestructed;
     }
 
     /// Mark account as newly created.
@@ -285,7 +285,7 @@ bitflags! {
     pub struct AccountStatus: u8 {
         const Loaded               = 0b00000000;
         const Created              = 0b00000001;
-        const SelfDestructed       = 0b00000010;
+        const Selfdestructed       = 0b00000010;
         const Touched              = 0b00000100;
         const LoadedAsNotExisting  = 0b00001000;  // Pre-EIP-161 state.
         const Cold                 = 0b00100000;

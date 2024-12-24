@@ -120,7 +120,6 @@ pub mod gas_cost {
 
     pub const SSTORE_MIN_REMAINING_GAS: i64 = 2_300;
     pub const CREATE: i64 = 32_000;
-    pub const CREATE2: i64 = 32_000;
 
     pub const TLOAD: i64 = 100;
     pub const TSTORE: i64 = 100;

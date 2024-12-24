@@ -5,7 +5,7 @@ use crate::{
     conversion::rewriter::Rewriter,
     dora::{
         conversion::ConversionPass,
-        gas::{compute_create2_cost, compute_initcode_cost},
+        gas::{compute_eofcreate_create2_cost, compute_initcode_cost},
         memory,
     },
     ensure_non_staticcall,
@@ -14,7 +14,7 @@ use crate::{
 };
 use dora_primitives::SpecId;
 use dora_runtime::constants::gas_cost;
-use dora_runtime::constants::{gas_cost::MAX_INITCODE_SIZE, CallType};
+use dora_runtime::constants::CallType;
 use dora_runtime::symbols;
 use dora_runtime::ExitStatusCode;
 use melior::{
@@ -25,12 +25,186 @@ use melior::{
 use std::mem::offset_of;
 
 impl ConversionPass<'_> {
+    pub(crate) fn eofcreate(
+        context: &Context,
+        op: &OperationRef<'_, '_>,
+        limit_contract_code_size: usize,
+    ) -> Result<()> {
+        operands!(
+            op,
+            initcontainer_index,
+            value,
+            salt,
+            input_offset,
+            input_size
+        );
+        block_argument!(op, syscall_ctx, gas_counter_ptr);
+
+        rewrite_ctx!(context, op, rewriter, NoDefer);
+        ensure_non_staticcall!(op, rewriter, syscall_ctx);
+        rewrite_ctx!(context, op, rewriter, location, NoDefer);
+
+        let uint64 = rewriter.intrinsics.i64_ty;
+        let uint256 = rewriter.intrinsics.i256_ty;
+        let ptr_type = rewriter.ptr_ty();
+
+        // Compare the input size with the limit
+        u256_to_u64!(op, rewriter, input_size);
+        let size_is_not_zero =
+            rewriter.make(rewriter.icmp_imm(IntCC::NotEqual, input_size, 0)?)?;
+        if_here!(op, rewriter, size_is_not_zero, {
+            let revert_flag = rewriter.make(rewriter.icmp_imm(
+                IntCC::UnsignedGreaterThan,
+                input_size,
+                limit_contract_code_size as i64,
+            )?)?;
+            maybe_revert_here!(
+                op,
+                rewriter,
+                revert_flag,
+                ExitStatusCode::CreateContractSizeLimit
+            );
+
+            // Deduct gas cost for possible memory expansion
+            rewrite_ctx!(context, op, rewriter, NoDefer);
+            u256_to_u64!(op, rewriter, input_offset);
+            memory::resize_memory(
+                context,
+                op,
+                &rewriter,
+                syscall_ctx,
+                gas_counter_ptr,
+                input_offset,
+                input_size,
+            )?;
+        });
+
+        // Calculate the gas cost and check the gas limit
+        rewrite_ctx!(context, op, rewriter, NoDefer);
+        let gas = compute_eofcreate_create2_cost(&rewriter, input_size)?;
+        gas_or_fail!(op, rewriter, gas, gas_counter_ptr);
+
+        rewrite_ctx!(context, op, rewriter, NoDefer);
+        let offset = rewriter.make(arith::trunci(input_offset, uint64, location))?;
+        let value_ptr =
+            memory::allocate_u256_and_assign_value(context, &rewriter, value, location)?;
+        let remaining_gas = rewriter.make(rewriter.load(gas_counter_ptr, uint64))?;
+        let salt_ptr = memory::allocate_u256_and_assign_value(context, &rewriter, salt, location)?;
+
+        let result_ptr = rewriter.make(func::call(
+            context,
+            FlatSymbolRefAttribute::new(context, symbols::EOFCREATE),
+            &[
+                syscall_ctx.into(),
+                initcontainer_index,
+                input_size,
+                offset,
+                value_ptr,
+                remaining_gas,
+                salt_ptr,
+            ],
+            &[ptr_type],
+            location,
+        ))?;
+
+        // Check the runtime halt error
+        let error = rewriter.get_field_value(
+            result_ptr,
+            offset_of!(dora_runtime::context::RuntimeResult<*mut u8>, error),
+            rewriter.intrinsics.i8_ty,
+        )?;
+        check_runtime_error!(op, rewriter, error);
+
+        // Check gas used
+        rewrite_ctx!(context, op, rewriter, NoDefer);
+        let gas = rewriter.get_field_value(
+            result_ptr,
+            offset_of!(dora_runtime::context::RuntimeResult<*mut u8>, gas_used),
+            uint64,
+        )?;
+        gas_or_fail!(op, rewriter, gas, gas_counter_ptr);
+
+        rewrite_ctx!(context, op, rewriter);
+        // Deferred rewriter is need to be the op generation scope.
+        rewriter.make(rewriter.load(value_ptr, uint256))?;
+
+        Ok(())
+    }
+
+    pub(crate) fn returncontract(
+        context: &Context,
+        op: &OperationRef<'_, '_>,
+        limit_contract_code_size: usize,
+    ) -> Result<()> {
+        operands!(op, deploy_container_index, aux_data_offset, aux_data_size);
+        block_argument!(op, syscall_ctx, gas_counter_ptr);
+        rewrite_ctx!(context, op, rewriter, location, NoDefer);
+
+        let uint8 = rewriter.uint8_ty();
+        let uint64 = rewriter.uint64_ty();
+
+        u256_to_u64!(op, rewriter, aux_data_size);
+        let size_is_not_zero =
+            rewriter.make(rewriter.icmp_imm(IntCC::NotEqual, aux_data_size, 0)?)?;
+        if_here!(op, rewriter, size_is_not_zero, {
+            // Deduct gas cost for possible memory expansion
+            u256_to_u64!(op, rewriter, aux_data_offset);
+            memory::resize_memory(
+                context,
+                op,
+                &rewriter,
+                syscall_ctx,
+                gas_counter_ptr,
+                aux_data_offset,
+                aux_data_size,
+            )?;
+        });
+
+        let reason = rewriter.make(arith_constant!(
+            rewriter,
+            context,
+            uint8,
+            ExitStatusCode::Return.to_u8().into(),
+            location
+        ))?;
+
+        rewrite_ctx!(context, op, rewriter, NoDefer);
+        let offset = rewriter.make(arith::trunci(aux_data_offset, uint64, location))?;
+        let max_code_size = rewriter.make(rewriter.index(limit_contract_code_size))?;
+        let gas_counter = rewriter.make(rewriter.load(gas_counter_ptr, uint64))?;
+
+        let result_ptr = rewriter.make(func::call(
+            context,
+            FlatSymbolRefAttribute::new(context, symbols::RETURNCONTRACT),
+            &[
+                syscall_ctx.into(),
+                deploy_container_index,
+                aux_data_size,
+                offset,
+                max_code_size,
+                gas_counter,
+                reason,
+            ],
+            &[],
+            location,
+        ))?;
+        let error = rewriter.get_field_value(
+            result_ptr,
+            offset_of!(dora_runtime::context::RuntimeResult<*mut u8>, error),
+            rewriter.intrinsics.i8_ty,
+        )?;
+        // Check the runtime halt error
+        check_runtime_error!(op, rewriter, error);
+
+        Ok(())
+    }
+
     pub(crate) fn create(
         context: &Context,
         op: &OperationRef<'_, '_>,
         is_create2: bool,
         spec_id: SpecId,
-        limit_contract_code_size: Option<usize>,
+        limit_contract_code_size: usize,
     ) -> Result<()> {
         operands!(op, value, offset, size);
         block_argument!(op, syscall_ctx, gas_counter_ptr);
@@ -45,9 +219,7 @@ impl ConversionPass<'_> {
         if_here!(op, rewriter, size_is_not_zero, {
             if spec_id.is_enabled_in(SpecId::SHANGHAI) {
                 // Limit is set as double of max contract bytecode size.
-                let max_initcode_size = limit_contract_code_size
-                    .map(|limit| limit.saturating_mul(2))
-                    .unwrap_or(MAX_INITCODE_SIZE);
+                let max_initcode_size = limit_contract_code_size.saturating_mul(2);
                 let revert_flag = rewriter.make(rewriter.icmp_imm(
                     IntCC::UnsignedGreaterThan,
                     size,
@@ -63,6 +235,7 @@ impl ConversionPass<'_> {
                 let gas = compute_initcode_cost(&rewriter, size)?;
                 gas_or_fail!(op, rewriter, gas, gas_counter_ptr);
             }
+            // Deduct gas cost for possible memory expansion
             let rewriter = Rewriter::new_with_op(context, *op);
             u256_to_u64!(op, rewriter, offset);
             memory::resize_memory(
@@ -77,7 +250,7 @@ impl ConversionPass<'_> {
         });
         let rewriter = Rewriter::new_with_op(context, *op);
         let gas = if is_create2 {
-            compute_create2_cost(&rewriter, size)
+            compute_eofcreate_create2_cost(&rewriter, size)
         } else {
             rewriter.make(rewriter.iconst_64(gas_cost::CREATE))
         }?;
@@ -141,8 +314,7 @@ impl ConversionPass<'_> {
         op: &OperationRef<'_, '_>,
         call_type: CallType,
     ) -> Result<()> {
-        let rewriter = Rewriter::new_with_op(context, *op);
-        let location = rewriter.get_insert_location();
+        rewrite_ctx!(context, op, rewriter, location, NoDefer);
         match call_type {
             CallType::Call | CallType::Callcode => {
                 let value = op.operand(2)?;
@@ -198,8 +370,7 @@ impl ConversionPass<'_> {
     ) -> Result<()> {
         operands!(op, gas, address);
         block_argument!(op, syscall_ctx, gas_counter_ptr);
-        let rewriter = Rewriter::new_with_op(context, *op);
-        let location = rewriter.get_insert_location();
+        rewrite_ctx!(context, op, rewriter, location, NoDefer);
         let (args_offset, args_size, ret_offset, ret_size) = (
             op.operand(o_index)?,
             op.operand(o_index + 1)?,

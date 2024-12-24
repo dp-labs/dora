@@ -113,13 +113,14 @@ pub trait Database: Clone + Debug + DatabaseCommit {
 /// An error that occurs during database access operations.
 ///
 /// This error is typically encountered when there is a failure or inconsistency
-/// in interacting with the in-memory or persistent database. It provides a
-/// uniform way to handle errors within the storage layer.
+/// in interacting with the in-memory or persistent database.
+///
+/// It provides a uniform way to handle errors within the storage layer.
 ///
 /// # Example:
-/// ```no_check
+/// ```
 /// let error = DatabaseError;
-/// println!("{}", error);  // Outputs: "Error during database access"
+/// assert_eq!("Error during database access", error.to_string());
 /// ```
 #[derive(Error, Debug, Clone, Hash, PartialEq, Eq)]
 #[error("Error during database access")]
@@ -134,9 +135,10 @@ pub trait DatabaseCommit {
 /// Represents a storage slot's state, holding both the original value and the current value.
 ///
 /// This struct is used to represent a single slot in an account's storage, including both its
-/// initial state (`original_value`) and its current state (`present_value`). The `is_cold` field
-/// is used to track whether the storage slot has been accessed recently, which is relevant for
-/// gas cost calculations in EVM.
+/// initial state (`original_value`) and its current state (`present_value`).
+///
+/// The `is_cold` field is used to track whether the storage slot has been accessed recently,
+/// which is relevant for gas cost calculations in EVM.
 ///
 /// # Fields:
 /// - `original_value`: The value originally stored in the slot.
@@ -144,7 +146,8 @@ pub trait DatabaseCommit {
 /// - `is_cold`: Indicates whether the slot is "cold" (i.e., not accessed recently).
 ///
 /// # Example:
-/// ```no_check
+/// ```no_run
+/// use dora_primitives::U256;
 /// let slot = StorageSlot {
 ///     original_value: U256::from(42),
 ///     present_value: U256::from(100),
@@ -160,7 +163,7 @@ pub struct StorageSlot {
 }
 
 impl StorageSlot {
-    /// Creates a new _unchanged_ `StorageSlot` for the given value.
+    /// Creates a new _unchanged_ [`StorageSlot`] for the given value.
     #[inline]
     pub fn new(original: U256) -> Self {
         Self {
@@ -170,7 +173,7 @@ impl StorageSlot {
         }
     }
 
-    /// Creates a new _changed_ `StorageSlot`.
+    /// Creates a new _changed_ [`StorageSlot`].
     #[inline]
     pub fn new_changed(original_value: U256, present_value: U256) -> Self {
         Self {
@@ -179,7 +182,7 @@ impl StorageSlot {
             is_cold: false,
         }
     }
-    /// Returns true if the present value differs from the original value
+    /// Returns true if the present value differs from the original value.
     #[inline]
     pub fn is_changed(&self) -> bool {
         self.original_value != self.present_value
@@ -211,13 +214,14 @@ impl StorageSlot {
 }
 
 impl From<U256> for StorageSlot {
-    /// Converts a `U256` value directly into a `StorageSlot`.
+    /// Converts a [`U256`] value directly into a [`StorageSlot`].
     ///
     /// The resulting slot will have both `original_value` and `present_value`
-    /// initialized to the given `U256` value, and `is_cold` will be set to `true`.
+    /// initialized to the given [`U256`] value, and `is_cold` will be set to `true`.
     ///
     /// # Example:
-    /// ```no_check
+    /// ```
+    /// use dora_primitives::U256;
     /// let value = U256::from(123);
     /// let slot: StorageSlot = value.into();
     /// assert_eq!(slot.original_value, U256::from(123));
@@ -235,9 +239,10 @@ impl From<U256> for StorageSlot {
 
 /// An in-memory database for storing account information, contract bytecodes, and block hashes.
 ///
-/// The `MemoryDB` struct is a simple, non-persistent database that holds blockchain data in memory,
-/// including accounts, contracts, and block hashes. It is typically used for testing, simulations,
-/// or lightweight applications where persistence isn't necessary.
+/// The [`MemoryDB`] struct is a simple, non-persistent database that holds blockchain data in memory,
+/// including accounts, contracts, and block hashes.
+///
+/// It is typically used for testing, simulations, or lightweight applications where persistence isn't necessary.
 ///
 /// # Fields:
 /// - `accounts`: Stores account information mapped by address.
@@ -245,7 +250,8 @@ impl From<U256> for StorageSlot {
 /// - `block_hashes`: Stores block numbers and their corresponding hashes.
 ///
 /// # Example Usage:
-/// ```no_check
+/// ```no_run
+/// use dora_primitives::{B256, U256};
 /// let mut db = MemoryDB::new();
 /// db.insert_block_hash(U256::from(1), B256::from_slice(&[0; 32]));
 /// ```

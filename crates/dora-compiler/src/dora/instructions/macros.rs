@@ -2,7 +2,7 @@
 
 /// Extracts operands from an operation.
 ///
-/// [`operands!`] supports from 1 to 4 operands.
+/// [`operands!`] supports from 1 to 5 operands.
 /// Here are examples:
 ///
 /// ```ignore
@@ -10,6 +10,7 @@
 /// operands!(op, input1, input2);
 /// operands!(op, input1, input2, input3);
 /// operands!(op, input1, input2, input3, input4);
+/// operands!(op, input1, input2, input3, input4, input5);
 /// ```
 #[macro_export]
 macro_rules! operands {
@@ -30,6 +31,15 @@ macro_rules! operands {
             $op.operand(3)?,
         );
     };
+    ($op:expr, $o1:ident, $o2:ident, $o3:ident, $o4:ident, $o5:ident) => {
+        let ($o1, $o2, $o3, $o4, $o5) = (
+            $op.operand(0)?,
+            $op.operand(1)?,
+            $op.operand(2)?,
+            $op.operand(3)?,
+            $op.operand(4)?,
+        );
+    };
 }
 
 /// Creates a rewriter context for operations, depending on deferred option.
@@ -37,17 +47,29 @@ macro_rules! operands {
 /// [`rewrite_ctx!`] creates deffered or non-deffered rewirter depending on `NoDefer` option.
 /// There are two forms of this macro:
 ///
-/// - Creates a [DeferredRewriter](crate::conversion::rewriter::DeferredRewriter) context.
+/// - Creates a [DeferredRewriter](crate::conversion::rewriter::DeferredRewriter) context. (`location` can be optional)
 /// ```ignore
+/// rewrite_ctx!(conext, op, rewriter);
 /// rewrite_ctx!(conext, op, rewriter, location);
 /// ```
 ///
-/// - Crates a [Rewriter](crate::conversion::rewriter::Rewriter) context.
+/// - Crates a [Rewriter](crate::conversion::rewriter::Rewriter) context. (`location` can be optional)
 /// ```ignore
+/// rewrite_ctx!(conext, op, rewriter, NoDefer);
 /// rewrite_ctx!(conext, op, rewriter, location, NoDefer);
 /// ```
 #[macro_export]
 macro_rules! rewrite_ctx {
+    ($context:expr, $op:expr, $rewriter:ident) => {
+        let $rewriter = $crate::conversion::rewriter::DeferredRewriter::new_with_op($context, *$op);
+
+        scopeguard::defer! {
+            $rewriter.remove();
+        }
+    };
+    ($context:expr, $op:expr, $rewriter:ident, NoDefer) => {
+        let $rewriter = $crate::conversion::rewriter::Rewriter::new_with_op($context, *$op);
+    };
     ($context:expr, $op:expr, $rewriter:ident, $loc:ident) => {
         let r = $crate::conversion::rewriter::DeferredRewriter::new_with_op($context, *$op);
         let l = r.get_insert_location();
@@ -275,7 +297,6 @@ macro_rules! store_var {
 ///
 /// ```ignore
 /// use dora_runtime::ExitStatusCode;
-///
 /// maybe_revert_here!(op, rewriter, revert_flag, ExitStatus::Return);
 /// ```
 #[macro_export]
@@ -340,7 +361,6 @@ macro_rules! maybe_revert_here {
 ///
 /// ```ignore
 /// use dora_runtime::ExitSatusCode;
-///
 /// check_op_oog!(op, rewriter, size);
 /// ```
 #[macro_export(local_inner_macros)]
@@ -360,7 +380,6 @@ macro_rules! check_op_oog {
 ///
 /// ```ignore
 /// use dora_runtime::ExitStatusCode;
-///
 /// u256_u64!(op, rewriter, size);
 /// ```
 #[macro_export(local_inner_macros)]
@@ -399,7 +418,6 @@ macro_rules! check_runtime_error {
 ///
 /// ```ignore
 /// use dora_runtime::ExitStatusCode;
-///
 /// ensure_non_staticcall!(op, rewriter, syscall_ctx);
 /// ```
 #[macro_export(local_inner_macros)]
@@ -431,9 +449,10 @@ macro_rules! ensure_non_staticcall {
 
 /// Macro to check if there is enough gas available for an operation and manages gas consumption, reverting if out of gas.
 ///
+/// Success will result in the gas counter being decremented by the specified amount.
+///
 /// ```ignore
 /// use dora_runtime::ExitStatusCode;
-///
 /// gas_or_fail!(op, rewriter, gas, gas_counter_ptr);
 /// ```
 #[macro_export(local_inner_macros)]

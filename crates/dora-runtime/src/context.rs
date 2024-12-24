@@ -9,7 +9,7 @@ use crate::db::{Database, DatabaseError};
 use crate::env::{CfgEnv, Env};
 use crate::executor::ExecutionEngine;
 use crate::handler::{Frame, Handler};
-use crate::host::{AccountLoad, CodeLoad, Host, SStoreResult, SelfDestructResult, StateLoad};
+use crate::host::{AccountLoad, CodeLoad, Host, SStoreResult, SelfdestructResult, StateLoad};
 use crate::journaled_state::{JournalCheckpoint, JournalEntry, JournaledState};
 use crate::result::EVMError;
 use crate::{gas, symbols, ExitStatusCode};
@@ -380,7 +380,7 @@ impl<'a, DB: Database> VMContext<'a, DB> {
         &mut self,
         address: Address,
         target: Address,
-    ) -> Result<StateLoad<SelfDestructResult>, DB::Error> {
+    ) -> Result<StateLoad<SelfdestructResult>, DB::Error> {
         self.journaled_state
             .selfdestruct(address, target, &mut self.db)
     }
@@ -513,6 +513,93 @@ impl<'a, DB: Database> VMContext<'a, DB> {
                     Ok(call_result)
                 }
             }
+            CallKind::EofCreate => {
+                // Fetch balance of caller.
+                let caller_balance = self
+                    .balance(msg.caller)
+                    .map_err(|_| EVMError::Database(DatabaseError))?;
+                // Check if caller has enough balance to send to the created contract.
+                if caller_balance.data < msg.value {
+                    return Ok(CallResult::new_with_gas_limit_and_status(
+                        msg.gas_limit,
+                        ExitStatusCode::OutOfFunds,
+                    ));
+                }
+                // Increase nonce of caller and check if it overflows
+                let old_nonce;
+                if let Some(nonce) = self.journaled_state.inc_nonce(msg.caller) {
+                    old_nonce = nonce - 1;
+                } else {
+                    return Ok(CallResult::new_with_gas_limit_and_status(
+                        msg.gas_limit,
+                        ExitStatusCode::NonceOverflow,
+                    ));
+                }
+                // Created address
+                let mut init_code_hash = B256::ZERO;
+                let created_address = match msg.salt {
+                    Some(s) => {
+                        init_code_hash = keccak256(&msg.input);
+                        msg.caller.create2(s.0, init_code_hash)
+                    }
+                    _ => msg.caller.create(old_nonce),
+                };
+                // Created address is not allowed to be a precompile.
+                if self.is_precompile_address(&created_address) {
+                    return Ok(CallResult::new_with_gas_limit_and_status(
+                        msg.gas_limit,
+                        ExitStatusCode::CreateCollision,
+                    ));
+                }
+                // Warm load account.
+                self.load_account(created_address)
+                    .map_err(|_| EVMError::Database(DatabaseError))?;
+                // Create account, transfer funds and make the journal checkpoint.
+                let checkpoint = match self.journaled_state.create_account_checkpoint(
+                    msg.caller,
+                    created_address,
+                    msg.value,
+                    self.spec_id(),
+                ) {
+                    Ok(checkpoint) => checkpoint,
+                    Err(status) => {
+                        return Ok(CallResult::new_with_gas_limit_and_status(
+                            msg.gas_limit,
+                            status,
+                        ));
+                    }
+                };
+
+                let contract = Contract {
+                    input: Bytes::new(),
+                    code: Bytecode::new_raw(msg.input.clone()),
+                    hash: Some(init_code_hash),
+                    target_address: created_address,
+                    code_address: created_address,
+                    caller: msg.caller,
+                    call_value: msg.value,
+                };
+                let mut call_result = self.call_frame(Frame {
+                    contract,
+                    gas_limit: msg.gas_limit,
+                    is_static: msg.is_static,
+                    is_eof_init: msg.is_eof_init,
+                    validate_eof: msg.validate_eof,
+                    depth: self.journaled_state.depth(),
+                })?;
+                self.create_return(&mut call_result, created_address, checkpoint);
+                Ok(call_result)
+            }
+            CallKind::ReturnContract => {
+                self.journaled_state.checkpoint_commit();
+
+                // Eof bytecode is going to be hashed.
+                self.journaled_state.set_code(msg.recipient, msg.input);
+                Ok(CallResult::new_with_gas_limit_and_status(
+                    msg.gas_limit,
+                    ExitStatusCode::Return,
+                ))
+            }
             CallKind::Create | CallKind::Create2 => {
                 // Fetch balance of caller.
                 let caller_balance = self
@@ -590,12 +677,9 @@ impl<'a, DB: Database> VMContext<'a, DB> {
                 self.create_return(&mut call_result, created_address, checkpoint);
                 Ok(call_result)
             }
-            CallKind::CallF
-            | CallKind::RetF
-            | CallKind::ExtCall
-            | CallKind::ExtStaticcall
-            | CallKind::ExtDelegatecall
-            | CallKind::EofCreate => unimplemented!("{:?}", msg.kind),
+            CallKind::ExtCall | CallKind::ExtStaticcall | CallKind::ExtDelegatecall => {
+                unimplemented!("{:?}", msg.kind)
+            }
         }
     }
 
@@ -628,7 +712,7 @@ impl<'a, DB: Database> VMContext<'a, DB> {
         }
         let spec_id = self.spec_id();
         // Host error if present on execution
-        // if ok, check contract creation limit and calculate gas deduction on output len.
+        // If ok, check contract creation limit and calculate gas deduction on output len.
         //
         // EIP-3541: Reject new contract code starting with the 0xEF byte
         if spec_id.is_enabled_in(SpecId::LONDON) && result.output.first() == Some(&0xEF) {
@@ -648,10 +732,10 @@ impl<'a, DB: Database> VMContext<'a, DB> {
         }
         let gas_for_code = result.output.len() as u64 * gas_cost::CODEDEPOSIT;
         if !result.record_cost(gas_for_code) {
-            // record code deposit gas cost and check if we are out of gas.
+            // Record code deposit gas cost and check if we are out of gas.
             // EIP-2 point 3: If contract creation does not have enough gas to pay for the
             // final gas fee for adding the contract code to the state, the contract
-            //  creation fails (i.e. goes out-of-gas) rather than leaving an empty contract.
+            // creation fails (i.e. goes out-of-gas) rather than leaving an empty contract.
             if spec_id.is_enabled_in(SpecId::HOMESTEAD) {
                 self.journaled_state.checkpoint_revert(journal_checkpoint);
                 result.status = ExitStatusCode::OutOfGas;
@@ -660,7 +744,7 @@ impl<'a, DB: Database> VMContext<'a, DB> {
                 result.output = Bytes::new();
             }
         }
-        // if we have enough gas we can commit changes.
+        // If we have enough gas we can commit changes.
         self.journaled_state.checkpoint_commit();
 
         // Set the code to the journaled state.
@@ -735,7 +819,7 @@ impl<DB: Database> Host for VMContext<'_, DB> {
         &mut self,
         addr: Address,
         target: Address,
-    ) -> Option<StateLoad<SelfDestructResult>> {
+    ) -> Option<StateLoad<SelfdestructResult>> {
         self.journaled_state
             .selfdestruct(addr, target, &mut self.db)
             .ok()
@@ -768,8 +852,10 @@ impl<DB: Database> Host for VMContext<'_, DB> {
 
 /// The internal execution context, which holds the memory, gas, and program state during contract execution.
 ///
-/// This struct contains critical data used to manage the execution environment of smart contracts
-/// or other EVM-related programs. It tracks the execution memory, return data, remaining gas, logs, and exit status.
+/// [`InnerContext`] contains critical data used to manage the execution environment of smart contracts
+/// or other EVM-related programs.
+///
+/// It tracks the execution memory, return data, remaining gas, logs, and exit status.
 ///
 /// # Fields:
 /// - `memory`: A vector representing the contract's memory during execution.
@@ -778,10 +864,13 @@ impl<DB: Database> Host for VMContext<'_, DB> {
 /// - `gas_remaining`: The amount of gas remaining for execution, if applicable.
 /// - `gas_refund`: The amount of gas to be refunded after execution.
 /// - `exit_status`: Optional status code indicating the exit condition of the execution (e.g., success, revert).
-/// - `logs`: A vector of logs generated during the execution.
+/// - `depth`: The depth of the call stack.
+/// - `is_static`: A boolean flag indicating whether the context is static.
+/// - `is_eof_init`: A boolean flag indicating whether the context is EOF init.
+/// - `spec_id`: The EVM spec ID from [SpecId].
 ///
 /// # Example Usage:
-/// ```no_check
+/// ```no_run
 /// let inner_context = InnerContext {
 ///     memory: vec![0; 1024],
 ///     returndata: None,
@@ -789,7 +878,10 @@ impl<DB: Database> Host for VMContext<'_, DB> {
 ///     gas_remaining: Some(100000),
 ///     gas_refunded: 0,
 ///     exit_status: None,
-///     logs: Vec::new(),
+///     depth: 0,
+///     is_static: false,
+///     is_eof_init: false,
+///     spec_id: SpecId::CANCUN,
 /// };
 /// ```
 #[derive(Debug, Default)]
@@ -816,6 +908,7 @@ pub struct InnerContext {
     /// Whether the context is static.
     pub is_static: bool,
     /// Whether the context is EOF init.
+    // TODO : We need this in case we does any check through runtime.
     pub is_eof_init: bool,
     /// VM spec id
     pub spec_id: SpecId,
@@ -1022,7 +1115,7 @@ impl<T> RuntimeResult<T> {
 
 /// Accessors for managing and retrieving execution results in a runtime context.
 impl<'a> RuntimeContext<'a> {
-    /// Creates a new `RuntimeContext` with the given environment, journal, and call frame.
+    /// Creates a new [`RuntimeContext`] with the given environment, journal, and call frame.
     ///
     /// # Parameters
     ///
@@ -1032,11 +1125,11 @@ impl<'a> RuntimeContext<'a> {
     ///
     /// # Returns
     ///
-    /// - A new `RuntimeContext` instance initialized with the provided values.
+    /// - A new [`RuntimeContext`] instance initialized with the provided values.
     ///
     /// # Example
     ///
-    /// ```no_check
+    /// ```ignore
     /// let context = RuntimeContext::new(env, journal, call_frame);
     /// ```
     pub fn new(
@@ -1063,7 +1156,8 @@ impl<'a> RuntimeContext<'a> {
 
     /// Retrieves the return data produced during execution.
     ///
-    /// If return data exists, this function will return a slice containing the data. Otherwise, it returns an empty slice.
+    /// If return data exists, this function will return a slice containing the data.
+    /// Otherwise, it returns an empty slice.
     ///
     /// # Returns
     ///
@@ -1071,7 +1165,7 @@ impl<'a> RuntimeContext<'a> {
     ///
     /// # Example
     ///
-    /// ```no_check
+    /// ```ignore
     /// let returndata = context.return_values();
     /// ```
     #[inline]
@@ -1268,6 +1362,7 @@ impl RuntimeContext<'_> {
             gas_limit = gas_limit.saturating_add(gas_cost::CALL_STIPEND);
         }
         let call_msg = CallMessage {
+            kind: call_type.into(),
             input: if args_size != 0 {
                 self.inner.memory[args_offset..args_offset + args_size]
                     .to_vec()
@@ -1275,7 +1370,6 @@ impl RuntimeContext<'_> {
             } else {
                 Bytes::new()
             },
-            kind: call_type.into(),
             value: if call_type == CallType::Delegatecall {
                 self.contract.call_value
             } else {
@@ -1852,12 +1946,12 @@ impl RuntimeContext<'_> {
         }
 
         let call_msg = CallMessage {
-            input: bytecode.into(),
             kind: if salt.is_some() {
                 CallKind::Create2
             } else {
                 CallKind::Create
             },
+            input: bytecode.into(),
             value: value.to_u256(),
             depth: self.inner.depth as u32,
             gas_limit,
@@ -1900,6 +1994,231 @@ impl RuntimeContext<'_> {
             self.inner.result.gas_used = original_remaining_gas - gas_remaining;
         }
         unsafe { &*(&self.inner.result as *const RuntimeResult<u64> as *const RuntimeResult<()>) }
+    }
+
+    pub extern "C" fn eofcreate(
+        &mut self,
+        initcontainer_index: u8,
+        input_size: u64,
+        input_offset: u64,
+        value: &mut Bytes32,
+        original_remaining_gas: u64,
+        salt: &Bytes32,
+    ) -> *mut RuntimeResult<u8> {
+        let container_index = initcontainer_index as usize;
+        let data_size = input_size as usize;
+        let data_offset = input_offset as usize;
+
+        let container = self
+            .contract
+            .code
+            .eof()
+            .expect("eof")
+            .body
+            .container_section
+            .get(container_index)
+            .expect("valid container")
+            .clone();
+        let bytecode = Bytecode::new_raw_checked(container).expect("Subcontainer is verified");
+        if !bytecode.eof().expect("eof").body.is_data_filled {
+            // Should be always false as it is verified by eof verification.
+            panic!("Panic if data section is not full");
+        }
+        let memory_len = self.inner.memory.len();
+        let available_size = memory_len - data_offset;
+        let actual_size = data_size.min(available_size);
+        let input = if data_size == 0 {
+            vec![]
+        } else {
+            self.inner.memory[data_offset..data_offset + actual_size].to_vec()
+        };
+
+        // Deduct gas for container execution
+        let mut gas_limit = original_remaining_gas;
+        if self.inner.spec_id.is_enabled_in(SpecId::TANGERINE) {
+            gas_limit -= gas_limit / 64;
+        }
+        // Original remainning gas - sub call gas limit
+        let (gas_remaining, overflow) = original_remaining_gas.overflowing_sub(gas_limit);
+        if overflow {
+            return Box::into_raw(Box::new(RuntimeResult::error(
+                ExitStatusCode::OutOfGas.to_u8(),
+                1,
+            )));
+        }
+
+        let call_msg = CallMessage {
+            kind: CallKind::EofCreate,
+            input: bytecode.bytes(),
+            value: value.to_u256(),
+            depth: self.inner.depth as u32,
+            gas_limit,
+            caller: self.contract.target_address,
+            salt: Some(salt.to_b256()),
+            recipient: Address::default(),
+            code_address: Address::default(),
+            is_static: self.inner.is_static,
+            is_eof_init: true,
+            validate_eof: true,
+        };
+        let call_result = match self.host.call(call_msg) {
+            Ok(result) => result,
+            Err(_) => {
+                return Box::into_raw(Box::new(RuntimeResult::error(
+                    ExitStatusCode::FatalExternalError.to_u8(),
+                    0,
+                )))
+            }
+        };
+        // Populate returndata if execution reverted
+        self.inner.returndata = if call_result.status.is_revert() {
+            call_result.output.to_vec()
+        } else {
+            Vec::new()
+        };
+
+        // Check the error message.
+        if call_result.status.is_ok() {
+            let new_address = call_result.create_address.unwrap_or_default();
+            // Call ReturnContract with the new address
+            let call_msg = CallMessage {
+                kind: CallKind::ReturnContract,
+                input: input.into(),
+                value: value.to_u256(),
+                depth: self.inner.depth as u32,
+                gas_limit: call_result.gas_remaining,
+                caller: self.contract.target_address,
+                salt: Some(salt.to_b256()),
+                recipient: new_address,
+                code_address: new_address,
+                is_static: self.inner.is_static,
+                is_eof_init: true,
+                validate_eof: true,
+            };
+            if let Err(_) = self.host.call(call_msg) {
+                return Box::into_raw(Box::new(RuntimeResult::error(
+                    ExitStatusCode::FatalExternalError.to_u8(),
+                    0,
+                )));
+            }
+
+            // Set created address to the value.
+            value.copy_from(&new_address);
+            let gas_remaining = gas_remaining + call_result.gas_remaining;
+            self.inner.gas_refunded += call_result.gas_refunded;
+            Box::into_raw(Box::new(RuntimeResult::success_with_gas(
+                0,
+                original_remaining_gas - gas_remaining,
+            )))
+        } else if call_result.status.is_revert() {
+            *value = Bytes32::ZERO;
+            let gas_remaining = gas_remaining + call_result.gas_remaining;
+            Box::into_raw(Box::new(RuntimeResult::success_with_gas(
+                0,
+                original_remaining_gas - gas_remaining,
+            )))
+        } else {
+            *value = Bytes32::ZERO;
+            Box::into_raw(Box::new(RuntimeResult::success_with_gas(
+                0,
+                original_remaining_gas - gas_remaining,
+            )))
+        }
+    }
+
+    pub extern "C" fn returncontract(
+        &mut self,
+        deploy_container_index: u8,
+        aux_data_size: u64,
+        aux_data_offset: u64,
+        max_code_size: usize,
+        remaining_gas: u64,
+        execution_result: u8,
+    ) -> *mut RuntimeResult<u8> {
+        // Check if returncontract is in EOF init
+        if !self.inner.is_eof_init {
+            return Box::into_raw(Box::new(RuntimeResult::error(
+                ExitStatusCode::ReturnContractInNotInitEOF.to_u8(),
+                1,
+            )));
+        }
+
+        let container_index = deploy_container_index as usize;
+        let data_size = aux_data_size as usize;
+        let data_offset = aux_data_offset as usize;
+
+        let container = self
+            .contract
+            .code
+            .eof()
+            .expect("eof")
+            .body
+            .container_section
+            .get(container_index)
+            .expect("valid container")
+            .clone();
+        let bytecode_header = Bytecode::new_raw_checked(container.clone())
+            .expect("valid EOF header")
+            .eof()
+            .expect("eof")
+            .header
+            .clone();
+        let static_aux_size = bytecode_header.eof_size() - container.len();
+
+        let memory_len = self.inner.memory.len();
+        let available_size = memory_len - data_offset;
+        let actual_size = data_size.min(available_size);
+        let mut output = container.to_vec();
+        if data_size != 0 {
+            output.extend_from_slice(&self.inner.memory[data_offset..data_offset + actual_size]);
+        }
+
+        // `data_size - static_aux_size` give us current data `container` size.
+        // And with `aux_slice` len we can calculate new data size.
+        let new_data_size = bytecode_header.data_size as usize - static_aux_size + data_size;
+        if new_data_size > max_code_size {
+            // Aux data is too big
+            return Box::into_raw(Box::new(RuntimeResult::error(
+                ExitStatusCode::EofAuxDataOverflow.to_u8(),
+                1,
+            )));
+        }
+        if new_data_size < bytecode_header.data_size as usize {
+            // Aux data is too small
+            return Box::into_raw(Box::new(RuntimeResult::error(
+                ExitStatusCode::EofAuxDataTooSmall.to_u8(),
+                1,
+            )));
+        }
+        let new_data_size = (new_data_size as u16).to_be_bytes();
+        // Set new data size in eof bytes as we know exact index.
+        output[bytecode_header.data_size_raw_i()..][..2].clone_from_slice(&new_data_size);
+        let output: Bytes = output.into();
+
+        let call_msg = CallMessage {
+            kind: CallKind::ReturnContract,
+            input: output,
+            value: self.contract.call_value,
+            depth: self.inner.depth as u32,
+            gas_limit: remaining_gas,
+            caller: self.contract.caller,
+            salt: None,
+            recipient: self.contract.target_address,
+            code_address: Address::default(),
+            is_static: self.inner.is_static,
+            is_eof_init: true,
+            validate_eof: true,
+        };
+        match self.host.call(call_msg) {
+            Ok(_) => {
+                self.inner.exit_status = Some(ExitStatusCode::from_u8(execution_result));
+                Box::into_raw(Box::new(RuntimeResult::success(execution_result)))
+            }
+            Err(_) => Box::into_raw(Box::new(RuntimeResult::error(
+                ExitStatusCode::FatalExternalError.to_u8(),
+                0,
+            ))),
+        }
     }
 
     extern "C" fn create(
@@ -2084,6 +2403,11 @@ impl RuntimeContext<'_> {
                 (
                     symbols::EXT_CODE_HASH,
                     RuntimeContext::ext_code_hash as *const _,
+                ),
+                (symbols::EOFCREATE, RuntimeContext::eofcreate as *const _),
+                (
+                    symbols::RETURNCONTRACT,
+                    RuntimeContext::returncontract as *const _,
                 ),
                 (symbols::CREATE, RuntimeContext::create as *const _),
                 (symbols::CREATE2, RuntimeContext::create2 as *const _),

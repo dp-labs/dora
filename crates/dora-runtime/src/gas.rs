@@ -7,7 +7,7 @@ use crate::constants::gas_cost::{
 };
 use crate::env::AccessListItem;
 use crate::host::{
-    AccountLoad, CodeLoad, SStoreResult, SStoreStatus, SelfDestructResult, StateLoad,
+    AccountLoad, CodeLoad, SStoreResult, SStoreStatus, SelfdestructResult, StateLoad,
 };
 use dora_primitives::eip7702::PER_EMPTY_ACCOUNT_COST;
 use dora_primitives::spec::SpecId;
@@ -439,7 +439,7 @@ pub const fn extcodehash_gas_cost(spec_id: SpecId, load: CodeLoad<()>) -> u64 {
 /// The gas cost for the `SELFDESTRUCT` operation.
 ///
 #[inline]
-pub const fn selfdestruct_cost(spec_id: SpecId, res: &StateLoad<SelfDestructResult>) -> u64 {
+pub const fn selfdestruct_cost(spec_id: SpecId, res: &StateLoad<SelfdestructResult>) -> u64 {
     // EIP-161: State trie clearing (invariant-preserving alternative)
     let should_charge_topup = if spec_id.is_enabled_in(SpecId::SPURIOUS_DRAGON) {
         res.data.had_value && !res.data.target_exists

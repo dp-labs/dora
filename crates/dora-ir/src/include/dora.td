@@ -1440,8 +1440,8 @@ def Dora_Invalid : Dora_Op<"invalid"> {
   let assemblyFormat = "";
 }
 
-// SelfDestruct Operation
-def Dora_SelfDestruct : Dora_Op<"selfdestruct"> {
+// Selfdestruct Operation
+def Dora_Selfdestruct : Dora_Op<"selfdestruct"> {
   let summary = "Terminates the contract and sends its balance to a specified address.";
   let description = [{
     This operation takes one `i256` operand from the stack, which is the address to send the remaining balance to, and terminates the contract, removing it from the blockchain.

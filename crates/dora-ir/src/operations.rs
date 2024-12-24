@@ -93,7 +93,7 @@ pub enum Operation {
     ExtStaticcall = 0xFB,
     Revert = 0xFD,
     Invalid = 0xFE,
-    SelfDestruct = 0xFF,
+    Selfdestruct = 0xFF,
 }
 
 impl Operation {
@@ -189,7 +189,7 @@ impl Operation {
             Operation::ExtStaticcall => dora::ExtStaticcallOperation::name(),
             Operation::Revert => dora::RevertOperation::name(),
             Operation::Invalid => dora::InvalidOperation::name(),
-            Operation::SelfDestruct => dora::SelfDestructOperation::name(),
+            Operation::Selfdestruct => dora::SelfdestructOperation::name(),
         }
     }
 
@@ -297,7 +297,7 @@ impl TryFrom<&str> for Operation {
             x if x == dora::ExtStaticcallOperation::name() => Ok(Operation::ExtStaticcall),
             x if x == dora::RevertOperation::name() => Ok(Operation::Revert),
             x if x == dora::InvalidOperation::name() => Ok(Operation::Invalid),
-            x if x == dora::SelfDestructOperation::name() => Ok(Operation::SelfDestruct),
+            x if x == dora::SelfdestructOperation::name() => Ok(Operation::Selfdestruct),
             _ => Err(()),
         }
     }

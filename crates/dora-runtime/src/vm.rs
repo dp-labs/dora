@@ -223,8 +223,8 @@ impl<'a, DB: Database> VM<'a, DB> {
                 output: Output::Call(return_values.into()),
                 logs,
             },
-            ExitStatusCode::SelfDestruct => ExecutionResult::Success {
-                reason: SuccessReason::SelfDestruct,
+            ExitStatusCode::Selfdestruct => ExecutionResult::Success {
+                reason: SuccessReason::Selfdestruct,
                 gas_used,
                 gas_refunded,
                 output: Output::Call(return_values.into()),

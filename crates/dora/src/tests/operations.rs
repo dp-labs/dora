@@ -3538,7 +3538,7 @@ fn selfdestruct() {
                 0xDE, 0xF0, 0x12, 0x34, 0x56, 0x78,
             ]),
         )),
-        Operation::SelfDestruct,
+        Operation::Selfdestruct,
         Operation::Push0,
         // Return result
         Operation::Push0,
@@ -3555,7 +3555,7 @@ fn selfdestruct() {
 fn selfdestruct_zero_address() {
     let operations = vec![
         Operation::Push((1_u8, BigUint::from(0_u32))),
-        Operation::SelfDestruct,
+        Operation::Selfdestruct,
         Operation::Push0,
         // Return result
         Operation::Push0,

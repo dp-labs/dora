@@ -113,6 +113,7 @@ impl EvmcVm for DoraVM {
 }
 
 #[inline]
+#[allow(non_snake_case)]
 fn evmc_revision_to_spec_id(revision: Revision) -> SpecId {
     use evmc_sys::evmc_revision::*;
     match revision {
@@ -145,7 +146,7 @@ fn status_to_evmc_status(status: ExitStatusCode) -> StatusCode {
         ExitStatusCode::Continue
         | ExitStatusCode::Return
         | ExitStatusCode::Stop
-        | ExitStatusCode::SelfDestruct => StatusCode::EVMC_SUCCESS,
+        | ExitStatusCode::Selfdestruct => StatusCode::EVMC_SUCCESS,
         ExitStatusCode::Revert
         | ExitStatusCode::OutOfFunds
         | ExitStatusCode::CreateInitCodeStartingEF00
@@ -214,15 +215,18 @@ fn evmc_status_to_status(status: StatusCode) -> ExitStatusCode {
 #[inline]
 fn call_kind_to_evmc_msg_kind(kind: CallKind) -> MessageKind {
     match kind {
+        CallKind::EofCreate => MessageKind::EVMC_EOFCREATE,
+        // CallKind::ReturnContract => MessageKind::EVMC_RETURNCONTRACT,
+        // CallKind::ExtCall => MessageKind::EVMC_EXTCALL,
+        // CallKind::ExtStaticcall => MessageKind::EVMC_EXTSTATICCALL,
+        // CallKind::ExtDelegatecall => MessageKind::EVMC_EXTDELEGATECALL,
         CallKind::Call => MessageKind::EVMC_CALL,
         CallKind::Callcode => MessageKind::EVMC_CALLCODE,
         CallKind::Delegatecall => MessageKind::EVMC_DELEGATECALL,
         CallKind::Staticcall => MessageKind::EVMC_CALL,
         CallKind::Create => MessageKind::EVMC_CREATE,
         CallKind::Create2 => MessageKind::EVMC_CREATE2,
-        CallKind::EofCreate => MessageKind::EVMC_EOFCREATE,
-        CallKind::CallF
-        | CallKind::RetF
+        CallKind::ReturnContract
         | CallKind::ExtCall
         | CallKind::ExtStaticcall
         | CallKind::ExtDelegatecall => {
