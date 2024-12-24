@@ -1110,9 +1110,9 @@ impl<'a> RuntimeContext<'a> {
 
 // System call functions
 impl<'a> RuntimeContext<'a> {
-    pub(crate) extern "C" fn nop() {}
+    extern "C" fn nop() {}
 
-    pub(crate) extern "C" fn tracing(
+    extern "C" fn tracing(
         &mut self,
         op: u8,
         gas: u64,
@@ -1154,7 +1154,7 @@ impl<'a> RuntimeContext<'a> {
         stack.leak();
     }
 
-    pub extern "C" fn write_result(
+    extern "C" fn write_result(
         &mut self,
         offset: u64,
         bytes_len: u64,
@@ -1170,11 +1170,11 @@ impl<'a> RuntimeContext<'a> {
         self.inner.exit_status = Some(ExitStatusCode::from_u8(execution_result));
     }
 
-    pub extern "C" fn returndata_size(&mut self) -> u64 {
+    extern "C" fn returndata_size(&mut self) -> u64 {
         self.inner.returndata.len() as u64
     }
 
-    pub extern "C" fn returndata_copy(
+    extern "C" fn returndata_copy(
         &mut self,
         memory_offset: u64,
         data_offset: &Bytes32,
@@ -1199,7 +1199,7 @@ impl<'a> RuntimeContext<'a> {
         unsafe { &*(&self.inner.result as *const RuntimeResult<u64> as *const RuntimeResult<()>) }
     }
 
-    pub extern "C" fn call(
+    extern "C" fn call(
         &mut self,
         local_gas_limit: &Bytes32,
         call_to_address: &Bytes32,
@@ -1351,7 +1351,7 @@ impl<'a> RuntimeContext<'a> {
         &mut self.inner.memory[offset..end]
     }
 
-    pub extern "C" fn store_in_selfbalance_ptr(
+    extern "C" fn store_in_selfbalance_ptr(
         &mut self,
         balance: &mut Bytes32,
     ) -> *const RuntimeResult<()> {
@@ -1371,16 +1371,16 @@ impl<'a> RuntimeContext<'a> {
         }
     }
 
-    pub extern "C" fn ctx_is_static(&mut self) -> u8 {
+    extern "C" fn ctx_is_static(&mut self) -> u8 {
         self.inner.is_static as u8
     }
 
-    pub extern "C" fn exp(&mut self, base: &Bytes32, exponent_ptr: &mut Bytes32) {
+    extern "C" fn exp(&mut self, base: &Bytes32, exponent_ptr: &mut Bytes32) {
         let exponent = exponent_ptr.to_u256();
         *exponent_ptr = base.to_u256().pow(exponent).into();
     }
 
-    pub extern "C" fn keccak256_hasher(&mut self, offset: u64, size: u64, hash_ptr: &mut Bytes32) {
+    extern "C" fn keccak256_hasher(&mut self, offset: u64, size: u64, hash_ptr: &mut Bytes32) {
         if size == 0 {
             *hash_ptr = Bytes32::from_be_bytes(EMPTY_CODE_HASH_BYTES);
         } else {
@@ -1392,11 +1392,11 @@ impl<'a> RuntimeContext<'a> {
         }
     }
 
-    pub extern "C" fn callvalue(&self, value: &mut Bytes32) {
+    extern "C" fn callvalue(&self, value: &mut Bytes32) {
         *value = self.contract.call_value.into();
     }
 
-    pub extern "C" fn store_in_blobbasefee_ptr(&self, value: &mut Bytes32) {
+    extern "C" fn store_in_blobbasefee_ptr(&self, value: &mut Bytes32) {
         *value = self
             .host
             .env()
@@ -1408,43 +1408,43 @@ impl<'a> RuntimeContext<'a> {
             .into();
     }
 
-    pub extern "C" fn caller(&self, value: &mut Bytes32) {
+    extern "C" fn caller(&self, value: &mut Bytes32) {
         value.copy_from(&self.contract.caller);
     }
 
-    pub extern "C" fn store_in_gaslimit_ptr(&self, value: &mut Bytes32) {
+    extern "C" fn store_in_gaslimit_ptr(&self, value: &mut Bytes32) {
         *value = self.host.env().block.gas_limit.into();
     }
 
-    pub extern "C" fn store_in_gasprice_ptr(&self, value: &mut Bytes32) {
+    extern "C" fn store_in_gasprice_ptr(&self, value: &mut Bytes32) {
         *value = self.host.env().tx.gas_price.into();
     }
 
-    pub extern "C" fn chainid(&self) -> u64 {
+    extern "C" fn chainid(&self) -> u64 {
         self.host.env().cfg.chain_id
     }
 
-    pub extern "C" fn calldata(&mut self) -> *mut u8 {
+    extern "C" fn calldata(&mut self) -> *mut u8 {
         self.contract.input.as_ptr() as _
     }
 
-    pub extern "C" fn calldata_size(&self) -> u64 {
+    extern "C" fn calldata_size(&self) -> u64 {
         self.contract.input.len() as u64
     }
 
-    pub extern "C" fn origin(&self, address: &mut Bytes32) {
+    extern "C" fn origin(&self, address: &mut Bytes32) {
         address.copy_from(&self.host.env().tx.caller);
     }
 
-    pub extern "C" fn memory_ptr(&mut self) -> *mut u8 {
+    extern "C" fn memory_ptr(&mut self) -> *mut u8 {
         self.inner.memory.as_mut_ptr() as _
     }
 
-    pub extern "C" fn memory_size(&mut self) -> u64 {
+    extern "C" fn memory_size(&mut self) -> u64 {
         self.inner.memory.len() as _
     }
 
-    pub extern "C" fn extend_memory(&mut self, new_size: u64) -> *const RuntimeResult<()> {
+    extern "C" fn extend_memory(&mut self, new_size: u64) -> *const RuntimeResult<()> {
         // Note the overflow on the 32-bit machine for the max memory e.g., 4GB
         let new_size = new_size as usize;
         if new_size <= self.inner.memory.len() {
@@ -1473,12 +1473,7 @@ impl<'a> RuntimeContext<'a> {
         }
     }
 
-    pub extern "C" fn calldata_copy(
-        &mut self,
-        memory_offset: u64,
-        data_offset: &Bytes32,
-        size: u64,
-    ) {
+    extern "C" fn calldata_copy(&mut self, memory_offset: u64, data_offset: &Bytes32, size: u64) {
         let size = size as usize;
         if size != 0 {
             let data_offset = as_usize_saturated!(data_offset.to_u256());
@@ -1492,7 +1487,7 @@ impl<'a> RuntimeContext<'a> {
         }
     }
 
-    pub extern "C" fn code_copy(&mut self, code_offset: &Bytes32, size: u64, memory_offset: u64) {
+    extern "C" fn code_copy(&mut self, code_offset: &Bytes32, size: u64, memory_offset: u64) {
         let size = size as usize;
         if size != 0 {
             let code_offset =
@@ -1507,7 +1502,7 @@ impl<'a> RuntimeContext<'a> {
         }
     }
 
-    pub extern "C" fn sload(
+    extern "C" fn sload(
         &mut self,
         stg_key: &Bytes32,
         stg_value: &mut Bytes32,
@@ -1529,7 +1524,7 @@ impl<'a> RuntimeContext<'a> {
         unsafe { &*(&self.inner.result as *const RuntimeResult<u64> as *const RuntimeResult<()>) }
     }
 
-    pub extern "C" fn sstore(
+    extern "C" fn sstore(
         &mut self,
         stg_key: &Bytes32,
         stg_value: &Bytes32,
@@ -1573,20 +1568,15 @@ impl<'a> RuntimeContext<'a> {
         unsafe { &*(&self.inner.result as *const RuntimeResult<u64> as *const RuntimeResult<()>) }
     }
 
-    pub extern "C" fn append_log(&mut self, offset: u64, size: u64) {
+    extern "C" fn append_log(&mut self, offset: u64, size: u64) {
         self.create_log(offset, size, vec![]);
     }
 
-    pub extern "C" fn append_log_with_one_topic(
-        &mut self,
-        offset: u64,
-        size: u64,
-        topic: &Bytes32,
-    ) {
+    extern "C" fn append_log_with_one_topic(&mut self, offset: u64, size: u64, topic: &Bytes32) {
         self.create_log(offset, size, vec![topic.to_b256()]);
     }
 
-    pub extern "C" fn append_log_with_two_topics(
+    extern "C" fn append_log_with_two_topics(
         &mut self,
         offset: u64,
         size: u64,
@@ -1596,7 +1586,7 @@ impl<'a> RuntimeContext<'a> {
         self.create_log(offset, size, vec![topic1.to_b256(), topic2.to_b256()]);
     }
 
-    pub extern "C" fn append_log_with_three_topics(
+    extern "C" fn append_log_with_three_topics(
         &mut self,
         offset: u64,
         size: u64,
@@ -1611,7 +1601,7 @@ impl<'a> RuntimeContext<'a> {
         );
     }
 
-    pub extern "C" fn append_log_with_four_topics(
+    extern "C" fn append_log_with_four_topics(
         &mut self,
         offset: u64,
         size: u64,
@@ -1632,11 +1622,11 @@ impl<'a> RuntimeContext<'a> {
         );
     }
 
-    pub extern "C" fn block_number(&self, number: &mut Bytes32) {
+    extern "C" fn block_number(&self, number: &mut Bytes32) {
         *number = self.host.env().block.number.into();
     }
 
-    pub extern "C" fn block_hash(&mut self, number: &mut Bytes32) -> *const RuntimeResult<()> {
+    extern "C" fn block_hash(&mut self, number: &mut Bytes32) -> *const RuntimeResult<()> {
         match self.host.block_hash(as_u64_saturated!(number.as_u256())) {
             Some(hash) => {
                 *number = hash;
@@ -1662,7 +1652,7 @@ impl<'a> RuntimeContext<'a> {
         });
     }
 
-    pub extern "C" fn extcodesize(&mut self, address: &Bytes32) -> *const RuntimeResult<u64> {
+    extern "C" fn extcodesize(&mut self, address: &Bytes32) -> *const RuntimeResult<u64> {
         let (code, load) = match self.host.code(address.to_address()) {
             Some(code_load) => code_load.into_components(),
             None => {
@@ -1678,12 +1668,11 @@ impl<'a> RuntimeContext<'a> {
         &self.inner.result as _
     }
 
-    #[allow(clippy::clone_on_copy)]
-    pub extern "C" fn address(&mut self) -> *mut u8 {
+    extern "C" fn address(&mut self) -> *mut u8 {
         self.contract.target_address.as_ptr() as *mut u8
     }
 
-    pub extern "C" fn prevrandao(&self, prevrandao: &mut Bytes32) {
+    extern "C" fn prevrandao(&self, prevrandao: &mut Bytes32) {
         let env = self.host.env();
         *prevrandao = if self.inner.spec_id.is_enabled_in(SpecId::MERGE) {
             let randao = env.block.prevrandao.unwrap_or_default();
@@ -1693,23 +1682,20 @@ impl<'a> RuntimeContext<'a> {
         };
     }
 
-    pub extern "C" fn coinbase(&self) -> *mut u8 {
+    extern "C" fn coinbase(&self) -> *mut u8 {
         self.host.env().block.coinbase.as_ptr() as *mut u8
     }
 
-    pub extern "C" fn store_in_timestamp_ptr(&self, value: &mut Bytes32) {
+    extern "C" fn store_in_timestamp_ptr(&self, value: &mut Bytes32) {
         *value = Bytes32::from(self.host.env().block.timestamp);
     }
 
-    pub extern "C" fn store_in_basefee_ptr(&self, basefee: &mut Bytes32) {
+    extern "C" fn store_in_basefee_ptr(&self, basefee: &mut Bytes32) {
         *basefee = Bytes32::from(&self.host.env().block.basefee);
     }
 
     /// This function reads an address pointer and set the balance of the address to the same pointer
-    pub extern "C" fn store_in_balance(
-        &mut self,
-        address: &mut Bytes32,
-    ) -> *const RuntimeResult<()> {
+    extern "C" fn store_in_balance(&mut self, address: &mut Bytes32) -> *const RuntimeResult<()> {
         let addr = address.to_address();
         let result = match self.host.balance(addr) {
             Some(result) => result,
@@ -1727,7 +1713,7 @@ impl<'a> RuntimeContext<'a> {
         unsafe { &*(&self.inner.result as *const RuntimeResult<u64> as *const RuntimeResult<()>) }
     }
 
-    pub extern "C" fn blob_hash(&mut self, index: &mut Bytes32) {
+    extern "C" fn blob_hash(&mut self, index: &mut Bytes32) {
         // Check if the high 12 bytes are zero, indicating a valid usize-compatible index
         if index.slice()[0..12] != [0u8; 12] {
             *index = Bytes32::default();
@@ -1746,7 +1732,7 @@ impl<'a> RuntimeContext<'a> {
             .unwrap_or_default();
     }
 
-    pub extern "C" fn ext_code_copy(
+    extern "C" fn ext_code_copy(
         &mut self,
         address_value: &Bytes32,
         code_offset: &Bytes32,
@@ -1776,7 +1762,7 @@ impl<'a> RuntimeContext<'a> {
         unsafe { &*(&self.inner.result as *const RuntimeResult<u64> as *const RuntimeResult<()>) }
     }
 
-    pub extern "C" fn ext_code_hash(&mut self, address: &mut Bytes32) -> *const RuntimeResult<()> {
+    extern "C" fn ext_code_hash(&mut self, address: &mut Bytes32) -> *const RuntimeResult<()> {
         let addr = Address::from(address as &Bytes32);
         let (hash, load) = match self.host.code_hash(addr) {
             Some(code_load) => code_load.into_components(),
@@ -1875,7 +1861,7 @@ impl<'a> RuntimeContext<'a> {
         unsafe { &*(&self.inner.result as *const RuntimeResult<u64> as *const RuntimeResult<()>) }
     }
 
-    pub extern "C" fn create(
+    extern "C" fn create(
         &mut self,
         size: u64,
         offset: u64,
@@ -1885,7 +1871,7 @@ impl<'a> RuntimeContext<'a> {
         self.create_aux(size, offset, value, remaining_gas, None)
     }
 
-    pub extern "C" fn create2(
+    extern "C" fn create2(
         &mut self,
         size: u64,
         offset: u64,
@@ -1896,10 +1882,7 @@ impl<'a> RuntimeContext<'a> {
         self.create_aux(size, offset, value, remaining_gas, Some(salt))
     }
 
-    pub extern "C" fn selfdestruct(
-        &mut self,
-        receiver_address: &Bytes32,
-    ) -> *const RuntimeResult<u64> {
+    extern "C" fn selfdestruct(&mut self, receiver_address: &Bytes32) -> *const RuntimeResult<u64> {
         let receiver_address = Address::from(receiver_address);
         let result = match self
             .host
@@ -1921,12 +1904,12 @@ impl<'a> RuntimeContext<'a> {
         &self.inner.result as _
     }
 
-    pub extern "C" fn tload(&mut self, stg_key: &Bytes32, stg_value: &mut Bytes32) {
+    extern "C" fn tload(&mut self, stg_key: &Bytes32, stg_value: &mut Bytes32) {
         let result = self.host.tload(self.contract.target_address, *stg_key);
         *stg_value = result;
     }
 
-    pub extern "C" fn tstore(&mut self, stg_key: &Bytes32, stg_value: &mut Bytes32) {
+    extern "C" fn tstore(&mut self, stg_key: &Bytes32, stg_value: &mut Bytes32) {
         self.host
             .tstore(self.contract.target_address, *stg_key, *stg_value);
     }
