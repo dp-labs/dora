@@ -153,6 +153,8 @@ impl ConversionPass<'_> {
                 Self::extcodesize(context, op)?
             } else if name == "dora.extcodecopy" {
                 Self::extcodecopy(context, op)?
+            } else if name == "dora.returndataload" {
+                Self::returndataload(context, op)?
             } else if name == "dora.returndatasize" {
                 Self::returndatasize(context, op)?
             } else if name == "dora.returndatacopy" {

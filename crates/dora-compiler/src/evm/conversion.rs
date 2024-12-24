@@ -507,6 +507,17 @@ impl ConversionPass<'_> {
                     )
                     .into(),
                 );
+            } else if name == "evm.returndataload" {
+                rewriter::replace_op(
+                    op,
+                    dora_ir::dora::returndataload(
+                        self.ctx,
+                        rewriter.uint256_ty(),
+                        op.operand(0)?,
+                        op.location(),
+                    )
+                    .into(),
+                );
             } else if name == "evm.returndatasize" {
                 rewriter::replace_op(
                     op,
