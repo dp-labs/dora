@@ -1584,7 +1584,7 @@ impl FunctionCodeGenerator {
                 let size = op.result(0)?.to_ctx_value();
                 backend.state.push1(size);
             }
-            Operator::MemorySize { mem, mem_byte: _ } => {
+            Operator::MemorySize { mem } => {
                 let mem = builder
                     .create(builder.iconst_32(mem as i32))
                     .result(0)?
@@ -1595,7 +1595,7 @@ impl FunctionCodeGenerator {
                 let size = op.result(0)?.to_ctx_value();
                 backend.state.push1(size);
             }
-            Operator::MemoryGrow { mem, mem_byte: _ } => {
+            Operator::MemoryGrow { mem } => {
                 let mem = builder
                     .create(builder.iconst_32(mem as i32))
                     .result(0)?
@@ -1948,8 +1948,159 @@ impl FunctionCodeGenerator {
             Operator::CallIndirect {
                 type_index,
                 table_index,
-                table_byte,
             } => todo!(),
+            Operator::GlobalAtomicGet {
+                ordering,
+                global_index,
+            } => todo!(),
+            Operator::GlobalAtomicSet {
+                ordering,
+                global_index,
+            } => todo!(),
+            Operator::GlobalAtomicRmwAdd {
+                ordering,
+                global_index,
+            } => todo!(),
+            Operator::GlobalAtomicRmwSub {
+                ordering,
+                global_index,
+            } => todo!(),
+            Operator::GlobalAtomicRmwAnd {
+                ordering,
+                global_index,
+            } => todo!(),
+            Operator::GlobalAtomicRmwOr {
+                ordering,
+                global_index,
+            } => todo!(),
+            Operator::GlobalAtomicRmwXor {
+                ordering,
+                global_index,
+            } => todo!(),
+            Operator::GlobalAtomicRmwXchg {
+                ordering,
+                global_index,
+            } => todo!(),
+            Operator::GlobalAtomicRmwCmpxchg {
+                ordering,
+                global_index,
+            } => todo!(),
+            Operator::TableAtomicGet {
+                ordering,
+                table_index,
+            } => todo!(),
+            Operator::TableAtomicSet {
+                ordering,
+                table_index,
+            } => todo!(),
+            Operator::TableAtomicRmwXchg {
+                ordering,
+                table_index,
+            } => todo!(),
+            Operator::TableAtomicRmwCmpxchg {
+                ordering,
+                table_index,
+            } => todo!(),
+            Operator::StructAtomicGet {
+                ordering,
+                struct_type_index,
+                field_index,
+            } => todo!(),
+            Operator::StructAtomicGetS {
+                ordering,
+                struct_type_index,
+                field_index,
+            } => todo!(),
+            Operator::StructAtomicGetU {
+                ordering,
+                struct_type_index,
+                field_index,
+            } => todo!(),
+            Operator::StructAtomicSet {
+                ordering,
+                struct_type_index,
+                field_index,
+            } => todo!(),
+            Operator::StructAtomicRmwAdd {
+                ordering,
+                struct_type_index,
+                field_index,
+            } => todo!(),
+            Operator::StructAtomicRmwSub {
+                ordering,
+                struct_type_index,
+                field_index,
+            } => todo!(),
+            Operator::StructAtomicRmwAnd {
+                ordering,
+                struct_type_index,
+                field_index,
+            } => todo!(),
+            Operator::StructAtomicRmwOr {
+                ordering,
+                struct_type_index,
+                field_index,
+            } => todo!(),
+            Operator::StructAtomicRmwXor {
+                ordering,
+                struct_type_index,
+                field_index,
+            } => todo!(),
+            Operator::StructAtomicRmwXchg {
+                ordering,
+                struct_type_index,
+                field_index,
+            } => todo!(),
+            Operator::StructAtomicRmwCmpxchg {
+                ordering,
+                struct_type_index,
+                field_index,
+            } => todo!(),
+            Operator::ArrayAtomicGet {
+                ordering,
+                array_type_index,
+            } => todo!(),
+            Operator::ArrayAtomicGetS {
+                ordering,
+                array_type_index,
+            } => todo!(),
+            Operator::ArrayAtomicGetU {
+                ordering,
+                array_type_index,
+            } => todo!(),
+            Operator::ArrayAtomicSet {
+                ordering,
+                array_type_index,
+            } => todo!(),
+            Operator::ArrayAtomicRmwAdd {
+                ordering,
+                array_type_index,
+            } => todo!(),
+            Operator::ArrayAtomicRmwSub {
+                ordering,
+                array_type_index,
+            } => todo!(),
+            Operator::ArrayAtomicRmwAnd {
+                ordering,
+                array_type_index,
+            } => todo!(),
+            Operator::ArrayAtomicRmwOr {
+                ordering,
+                array_type_index,
+            } => todo!(),
+            Operator::ArrayAtomicRmwXor {
+                ordering,
+                array_type_index,
+            } => todo!(),
+            Operator::ArrayAtomicRmwXchg {
+                ordering,
+                array_type_index,
+            } => todo!(),
+            Operator::ArrayAtomicRmwCmpxchg {
+                ordering,
+                array_type_index,
+            } => todo!(),
+            Operator::RefI31Shared => todo!(),
         }
         Ok((block, block))
     }
