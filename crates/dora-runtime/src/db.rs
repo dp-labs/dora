@@ -469,7 +469,7 @@ impl Database for MemoryDB {
     }
 
     fn insert_contract(&mut self, address: Address, bytecode: Bytecode, balance: U256) {
-        let hash = keccak256(&bytecode);
+        let hash = keccak256(bytecode.bytecode());
         let account = DbAccount {
             bytecode_hash: hash,
             balance,
