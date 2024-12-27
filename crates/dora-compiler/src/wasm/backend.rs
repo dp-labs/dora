@@ -37,7 +37,6 @@ use super::intrinsics::WASMIntrinsics;
 pub struct WASMBuilder<'c, 'a> {
     /// A mutable reference to the WASM backend containing the context and state.
     pub backend: &'a mut WASMBackend<'c>,
-
     /// The builder used to generate operations within the WASM execution context.
     pub builder: OpBuilder<'c, 'a>,
 }
@@ -88,10 +87,8 @@ impl std::ops::DerefMut for WASMBuilder<'_, '_> {
 pub struct WASMBackend<'c> {
     /// A reference to the MLIR context used in the WASM backend.
     pub ctx: &'c Context,
-
     /// WebAssembly-specific intrinsic types, such as i32, i64, f32, and f64.
     pub intrinsics: WASMIntrinsics<'c>,
-
     /// The current state of WASM execution, including the stack and control structures.
     pub state: State<'c, 'c>,
 }

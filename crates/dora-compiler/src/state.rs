@@ -202,11 +202,9 @@ pub struct State<'c, 'a> {
     /// The stack holds a list of tuples consisting of `BasicValue` and its associated `ExtraInfo`.
     /// This stack represents operand values and their metadata during execution.
     pub stack: Vec<(BasicValue<'c, 'a>, ExtraInfo)>,
-
     /// The control stack holds `ControlFrame` objects that represent control flow constructs
     /// such as loops, blocks, or function frames.
     control_stack: Vec<ControlFrame<'c, 'a>>,
-
     /// A flag indicating whether the current code or block is reachable during execution.
     /// This is important for managing execution paths, particularly in conditional or branching
     /// contexts.
@@ -455,11 +453,9 @@ impl<'c, 'a> State<'c, 'a> {
     ///
     /// Returns an error if the index is out of bounds.
     pub fn peeknth(&self, n: usize) -> Result<BasicValue<'c, 'a>> {
-        let index = self
-            .stack
-            .len()
-            .checked_sub(n)
-            .ok_or_else(|| CompileError::Codegen("peeknth: invalid value stack".to_string()))?;
+        let index = self.stack.len().checked_sub(n).ok_or_else(|| {
+            CompileError::Codegen(format!("peeknth for size {n}: invalid value stack"))
+        })?;
         Ok(self.stack[index].0)
     }
 
@@ -469,10 +465,9 @@ impl<'c, 'a> State<'c, 'a> {
     ///
     /// Returns an error if there are not enough values on the stack.
     pub fn peekn_extra(&self, n: usize) -> Result<&[(BasicValue<'c, 'a>, ExtraInfo)]> {
-        let index =
-            self.stack.len().checked_sub(n).ok_or_else(|| {
-                CompileError::Codegen("peekn_extra: invalid value stack".to_string())
-            })?;
+        let index = self.stack.len().checked_sub(n).ok_or_else(|| {
+            CompileError::Codegen(format!("peekn_extra for size {n}: invalid value stack"))
+        })?;
         Ok(&self.stack[index..])
     }
 
@@ -493,11 +488,9 @@ impl<'c, 'a> State<'c, 'a> {
     ///
     /// Returns an error if there are not enough values on the stack.
     pub fn popn(&mut self, n: usize) -> Result<()> {
-        let index = self
-            .stack
-            .len()
-            .checked_sub(n)
-            .ok_or_else(|| CompileError::Codegen("popn: invalid value stack".to_string()))?;
+        let index = self.stack.len().checked_sub(n).ok_or_else(|| {
+            CompileError::Codegen(format!("popn for size {n}: invalid value stack"))
+        })?;
 
         self.stack.truncate(index);
         Ok(())
