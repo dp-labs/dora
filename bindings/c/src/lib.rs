@@ -218,10 +218,6 @@ fn evmc_status_to_status(status: StatusCode) -> ExitStatusCode {
 fn call_kind_to_evmc_msg_kind(kind: CallKind) -> MessageKind {
     match kind {
         CallKind::EofCreate => MessageKind::EVMC_EOFCREATE,
-        // CallKind::ReturnContract => MessageKind::EVMC_RETURNCONTRACT,
-        // CallKind::ExtCall => MessageKind::EVMC_EXTCALL,
-        // CallKind::ExtStaticcall => MessageKind::EVMC_EXTSTATICCALL,
-        // CallKind::ExtDelegatecall => MessageKind::EVMC_EXTDELEGATECALL,
         CallKind::Call => MessageKind::EVMC_CALL,
         CallKind::Callcode => MessageKind::EVMC_CALLCODE,
         CallKind::Delegatecall => MessageKind::EVMC_DELEGATECALL,

@@ -322,7 +322,7 @@ impl<'a, DB: Database> VMContext<'a, DB> {
                 .as_ref()
                 .cloned()
                 .unwrap_or_else(Bytecode::new)
-                .bytecode()
+                .original_bytes()
                 .clone(),
             acc.is_cold,
         ))
@@ -936,21 +936,6 @@ impl<DB: Database> Host for VMContext<'_, DB> {
 /// - `is_static`: A boolean flag indicating whether the context is static.
 /// - `is_eof_init`: A boolean flag indicating whether the context is EOF init.
 /// - `spec_id`: The EVM spec ID from [SpecId].
-///
-/// # Example Usage:
-/// ```no_run
-/// let inner_context = InnerContext {
-///     memory: vec![0; 1024],
-///     returndata: None,
-///     program: vec![0x60, 0x0A, 0x60, 0x00],  // Sample bytecode
-///     gas_remaining: Some(100000),
-///     gas_refunded: 0,
-///     exit_status: None,
-///     depth: 0,
-///     is_static: false,
-///     is_eof_init: false,
-///     spec_id: SpecId::CANCUN,
-/// };
 /// ```
 #[derive(Debug, Default)]
 pub struct InnerContext {
@@ -1347,8 +1332,8 @@ impl RuntimeContext<'_> {
         self.inner.returndata.as_ptr() as _
     }
 
-    extern "C" fn returndata_size(&mut self) -> u16 {
-        self.inner.returndata.len() as u16
+    extern "C" fn returndata_size(&mut self) -> u64 {
+        self.inner.returndata.len() as u64
     }
 
     extern "C" fn returndata_copy(
@@ -2186,7 +2171,7 @@ impl RuntimeContext<'_> {
         value: &mut Bytes32,
         original_remaining_gas: u64,
         salt: &Bytes32,
-    ) -> *mut RuntimeResult<u8> {
+    ) -> *const RuntimeResult<u64> {
         let container_index = initcontainer_index as usize;
         let data_size = input_size as usize;
         let data_offset = input_offset as usize;
@@ -2316,7 +2301,7 @@ impl RuntimeContext<'_> {
         max_code_size: usize,
         remaining_gas: u64,
         execution_result: u8,
-    ) -> *mut RuntimeResult<u8> {
+    ) -> *const RuntimeResult<u64> {
         // Check if returncontract is in EOF init
         if !self.inner.is_eof_init {
             return Box::into_raw(Box::new(RuntimeResult::error(
@@ -2394,7 +2379,7 @@ impl RuntimeContext<'_> {
         match self.host.call(call_msg) {
             Ok(_) => {
                 self.inner.exit_status = Some(ExitStatusCode::from_u8(execution_result));
-                Box::into_raw(Box::new(RuntimeResult::success(execution_result)))
+                &self.inner.result
             }
             Err(_) => Box::into_raw(Box::new(RuntimeResult::error(
                 ExitStatusCode::FatalExternalError.to_u8(),

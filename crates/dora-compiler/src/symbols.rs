@@ -164,7 +164,7 @@ pub(crate) fn declare_symbols(context: &MLIRContext, module: &MLIRModule) {
             &[ptr_type],
         ),
         (symbols::RETURNDATA, &[ptr_type], &[ptr_type]),
-        (symbols::RETURNDATA_SIZE, &[ptr_type], &[uint16]),
+        (symbols::RETURNDATA_SIZE, &[ptr_type], &[uint64]),
         (
             symbols::RETURNDATA_COPY,
             &[ptr_type, uint64, ptr_type, uint64],

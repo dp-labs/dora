@@ -7,8 +7,6 @@ pub use revm_primitives::{
     RecoveredAuthorization, Signature, SpecId, B256, GAS_PER_BLOB, I256, U256,
 };
 
-// pub type Bytecode = Bytes;
-
 pub mod config;
 pub mod spec;
 

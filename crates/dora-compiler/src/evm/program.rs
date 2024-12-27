@@ -12,7 +12,7 @@ pub const EOF_MAGIC_BYTES: [u8; 2] = hex_literal::hex!("ef00");
 ///
 /// # Members
 ///
-/// - `BannedOpcodeInEofContextError`
+/// - [`BannedOpcodeInEofContextError`][OpcodeParseError::BannedOpcodeInEofContextError]
 ///
 /// An error that occurs when a opcode is encountered while it's banned in EOF context.
 /// This struct holds the banned-in-EOF-context opcode (as a `Opcode`) and provides a formatted error message
@@ -20,11 +20,12 @@ pub const EOF_MAGIC_BYTES: [u8; 2] = hex_literal::hex!("ef00");
 ///
 /// ## Example Usage:
 /// ```
+/// use dora_compiler::evm::program::{Opcode, OpcodeParseError};
 /// let err = OpcodeParseError::BannedOpcodeInEofContextError(Opcode::CODESIZE);
 /// assert_eq!(err.to_string(), "The opcode CODESIZE is not banned in EOF context");
 /// ```
 ///
-/// - `EofOpcodeInLegacyContextError`
+/// - [`EofOpcodeInLegacyContextError`][OpcodeParseError::EofOpcodeInLegacyContextError]
 ///
 /// An error that occurs when a EOF opcode is encountered while in non-EOF, which is legacy context.
 /// This struct holds the disallowed EOF opcode (as a `Opcode`) and provides a formatted error message
@@ -32,11 +33,12 @@ pub const EOF_MAGIC_BYTES: [u8; 2] = hex_literal::hex!("ef00");
 ///
 /// ## Example Usage:
 /// ```
+/// use dora_compiler::evm::program::{Opcode, OpcodeParseError};
 /// let err = OpcodeParseError::EofOpcodeInLegacyContextError(Opcode::DATALOAD);
 /// assert_eq!(err.to_string(), "The EOF opcode DATALOAD is not allowed in non-EOF(legacy) context");
 /// ```
 ///
-/// - `OpcodeInvalidError`
+/// - [`OpcodeInvalidError`][OpcodeParseError::OpcodeInvalidError]
 ///
 /// An error that occurs when an invalid opcode is encountered during parsing.
 /// This struct holds the invalid opcode (as a `u8`) and provides a formatted error message
@@ -44,6 +46,7 @@ pub const EOF_MAGIC_BYTES: [u8; 2] = hex_literal::hex!("ef00");
 ///
 /// ## Example Usage:
 /// ```
+/// use dora_compiler::evm::program::{Opcode, OpcodeParseError};
 /// let err = OpcodeParseError::OpcodeInvalidError(0xFF);
 /// assert_eq!(err.to_string(), "The opcode `FF` is not valid");
 /// ```

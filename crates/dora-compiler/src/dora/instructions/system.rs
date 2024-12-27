@@ -342,14 +342,14 @@ impl ConversionPass<'_> {
         block_argument!(op, syscall_ctx);
         rewrite_ctx!(context, op, rewriter, location);
 
-        let uint16 = rewriter.uint16_ty();
+        let uint64 = rewriter.uint64_ty();
         let uint256 = rewriter.uint256_ty();
 
         let data_size = rewriter.make(func::call(
             context,
             FlatSymbolRefAttribute::new(context, symbols::RETURNDATA_SIZE),
             &[syscall_ctx.into()],
-            &[uint16],
+            &[uint64],
             location,
         ))?;
         rewriter.create(arith::extui(data_size, uint256, location));

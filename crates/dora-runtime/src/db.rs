@@ -118,6 +118,7 @@ pub trait Database: Clone + Debug + DatabaseCommit {
 ///
 /// # Example:
 /// ```
+/// use dora_runtime::db::DatabaseError;
 /// let error = DatabaseError;
 /// assert_eq!("Error during database access", error.to_string());
 /// ```
@@ -147,6 +148,7 @@ pub trait DatabaseCommit {
 /// # Example:
 /// ```no_run
 /// use dora_primitives::U256;
+/// use dora_runtime::db::StorageSlot;
 /// let slot = StorageSlot {
 ///     original_value: U256::from(42),
 ///     present_value: U256::from(100),
@@ -221,6 +223,7 @@ impl From<U256> for StorageSlot {
     /// # Example:
     /// ```
     /// use dora_primitives::U256;
+    /// use dora_runtime::db::StorageSlot;
     /// let value = U256::from(123);
     /// let slot: StorageSlot = value.into();
     /// assert_eq!(slot.original_value, U256::from(123));
@@ -251,6 +254,7 @@ impl From<U256> for StorageSlot {
 /// # Example Usage:
 /// ```no_run
 /// use dora_primitives::{B256, U256};
+/// use dora_runtime::db::MemoryDB;
 /// let mut db = MemoryDB::new();
 /// db.insert_block_hash(U256::from(1), B256::from_slice(&[0; 32]));
 /// ```
