@@ -591,12 +591,9 @@ def Wasm_EqzOp : WASM_Op<"eqz"> {
         This operation checks if an operand of either i32 or i64 type is equal to zero.
     }];
 
-    let arguments = (ins
-        AnyTypeOf<[I32, I64]>:$lhs,
-        AnyTypeOf<[I32, I64]>:$rhs
-    );
+    let arguments = (ins AnyTypeOf<[I32, I64]>:$val);
 
-    let results = (outs AnyTypeOf<[I32, I64]>:$result);
+    let results = (outs I32:$result);
 
     let assemblyFormat = [{
         $value `:` type($value) `->` type($result)
@@ -615,7 +612,7 @@ def Wasm_EqOp : WASM_Op<"eq"> {
         AnyTypeOf<[I32, I64, F32, F64]>:$rhs
     );
 
-    let results = (outs AnyTypeOf<[I32, I64, F32, F64]>:$result);
+    let results = (outs I32:$result);
 
     let assemblyFormat = [{
         $lhs `,` $rhs `:` type($lhs) `->` type($result)

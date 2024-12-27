@@ -101,11 +101,9 @@ impl FuncTranslator {
         symbol_registry: &'c dyn SymbolRegistry,
     ) -> Result<Operation<'c>> {
         let func_index = wasm_module.func_index(*local_func_index);
-        let function_name =
-            symbol_registry.symbol_to_name(Symbol::LocalFunction(*local_func_index));
-        let _module_name = match wasm_module.name.as_ref() {
-            None => format!("<anonymous module> function {}", function_name),
-            Some(module_name) => format!("module {} function {}", module_name, function_name),
+        let function_name = match wasm_module.function_names.get(&func_index) {
+            Some(name) => name.to_string(),
+            None => symbol_registry.symbol_to_name(Symbol::LocalFunction(*local_func_index)),
         };
         let wasm_fn_type = wasm_module
             .signatures
