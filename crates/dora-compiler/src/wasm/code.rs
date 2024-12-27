@@ -51,7 +51,7 @@ macro_rules! op {
             .create(
                 dora_ir::wasm::$op(
                     $builder.context(),
-                    $builder.intrinsics.i32_ty,
+                    $builder.uint32_ty(),
                     input,
                     $builder.unknown_loc(),
                 )
@@ -68,7 +68,7 @@ macro_rules! op {
             .create(
                 dora_ir::wasm::$op(
                     $builder.context(),
-                    $builder.intrinsics.i64_ty,
+                    $builder.uint64_ty(),
                     input,
                     $builder.unknown_loc(),
                 )
@@ -122,7 +122,7 @@ macro_rules! bin_op {
             .create(
                 dora_ir::wasm::$op(
                     $builder.context(),
-                    $builder.intrinsics.i32_ty,
+                    $builder.uint32_ty(),
                     v1,
                     v2,
                     $builder.unknown_loc(),
@@ -140,7 +140,7 @@ macro_rules! bin_op {
             .create(
                 dora_ir::wasm::$op(
                     $builder.context(),
-                    $builder.intrinsics.i64_ty,
+                    $builder.uint64_ty(),
                     v1,
                     v2,
                     $builder.unknown_loc(),
@@ -601,7 +601,7 @@ impl FunctionCodeGenerator {
                     builder.context(),
                     &case_values,
                     index,
-                    builder.intrinsics.i32_ty,
+                    builder.uint32_ty(),
                     (default_frame.br_dest(), &[]),
                     &case_destinations,
                     builder.get_insert_location(),

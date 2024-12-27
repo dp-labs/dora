@@ -31,6 +31,9 @@ impl ConversionPass<'_> {
         block_argument!(op, syscall_ctx, gas_counter_ptr);
         rewrite_ctx!(context, op, rewriter, location, NoDefer);
 
+        let uint64 = rewriter.uint64_ty();
+        let uint256 = rewriter.uint256_ty();
+
         let address_ptr =
             memory::allocate_u256_and_assign_value(context, &rewriter, account, location)?;
         let result_ptr = rewriter.make(func::call(
@@ -43,17 +46,19 @@ impl ConversionPass<'_> {
         let gas = rewriter.get_field_value(
             result_ptr,
             offset_of!(dora_runtime::context::RuntimeResult<()>, gas_used),
-            rewriter.intrinsics.i64_ty,
+            uint64,
         )?;
         gas_or_fail!(op, rewriter, gas, gas_counter_ptr);
         rewrite_ctx!(context, op, rewriter, _location);
-        rewriter.make(rewriter.load(address_ptr, rewriter.intrinsics.i256_ty))?;
+        rewriter.make(rewriter.load(address_ptr, uint256))?;
         Ok(())
     }
 
     pub(crate) fn selfbalance(context: &Context, op: &OperationRef<'_, '_>) -> Result<()> {
         block_argument!(op, syscall_ctx);
         rewrite_ctx!(context, op, rewriter, location);
+
+        let uint256 = rewriter.uint256_ty();
 
         let selfbalance_ptr = create_var!(rewriter, context, location);
         load_var!(
@@ -62,7 +67,7 @@ impl ConversionPass<'_> {
             syscall_ctx,
             symbols::STORE_IN_SELFBALANCE_PTR,
             &[selfbalance_ptr],
-            rewriter.intrinsics.i256_ty,
+            uint256,
             location
         );
         Ok(())
@@ -72,7 +77,11 @@ impl ConversionPass<'_> {
         operands!(op, address);
         block_argument!(op, syscall_ctx, gas_counter_ptr);
         rewrite_ctx!(context, op, rewriter, location, NoDefer);
+
+        let uint64 = rewriter.uint64_ty();
+        let uint256 = rewriter.uint256_ty();
         let ptr_type = rewriter.ptr_ty();
+
         let codesize_ptr =
             memory::allocate_u256_and_assign_value(context, &rewriter, address, location)?;
         let result_ptr = rewriter.make(func::call(
@@ -86,20 +95,16 @@ impl ConversionPass<'_> {
         let codesize = rewriter.get_field_value(
             result_ptr,
             offset_of!(dora_runtime::context::RuntimeResult<u64>, value),
-            rewriter.intrinsics.i64_ty,
+            uint64,
         )?;
         let gas = rewriter.get_field_value(
             result_ptr,
             offset_of!(dora_runtime::context::RuntimeResult<u64>, gas_used),
-            rewriter.intrinsics.i64_ty,
+            uint64,
         )?;
         gas_or_fail!(op, rewriter, gas, gas_counter_ptr);
         rewrite_ctx!(context, op, rewriter, location);
-        rewriter.make(arith::extui(
-            codesize,
-            rewriter.intrinsics.i256_ty,
-            location,
-        ))?;
+        rewriter.make(arith::extui(codesize, uint256, location))?;
         Ok(())
     }
 
@@ -107,6 +112,10 @@ impl ConversionPass<'_> {
         operands!(op, address);
         block_argument!(op, syscall_ctx, gas_counter_ptr);
         rewrite_ctx!(context, op, rewriter, location, NoDefer);
+
+        let uint64 = rewriter.uint64_ty();
+        let uint256 = rewriter.uint256_ty();
+
         let code_hash_ptr =
             memory::allocate_u256_and_assign_value(context, &rewriter, address, location)?;
         let result_ptr = rewriter.make(func::call(
@@ -119,23 +128,26 @@ impl ConversionPass<'_> {
         let gas = rewriter.get_field_value(
             result_ptr,
             offset_of!(dora_runtime::context::RuntimeResult<()>, gas_used),
-            rewriter.intrinsics.i64_ty,
+            uint64,
         )?;
         gas_or_fail!(op, rewriter, gas, gas_counter_ptr);
         rewrite_ctx!(context, op, rewriter, _location);
-        rewriter.make(rewriter.load(code_hash_ptr, rewriter.intrinsics.i256_ty))?;
+        rewriter.make(rewriter.load(code_hash_ptr, uint256))?;
         Ok(())
     }
 
     pub(crate) fn extcodecopy(context: &Context, op: &OperationRef<'_, '_>) -> Result<()> {
         operands!(op, address, memory_offset, code_offset, size);
         block_argument!(op, syscall_ctx, gas_counter_ptr);
-        let rewriter = Rewriter::new_with_op(context, *op);
+        rewrite_ctx!(context, op, rewriter, NoDefer);
+
+        let uint64 = rewriter.uint64_ty();
         let ptr_type = rewriter.ptr_ty();
+
         u256_to_u64!(op, rewriter, size);
         let gas = compute_copy_cost(&rewriter, size)?;
         gas_or_fail!(op, rewriter, gas, gas_counter_ptr);
-        let rewriter = Rewriter::new_with_op(context, *op);
+        rewrite_ctx!(context, op, rewriter, NoDefer);
         let size_is_not_zero = rewriter.make(rewriter.icmp_imm(IntCC::NotEqual, size, 0)?)?;
         if_here!(op, rewriter, size_is_not_zero, {
             u256_to_u64!(op, rewriter, memory_offset);
@@ -150,11 +162,7 @@ impl ConversionPass<'_> {
             )?;
         });
         rewrite_ctx!(context, op, rewriter, location);
-        let memory_offset = rewriter.make(arith::trunci(
-            memory_offset,
-            rewriter.intrinsics.i64_ty,
-            location,
-        ))?;
+        let memory_offset = rewriter.make(arith::trunci(memory_offset, uint64, location))?;
         let address_ptr =
             memory::allocate_u256_and_assign_value(context, &rewriter, address, location)?;
         let code_offset =
@@ -176,7 +184,7 @@ impl ConversionPass<'_> {
         let gas = rewriter.get_field_value(
             result_ptr,
             offset_of!(dora_runtime::context::RuntimeResult<()>, gas_used),
-            rewriter.intrinsics.i64_ty,
+            uint64,
         )?;
         gas_or_fail!(op, rewriter, gas, gas_counter_ptr);
         Ok(())
@@ -187,6 +195,8 @@ impl ConversionPass<'_> {
         block_argument!(op, syscall_ctx);
         rewrite_ctx!(context, op, rewriter, location);
 
+        let uint256 = rewriter.uint256_ty();
+
         let block_hash_ptr =
             memory::allocate_u256_and_assign_value(context, &rewriter, block_number, location)?;
         load_var!(
@@ -195,7 +205,7 @@ impl ConversionPass<'_> {
             syscall_ctx,
             symbols::BLOCK_HASH,
             &[block_hash_ptr],
-            rewriter.intrinsics.i256_ty,
+            uint256,
             location
         );
         Ok(())
@@ -205,6 +215,9 @@ impl ConversionPass<'_> {
         operands!(op, key);
         block_argument!(op, syscall_ctx, gas_counter_ptr);
         rewrite_ctx!(context, op, rewriter, location, NoDefer);
+
+        let uint64 = rewriter.uint64_ty();
+        let uint256 = rewriter.uint256_ty();
 
         let key_ptr = memory::allocate_u256_and_assign_value(context, &rewriter, key, location)?;
         let value_ptr = create_var!(rewriter, context, location);
@@ -218,11 +231,11 @@ impl ConversionPass<'_> {
         let gas = rewriter.get_field_value(
             result_ptr,
             offset_of!(dora_runtime::context::RuntimeResult<()>, gas_used),
-            rewriter.intrinsics.i64_ty,
+            uint64,
         )?;
         gas_or_fail!(op, rewriter, gas, gas_counter_ptr);
         rewrite_ctx!(context, op, rewriter, _location);
-        rewriter.make(rewriter.load(value_ptr, rewriter.intrinsics.i256_ty))?;
+        rewriter.make(rewriter.load(value_ptr, uint256))?;
         Ok(())
     }
 
@@ -231,13 +244,15 @@ impl ConversionPass<'_> {
         block_argument!(op, syscall_ctx, gas_counter_ptr);
         rewrite_ctx!(context, op, rewriter, location, NoDefer);
 
+        let uint8 = rewriter.uint8_ty();
+        let uint64 = rewriter.uint64_ty();
         let ptr_type = rewriter.ptr_ty();
+
         // Allocate and store the key and value
         let key_ptr = memory::allocate_u256_and_assign_value(context, &rewriter, key, location)?;
         let value_ptr =
             memory::allocate_u256_and_assign_value(context, &rewriter, value, location)?;
-        let gas_counter =
-            rewriter.make(rewriter.load(gas_counter_ptr, rewriter.intrinsics.i64_ty))?;
+        let gas_counter = rewriter.make(rewriter.load(gas_counter_ptr, uint64))?;
 
         let result_ptr = rewriter.make(func::call(
             context,
@@ -249,7 +264,7 @@ impl ConversionPass<'_> {
         let error = rewriter.get_field_value(
             result_ptr,
             offset_of!(dora_runtime::context::RuntimeResult<()>, error),
-            rewriter.intrinsics.i8_ty,
+            uint8,
         )?;
         // Check the runtime sstore halt error
         check_runtime_error!(op, rewriter, error);
@@ -257,7 +272,7 @@ impl ConversionPass<'_> {
         let gas = rewriter.get_field_value(
             result_ptr,
             offset_of!(dora_runtime::context::RuntimeResult<()>, gas_used),
-            rewriter.intrinsics.i64_ty,
+            uint64,
         )?;
         gas_or_fail!(op, rewriter, gas, gas_counter_ptr);
         Ok(())
@@ -290,6 +305,8 @@ impl ConversionPass<'_> {
         block_argument!(op, syscall_ctx);
         rewrite_ctx!(context, op, rewriter, location);
 
+        let uint256 = rewriter.uint256_ty();
+
         let key_ptr = memory::allocate_u256_and_assign_value(context, &rewriter, key, location)?;
         let value_ptr = create_var!(rewriter, context, location);
         load_var!(
@@ -300,7 +317,7 @@ impl ConversionPass<'_> {
             &[key_ptr, value_ptr],
             [],
             value_ptr,
-            rewriter.intrinsics.i256_ty,
+            uint256,
             location
         );
         Ok(())
@@ -314,15 +331,18 @@ impl ConversionPass<'_> {
         debug_assert!(num_topics <= 4, "invalid log topic count: {num_topics}");
         operands!(op, offset, size);
         block_argument!(op, syscall_ctx, gas_counter_ptr);
-        let rewriter = Rewriter::new_with_op(context, *op);
+        rewrite_ctx!(context, op, rewriter, NoDefer);
+
+        let uint64 = rewriter.uint64_ty();
+
         ensure_non_staticcall!(op, rewriter, syscall_ctx);
-        let rewriter = Rewriter::new_with_op(context, *op);
+        rewrite_ctx!(context, op, rewriter, NoDefer);
 
         // Check the log mem offset and size overflow error
         u256_to_u64!(op, rewriter, size);
         let gas = compute_log_dynamic_cost(&rewriter, size)?;
         gas_or_fail!(op, rewriter, gas, gas_counter_ptr);
-        let rewriter = Rewriter::new_with_op(context, *op);
+        rewrite_ctx!(context, op, rewriter, NoDefer);
 
         let size_is_not_zero = rewriter.make(rewriter.icmp_imm(IntCC::NotEqual, size, 0)?)?;
         if_here!(op, rewriter, size_is_not_zero, {
@@ -338,7 +358,7 @@ impl ConversionPass<'_> {
             )?;
         });
         rewrite_ctx!(context, op, rewriter, location);
-        let offset = rewriter.make(arith::trunci(offset, rewriter.intrinsics.i64_ty, location))?;
+        let offset = rewriter.make(arith::trunci(offset, uint64, location))?;
         // Handle topics dynamically
         let mut topic_pointers = vec![];
         for i in 0..num_topics {
@@ -377,10 +397,13 @@ impl ConversionPass<'_> {
         operands!(op, address);
         block_argument!(op, syscall_ctx, gas_counter_ptr);
         // Ensure non static call before the gas computation.
-        let rewriter = Rewriter::new_with_op(context, *op);
+        rewrite_ctx!(context, op, rewriter, NoDefer);
         ensure_non_staticcall!(op, rewriter, syscall_ctx);
         rewrite_ctx!(context, op, rewriter, location);
+
+        let uint64 = rewriter.uint64_ty();
         let ptr_type = rewriter.ptr_ty();
+
         let address_ptr =
             memory::allocate_u256_and_assign_value(context, &rewriter, address, location)?;
         let result_ptr = rewriter.make(func::call(
@@ -393,7 +416,7 @@ impl ConversionPass<'_> {
         let gas = rewriter.get_field_value(
             result_ptr,
             offset_of!(dora_runtime::context::RuntimeResult<u64>, gas_used),
-            rewriter.intrinsics.i64_ty,
+            uint64,
         )?;
         gas_or_fail!(op, rewriter, gas, gas_counter_ptr);
         Ok(())

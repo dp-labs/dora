@@ -100,10 +100,10 @@ impl TypeMethods for EVMBuilder<'_, '_> {
 
 impl crate::backend::Builder for EVMBuilder<'_, '_> {
     fn bool_const(&mut self, value: bool) -> Result<Self::Value> {
-        let ty = self.intrinsics.i1_ty;
+        let uint1 = self.uint1_ty();
         let op = self.builder.create(arith::constant(
             self.context(),
-            IntegerAttribute::new(ty, if value { 1 } else { 0 }).into(),
+            IntegerAttribute::new(uint1, if value { 1 } else { 0 }).into(),
             self.location(),
         ));
         Ok(op.result(0)?.to_ctx_value())
@@ -128,11 +128,11 @@ impl crate::backend::Builder for EVMBuilder<'_, '_> {
     }
 
     fn iconst_32(&mut self, value: i32) -> Result<Self::Value> {
-        self.iconst(self.intrinsics.i32_ty, value as i64)
+        self.iconst(self.uint32_ty(), value as i64)
     }
 
     fn iconst_64(&mut self, value: i64) -> Result<Self::Value> {
-        self.iconst(self.intrinsics.i64_ty, value)
+        self.iconst(self.uint64_ty(), value)
     }
 
     fn iconst_256(&mut self, value: BigUint) -> Result<Self::Value> {
@@ -156,27 +156,30 @@ impl crate::backend::Builder for EVMBuilder<'_, '_> {
     }
 
     fn fconst_32(&mut self, value: f32) -> Result<Self::Value> {
-        self.fconst(self.intrinsics.f32_ty, value as f64)
+        self.fconst(self.uint32_ty(), value as f64)
     }
 
     fn fconst_64(&mut self, value: f64) -> Result<Self::Value> {
-        self.fconst(self.intrinsics.f64_ty, value)
+        self.fconst(self.uint64_ty(), value)
     }
 
     fn stack_push(&mut self, value: Self::Value) -> Result<()> {
         let value = unsafe { Value::from_raw(value.to_raw()) };
         let builder = &self.builder;
+
+        let uint256 = builder.uint256_ty();
+        let ptr_type = builder.ptr_ty();
+
         // Load stack pointer
-        let stack_ptr =
-            builder.make(builder.load(self.ctx.values.stack_top_ptr, builder.ptr_ty()))?;
+        let stack_ptr = builder.make(builder.load(self.ctx.values.stack_top_ptr, ptr_type))?;
         builder.create(builder.store(value, stack_ptr));
         // Increment stack pointer
         let new_stack_ptr = builder.make(llvm::get_element_ptr(
             builder.context(),
             stack_ptr,
             DenseI32ArrayAttribute::new(builder.context(), &[1]),
-            builder.intrinsics.i256_ty,
-            builder.ptr_ty(),
+            uint256,
+            ptr_type,
             builder.get_insert_location(),
         ))?;
         builder.create(builder.store(new_stack_ptr, self.ctx.values.stack_top_ptr));
@@ -185,18 +188,21 @@ impl crate::backend::Builder for EVMBuilder<'_, '_> {
 
     fn stack_pop(&mut self) -> Result<Self::Value> {
         let builder = &self.builder;
+
+        let uint256 = builder.uint256_ty();
+        let ptr_type = builder.ptr_ty();
+
         // Load stack pointer
-        let stack_ptr =
-            builder.make(builder.load(self.ctx.values.stack_top_ptr, builder.ptr_ty()))?;
+        let stack_ptr = builder.make(builder.load(self.ctx.values.stack_top_ptr, ptr_type))?;
         let old_stack_ptr = builder.make(llvm::get_element_ptr(
             builder.context(),
             stack_ptr,
             DenseI32ArrayAttribute::new(builder.context(), &[-1]),
-            builder.intrinsics.i256_ty,
-            builder.ptr_ty(),
+            uint256,
+            ptr_type,
             builder.get_insert_location(),
         ))?;
-        let value = builder.make(builder.load(old_stack_ptr, builder.intrinsics.i256_ty))?;
+        let value = builder.make(builder.load(old_stack_ptr, uint256))?;
         builder.create(builder.store(old_stack_ptr, self.ctx.values.stack_top_ptr));
         Ok(unsafe { Value::from_raw(value.to_raw()) })
     }
@@ -209,19 +215,22 @@ impl crate::backend::Builder for EVMBuilder<'_, '_> {
     fn stack_peek_nth(&mut self, n: usize) -> Result<Self::Value> {
         debug_assert!(n < MAX_STACK_SIZE);
         let builder = &self.builder;
+
+        let uint256 = builder.uint256_ty();
+        let ptr_type = builder.ptr_ty();
+
         // Load stack pointer
-        let stack_ptr =
-            builder.make(builder.load(self.ctx.values.stack_top_ptr, builder.ptr_ty()))?;
+        let stack_ptr = builder.make(builder.load(self.ctx.values.stack_top_ptr, ptr_type))?;
         // n-th stack pointer
         let nth_stack_ptr = builder.make(llvm::get_element_ptr(
             builder.context(),
             stack_ptr,
             DenseI32ArrayAttribute::new(builder.context(), &[-(n as i32)]),
-            builder.intrinsics.i256_ty,
-            builder.ptr_ty(),
+            uint256,
+            ptr_type,
             builder.get_insert_location(),
         ))?;
-        let value = builder.make(builder.load(nth_stack_ptr, builder.intrinsics.i256_ty))?;
+        let value = builder.make(builder.load(nth_stack_ptr, uint256))?;
         Ok(unsafe { Value::from_raw(value.to_raw()) })
     }
 
@@ -229,16 +238,19 @@ impl crate::backend::Builder for EVMBuilder<'_, '_> {
         let n = n + 1;
         let m = m + 1;
         let builder = &self.builder;
+
+        let uint256 = builder.uint256_ty();
+        let ptr_type = builder.ptr_ty();
+
         // Load stack pointer
-        let stack_ptr =
-            builder.make(builder.load(self.ctx.values.stack_top_ptr, builder.ptr_ty()))?;
+        let stack_ptr = builder.make(builder.load(self.ctx.values.stack_top_ptr, ptr_type))?;
         // n-th stack pointer
         let nth_stack_ptr = builder.make(llvm::get_element_ptr(
             builder.context(),
             stack_ptr,
             DenseI32ArrayAttribute::new(builder.context(), &[-(n as i32)]),
-            builder.intrinsics.i256_ty,
-            builder.ptr_ty(),
+            uint256,
+            ptr_type,
             builder.get_insert_location(),
         ))?;
         // m-th stack pointer
@@ -246,12 +258,12 @@ impl crate::backend::Builder for EVMBuilder<'_, '_> {
             builder.context(),
             stack_ptr,
             DenseI32ArrayAttribute::new(builder.context(), &[-(m as i32)]),
-            builder.intrinsics.i256_ty,
-            builder.ptr_ty(),
+            uint256,
+            ptr_type,
             builder.get_insert_location(),
         ))?;
-        let n_value = builder.make(builder.load(nth_stack_ptr, builder.intrinsics.i256_ty))?;
-        let m_value = builder.make(builder.load(mth_stack_ptr, builder.intrinsics.i256_ty))?;
+        let n_value = builder.make(builder.load(nth_stack_ptr, uint256))?;
+        let m_value = builder.make(builder.load(mth_stack_ptr, uint256))?;
         builder.create(builder.store(n_value, mth_stack_ptr));
         builder.create(builder.store(m_value, nth_stack_ptr));
         Ok(())

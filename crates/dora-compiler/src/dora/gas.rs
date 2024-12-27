@@ -27,9 +27,12 @@ pub(crate) fn compute_exp_cost<'c>(
         location,
     ))?;
 
+    let uint64 = rewriter.uint64_ty();
+    let uint256 = rewriter.uint256_ty();
+
     rewriter.make(scf::r#if(
         is_exponent_zero,
-        &[rewriter.intrinsics.i64_ty],
+        &[uint64],
         {
             let region = Region::new();
             let block = region.append_block(Block::new(&[]));
@@ -48,7 +51,7 @@ pub(crate) fn compute_exp_cost<'c>(
                 rewriter.context(),
                 exponent,
                 false,
-                rewriter.intrinsics.i256_ty,
+                uint256,
                 location,
             ))?;
             let number_of_bits = rewriter.make(arith::subi(
@@ -78,11 +81,7 @@ pub(crate) fn compute_exp_cost<'c>(
                 location,
             ))?;
 
-            let total_gas_cost = rewriter.make(arith::trunci(
-                total_gas_cost,
-                rewriter.intrinsics.i64_ty,
-                location,
-            ))?;
+            let total_gas_cost = rewriter.make(arith::trunci(total_gas_cost, uint64, location))?;
             rewriter.create(scf::r#yield(&[total_gas_cost], location));
             region
         },

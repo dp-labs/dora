@@ -429,10 +429,10 @@ impl<'c> EVMCompiler<'c> {
         let may_overflow = diff > 0;
         let stack_check_block = region.append_block(Block::new(&[]));
         let builder = OpBuilder::new_with_block(ctx.context, stack_check_block);
+        let uint64 = builder.uint64_ty();
         let location = builder.get_insert_location();
         let stack_max_size = builder.make(builder.iconst_64(MAX_STACK_SIZE as i64))?;
-        let size_before =
-            builder.make(builder.load(ctx.values.stack_size_ptr, builder.intrinsics.i64_ty))?;
+        let size_before = builder.make(builder.load(ctx.values.stack_size_ptr, uint64))?;
         let size_after = builder.make(arith::addi(
             size_before,
             builder.make(builder.iconst_64(diff))?,
@@ -516,14 +516,15 @@ impl<'c> EVMCompiler<'c> {
         let gas_check_block = region.append_block(Block::new(&[]));
         let update_gas_remaining_block = region.append_block(Block::new(&[]));
         let builder = OpBuilder::new_with_block(ctx.context, gas_check_block);
+        let uint8 = builder.uint8_ty();
+        let uint64 = builder.uint64_ty();
         let location = builder.get_insert_location();
         // Get address of gas counter global
-        let gas_counter =
-            builder.make(builder.load(ctx.values.gas_counter_ptr, builder.intrinsics.i64_ty))?;
+        let gas_counter = builder.make(builder.load(ctx.values.gas_counter_ptr, uint64))?;
         let gas_value = builder.make(builder.iconst_64(base_gas as i64))?;
         if std::env::var(DORA_TRACING).is_ok() {
             let opcode = builder
-                .create(builder.iconst(builder.intrinsics.i8_ty, op.opcode() as i64))
+                .create(builder.iconst(uint8, op.opcode() as i64))
                 .result(0)?
                 .into();
             builder.create(func::call(
@@ -585,6 +586,8 @@ impl<'c> EVMCompiler<'c> {
         options: &<EVMCompiler<'c> as Compiler>::Options,
     ) -> Result<()> {
         let context = &self.ctx.mlir_context;
+        let uint8 = self.intrinsics.i8_ty;
+        let ptr_type = self.intrinsics.ptr_ty;
         let location = self.intrinsics.unknown_loc;
         // Build the main function
         let main_func = func::func(
@@ -595,15 +598,12 @@ impl<'c> EVMCompiler<'c> {
                     context,
                     &[
                         // RuntimeContext
-                        self.intrinsics.ptr_ty,
-                        // Gas counter ptr
-                        self.intrinsics.ptr_ty,
-                        // Stack pointer
-                        self.intrinsics.ptr_ty,
-                        // Stack size pointer
-                        self.intrinsics.ptr_ty,
+                        ptr_type, // Gas counter ptr
+                        ptr_type, // Stack pointer
+                        ptr_type, // Stack size pointer
+                        ptr_type,
                     ],
-                    &[self.intrinsics.i8_ty],
+                    &[uint8],
                 )
                 .into(),
             ),
@@ -618,7 +618,7 @@ impl<'c> EVMCompiler<'c> {
                     Attribute::unit(context),
                 ),
             ],
-            self.intrinsics.unknown_loc,
+            location,
         );
 
         let main_region = main_func.region(0)?;
@@ -650,11 +650,7 @@ impl<'c> EVMCompiler<'c> {
             let mut result = last_block
                 .append_operation(arith::constant(
                     context,
-                    IntegerAttribute::new(
-                        self.intrinsics.i8_ty,
-                        ExitStatusCode::Continue.to_u8() as i64,
-                    )
-                    .into(),
+                    IntegerAttribute::new(uint8, ExitStatusCode::Continue.to_u8() as i64).into(),
                     location,
                 ))
                 .result(0)?
@@ -662,11 +658,7 @@ impl<'c> EVMCompiler<'c> {
             let continue_code: Value<'_, '_> = last_block
                 .append_operation(arith::constant(
                     context,
-                    IntegerAttribute::new(
-                        self.intrinsics.i8_ty,
-                        ExitStatusCode::Continue.to_u8() as i64,
-                    )
-                    .into(),
+                    IntegerAttribute::new(uint8, ExitStatusCode::Continue.to_u8() as i64).into(),
                     location,
                 ))
                 .result(0)?
@@ -742,7 +734,7 @@ impl<'c> EVMCompiler<'c> {
                                 ctx.values.stack_size_ptr,
                                 ctx.values.stack_top_ptr,
                             ],
-                            &[self.intrinsics.i8_ty],
+                            &[uint8],
                             location,
                         ))?
                         .to_ctx_value();
@@ -790,14 +782,15 @@ impl<'c> EVMCompiler<'c> {
         code: ExitStatusCode,
     ) -> Result<()> {
         let builder = OpBuilder::new_with_block(ctx.context, block);
+        let uint8 = builder.uint8_ty();
+        let uint64 = builder.uint64_ty();
         let zero = builder.create(builder.iconst_64(0)).result(0)?.into();
         let reason = builder
-            .create(builder.iconst(builder.intrinsics.i8_ty, code.to_u8() as i64))
+            .create(builder.iconst(uint8, code.to_u8() as i64))
             .result(0)?
             .into();
 
-        let gas_counter =
-            builder.make(builder.load(ctx.values.gas_counter_ptr, builder.intrinsics.i64_ty))?;
+        let gas_counter = builder.make(builder.load(ctx.values.gas_counter_ptr, uint64))?;
 
         builder.create(func::call(
             builder.context(),
@@ -964,12 +957,16 @@ impl<'c> CtxType<'c> {
         program: &'c Program,
     ) -> Result<Self> {
         let intrinsics = Intrinsics::declare(context);
-        let location = Location::unknown(&context.mlir_context);
+        let builder = OpBuilder::new(&context.mlir_context);
+
+        let uint256 = builder.uint256_ty();
+        let ptr_type = builder.ptr_ty();
+        let location = builder.unknown_loc();
+
         let syscall_ctx = block.add_argument(intrinsics.ptr_ty, location);
         let gas_counter_ptr = block.add_argument(intrinsics.ptr_ty, location);
         let stack_ptr = block.add_argument(intrinsics.ptr_ty, location);
         let stack_size_ptr = block.add_argument(intrinsics.ptr_ty, location);
-        let builder = OpBuilder::new(&context.mlir_context);
 
         SetupBuilder::new(&context.mlir_context, module).declare_symbols()?;
 
@@ -983,7 +980,7 @@ impl<'c> CtxType<'c> {
                 array_size,
                 builder.ptr_ty(),
                 location,
-                AllocaOptions::new().elem_type(Some(TypeAttribute::new(builder.intrinsics.ptr_ty))),
+                AllocaOptions::new().elem_type(Some(TypeAttribute::new(ptr_type))),
             ))
             .result(0)?
             .into();
@@ -994,7 +991,6 @@ impl<'c> CtxType<'c> {
             syscall_ctx,
             gas_counter_ptr,
         )?);
-        let uint256 = builder.intrinsics.i256_ty;
         let jumptable_block = region.append_block(Block::new(&[(uint256, location)]));
         let return_block = region.append_block(return_block(&context.mlir_context)?);
         Ok(CtxType {
@@ -1175,7 +1171,9 @@ pub fn revert_block<'c>(
     gas_counter_ptr: Value<'c, 'c>,
 ) -> Result<Block<'c>> {
     let builder = OpBuilder::new(context);
-    let block = Block::new(&[(builder.intrinsics.i8_ty, builder.unknown_loc())]);
+    let uint8 = builder.uint8_ty();
+    let uint64 = builder.uint64_ty();
+    let block = Block::new(&[(uint8, builder.unknown_loc())]);
     let location = builder.unknown_loc();
 
     let zero = block
@@ -1185,7 +1183,7 @@ pub fn revert_block<'c>(
     let reason = block.argument(0)?.into();
 
     let gas_counter = block
-        .append_operation(builder.load(gas_counter_ptr, builder.intrinsics.i64_ty))
+        .append_operation(builder.load(gas_counter_ptr, uint64))
         .result(0)?
         .into();
 
@@ -1203,7 +1201,8 @@ pub fn revert_block<'c>(
 /// Creates a return block that handles return codes.
 pub fn return_block(context: &MLIRContext) -> Result<Block<'_>> {
     let builder = OpBuilder::new(context);
-    let block = Block::new(&[(builder.intrinsics.i8_ty, builder.unknown_loc())]);
+    let uint8 = builder.uint8_ty();
+    let block = Block::new(&[(uint8, builder.unknown_loc())]);
     let location = builder.unknown_loc();
     let reason = block.argument(0)?.into();
     block.append_operation(func::r#return(&[reason], location));
