@@ -1275,12 +1275,8 @@ impl RuntimeContext<'_> {
         self.inner.exit_status = Some(ExitStatusCode::from_u8(execution_result));
     }
 
-    extern "C" fn returndata(&mut self) -> *mut u8 {
-        self.inner.returndata.as_ptr() as _
-    }
-
-    extern "C" fn returndata_size(&mut self) -> u16 {
-        self.inner.returndata.len() as u16
+    extern "C" fn returndata_size(&mut self) -> u64 {
+        self.inner.returndata.len() as u64
     }
 
     extern "C" fn returndata_copy(
@@ -1542,7 +1538,12 @@ impl RuntimeContext<'_> {
         self.contract.input.len() as u64
     }
 
-    extern "C" fn calldata_copy(&mut self, memory_offset: u64, data_offset: &Bytes32, size: u64) {
+    pub extern "C" fn calldata_copy(
+        &mut self,
+        memory_offset: u64,
+        data_offset: &Bytes32,
+        size: u64,
+    ) {
         let size = size as usize;
         if size != 0 {
             let data_offset = as_usize_saturated!(data_offset.to_u256());
@@ -1556,15 +1557,15 @@ impl RuntimeContext<'_> {
         }
     }
 
-    extern "C" fn data_section(&mut self) -> *mut u8 {
+    pub extern "C" fn data_section(&mut self) -> *mut u8 {
         self.contract.code.eof().expect("eof").data().as_ptr() as _
     }
 
-    extern "C" fn data_section_size(&self) -> u16 {
+    pub extern "C" fn data_section_size(&self) -> u16 {
         self.contract.code.eof().expect("eof").header.data_size
     }
 
-    extern "C" fn data_section_copy(
+    pub extern "C" fn data_section_copy(
         &mut self,
         memory_offset: u64,
         data_offset: &Bytes32,
@@ -1995,7 +1996,7 @@ impl RuntimeContext<'_> {
         unsafe { &*(&self.inner.result as *const RuntimeResult<u64> as *const RuntimeResult<()>) }
     }
 
-    extern "C" fn eofcreate(
+    pub extern "C" fn eofcreate(
         &mut self,
         initcontainer_index: u8,
         input_size: u64,
@@ -2125,7 +2126,7 @@ impl RuntimeContext<'_> {
         }
     }
 
-    extern "C" fn returncontract(
+    pub extern "C" fn returncontract(
         &mut self,
         deploy_container_index: u8,
         aux_data_size: u64,
@@ -2410,7 +2411,6 @@ impl RuntimeContext<'_> {
                 ),
                 (symbols::CREATE, RuntimeContext::create as *const _),
                 (symbols::CREATE2, RuntimeContext::create2 as *const _),
-                (symbols::RETURNDATA, RuntimeContext::returndata as *const _),
                 (
                     symbols::RETURNDATA_SIZE,
                     RuntimeContext::returndata_size as *const _,
