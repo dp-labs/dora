@@ -15,22 +15,22 @@ use melior::Context as MLIRContext;
 /// for intrinsic types.
 #[derive(Debug)]
 pub struct Intrinsics<'ctx> {
-    pub(super) i1_ty: Type<'ctx>,
-    pub(super) i2_ty: Type<'ctx>,
-    pub(super) i4_ty: Type<'ctx>,
-    pub(super) i8_ty: Type<'ctx>,
-    pub(super) i16_ty: Type<'ctx>,
-    pub(super) i32_ty: Type<'ctx>,
-    pub(super) i64_ty: Type<'ctx>,
-    pub(super) i128_ty: Type<'ctx>,
-    pub(super) i256_ty: Type<'ctx>,
-    pub(super) i257_ty: Type<'ctx>,
-    pub(super) f32_ty: Type<'ctx>,
-    pub(super) f64_ty: Type<'ctx>,
-    pub(super) index_ty: Type<'ctx>,
-    pub(super) ptr_ty: Type<'ctx>,
-    pub(super) void_ty: Type<'ctx>,
-    pub(super) unknown_loc: Location<'ctx>,
+    pub i1_ty: Type<'ctx>,
+    pub i2_ty: Type<'ctx>,
+    pub i4_ty: Type<'ctx>,
+    pub i8_ty: Type<'ctx>,
+    pub i16_ty: Type<'ctx>,
+    pub i32_ty: Type<'ctx>,
+    pub i64_ty: Type<'ctx>,
+    pub i128_ty: Type<'ctx>,
+    pub i256_ty: Type<'ctx>,
+    pub i257_ty: Type<'ctx>,
+    pub f32_ty: Type<'ctx>,
+    pub f64_ty: Type<'ctx>,
+    pub index_ty: Type<'ctx>,
+    pub ptr_ty: Type<'ctx>,
+    pub void_ty: Type<'ctx>,
+    pub unknown_loc: Location<'ctx>,
 }
 
 impl<'ctx> Intrinsics<'ctx> {

@@ -744,7 +744,7 @@ impl FunctionCodeGenerator {
             }
             Operator::RefEq => todo!(),
             Operator::I32Eqz => {
-                bin_op!(builder, state, eqz, i32);
+                op!(builder, state, eqz, i32);
             }
             Operator::I32Eq => {
                 bin_op!(builder, state, eq, i32);
@@ -777,7 +777,7 @@ impl FunctionCodeGenerator {
                 bin_op!(builder, state, geu, i32);
             }
             Operator::I64Eqz => {
-                bin_op!(builder, state, eqz, i64);
+                op!(builder, state, eqz, i64);
             }
             Operator::I64Eq => {
                 bin_op!(builder, state, eq, i64);

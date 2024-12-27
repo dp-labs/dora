@@ -134,6 +134,29 @@ macro_rules! wasm_dialect_test_snapshot {
             insta::assert_snapshot!(test_module(&context, i64_type, block).as_operation());
         }
     };
+    ($name:ident, $op:ident, i64, i64 => i32) => {
+        #[test]
+        fn $name() {
+            let context = init_registry();
+            let location = Location::unknown(&context);
+            let i32_type = IntegerType::new(&context, 32).into();
+            let i64_type = IntegerType::new(&context, 64).into();
+            let block: Block = Block::new(&[(i64_type, location), (i64_type, location)]);
+            let constant0 = block.argument(0).unwrap();
+            let constant1 = block.argument(1).unwrap();
+            block.append_operation(
+                crate::wasm::$op(
+                    &context,
+                    i32_type,
+                    constant0.into(),
+                    constant1.into(),
+                    location,
+                )
+                .into(),
+            );
+            insta::assert_snapshot!(test_module(&context, i64_type, block).as_operation());
+        }
+    };
 }
 
 wasm_dialect_test_snapshot! {
@@ -245,18 +268,6 @@ wasm_dialect_test_snapshot! {
 }
 
 wasm_dialect_test_snapshot! {
-    eqz_i32,
-    eqz,
-    i32, i32 => i32
-}
-
-wasm_dialect_test_snapshot! {
-    eqz_i64,
-    eqz,
-    i64, i64 => i64
-}
-
-wasm_dialect_test_snapshot! {
     eq_i32,
     eq,
     i32, i32 => i32
@@ -265,5 +276,5 @@ wasm_dialect_test_snapshot! {
 wasm_dialect_test_snapshot! {
     eq_i64,
     eq,
-    i64, i64 => i64
+    i64, i64 => i32
 }
