@@ -2,7 +2,8 @@ use crate::{
     arith_constant,
     backend::IntCC,
     block_argument, check_runtime_error,
-    conversion::rewriter::Rewriter,
+    conversion::{builder::OpBuilder, rewriter::Rewriter},
+    create_var,
     dora::{
         conversion::ConversionPass,
         gas::{compute_eofcreate_create2_cost, compute_initcode_cost},
@@ -13,15 +14,24 @@ use crate::{
     gas_or_fail, if_here, maybe_revert_here, operands, rewrite_ctx, u256_to_u64,
 };
 use dora_primitives::SpecId;
-use dora_runtime::constants::gas_cost;
 use dora_runtime::constants::CallType;
+use dora_runtime::constants::{gas_cost, ExtCallType};
 use dora_runtime::symbols;
 use dora_runtime::ExitStatusCode;
 use melior::{
-    dialect::{arith, func},
-    ir::{attribute::FlatSymbolRefAttribute, operation::OperationRef, Block, Value},
+    dialect::{
+        arith, func,
+        llvm::{self, LoadStoreOptions},
+        ods, scf,
+    },
+    ir::{
+        attribute::{FlatSymbolRefAttribute, IntegerAttribute, TypeAttribute},
+        operation::OperationRef,
+        Block, Region, Value,
+    },
     Context,
 };
+use num_bigint::BigUint;
 use std::mem::offset_of;
 
 impl ConversionPass<'_> {
@@ -523,6 +533,240 @@ impl ConversionPass<'_> {
         ));
         rewriter.create(func::r#return(&[reason], location));
 
+        Ok(())
+    }
+
+    pub(crate) fn extcall(
+        context: &Context,
+        op: &OperationRef<'_, '_>,
+        call_type: ExtCallType,
+    ) -> Result<()> {
+        rewrite_ctx!(context, op, rewriter, location, NoDefer);
+
+        match call_type {
+            ExtCallType::Call => {
+                let value = op.operand(3)?;
+
+                block_argument!(op, syscall_ctx);
+                // Static call value is zero check
+                let ctx_is_static_u8 = rewriter.make(func::call(
+                    context,
+                    FlatSymbolRefAttribute::new(context, symbols::CTX_IS_STATIC),
+                    &[syscall_ctx.into()],
+                    &[rewriter.intrinsics.i8_ty],
+                    location,
+                ))?;
+                let ctx_is_static =
+                    rewriter.make(rewriter.icmp_imm(IntCC::NotEqual, ctx_is_static_u8, 0)?)?;
+                let zero = rewriter.make(rewriter.iconst_256_from_u64(0)?)?;
+                let value_is_not_zero =
+                    rewriter.make(rewriter.icmp(IntCC::NotEqual, value, zero))?;
+                let revert_flag =
+                    rewriter.make(arith::andi(ctx_is_static, value_is_not_zero, location))?;
+
+                maybe_revert_here!(
+                    op,
+                    rewriter,
+                    revert_flag,
+                    ExitStatusCode::CallNotAllowedInsideStatic
+                );
+
+                Self::ext_intern_call(context, op, value, call_type)?;
+            }
+            ExtCallType::Staticcall | ExtCallType::Delegatecall => {
+                Self::ext_intern_call(
+                    context,
+                    op,
+                    rewriter.make(rewriter.iconst_256_from_u64(0)?)?,
+                    call_type,
+                )?;
+            }
+        };
+        Ok(())
+    }
+
+    fn ext_intern_call(
+        context: &Context,
+        op: &OperationRef<'_, '_>,
+        value: Value<'_, '_>,
+        call_type: ExtCallType,
+    ) -> Result<()> {
+        block_argument!(op, syscall_ctx, gas_counter_ptr);
+        operands!(op, target_address, input_offset, input_size);
+        rewrite_ctx!(context, op, rewriter, location, NoDefer);
+
+        let uint8 = rewriter.uint8_ty();
+        let uint64 = rewriter.uint64_ty();
+        let uint256 = rewriter.uint256_ty();
+        let ptr_type = rewriter.ptr_ty();
+
+        u256_to_u64!(op, rewriter, input_size);
+        u256_to_u64!(op, rewriter, input_offset);
+        let size_is_not_zero =
+            rewriter.make(rewriter.icmp_imm(IntCC::NotEqual, input_size, 0)?)?;
+        if_here!(op, rewriter, size_is_not_zero, {
+            // Input memory resize
+            memory::resize_memory(
+                context,
+                op,
+                &rewriter,
+                syscall_ctx,
+                gas_counter_ptr,
+                input_offset,
+                input_size,
+            )?;
+        });
+
+        rewrite_ctx!(context, op, rewriter, NoDefer);
+        let remaining_gas = rewriter.make(rewriter.load(gas_counter_ptr, uint64))?;
+        let value_ptr =
+            memory::allocate_u256_and_assign_value(context, &rewriter, value, location)?;
+        let target_address_ptr =
+            memory::allocate_u256_and_assign_value(context, &rewriter, target_address, location)?;
+        let call_type_value = rewriter.make(arith_constant!(
+            rewriter,
+            context,
+            uint8,
+            call_type as u8 as i64,
+            location
+        ))?;
+        // TODO : Check `target_address` has any high 12 bytes in 32 byte value itself,
+        // since CALLCODE is deprecated and only 20-byte address is allowed.
+        let result_ptr = rewriter.make(func::call(
+            context,
+            FlatSymbolRefAttribute::new(context, symbols::EXTCALL),
+            &[
+                syscall_ctx.into(),
+                target_address_ptr,
+                value_ptr,
+                input_offset,
+                input_size,
+                remaining_gas,
+                call_type_value,
+            ],
+            &[ptr_type],
+            location,
+        ))?;
+        let result = rewriter.get_field_value(
+            result_ptr,
+            offset_of!(dora_runtime::context::RuntimeResult<u64>, value),
+            uint64,
+        )?;
+        let error = rewriter.get_field_value(
+            result_ptr,
+            offset_of!(dora_runtime::context::RuntimeResult<u64>, error),
+            rewriter.intrinsics.i8_ty,
+        )?;
+        // Check the runtime halt error
+        check_runtime_error!(op, rewriter, error);
+        rewrite_ctx!(context, op, rewriter, _location, NoDefer);
+        let gas = rewriter.get_field_value(
+            result_ptr,
+            offset_of!(dora_runtime::context::RuntimeResult<u64>, gas_used),
+            rewriter.intrinsics.i64_ty,
+        )?;
+        gas_or_fail!(op, rewriter, gas, gas_counter_ptr);
+        rewrite_ctx!(context, op, rewriter, location);
+        rewriter.create(arith::extui(result, uint256, location));
+
+        Ok(())
+    }
+
+    pub(crate) fn returndataload(context: &Context, op: &OperationRef<'_, '_>) -> Result<()> {
+        block_argument!(op, syscall_ctx);
+        operands!(op, offset);
+        rewrite_ctx!(context, op, rewriter, location);
+
+        let uint1 = rewriter.uint1_ty();
+        let uint8 = rewriter.uint8_ty();
+        let uint16 = rewriter.uint16_ty();
+        let uint256 = rewriter.uint256_ty();
+        let ptr_type = rewriter.ptr_ty();
+
+        let returndata_ptr = rewriter.make(func::call(
+            context,
+            FlatSymbolRefAttribute::new(context, symbols::RETURNDATA),
+            &[syscall_ctx.into()],
+            &[ptr_type],
+            location,
+        ))?;
+        let returndata_size = rewriter.make(func::call(
+            context,
+            FlatSymbolRefAttribute::new(context, symbols::RETURNDATA_SIZE),
+            &[syscall_ctx.into()],
+            &[uint16],
+            location,
+        ))?;
+        // Define the maximum slice width (32 bytes)
+        let max_slice_width = rewriter.make(rewriter.iconst_16(32))?;
+        // Compare offset with `returndata_size`
+        let offset_cmpi = rewriter.make(arith::cmpi(
+            context,
+            arith::CmpiPredicate::Ult,
+            offset,
+            returndata_size,
+            location,
+        ))?;
+        let zero = rewriter.make(rewriter.iconst_256(BigUint::from(0_u8))?)?;
+
+        rewriter.make(scf::r#if(
+            offset_cmpi,
+            &[uint256],
+            {
+                let region = Region::new();
+                let offset_ok_block = region.append_block(Block::new(&[]));
+                let rewriter = Rewriter::new_with_block(context, offset_ok_block);
+                // A stack slot is a u256 ptr
+                let stack_slot_ptr = create_var!(rewriter, context, location);
+                rewriter.create(llvm::store(
+                    context,
+                    zero,
+                    stack_slot_ptr,
+                    location,
+                    LoadStoreOptions::new(),
+                ));
+                // Calculate returndata pointer at offset
+                let returndata_ptr_at_offset = rewriter.make(llvm::get_element_ptr_dynamic(
+                    context,
+                    returndata_ptr,
+                    &[offset],
+                    uint8,
+                    ptr_type,
+                    location,
+                ))?;
+                // Calculate length of slice (min(returndata_size - offset, 32))
+                let len_sub = rewriter.make(arith::subi(returndata_size, offset, location))?;
+                let len_min = rewriter.make(arith::minui(len_sub, max_slice_width, location))?;
+
+                // Copy returndata[offset..offset + len] to the stack slot
+                rewriter.create(
+                    ods::llvm::intr_memcpy(
+                        context,
+                        stack_slot_ptr,
+                        returndata_ptr_at_offset,
+                        len_min,
+                        IntegerAttribute::new(uint1, 0),
+                        location,
+                    )
+                    .into(),
+                );
+                let mut value = rewriter.make(rewriter.load(stack_slot_ptr, uint256))?;
+                if cfg!(target_endian = "little") {
+                    // convert it to big endian
+                    value = rewriter.make(llvm::intr_bswap(value, uint256, location))?;
+                }
+                rewriter.create(scf::r#yield(&[value], location));
+                region
+            },
+            {
+                let region = Region::new();
+                let offset_bad_block = region.append_block(Block::new(&[]));
+                let builder = OpBuilder::new_with_block(context, offset_bad_block);
+                builder.create(scf::r#yield(&[zero], location));
+                region
+            },
+            location,
+        ))?;
         Ok(())
     }
 }

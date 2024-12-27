@@ -138,6 +138,11 @@ macro_rules! arith_constant {
 }
 
 /// Macro to create a variable with default size of 1.
+///
+/// ```ignore
+/// use melior::ir:attribute::TypeAttribute;
+/// create_var!(rewriter, context, location);
+/// ```
 #[macro_export(local_inner_macros)]
 macro_rules! create_var {
     ($rewriter:expr, $context:expr, $location:expr) => {{

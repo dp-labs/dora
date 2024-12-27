@@ -118,14 +118,6 @@ pub(crate) fn declare_symbols(context: &MLIRContext, module: &MLIRModule) {
         (symbols::STORE_IN_TIMESTAMP_PTR, &[ptr_type, ptr_type], &[]),
         (symbols::STORE_IN_BASEFEE_PTR, &[ptr_type, ptr_type], &[]),
         (
-            symbols::CALL,
-            &[
-                ptr_type, ptr_type, ptr_type, ptr_type, uint64, uint64, uint64, uint64, uint64,
-                uint8,
-            ],
-            &[ptr_type],
-        ),
-        (
             symbols::STORE_IN_BALANCE,
             &[ptr_type, ptr_type],
             &[ptr_type],
@@ -146,6 +138,14 @@ pub(crate) fn declare_symbols(context: &MLIRContext, module: &MLIRModule) {
         (
             symbols::RETURNCONTRACT,
             &[ptr_type, uint8, uint64, uint64, index_type, uint64, uint8],
+            &[ptr_type],
+        ),
+        (
+            symbols::CALL,
+            &[
+                ptr_type, ptr_type, ptr_type, ptr_type, uint64, uint64, uint64, uint64, uint64,
+                uint8,
+            ],
             &[ptr_type],
         ),
         (

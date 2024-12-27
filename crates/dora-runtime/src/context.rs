@@ -4,7 +4,10 @@ use std::fmt;
 use crate::account::{Account, EMPTY_CODE_HASH_BYTES};
 use crate::call::{CallKind, CallMessage, CallResult};
 use crate::constants::env::DORA_TRACING;
-use crate::constants::{gas_cost, CallType, BLOCK_HASH_HISTORY, CALL_STACK_LIMIT, MAX_STACK_SIZE};
+use crate::constants::gas_cost::MIN_CALLEE_GAS;
+use crate::constants::{
+    gas_cost, CallType, ExtCallType, BLOCK_HASH_HISTORY, CALL_STACK_LIMIT, MAX_STACK_SIZE,
+};
 use crate::db::{Database, DatabaseError};
 use crate::env::{CfgEnv, Env};
 use crate::executor::ExecutionEngine;
@@ -513,6 +516,75 @@ impl<'a, DB: Database> VMContext<'a, DB> {
                     Ok(call_result)
                 }
             }
+            CallKind::ExtCall | CallKind::ExtStaticcall | CallKind::ExtDelegatecall => {
+                // Make account warm and loaded
+                let _ = self
+                    .journaled_state
+                    .load_account_delegated(msg.code_address, &mut self.db);
+                let checkpoint = self.journaled_state.checkpoint();
+                if matches!(msg.kind, CallKind::ExtDelegatecall) {
+                    // Create the checkpont for the sub call.
+                    if msg.value.is_zero() {
+                        self.load_account(msg.recipient)
+                            .map_err(|_| EVMError::Database(DatabaseError))?;
+                        self.journaled_state.touch(&msg.recipient);
+                    } else {
+                        // Transfer value from caller to called account. As value get transferred
+                        // target gets touched.
+                        if let Some(status) = self
+                            .journaled_state
+                            .transfer(&msg.caller, &msg.recipient, msg.value, &mut self.db)
+                            .map_err(|_| EVMError::Database(DatabaseError))?
+                        {
+                            self.journaled_state.checkpoint_revert(checkpoint);
+                            return Ok(CallResult::new_with_gas_limit_and_status(
+                                msg.gas_limit,
+                                status,
+                            ));
+                        }
+                    }
+                }
+                if let Some(call_result) =
+                    self.call_precompile(msg.code_address, &msg.input.clone(), msg.gas_limit)?
+                {
+                    if call_result.status.is_ok() {
+                        self.journaled_state.checkpoint_commit();
+                    } else {
+                        self.journaled_state.checkpoint_revert(checkpoint);
+                    }
+                    Ok(call_result)
+                } else {
+                    let account = self
+                        .journaled_state
+                        .load_code(msg.code_address, &mut self.db)
+                        .map_err(|_| EVMError::Database(DatabaseError))?;
+                    let code_hash = account.info.code_hash;
+                    let bytecode = account.info.code.clone().unwrap_or_default();
+                    if bytecode.is_empty() {
+                        self.journaled_state.checkpoint_commit();
+                        return Ok(CallResult::new_with_gas_limit_and_status(
+                            msg.gas_limit,
+                            ExitStatusCode::Stop,
+                        ));
+                    }
+                    let contract = Contract::new_with_call_message(
+                        &msg,
+                        msg.input.clone(),
+                        bytecode,
+                        Some(code_hash),
+                    );
+                    let call_result = self.call_frame(Frame {
+                        contract,
+                        gas_limit: msg.gas_limit,
+                        is_static: msg.is_static,
+                        is_eof_init: msg.is_eof_init,
+                        validate_eof: msg.validate_eof,
+                        depth: self.journaled_state.depth(),
+                    })?;
+                    self.call_return(&call_result.status, checkpoint);
+                    Ok(call_result)
+                }
+            }
             CallKind::EofCreate => {
                 // Fetch balance of caller.
                 let caller_balance = self
@@ -676,9 +748,6 @@ impl<'a, DB: Database> VMContext<'a, DB> {
                 })?;
                 self.create_return(&mut call_result, created_address, checkpoint);
                 Ok(call_result)
-            }
-            CallKind::ExtCall | CallKind::ExtStaticcall | CallKind::ExtDelegatecall => {
-                unimplemented!("{:?}", msg.kind)
             }
         }
     }
@@ -1425,6 +1494,123 @@ impl RuntimeContext<'_> {
             self.inner.result.gas_used = original_remaining_gas - gas_remaining;
         } else {
             self.inner.result.value = 0;
+            self.inner.result.gas_used = original_remaining_gas - gas_remaining;
+        }
+        &self.inner.result as _
+    }
+
+    extern "C" fn extcall(
+        &mut self,
+        call_to_address: &Bytes32,
+        value_to_transfer: &Bytes32,
+        input_offset: u64,
+        input_size: u64,
+        original_remaining_gas: u64,
+        call_type: u8,
+    ) -> *const RuntimeResult<u64> {
+        let input_offset = input_offset as usize;
+        let input_size = input_size as usize;
+        let call_type = ExtCallType::try_from(call_type)
+            .expect("Error while parsing ExtCallType on call syscall");
+        let to = Address::from(call_to_address);
+        // Load account and calculate gas cost.
+        let mut account_load = match self.host.load_account_delegated(to) {
+            Some(account_load) => account_load,
+            None => {
+                self.inner.result.error = ExitStatusCode::FatalExternalError.to_u8();
+                self.inner.result.value = 0;
+                return &self.inner.result as _;
+            }
+        };
+        if call_type != ExtCallType::Call {
+            account_load.is_empty = false;
+        }
+        let transfers_value = !value_to_transfer.as_u256().is_zero();
+        let gas_cost = gas::call_cost(self.inner.spec_id, transfers_value, account_load);
+        // original_gas - gas_cost
+        let (gas_remaining, overflow) = original_remaining_gas.overflowing_sub(gas_cost);
+        if overflow {
+            self.inner.result.error = ExitStatusCode::OutOfGas.to_u8();
+            self.inner.result.value = 1;
+            return &self.inner.result as _;
+        }
+        // Calculate the gas available to callee as caller’s
+        // remaining gas reduced by max(ceil(gas/64), MIN_RETAINED_GAS) (MIN_RETAINED_GAS is 5000).
+        let gas_reduce = (gas_remaining / 64).max(5000);
+        let gas_limit = gas_remaining.saturating_sub(gas_reduce);
+
+        self.inner.returndata.clear();
+
+        // The MIN_CALLEE_GAS rule is a replacement for stipend:
+        // it simplifies the reasoning about the gas costs and is
+        // applied uniformly for all introduced EXT*CALL instructions.
+        //
+        // If Gas available to callee is less than MIN_CALLEE_GAS trigger light failure (Same as Revert).
+        if gas_limit < MIN_CALLEE_GAS {
+            // Push 1 to stack to indicate that call light failed.
+            // It is safe to ignore stack overflow error as we already popped multiple values from stack.
+            self.inner.result.error = ExitStatusCode::OutOfGas.to_u8();
+            self.inner.result.value = 1;
+            return &self.inner.result as _;
+        }
+
+        let (gas_remaining, _) = gas_remaining.overflowing_sub(gas_limit);
+
+        let call_msg = CallMessage {
+            kind: call_type.into(),
+            input: if input_size != 0 {
+                self.inner.memory[input_offset..input_offset + input_size]
+                    .to_vec()
+                    .into()
+            } else {
+                Bytes::new()
+            },
+            value: if call_type == ExtCallType::Delegatecall {
+                self.contract.call_value
+            } else {
+                value_to_transfer.to_u256()
+            },
+            depth: self.inner.depth as u32,
+            gas_limit,
+            caller: if call_type == ExtCallType::Delegatecall {
+                self.contract.caller
+            } else {
+                self.contract.target_address
+            },
+            salt: None,
+            recipient: if call_type == ExtCallType::Delegatecall {
+                self.contract.target_address
+            } else {
+                to
+            },
+            code_address: to,
+            is_static: self.inner.is_static || call_type == ExtCallType::Staticcall,
+            is_eof_init: true,
+            validate_eof: true,
+        };
+        if std::env::var(DORA_TRACING).is_ok() {
+            println!("info: sub call msg {:?}", call_msg);
+        }
+        let call_result = self
+            .host
+            .call(call_msg)
+            .unwrap_or_else(|_| CallResult::new_with_gas_limit(gas_limit));
+        if std::env::var(DORA_TRACING).is_ok() {
+            println!("info: sub call ret {:?}", call_result);
+        }
+        self.inner.returndata = call_result.output.to_vec();
+        // Check the error message.
+        if call_result.status.is_ok() {
+            let gas_remaining = gas_remaining + call_result.gas_remaining;
+            self.inner.gas_refunded += call_result.gas_refunded;
+            self.inner.result.value = 0;
+            self.inner.result.gas_used = original_remaining_gas - gas_remaining;
+        } else if call_result.status.is_revert() {
+            let gas_remaining = gas_remaining + call_result.gas_remaining;
+            self.inner.result.value = 1;
+            self.inner.result.gas_used = original_remaining_gas - gas_remaining;
+        } else {
+            self.inner.result.value = 2;
             self.inner.result.gas_used = original_remaining_gas - gas_remaining;
         }
         &self.inner.result as _
@@ -2328,7 +2514,6 @@ impl RuntimeContext<'_> {
                     symbols::APPEND_LOG_FOUR_TOPICS,
                     RuntimeContext::append_log_with_four_topics as *const _,
                 ),
-                (symbols::CALL, RuntimeContext::call as *const _),
                 (symbols::CALLDATA, RuntimeContext::calldata as *const _),
                 (
                     symbols::CALLDATA_SIZE,
