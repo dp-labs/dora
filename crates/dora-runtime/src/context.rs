@@ -17,7 +17,6 @@ use dora_primitives::spec::SpecId;
 use dora_primitives::{Address, Bytecode, Bytes, Bytes32, B256, U256};
 use revm_precompile::{PrecompileSpecId, Precompiles};
 use revm_primitives::{keccak256, Precompile, PrecompileErrors};
-use sha3::{Digest, Keccak256};
 
 /// Converts a `U256` value to a `u64`, saturating to `MAX` if the value is too large.
 #[macro_export]
@@ -1385,9 +1384,7 @@ impl<'a> RuntimeContext<'a> {
             *hash_ptr = Bytes32::from_be_bytes(EMPTY_CODE_HASH_BYTES);
         } else {
             let data = &self.inner.memory[offset as usize..offset as usize + size as usize];
-            let mut hasher = Keccak256::new();
-            hasher.update(data);
-            let result = hasher.finalize();
+            let result = keccak256(data);
             *hash_ptr = Bytes32::from_be_bytes(result.into());
         }
     }
