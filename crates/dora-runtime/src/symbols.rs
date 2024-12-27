@@ -49,6 +49,7 @@ pub const RETURNCONTRACT: &str = "dora_fn_returncontract";
 pub const CALL: &str = "dora_fn_call";
 pub const CREATE: &str = "dora_fn_create";
 pub const CREATE2: &str = "dora_fn_create2";
+pub const RETURNDATA: &str = "dora_fn_returndata";
 pub const RETURNDATA_SIZE: &str = "dora_fn_returndata_size";
 pub const RETURNDATA_COPY: &str = "dora_fn_returndata_copy";
 pub const TLOAD: &str = "dora_fn_tload";
