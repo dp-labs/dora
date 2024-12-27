@@ -2,9 +2,8 @@ use crate::{
     account::{Account, AccountInfo, AccountStatus, EMPTY_CODE_HASH},
     artifact::{Artifact, SymbolArtifact},
 };
-use dora_primitives::{Address, Bytecode, B256, U256};
+use dora_primitives::{keccak256, Address, Bytecode, B256, U256};
 use rustc_hash::FxHashMap;
-use sha3::{Digest, Keccak256};
 use std::{convert::Infallible, fmt::Debug};
 use thiserror::Error;
 
@@ -464,7 +463,7 @@ impl Database for MemoryDB {
     }
 
     fn insert_contract(&mut self, address: Address, bytecode: Bytecode, balance: U256) {
-        let hash = B256::from_slice(&Keccak256::digest(&bytecode));
+        let hash = keccak256(&bytecode);
         let account = DbAccount {
             bytecode_hash: hash,
             balance,
