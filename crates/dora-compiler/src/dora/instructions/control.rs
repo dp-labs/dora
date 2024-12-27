@@ -19,8 +19,10 @@ impl ConversionPass<'_> {
     pub(crate) fn revert(context: &Context, op: &OperationRef<'_, '_>) -> Result<()> {
         operands!(op, offset, size);
         block_argument!(op, syscall_ctx, gas_counter_ptr);
-        let rewriter = Rewriter::new_with_op(context, *op);
-        let uint8 = rewriter.intrinsics.i8_ty;
+        rewrite_ctx!(context, op, rewriter, NoDefer);
+
+        let uint8 = rewriter.uint8_ty();
+        let uint64 = rewriter.uint64_ty();
 
         u256_to_u64!(op, rewriter, size);
         let size_is_not_zero = rewriter.make(rewriter.icmp_imm(IntCC::NotEqual, size, 0)?)?;
@@ -37,9 +39,8 @@ impl ConversionPass<'_> {
             )?;
         });
         rewrite_ctx!(context, op, rewriter, location);
-        let offset = rewriter.make(arith::trunci(offset, rewriter.intrinsics.i64_ty, location))?;
-        let gas_counter =
-            rewriter.make(rewriter.load(gas_counter_ptr, rewriter.intrinsics.i64_ty))?;
+        let offset = rewriter.make(arith::trunci(offset, uint64, location))?;
+        let gas_counter = rewriter.make(rewriter.load(gas_counter_ptr, uint64))?;
         let reason = rewriter.make(arith_constant!(
             rewriter,
             context,

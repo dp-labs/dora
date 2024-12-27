@@ -16,6 +16,9 @@ impl ConversionPass<'_> {
     pub(crate) fn lt(context: &Context, op: &OperationRef<'_, '_>) -> Result<()> {
         operands!(op, l, r);
         rewrite_ctx!(context, op, rewriter, location);
+
+        let uint256 = rewriter.uint256_ty();
+
         let lt = rewriter.make(arith::cmpi(
             context,
             arith::CmpiPredicate::Ult,
@@ -23,13 +26,16 @@ impl ConversionPass<'_> {
             r,
             location,
         ))?;
-        rewriter.make(arith::extui(lt, rewriter.intrinsics.i256_ty, location))?;
+        rewriter.make(arith::extui(lt, uint256, location))?;
         Ok(())
     }
 
     pub(crate) fn gt(context: &Context, op: &OperationRef<'_, '_>) -> Result<()> {
         operands!(op, l, r);
         rewrite_ctx!(context, op, rewriter, location);
+
+        let uint256 = rewriter.uint256_ty();
+
         let gt = rewriter.make(arith::cmpi(
             context,
             arith::CmpiPredicate::Ugt,
@@ -37,13 +43,16 @@ impl ConversionPass<'_> {
             r,
             location,
         ))?;
-        rewriter.make(arith::extui(gt, rewriter.intrinsics.i256_ty, location))?;
+        rewriter.make(arith::extui(gt, uint256, location))?;
         Ok(())
     }
 
     pub(crate) fn slt(context: &Context, op: &OperationRef<'_, '_>) -> Result<()> {
         operands!(op, l, r);
         rewrite_ctx!(context, op, rewriter, location);
+
+        let uint256 = rewriter.uint256_ty();
+
         let slt = rewriter.make(arith::cmpi(
             context,
             arith::CmpiPredicate::Slt,
@@ -51,13 +60,16 @@ impl ConversionPass<'_> {
             r,
             location,
         ))?;
-        rewriter.make(arith::extui(slt, rewriter.intrinsics.i256_ty, location))?;
+        rewriter.make(arith::extui(slt, uint256, location))?;
         Ok(())
     }
 
     pub(crate) fn sgt(context: &Context, op: &OperationRef<'_, '_>) -> Result<()> {
         operands!(op, l, r);
         rewrite_ctx!(context, op, rewriter, location);
+
+        let uint256 = rewriter.uint256_ty();
+
         let sgt = rewriter.make(arith::cmpi(
             context,
             arith::CmpiPredicate::Sgt,
@@ -65,13 +77,16 @@ impl ConversionPass<'_> {
             r,
             location,
         ))?;
-        rewriter.make(arith::extui(sgt, rewriter.intrinsics.i256_ty, location))?;
+        rewriter.make(arith::extui(sgt, uint256, location))?;
         Ok(())
     }
 
     pub(crate) fn eq(context: &Context, op: &OperationRef<'_, '_>) -> Result<()> {
         operands!(op, l, r);
         rewrite_ctx!(context, op, rewriter, location);
+
+        let uint256 = rewriter.uint256_ty();
+
         let eq = rewriter.make(arith::cmpi(
             context,
             arith::CmpiPredicate::Eq,
@@ -79,20 +94,17 @@ impl ConversionPass<'_> {
             r,
             location,
         ))?;
-        rewriter.make(arith::extui(eq, rewriter.intrinsics.i256_ty, location))?;
+        rewriter.make(arith::extui(eq, uint256, location))?;
         Ok(())
     }
 
     pub(crate) fn iszero(context: &Context, op: &OperationRef<'_, '_>) -> Result<()> {
         operands!(op, value);
         rewrite_ctx!(context, op, rewriter, location);
-        let zero = rewriter.make(arith_constant!(
-            rewriter,
-            context,
-            rewriter.intrinsics.i256_ty,
-            0,
-            location
-        ))?;
+
+        let uint256 = rewriter.uint256_ty();
+
+        let zero = rewriter.make(arith_constant!(rewriter, context, uint256, 0, location))?;
         let is_zero = rewriter.make(arith::cmpi(
             context,
             arith::CmpiPredicate::Eq,
@@ -100,7 +112,7 @@ impl ConversionPass<'_> {
             zero,
             location,
         ))?;
-        rewriter.make(arith::extui(is_zero, rewriter.intrinsics.i256_ty, location))?;
+        rewriter.make(arith::extui(is_zero, uint256, location))?;
         Ok(())
     }
 
@@ -142,17 +154,19 @@ impl ConversionPass<'_> {
         operands!(op, offset, shift);
         rewrite_ctx!(context, op, rewriter, location);
 
+        let uint256 = rewriter.uint256_ty();
+
         let constant_bits_per_byte = rewriter.make(arith_constant!(
             rewriter,
             context,
-            rewriter.intrinsics.i256_ty,
+            uint256,
             BITS_PER_BYTE as i64,
             location
         ))?;
         let constant_max_shift_in_bits = rewriter.make(arith_constant!(
             rewriter,
             context,
-            rewriter.intrinsics.i256_ty,
+            uint256,
             (MAX_SHIFT * BITS_PER_BYTE) as i64,
             location
         ))?;
@@ -172,18 +186,13 @@ impl ConversionPass<'_> {
 
         rewriter.create(scf::r#if(
             is_offset_oob,
-            &[rewriter.intrinsics.i256_ty],
+            &[uint256],
             {
                 let region = Region::new();
                 let block = region.append_block(Block::new(&[]));
                 let rewriter = Rewriter::new_with_block(context, block);
-                let zero = rewriter.make(arith_constant!(
-                    rewriter,
-                    context,
-                    rewriter.intrinsics.i256_ty,
-                    0,
-                    location
-                ))?;
+                let zero =
+                    rewriter.make(arith_constant!(rewriter, context, uint256, 0, location))?;
                 rewriter.create(scf::r#yield(&[zero], location));
                 region
             },
@@ -204,13 +213,8 @@ impl ConversionPass<'_> {
                     rewriter.make(arith::shrui(shift, shift_right_in_bits, location))?;
 
                 // Define the mask for isolating the desired byte
-                let mask = rewriter.make(arith_constant!(
-                    rewriter,
-                    context,
-                    rewriter.intrinsics.i256_ty,
-                    0xff,
-                    location
-                ))?;
+                let mask =
+                    rewriter.make(arith_constant!(rewriter, context, uint256, 0xff, location))?;
 
                 // Apply the bitwise AND operation: result = shifted_right_value & mask
                 let result = rewriter.make(arith::andi(shifted_value, mask, location))?;
@@ -227,13 +231,11 @@ impl ConversionPass<'_> {
         operands!(op, shift, value);
         rewrite_ctx!(context, op, rewriter, location);
 
+        let uint256 = rewriter.uint256_ty();
+
         // Define the constant value 255
         let value_255 = rewriter.make(arith_constant!(
-            rewriter,
-            context,
-            rewriter.intrinsics.i256_ty,
-            255_i64,
-            location
+            rewriter, context, uint256, 255_i64, location
         ))?;
 
         // Compare if the shift amount (operand 0) is less than 255
@@ -247,7 +249,7 @@ impl ConversionPass<'_> {
 
         rewriter.make(scf::r#if(
             flag,
-            &[rewriter.intrinsics.i256_ty],
+            &[uint256],
             {
                 let region = Region::new();
                 let block = region.append_block(Block::new(&[]));
@@ -264,13 +266,8 @@ impl ConversionPass<'_> {
                 let rewriter = Rewriter::new_with_block(context, block);
 
                 // if shift is greater than 255
-                let result = rewriter.make(arith_constant!(
-                    rewriter,
-                    context,
-                    rewriter.intrinsics.i256_ty,
-                    0_i64,
-                    location
-                ))?;
+                let result =
+                    rewriter.make(arith_constant!(rewriter, context, uint256, 0_i64, location))?;
                 rewriter.create(scf::r#yield(&[result], location));
                 region
             },
@@ -283,13 +280,11 @@ impl ConversionPass<'_> {
         operands!(op, shift, value);
         rewrite_ctx!(context, op, rewriter, location);
 
+        let uint256 = rewriter.uint256_ty();
+
         // Define the constant value 255
         let value_255 = rewriter.make(arith_constant!(
-            rewriter,
-            context,
-            rewriter.intrinsics.i256_ty,
-            255_i64,
-            location
+            rewriter, context, uint256, 255_i64, location
         ))?;
         // Compare if the shift amount (operand 0) is less than 255
         let flag = rewriter.make(arith::cmpi(
@@ -301,7 +296,7 @@ impl ConversionPass<'_> {
         ))?;
         rewriter.make(scf::r#if(
             flag,
-            &[rewriter.intrinsics.i256_ty],
+            &[uint256],
             {
                 let region = Region::new();
                 let block = region.append_block(Block::new(&[]));
@@ -318,13 +313,8 @@ impl ConversionPass<'_> {
                 let rewriter = Rewriter::new_with_block(context, block);
 
                 // if shift is greater than 255
-                let result = rewriter.make(arith_constant!(
-                    rewriter,
-                    context,
-                    rewriter.intrinsics.i256_ty,
-                    0_i64,
-                    location
-                ))?;
+                let result =
+                    rewriter.make(arith_constant!(rewriter, context, uint256, 0_i64, location))?;
                 rewriter.create(scf::r#yield(&[result], location));
                 region
             },
@@ -337,13 +327,11 @@ impl ConversionPass<'_> {
         operands!(op, o1, o2);
         rewrite_ctx!(context, op, rewriter, location);
 
+        let uint256 = rewriter.uint256_ty();
+
         // Define the constant value 255
         let value_255 = rewriter.make(arith_constant!(
-            rewriter,
-            context,
-            rewriter.intrinsics.i256_ty,
-            255_i64,
-            location
+            rewriter, context, uint256, 255_i64, location
         ))?;
 
         // Ensure the shift amount is capped at 255 to avoid poisoning the result in `shrsi`

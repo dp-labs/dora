@@ -56,11 +56,14 @@ impl ConversionPass<'_> {
     pub(crate) fn sdiv(context: &Context, op: &OperationRef<'_, '_>) -> Result<()> {
         operands!(op, l, r);
         rewrite_ctx!(context, op, rewriter, location);
+
+        let uint256 = rewriter.uint256_ty();
+
         let zero = rewriter.make(rewriter.iconst_256_from_u64(0)?)?;
         let is_zero = rewriter.make(rewriter.icmp(IntCC::Equal, r, zero))?;
         rewriter.make(scf::r#if(
             is_zero,
-            &[rewriter.intrinsics.i256_ty],
+            &[uint256],
             {
                 let region = Region::new();
                 let block = region.append_block(Block::new(&[]));
@@ -100,11 +103,13 @@ impl ConversionPass<'_> {
         operands!(op, l, r);
         rewrite_ctx!(context, op, rewriter, location);
 
+        let uint256 = rewriter.uint256_ty();
+
         let zero = rewriter.make(rewriter.iconst_256_from_u64(0)?)?;
         let is_zero = rewriter.make(rewriter.icmp(IntCC::Equal, r, zero))?;
         rewriter.make(scf::r#if(
             is_zero,
-            &[rewriter.intrinsics.i256_ty],
+            &[uint256],
             {
                 let region = Region::new();
                 let block = region.append_block(Block::new(&[]));
@@ -129,11 +134,13 @@ impl ConversionPass<'_> {
         operands!(op, l, r);
         rewrite_ctx!(context, op, rewriter, location);
 
+        let uint256 = rewriter.uint256_ty();
+
         let zero = rewriter.make(rewriter.iconst_256_from_u64(0)?)?;
         let is_zero = rewriter.make(rewriter.icmp(IntCC::Equal, r, zero))?;
         rewriter.make(scf::r#if(
             is_zero,
-            &[rewriter.intrinsics.i256_ty],
+            &[uint256],
             {
                 let region = Region::new();
                 let block = region.append_block(Block::new(&[]));
@@ -158,12 +165,15 @@ impl ConversionPass<'_> {
         operands!(op, a, b, den);
         rewrite_ctx!(context, op, rewriter, location);
 
-        let a_i257 = rewriter.make(arith::extui(a, rewriter.intrinsics.i257_ty, location))?;
-        let b_i257 = rewriter.make(arith::extui(b, rewriter.intrinsics.i257_ty, location))?;
-        let den_i257 = rewriter.make(arith::extui(den, rewriter.intrinsics.i257_ty, location))?;
+        let uint256 = rewriter.uint256_ty();
+        let uint257 = rewriter.uint257_ty();
+
+        let a_i257 = rewriter.make(arith::extui(a, uint257, location))?;
+        let b_i257 = rewriter.make(arith::extui(b, uint257, location))?;
+        let den_i257 = rewriter.make(arith::extui(den, uint257, location))?;
         let add = rewriter.make(arith::addi(a_i257, b_i257, location))?;
         let umod = rewriter.make(arith::remui(add, den_i257, location))?;
-        let result = rewriter.make(arith::trunci(umod, rewriter.intrinsics.i256_ty, location))?;
+        let result = rewriter.make(arith::trunci(umod, uint256, location))?;
 
         let zero = rewriter.make(rewriter.iconst_256_from_u64(0)?)?;
         let is_zero = rewriter.make(rewriter.icmp(IntCC::Equal, den, zero))?;
@@ -175,13 +185,15 @@ impl ConversionPass<'_> {
         operands!(op, a, b, den);
         rewrite_ctx!(context, op, rewriter, location);
 
+        let uint256 = rewriter.uint256_ty();
+
         let uint512 = IntegerType::new(context, 512);
         let a_i512 = rewriter.make(arith::extui(a, uint512.into(), location))?;
         let b_i512 = rewriter.make(arith::extui(b, uint512.into(), location))?;
         let den_i512 = rewriter.make(arith::extui(den, uint512.into(), location))?;
         let add = rewriter.make(arith::muli(a_i512, b_i512, location))?;
         let umod = rewriter.make(arith::remui(add, den_i512, location))?;
-        let result = rewriter.make(arith::trunci(umod, rewriter.intrinsics.i256_ty, location))?;
+        let result = rewriter.make(arith::trunci(umod, uint256, location))?;
 
         let zero = rewriter.make(rewriter.iconst_256_from_u64(0)?)?;
         let is_zero = rewriter.make(rewriter.icmp(IntCC::Equal, den, zero))?;
@@ -196,7 +208,10 @@ impl ConversionPass<'_> {
     ) -> Result<()> {
         operands!(op, l, r);
         block_argument!(op, _system_ctx, gas_counter_ptr);
-        let rewriter = Rewriter::new_with_op(context, *op);
+        rewrite_ctx!(context, op, rewriter, NoDefer);
+
+        let uint256 = rewriter.uint256_ty();
+
         let gas = compute_exp_cost(&rewriter, r, spec_id)?;
         gas_or_fail!(op, rewriter, gas, gas_counter_ptr);
         block_argument!(op, syscall_ctx);
@@ -211,7 +226,7 @@ impl ConversionPass<'_> {
             &[],
             location,
         ));
-        rewriter.create(rewriter.load(exponent_ptr, rewriter.intrinsics.i256_ty));
+        rewriter.create(rewriter.load(exponent_ptr, uint256));
         Ok(())
     }
 
@@ -219,35 +234,16 @@ impl ConversionPass<'_> {
         operands!(op, byte_size, value_to_extend);
         rewrite_ctx!(context, op, rewriter, location);
 
+        let uint256 = rewriter.uint256_ty();
+
         // Constant Definitions
-        let max_byte_size = rewriter.make(arith_constant!(
-            rewriter,
-            context,
-            rewriter.intrinsics.i256_ty,
-            31,
-            location
-        ))?;
-        let bits_per_byte = rewriter.make(arith_constant!(
-            rewriter,
-            context,
-            rewriter.intrinsics.i256_ty,
-            8,
-            location
-        ))?;
-        let sign_bit_position_on_byte = rewriter.make(arith_constant!(
-            rewriter,
-            context,
-            rewriter.intrinsics.i256_ty,
-            7,
-            location
-        ))?;
-        let max_bits = rewriter.make(arith_constant!(
-            rewriter,
-            context,
-            rewriter.intrinsics.i256_ty,
-            255,
-            location
-        ))?;
+        let max_byte_size =
+            rewriter.make(arith_constant!(rewriter, context, uint256, 31, location))?;
+        let bits_per_byte =
+            rewriter.make(arith_constant!(rewriter, context, uint256, 8, location))?;
+        let sign_bit_position_on_byte =
+            rewriter.make(arith_constant!(rewriter, context, uint256, 7, location))?;
+        let max_bits = rewriter.make(arith_constant!(rewriter, context, uint256, 255, location))?;
 
         // byte_size = min(max_byte_size, byte_size)
         let byte_size = rewriter.make(arith::minui(byte_size, max_byte_size, location))?;

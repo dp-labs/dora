@@ -193,16 +193,22 @@ impl<'c, 'a> OpBuilder<'c, 'a> {
         self.ctx
     }
 
-    /// Returns the unknown location intrinsic, used when no specific source location is available.
-    #[inline]
-    pub fn unknown_loc(&self) -> Location<'c> {
-        self.intrinsics.unknown_loc
-    }
-
     /// Returns the `boolean` type intrinsic, representing a 1-bit unsigned integer.
     #[inline]
     pub fn uint1_ty(&self) -> Type<'c> {
         self.intrinsics.i1_ty
+    }
+
+    /// Returns the `i2` type intrinsic, representing a 2-bit unsigned integer.
+    #[inline]
+    pub fn uint2_ty(&self) -> Type<'c> {
+        self.intrinsics.i2_ty
+    }
+
+    /// Returns the `i4` type intrinsic, representing a 4-bit unsigned integer.
+    #[inline]
+    pub fn uint4_ty(&self) -> Type<'c> {
+        self.intrinsics.i4_ty
     }
 
     /// Returns the `i8` integer type intrinsic, representing a 8-bit unsigned integer.
@@ -217,6 +223,12 @@ impl<'c, 'a> OpBuilder<'c, 'a> {
         self.intrinsics.i16_ty
     }
 
+    /// Returns the `i32` integer type intrinsic, representing a 32-bit unsigned integer.
+    #[inline]
+    pub fn uint32_ty(&self) -> Type<'c> {
+        self.intrinsics.i32_ty
+    }
+
     /// Returns the `i64` integer type intrinsic, representing a 64-bit unsigned integer.
     #[inline]
     pub fn uint64_ty(&self) -> Type<'c> {
@@ -229,6 +241,12 @@ impl<'c, 'a> OpBuilder<'c, 'a> {
         self.intrinsics.i256_ty
     }
 
+    /// Returns the `i257` integer type intrinsic, representing a 257-bit unsigned integer.
+    #[inline]
+    pub fn uint257_ty(&self) -> Type<'c> {
+        self.intrinsics.i257_ty
+    }
+
     /// Returns the index(`usize`) type intrinsic.
     #[inline]
     pub fn index_ty(&self) -> Type<'c> {
@@ -239,6 +257,12 @@ impl<'c, 'a> OpBuilder<'c, 'a> {
     #[inline]
     pub fn ptr_ty(&self) -> Type<'c> {
         self.intrinsics.ptr_ty
+    }
+
+    /// Returns the unknown location intrinsic, used when no specific source location is available.
+    #[inline]
+    pub fn unknown_loc(&self) -> Location<'c> {
+        self.intrinsics.unknown_loc
     }
 
     /// Returns the width of the specified integer type. If the type is not an integer, an error is returned.
@@ -331,7 +355,7 @@ impl<'c, 'a> OpBuilder<'c, 'a> {
         arith::constant(
             self.context(),
             IntegerAttribute::new(ty, if value { 1 } else { 0 }).into(),
-            self.unknown_loc(),
+            self.intrinsics.unknown_loc,
         )
     }
 
@@ -360,7 +384,7 @@ impl<'c, 'a> OpBuilder<'c, 'a> {
         arith::constant(
             self.context(),
             IntegerAttribute::new(ty, value).into(),
-            self.unknown_loc(),
+            self.intrinsics.unknown_loc,
         )
     }
 
@@ -377,7 +401,7 @@ impl<'c, 'a> OpBuilder<'c, 'a> {
         arith::constant(
             self.context(),
             IntegerAttribute::new(ty, value as i64).into(),
-            self.unknown_loc(),
+            self.intrinsics.unknown_loc,
         )
     }
 
@@ -443,7 +467,7 @@ impl<'c, 'a> OpBuilder<'c, 'a> {
             Attribute::parse(self.context(), &format!("{} : i256", value)).ok_or(
                 CompileError::Codegen(format!("can't parse value {value} to i256")),
             )?,
-            self.unknown_loc(),
+            self.intrinsics.unknown_loc,
         ))
     }
 
@@ -458,7 +482,7 @@ impl<'c, 'a> OpBuilder<'c, 'a> {
             Attribute::parse(self.context(), "-57896044618658097711785492504343953926634992332820282019728792003956564819968 : i256").ok_or(
                 CompileError::Codegen("can't parse the i256 min value".to_string()),
             )?,
-            self.unknown_loc(),
+            self.intrinsics.unknown_loc,
         ))
     }
 
@@ -499,7 +523,7 @@ impl<'c, 'a> OpBuilder<'c, 'a> {
         arith::constant(
             self.context(),
             FloatAttribute::new(self.context(), ty, value).into(),
-            self.unknown_loc(),
+            self.intrinsics.unknown_loc,
         )
     }
 
@@ -547,7 +571,7 @@ impl<'c, 'a> OpBuilder<'c, 'a> {
     /// An operation representing the return statement.
     #[inline]
     pub fn ret(&mut self, values: &[Val<'c, 'a>]) -> Op<'c, '_> {
-        func::r#return(values, self.unknown_loc())
+        func::r#return(values, self.intrinsics.unknown_loc)
     }
 
     /// Compares two integer values based on the specified condition.
@@ -577,7 +601,7 @@ impl<'c, 'a> OpBuilder<'c, 'a> {
             IntCC::UnsignedLessThan => CmpiPredicate::Ult,
             IntCC::UnsignedLessThanOrEqual => CmpiPredicate::Ule,
         };
-        arith::cmpi(self.context(), pred, lhs, rhs, self.unknown_loc())
+        arith::cmpi(self.context(), pred, lhs, rhs, self.intrinsics.unknown_loc)
     }
 
     /// Compares an integer value against an immediate value based on the specified condition.
@@ -614,7 +638,7 @@ impl<'c, 'a> OpBuilder<'c, 'a> {
             self.context(),
             ptr,
             ty,
-            self.unknown_loc(),
+            self.intrinsics.unknown_loc,
             LoadStoreOptions::default(),
         )
     }
@@ -633,7 +657,7 @@ impl<'c, 'a> OpBuilder<'c, 'a> {
             self.context(),
             value,
             ptr,
-            self.unknown_loc(),
+            self.intrinsics.unknown_loc,
             LoadStoreOptions::default(),
         )
     }
@@ -671,7 +695,7 @@ impl<'c, 'a> OpBuilder<'c, 'a> {
             ptr,
             DenseI32ArrayAttribute::new(self.context(), &[offset as i32]),
             self.intrinsics.i8_ty,
-            self.ptr_ty(),
+            self.intrinsics.ptr_ty,
             self.get_insert_location(),
         ))?;
         Ok(self
@@ -695,7 +719,7 @@ impl<'c, 'a> OpBuilder<'c, 'a> {
     /// An operation representing the address of the specified global variable.
     pub fn addressof(&self, name: &str, ty: Ty<'c, 'a>) -> Op<'c, '_> {
         let context = self.context();
-        OperationBuilder::new("llvm.mlir.addressof", self.unknown_loc())
+        OperationBuilder::new("llvm.mlir.addressof", self.intrinsics.unknown_loc)
             .add_attributes(&[(
                 Identifier::new(context, "global_name"),
                 FlatSymbolRefAttribute::new(context, name).into(),
@@ -721,7 +745,7 @@ impl<'c, 'a> OpBuilder<'c, 'a> {
         linkage: Linkage,
     ) -> melior::ir::Operation<'c> {
         let context = self.context();
-        OperationBuilder::new("llvm.mlir.global", self.unknown_loc())
+        OperationBuilder::new("llvm.mlir.global", self.intrinsics.unknown_loc)
             .add_regions([Region::new()])
             .add_attributes(&[
                 (
@@ -786,7 +810,7 @@ impl<'c, 'a> OpBuilder<'c, 'a> {
         if let Some(insert_point) = self.insert_point {
             unsafe { Location::from_raw(mlirOperationGetLocation(insert_point.to_raw())) }
         } else {
-            self.unknown_loc()
+            self.intrinsics.unknown_loc
         }
     }
 
