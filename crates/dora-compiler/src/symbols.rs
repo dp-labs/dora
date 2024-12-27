@@ -118,14 +118,6 @@ pub(crate) fn declare_symbols(context: &MLIRContext, module: &MLIRModule) {
         (symbols::STORE_IN_TIMESTAMP_PTR, &[ptr_type, ptr_type], &[]),
         (symbols::STORE_IN_BASEFEE_PTR, &[ptr_type, ptr_type], &[]),
         (
-            symbols::CALL,
-            &[
-                ptr_type, ptr_type, ptr_type, ptr_type, uint64, uint64, uint64, uint64, uint64,
-                uint8,
-            ],
-            &[ptr_type],
-        ),
-        (
             symbols::STORE_IN_BALANCE,
             &[ptr_type, ptr_type],
             &[ptr_type],
@@ -149,6 +141,14 @@ pub(crate) fn declare_symbols(context: &MLIRContext, module: &MLIRModule) {
             &[ptr_type],
         ),
         (
+            symbols::CALL,
+            &[
+                ptr_type, ptr_type, ptr_type, ptr_type, uint64, uint64, uint64, uint64, uint64,
+                uint8,
+            ],
+            &[ptr_type],
+        ),
+        (
             symbols::CREATE,
             &[ptr_type, uint64, uint64, ptr_type, uint64],
             &[ptr_type],
@@ -158,8 +158,7 @@ pub(crate) fn declare_symbols(context: &MLIRContext, module: &MLIRModule) {
             &[ptr_type, uint64, uint64, ptr_type, uint64, ptr_type],
             &[ptr_type],
         ),
-        (symbols::RETURNDATA, &[ptr_type], &[ptr_type]),
-        (symbols::RETURNDATA_SIZE, &[ptr_type], &[uint16]),
+        (symbols::RETURNDATA_SIZE, &[ptr_type], &[uint64]),
         (
             symbols::RETURNDATA_COPY,
             &[ptr_type, uint64, ptr_type, uint64],

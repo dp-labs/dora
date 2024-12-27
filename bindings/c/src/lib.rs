@@ -4,7 +4,7 @@
 use dora::{
     build_artifact,
     compiler::evm::program::EOF_MAGIC_BYTES,
-    primitives::{Address, Bytecode, Bytes32, SpecId},
+    primitives::{Address, Bytecode, Bytes, Bytes32, SpecId},
     runtime::{
         artifact::{Artifact, SymbolArtifact},
         call::CallKind,
@@ -69,16 +69,18 @@ impl EvmcVm for DoraVM {
             spec_id,
         );
         let mut artifacts = ARTIFACTS.lock().unwrap();
-        let artifact = if let Some(artifact) = artifacts.get(&runtime_context.contract.code) {
+        let artifact = if let Some(artifact) =
+            artifacts.get(runtime_context.contract.code.bytecode().as_ref())
+        {
             artifact.clone()
         } else {
             let Ok(artifact) = build_artifact::<MemoryDB>(
-                &runtime_context.contract.code,
+                runtime_context.contract.code.bytecode(),
                 runtime_context.inner.spec_id,
             ) else {
                 return ExecutionResult::failure();
             };
-            artifacts.insert(runtime_context.contract.code.to_owned(), artifact.clone());
+            artifacts.insert(runtime_context.contract.code.bytes(), artifact.clone());
             artifact
         };
         drop(artifacts);

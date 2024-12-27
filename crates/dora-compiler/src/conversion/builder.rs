@@ -199,12 +199,6 @@ impl<'c, 'a> OpBuilder<'c, 'a> {
         self.intrinsics.unknown_loc
     }
 
-    /// Returns the `boolean` type intrinsic, representing a 1-bit unsigned integer.
-    #[inline]
-    pub fn uint1_ty(&self) -> Type<'c> {
-        self.intrinsics.i1_ty
-    }
-
     /// Returns the `i8` integer type intrinsic, representing a 8-bit unsigned integer.
     #[inline]
     pub fn uint8_ty(&self) -> Type<'c> {
@@ -391,18 +385,6 @@ impl<'c, 'a> OpBuilder<'c, 'a> {
     #[inline]
     pub fn iconst_8(&self, value: i8) -> Op<'c, '_> {
         self.iconst(self.intrinsics.i8_ty, value as i64)
-    }
-
-    /// Creates an 16-bit integer constant operation with the specified value.
-    ///
-    /// # Parameters
-    /// - `value`: The 16-bit integer value.
-    ///
-    /// # Returns
-    /// An integer constant operation of type `i16`.
-    #[inline]
-    pub fn iconst_16(&self, value: i16) -> Op<'c, '_> {
-        self.iconst(self.intrinsics.i16_ty, value as i64)
     }
 
     /// Creates a 32-bit integer constant operation with the specified value.

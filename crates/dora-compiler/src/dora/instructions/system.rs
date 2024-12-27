@@ -139,7 +139,6 @@ impl ConversionPass<'_> {
 
         let uint1 = rewriter.intrinsics.i1_ty;
         let uint8 = rewriter.intrinsics.i8_ty;
-        let uint64 = rewriter.uint64_ty();
         let uint256 = rewriter.intrinsics.i256_ty;
         let ptr_type = rewriter.intrinsics.ptr_ty;
 
@@ -154,14 +153,14 @@ impl ConversionPass<'_> {
             context,
             FlatSymbolRefAttribute::new(context, symbols::CALLDATA_SIZE),
             &[syscall_ctx.into()],
-            &[uint64],
+            &[rewriter.intrinsics.i64_ty],
             location,
         ))?;
-        // convert `calldata_size` from u64 to u256
+        // convert calldata_size from u64 to u256
         let calldata_size = rewriter.make(arith::extui(calldata_size, uint256, location))?;
         // Define the maximum slice width (32 bytes)
         let max_slice_width = rewriter.make(rewriter.iconst_256_from_u64(32)?)?;
-        // Compare offset with `calldata_size`
+        // Compare offset with calldata size
         let offset_cmpi = rewriter.make(arith::cmpi(
             context,
             arith::CmpiPredicate::Ult,
@@ -440,14 +439,12 @@ impl ConversionPass<'_> {
         block_argument!(op, syscall_ctx);
         rewrite_ctx!(context, op, rewriter, location);
 
-        let uint16 = rewriter.uint16_ty();
-        let uint256 = rewriter.uint256_ty();
-
+        let uint256 = rewriter.intrinsics.i256_ty;
         let data_size = rewriter.make(func::call(
             context,
             FlatSymbolRefAttribute::new(context, symbols::RETURNDATA_SIZE),
             &[syscall_ctx.into()],
-            &[uint16],
+            &[rewriter.intrinsics.i64_ty],
             location,
         ))?;
         rewriter.create(arith::extui(data_size, uint256, location));
