@@ -2,31 +2,26 @@ use crate::{
     arith_constant,
     backend::IntCC,
     block_argument,
-    conversion::{
-        builder::OpBuilder,
-        rewriter::{DeferredRewriter, Rewriter},
-    },
+    conversion::rewriter::Rewriter,
     dora::{
         conversion::ConversionPass, gas::compute_exp_cost, memory::allocate_u256_and_assign_value,
     },
     errors::Result,
-    gas_or_fail, maybe_revert_here, operands, rewrite_ctx,
+    gas_or_fail, operands, rewrite_ctx,
 };
 use dora_primitives::SpecId;
 use dora_runtime::symbols;
 use dora_runtime::ExitStatusCode;
 use melior::{
-    dialect::{arith, cf, func, ods::llvm, scf},
+    dialect::{arith, func, ods::llvm, scf},
     ir::{
-        attribute::{FlatSymbolRefAttribute, IntegerAttribute},
-        operation::OperationRef,
-        r#type::IntegerType,
-        Block, Region,
+        attribute::FlatSymbolRefAttribute, operation::OperationRef, r#type::IntegerType, Block,
+        Region,
     },
     Context,
 };
 
-impl<'c> ConversionPass<'c> {
+impl ConversionPass<'_> {
     pub(crate) fn add(context: &Context, op: &OperationRef<'_, '_>) -> Result<()> {
         operands!(op, l, r);
         rewrite_ctx!(context, op, rewriter, location);

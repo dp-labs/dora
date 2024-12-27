@@ -1,13 +1,12 @@
 use crate::backend::IntCC;
 use crate::dora::gas::{compute_copy_cost, compute_log_dynamic_cost};
 use crate::{
-    arith_constant, block_argument, check_op_oog,
-    conversion::builder::OpBuilder,
-    conversion::rewriter::{DeferredRewriter, Rewriter},
+    block_argument,
+    conversion::rewriter::Rewriter,
     create_var,
     dora::{conversion::ConversionPass, memory},
     errors::{CompileError, Result},
-    load_var, maybe_revert_here, operands, rewrite_ctx, u256_to_u64,
+    load_var, operands, rewrite_ctx, u256_to_u64,
 };
 use crate::{check_runtime_error, ensure_non_staticcall, gas_or_fail, if_here};
 use dora_runtime::symbols;
@@ -15,20 +14,18 @@ use dora_runtime::ExitStatusCode;
 use melior::{
     dialect::{
         arith::{self},
-        cf, func,
-        llvm::{self, AllocaOptions, LoadStoreOptions},
-        scf,
+        func,
     },
     ir::{
-        attribute::{FlatSymbolRefAttribute, IntegerAttribute, TypeAttribute},
+        attribute::{FlatSymbolRefAttribute, TypeAttribute},
         operation::OperationRef,
-        Block, Region, Value,
+        Block,
     },
     Context,
 };
 use std::mem::offset_of;
 
-impl<'c> ConversionPass<'c> {
+impl ConversionPass<'_> {
     pub(crate) fn balance(context: &Context, op: &OperationRef<'_, '_>) -> Result<()> {
         operands!(op, account);
         block_argument!(op, syscall_ctx, gas_counter_ptr);

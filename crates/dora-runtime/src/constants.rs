@@ -120,7 +120,6 @@ pub mod gas_cost {
 
     pub const SSTORE_MIN_REMAINING_GAS: i64 = 2_300;
     pub const CREATE: i64 = 32_000;
-    pub const CREATE2: i64 = 32_000;
 
     pub const TLOAD: i64 = 100;
     pub const TSTORE: i64 = 100;
@@ -314,7 +313,7 @@ pub enum CallType {
     /// `DELEGATECALL`.
     Delegatecall,
     /// `CALLCODE`.
-    CallCode,
+    Callcode,
 }
 
 /// The kind of a `EXT*CALL` instruction.
@@ -341,7 +340,7 @@ impl TryFrom<u8> for CallType {
             x if x == CallType::Call as u8 => Ok(CallType::Call),
             x if x == CallType::Staticcall as u8 => Ok(CallType::Staticcall),
             x if x == CallType::Delegatecall as u8 => Ok(CallType::Delegatecall),
-            x if x == CallType::CallCode as u8 => Ok(CallType::CallCode),
+            x if x == CallType::Callcode as u8 => Ok(CallType::Callcode),
             _ => Err(CallTypeParseError),
         }
     }

@@ -1,28 +1,21 @@
 use crate::{
     arith_constant,
     backend::IntCC,
-    block_argument, check_op_oog,
-    conversion::{
-        builder::OpBuilder,
-        rewriter::{DeferredRewriter, Rewriter},
-    },
+    block_argument,
+    conversion::rewriter::Rewriter,
     dora::{conversion::ConversionPass, memory},
     errors::Result,
-    if_here, maybe_revert_here, operands, rewrite_ctx, u256_to_u64,
+    if_here, operands, rewrite_ctx, u256_to_u64,
 };
 use dora_runtime::symbols;
 use dora_runtime::ExitStatusCode;
 use melior::{
-    dialect::{arith, cf, func},
-    ir::{
-        attribute::{FlatSymbolRefAttribute, IntegerAttribute},
-        operation::OperationRef,
-        Block,
-    },
+    dialect::{arith, func},
+    ir::{attribute::FlatSymbolRefAttribute, operation::OperationRef, Block},
     Context,
 };
 
-impl<'c> ConversionPass<'c> {
+impl ConversionPass<'_> {
     pub(crate) fn revert(context: &Context, op: &OperationRef<'_, '_>) -> Result<()> {
         operands!(op, offset, size);
         block_argument!(op, syscall_ctx, gas_counter_ptr);

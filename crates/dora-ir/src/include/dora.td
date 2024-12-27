@@ -10,7 +10,7 @@ class Dora_Op<string mnemonic, list<Trait> traits = []> :
 
 // Add Operation
 def Dora_Add : Dora_Op<"add"> {
-  let summary = "add two operands of the same type";
+  let summary = "Add two operands of the same type";
   let description = [{
       This operation takes two operands of the same type and returns their sum.
   }];
@@ -1139,13 +1139,13 @@ def Dora_DataCopy : Dora_Op<"datacopy"> {
   }];
 
   let arguments = (ins
-      AnyTypeOf<[I32, I64, I<128>, I<256>, F32, F64, F128, F<256>]>:$mem_offset,
+      AnyTypeOf<[I32, I64, I<128>, I<256>, F32, F64, F128, F<256>]>:$memOffset,
       AnyTypeOf<[I32, I64, I<128>, I<256>, F32, F64, F128, F<256>]>:$offset,
       AnyTypeOf<[I32, I64, I<128>, I<256>, F32, F64, F128, F<256>]>:$size
     );
   let results = (outs);
 
-  let assemblyFormat = "$mem_offset `,` $offset `,` $size `:` type($mem_offset)";
+  let assemblyFormat = "$memOffset `,` $offset `,` $size `:` type($memOffset)";
 }
 
 // CallF Operation
@@ -1182,15 +1182,15 @@ def Dora_EofCreate : Dora_Op<"eofcreate"> {
   }];
 
   let arguments = (ins
-    I8:$initcontainer_index,
+    I8:$initContainerIndex,
     AnyTypeOf<[I32, I64, I<128>, I<256>, F32, F64, F128, F<256>]>:$value,
     AnyTypeOf<[I<256>, F<256>]>:$salt,
-    AnyTypeOf<[I32, I64, I<128>, I<256>, F32, F64, F128, F<256>]>:$input_offset,
-    AnyTypeOf<[I32, I64, I<128>, I<256>, F32, F64, F128, F<256>]>:$input_size
+    AnyTypeOf<[I32, I64, I<128>, I<256>, F32, F64, F128, F<256>]>:$inputOffset,
+    AnyTypeOf<[I32, I64, I<128>, I<256>, F32, F64, F128, F<256>]>:$inputSize
   );
   let results = (outs AnyTypeOf<[I32, I64, I<128>, I<256>, F32, F64, F128, F<256>]>:$address);
 
-  let assemblyFormat = "$initcontainer_index `,` $value `,` $salt `,` $input_offset `,` $input_size `:` type($initcontainer_index) `->` type($address)";
+  let assemblyFormat = "$initContainerIndex `,` $value `,` $salt `,` $inputOffset `,` $inputSize `:` type($initContainerIndex) `->` type($address)";
 }
 
 // ReturnContract Operation
@@ -1201,13 +1201,13 @@ def Dora_ReturnContract : Dora_Op<"returncontract"> {
   }];
 
   let arguments = (ins
-    I8:$deploy_container_index,
-    AnyTypeOf<[I32, I64, I<128>, I<256>, F32, F64, F128, F<256>]>:$aux_data_offset,
-    AnyTypeOf<[I32, I64, I<128>, I<256>, F32, F64, F128, F<256>]>:$aux_data_size
+    I8:$deployContainerIndex,
+    AnyTypeOf<[I32, I64, I<128>, I<256>, F32, F64, F128, F<256>]>:$auxDataOffset,
+    AnyTypeOf<[I32, I64, I<128>, I<256>, F32, F64, F128, F<256>]>:$auxDataSize
   );
   let results = (outs);
 
-  let assemblyFormat = "$deploy_container_index `,` $aux_data_offset `,` $aux_data_size `:` type($deploy_container_index)";
+  let assemblyFormat = "$deployContainerIndex `,` $auxDataOffset `,` $auxDataSize `:` type($deployContainerIndex)";
 }
 
 // Create Operation
@@ -1248,8 +1248,8 @@ def Dora_Call : Dora_Op<"call"> {
   let assemblyFormat = "$gas `,` $address `,` $value `,` $inputOffset `,` $inputLength `,` $outputOffset `,` $outputLength `:` type($gas) `->` type($success)";
 }
 
-// CallCode Operation
-def Dora_CallCode : Dora_Op<"callcode"> {
+// Callcode Operation
+def Dora_Callcode : Dora_Op<"callcode"> {
   let summary = "Calls a contract's code without modifying its storage.";
   let description = [{
     This operation is similar to `call`, but it uses the caller's storage rather than the storage of the called contract.
@@ -1347,14 +1347,14 @@ def Dora_ExtCall : Dora_Op<"extcall"> {
   }];
 
   let arguments = (ins
-    AnyTypeOf<[I32, I64, I<128>, I<256>, F32, F64, F128, F<256>]>:$target_address,
-    AnyTypeOf<[I32, I64, I<128>, I<256>, F32, F64, F128, F<256>]>:$input_offset,
-    AnyTypeOf<[I32, I64, I<128>, I<256>, F32, F64, F128, F<256>]>:$input_size,
+    AnyTypeOf<[I32, I64, I<128>, I<256>, F32, F64, F128, F<256>]>:$targetAddress,
+    AnyTypeOf<[I32, I64, I<128>, I<256>, F32, F64, F128, F<256>]>:$inputOffset,
+    AnyTypeOf<[I32, I64, I<128>, I<256>, F32, F64, F128, F<256>]>:$inputSize,
     AnyTypeOf<[I32, I64, I<128>, I<256>, F32, F64, F128, F<256>]>:$value
   );
   let results = (outs AnyTypeOf<[I32, I64, I<128>, I<256>, F32, F64, F128, F<256>]>:$status);
 
-  let assemblyFormat = "$target_address `,` $input_offset `,` $input_size `,` $value `:` type($target_address) `->` type($status)";
+  let assemblyFormat = "$targetAddress `,` $inputOffset `,` $inputSize `,` $value `:` type($targetAddress) `->` type($status)";
 }
 
 // ExtDelegatecall Operation
@@ -1365,13 +1365,13 @@ def Dora_ExtDelegatecall : Dora_Op<"extdelegatecall"> {
   }];
 
   let arguments = (ins
-    AnyTypeOf<[I32, I64, I<128>, I<256>, F32, F64, F128, F<256>]>:$target_address,
-    AnyTypeOf<[I32, I64, I<128>, I<256>, F32, F64, F128, F<256>]>:$input_offset,
-    AnyTypeOf<[I32, I64, I<128>, I<256>, F32, F64, F128, F<256>]>:$input_size
+    AnyTypeOf<[I32, I64, I<128>, I<256>, F32, F64, F128, F<256>]>:$targetAddress,
+    AnyTypeOf<[I32, I64, I<128>, I<256>, F32, F64, F128, F<256>]>:$inputOffset,
+    AnyTypeOf<[I32, I64, I<128>, I<256>, F32, F64, F128, F<256>]>:$inputSize
   );
   let results = (outs AnyTypeOf<[I32, I64, I<128>, I<256>, F32, F64, F128, F<256>]>:$status);
 
-  let assemblyFormat = "$target_address `,` $input_offset `,` $input_size `:` type($target_address) `->` type($status)";
+  let assemblyFormat = "$targetAddress `,` $inputOffset `,` $inputSize `:` type($targetAddress) `->` type($status)";
 }
 
 // Staticcall Operation
@@ -1402,13 +1402,13 @@ def Dora_ExtStaticcall : Dora_Op<"extstaticcall"> {
   }];
 
   let arguments = (ins
-    AnyTypeOf<[I32, I64, I<128>, I<256>, F32, F64, F128, F<256>]>:$target_address,
-    AnyTypeOf<[I32, I64, I<128>, I<256>, F32, F64, F128, F<256>]>:$input_offset,
-    AnyTypeOf<[I32, I64, I<128>, I<256>, F32, F64, F128, F<256>]>:$input_size
+    AnyTypeOf<[I32, I64, I<128>, I<256>, F32, F64, F128, F<256>]>:$targetAddress,
+    AnyTypeOf<[I32, I64, I<128>, I<256>, F32, F64, F128, F<256>]>:$inputOffset,
+    AnyTypeOf<[I32, I64, I<128>, I<256>, F32, F64, F128, F<256>]>:$inputSize
   );
   let results = (outs AnyTypeOf<[I32, I64, I<128>, I<256>, F32, F64, F128, F<256>]>:$status);
 
-  let assemblyFormat = "$target_address `,` $input_offset `,` $input_size `:` type($target_address) `->` type($status)";
+  let assemblyFormat = "$targetAddress `,` $inputOffset `,` $inputSize `:` type($targetAddress) `->` type($status)";
 }
 
 // Revert Operation
@@ -1440,8 +1440,8 @@ def Dora_Invalid : Dora_Op<"invalid"> {
   let assemblyFormat = "";
 }
 
-// SelfDestruct Operation
-def Dora_SelfDestruct : Dora_Op<"selfdestruct"> {
+// Selfdestruct Operation
+def Dora_Selfdestruct : Dora_Op<"selfdestruct"> {
   let summary = "Terminates the contract and sends its balance to a specified address.";
   let description = [{
     This operation takes one `i256` operand from the stack, which is the address to send the remaining balance to, and terminates the contract, removing it from the blockchain.

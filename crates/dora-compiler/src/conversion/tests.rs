@@ -125,7 +125,7 @@ fn external_pass() {
         }
     }
 
-    impl<'c> TestPass<'c> {
+    impl TestPass<'_> {
         fn into_pass(self) -> Pass {
             create_external(
                 self,

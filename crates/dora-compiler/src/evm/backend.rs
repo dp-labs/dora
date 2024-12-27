@@ -73,14 +73,14 @@ impl<'a, 'c> std::ops::Deref for EVMBuilder<'a, 'c> {
     }
 }
 
-impl<'a, 'c> std::ops::DerefMut for EVMBuilder<'a, 'c> {
+impl std::ops::DerefMut for EVMBuilder<'_, '_> {
     #[inline]
     fn deref_mut(&mut self) -> &mut Self::Target {
         &mut self.builder
     }
 }
 
-impl<'a, 'c> IRTypes for EVMBuilder<'a, 'c> {
+impl<'a> IRTypes for EVMBuilder<'a, '_> {
     type Type = Type<'a>;
     type Value = Value<'a, 'a>;
     type Region = Region<'a>;
@@ -88,7 +88,7 @@ impl<'a, 'c> IRTypes for EVMBuilder<'a, 'c> {
     type Operation = OperationRef<'a, 'a>;
 }
 
-impl<'a, 'c> TypeMethods for EVMBuilder<'a, 'c> {
+impl TypeMethods for EVMBuilder<'_, '_> {
     fn type_ptr(&self) -> Self::Type {
         self.builder.ptr_ty()
     }
@@ -98,7 +98,7 @@ impl<'a, 'c> TypeMethods for EVMBuilder<'a, 'c> {
     }
 }
 
-impl<'a, 'c> crate::backend::Builder for EVMBuilder<'a, 'c> {
+impl crate::backend::Builder for EVMBuilder<'_, '_> {
     fn bool_const(&mut self, value: bool) -> Result<Self::Value> {
         let ty = self.intrinsics.i1_ty;
         let op = self.builder.create(arith::constant(
@@ -404,6 +404,13 @@ impl<'a, 'c> crate::backend::Builder for EVMBuilder<'a, 'c> {
         let op = self
             .builder
             .create(arith::select(cond, then_value, else_value, self.location()));
+        Ok(op.result(0)?.to_ctx_value())
+    }
+
+    fn iadd(&mut self, lhs: Self::Value, rhs: Self::Value) -> Result<Self::Value> {
+        let op = self.builder.create(
+            dora_ir::evm::add(self.context(), self.uint256_ty(), lhs, rhs, self.location()).into(),
+        );
         Ok(op.result(0)?.to_ctx_value())
     }
 
@@ -717,16 +724,9 @@ impl<'a, 'c> crate::backend::Builder for EVMBuilder<'a, 'c> {
     fn unreachable(&mut self) {
         self.builder.create(llvm::unreachable(self.location()));
     }
-
-    fn iadd(&mut self, lhs: Self::Value, rhs: Self::Value) -> Result<Self::Value> {
-        let op = self.builder.create(
-            dora_ir::evm::add(self.context(), self.uint256_ty(), lhs, rhs, self.location()).into(),
-        );
-        Ok(op.result(0)?.to_ctx_value())
-    }
 }
 
-impl<'a, 'c> crate::backend::EVMBuilder for EVMBuilder<'a, 'c> {
+impl crate::backend::EVMBuilder for EVMBuilder<'_, '_> {
     fn keccak256(&mut self, start: Self::Value, length: Self::Value) -> Result<Self::Value> {
         let op = self.builder.create(
             dora_ir::evm::keccak_256(

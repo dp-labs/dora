@@ -1,6 +1,7 @@
 use super::{conversion, storage};
 use crate::errors::Result;
 use dora_primitives::SpecId;
+use dora_runtime::constants::gas_cost::MAX_CODE_SIZE;
 use melior::{ir::Module as MLIRModule, Context};
 
 /// Options for configuring a pass, including program-related settings.
@@ -56,7 +57,7 @@ pub fn run(ctx: &Context, module: &mut MLIRModule, opts: &PassOptions) -> Result
         ctx,
         program_code_size: opts.program_code_size,
         spec_id: opts.spec_id,
-        limit_contract_code_size: opts.limit_contract_code_size,
+        limit_contract_code_size: opts.limit_contract_code_size.unwrap_or(MAX_CODE_SIZE),
     };
     conversion_pass.run(module.as_operation())
 }

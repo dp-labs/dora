@@ -42,7 +42,7 @@ pub struct WASMBuilder<'c, 'a> {
     pub builder: OpBuilder<'c, 'a>,
 }
 
-impl<'c, 'a> std::ops::Deref for WASMBuilder<'c, 'a> {
+impl<'c> std::ops::Deref for WASMBuilder<'c, '_> {
     type Target = WASMBackend<'c>;
 
     #[inline]
@@ -51,7 +51,7 @@ impl<'c, 'a> std::ops::Deref for WASMBuilder<'c, 'a> {
     }
 }
 
-impl<'c, 'a> std::ops::DerefMut for WASMBuilder<'c, 'a> {
+impl std::ops::DerefMut for WASMBuilder<'_, '_> {
     #[inline]
     fn deref_mut(&mut self) -> &mut Self::Target {
         self.backend
@@ -114,7 +114,7 @@ impl<'c> IRTypes for WASMBackend<'c> {
     type Operation = OperationRef<'c, 'c>;
 }
 
-impl<'c> TypeMethods for WASMBackend<'c> {
+impl TypeMethods for WASMBackend<'_> {
     fn type_ptr(&self) -> Self::Type {
         self.intrinsics.ptr_ty
     }

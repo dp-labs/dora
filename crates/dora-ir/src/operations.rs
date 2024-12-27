@@ -82,7 +82,7 @@ pub enum Operation {
     ReturnContract = 0xEE,
     Create = 0xF0,
     Call = 0xF1,
-    CallCode = 0xF2,
+    Callcode = 0xF2,
     Return = 0xF3,
     Delegatecall = 0xF4,
     Create2 = 0xF5,
@@ -93,7 +93,7 @@ pub enum Operation {
     ExtStaticcall = 0xFB,
     Revert = 0xFD,
     Invalid = 0xFE,
-    SelfDestruct = 0xFF,
+    Selfdestruct = 0xFF,
 }
 
 impl Operation {
@@ -178,7 +178,7 @@ impl Operation {
             Operation::ReturnContract => dora::ReturnContractOperation::name(),
             Operation::Create => dora::CreateOperation::name(),
             Operation::Call => dora::CallOperation::name(),
-            Operation::CallCode => dora::CallCodeOperation::name(),
+            Operation::Callcode => dora::CallcodeOperation::name(),
             Operation::Return => dora::ReturnOperation::name(),
             Operation::Delegatecall => dora::DelegatecallOperation::name(),
             Operation::Create2 => dora::Create2Operation::name(),
@@ -189,7 +189,7 @@ impl Operation {
             Operation::ExtStaticcall => dora::ExtStaticcallOperation::name(),
             Operation::Revert => dora::RevertOperation::name(),
             Operation::Invalid => dora::InvalidOperation::name(),
-            Operation::SelfDestruct => dora::SelfDestructOperation::name(),
+            Operation::Selfdestruct => dora::SelfdestructOperation::name(),
         }
     }
 
@@ -286,7 +286,7 @@ impl TryFrom<&str> for Operation {
             x if x == dora::ReturnContractOperation::name() => Ok(Operation::ReturnContract),
             x if x == dora::CreateOperation::name() => Ok(Operation::Create),
             x if x == dora::CallOperation::name() => Ok(Operation::Call),
-            x if x == dora::CallCodeOperation::name() => Ok(Operation::CallCode),
+            x if x == dora::CallcodeOperation::name() => Ok(Operation::Callcode),
             x if x == dora::ReturnOperation::name() => Ok(Operation::Return),
             x if x == dora::DelegatecallOperation::name() => Ok(Operation::Delegatecall),
             x if x == dora::Create2Operation::name() => Ok(Operation::Create2),
@@ -297,7 +297,7 @@ impl TryFrom<&str> for Operation {
             x if x == dora::ExtStaticcallOperation::name() => Ok(Operation::ExtStaticcall),
             x if x == dora::RevertOperation::name() => Ok(Operation::Revert),
             x if x == dora::InvalidOperation::name() => Ok(Operation::Invalid),
-            x if x == dora::SelfDestructOperation::name() => Ok(Operation::SelfDestruct),
+            x if x == dora::SelfdestructOperation::name() => Ok(Operation::Selfdestruct),
             _ => Err(()),
         }
     }

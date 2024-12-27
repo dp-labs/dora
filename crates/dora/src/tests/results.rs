@@ -1444,7 +1444,7 @@ fn revert() {
 fn selfdestruct() {
     let operations = vec![
         Operation::Push((1, 0xAA_u8.into())),
-        Operation::SelfDestruct,
+        Operation::Selfdestruct,
     ];
     let result = run_result(operations);
     assert!(result.status.is_ok());

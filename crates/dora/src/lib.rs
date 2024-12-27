@@ -11,7 +11,7 @@ use dora_compiler::{
     evm::{self, program::Program, CompileOptions, EVMCompiler},
     pass, Compiler,
 };
-use dora_primitives::{spec::SpecId, Bytecode, Bytes32};
+use dora_primitives::{spec::SpecId, Bytecode, Bytes, Bytes32};
 use dora_runtime::executor::Executor;
 use dora_runtime::{
     artifact::Artifact,
@@ -72,7 +72,7 @@ pub fn call_frame<DB: Database>(
         artifact
     } else {
         // Issue: https://github.com/dp-labs/dora/issues/135
-        let artifact = build_artifact::<DB>(&frame.contract.code, ctx.spec_id())
+        let artifact = build_artifact::<DB>(frame.contract.code.bytecode(), ctx.spec_id())
             .map_err(|e| EVMError::Custom(e.to_string()))?;
         ctx.db.set_artifact(code_hash, artifact.clone());
         artifact
@@ -81,7 +81,7 @@ pub fn call_frame<DB: Database>(
         frame.contract,
         frame.depth,
         frame.is_static,
-        frame.is_eof,
+        frame.is_eof_init,
         ctx,
         spec_id,
     );
@@ -104,7 +104,7 @@ pub fn run_with_context<DB: Database>(
     initial_gas: u64,
 ) -> anyhow::Result<u8> {
     let artifact: DB::Artifact = build_artifact::<DB>(
-        &runtime_context.contract.code,
+        runtime_context.contract.code.bytecode(),
         runtime_context.inner.spec_id,
     )?;
     let mut initial_gas = initial_gas;
@@ -169,8 +169,8 @@ pub fn run_evm_bytecode_with_calldata(
     let mut env = Env::default();
     env.tx.transact_to = TxKind::Call(address);
     env.tx.gas_limit = initial_gas;
-    env.tx.data = Bytecode::from(calldata);
+    env.tx.data = Bytes::from(calldata);
     env.tx.caller = Bytes32::from(10000_u32).to_address();
-    let db = MemoryDB::new().with_contract(address, Bytecode::from(opcodes));
+    let db = MemoryDB::new().with_contract(address, Bytecode::new_raw(Bytes::from(opcodes)));
     run_evm(env, db, spec_id).map_err(|err| anyhow::anyhow!(err))
 }

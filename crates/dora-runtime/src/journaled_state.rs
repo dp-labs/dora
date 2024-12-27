@@ -5,11 +5,10 @@ use crate::{
     account::{Account, EMPTY_CODE_HASH, EMPTY_CODE_HASH_BYTES},
     context::Log,
     db::{Database, StorageSlot},
-    host::{AccountLoad, CodeLoad, SStoreResult, SStoreSlot, SelfDestructResult, StateLoad},
+    host::{AccountLoad, CodeLoad, SStoreResult, SStoreSlot, SelfdestructResult, StateLoad},
     ExitStatusCode,
 };
-use dora_primitives::{Address, Bytes, Bytes32, SpecId, B256, U256};
-use revm_primitives::keccak256;
+use dora_primitives::{keccak256, Address, Bytecode, Bytes, Bytes32, SpecId, B256, U256};
 use rustc_hash::{FxHashMap, FxHashSet};
 
 pub type State = FxHashMap<Address, Account>;
@@ -155,7 +154,7 @@ impl JournaledState {
             .push(JournalEntry::CodeChange { address });
 
         account.info.code_hash = hash;
-        account.info.code = Some(code);
+        account.info.code = Some(Bytecode::new_raw(code));
     }
 
     /// use it only if you know that acc is warm
@@ -478,7 +477,7 @@ impl JournaledState {
         address: Address,
         target: Address,
         db: &mut DB,
-    ) -> Result<StateLoad<SelfDestructResult>, DB::Error> {
+    ) -> Result<StateLoad<SelfdestructResult>, DB::Error> {
         let spec_id = self.spec_id;
         let account_load = self.load_account(target, db)?;
         let is_cold = account_load.is_cold;
@@ -529,7 +528,7 @@ impl JournaledState {
         };
 
         Ok(StateLoad {
-            data: SelfDestructResult {
+            data: SelfdestructResult {
                 had_value: !balance.is_zero(),
                 target_exists: !is_empty,
                 previously_destroyed,

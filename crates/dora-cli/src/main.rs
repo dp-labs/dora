@@ -135,7 +135,7 @@ fn main() -> Result<()> {
             env.block.number = U256::from(run_args.block_number);
             env.block.timestamp = U256::from(run_args.timestamp);
             // Set DB
-            let db = MemoryDB::new().with_contract(address, Bytecode::from(bytecode));
+            let db = MemoryDB::new().with_contract(address, Bytecode::new_raw(bytecode.into()));
             // Run the contract
             match dora::run_evm(env, db, run_args.spec_id) {
                 Ok(result) => {

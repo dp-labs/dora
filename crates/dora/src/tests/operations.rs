@@ -1706,7 +1706,15 @@ fn returndatacopy() {
     env.block.coinbase = Address::left_padding_from(&[80]);
     let contract = Contract::new_with_env(
         &env,
-        Bytecode::from(Program::from(operations).to_opcode()),
+        Bytecode::new_raw(
+            Program {
+                operations,
+                code_size: 0,
+                is_eof: false,
+            }
+            .to_opcode()
+            .into(),
+        ),
         None,
     );
     let mut host = DummyHost::new(env);
@@ -1787,7 +1795,15 @@ fn returndatacopy_out_of_bounds() {
     env.block.coinbase = Address::left_padding_from(&[80]);
     let contract = Contract::new_with_env(
         &env,
-        Bytecode::from(Program::from(operations).to_opcode()),
+        Bytecode::new_raw(
+            Program {
+                operations,
+                code_size: 0,
+                is_eof: false,
+            }
+            .to_opcode()
+            .into(),
+        ),
         None,
     );
     let mut host = DummyHost::new(env);
@@ -3269,7 +3285,7 @@ fn callcode() {
         Operation::Push((1_u8, BigUint::from(32_u32))),
         Operation::Push((1_u8, BigUint::from(64_u32))),
         Operation::Push((1_u8, BigUint::from(64_u32))),
-        Operation::CallCode,
+        Operation::Callcode,
         // Return result
         Operation::Push0,
         Operation::MStore,
@@ -3304,7 +3320,7 @@ fn callcode_1() {
         Operation::Push((1_u8, BigUint::from(0_u8))),
         Operation::Dup(6),
         Operation::Push((2_u8, BigUint::from_bytes_be(&[0xFF, 0xFF]))),
-        Operation::CallCode,
+        Operation::Callcode,
         Operation::Push((1_u8, BigUint::from(1_u8))),
         Operation::Push((1_u8, BigUint::from(0_u8))),
         Operation::SStore,
@@ -3315,7 +3331,7 @@ fn callcode_1() {
         Operation::Push((1_u8, BigUint::from(0_u8))),
         Operation::Dup(7),
         Operation::Push((2_u8, BigUint::from_bytes_be(&[0xFF, 0xFF]))),
-        Operation::CallCode,
+        Operation::Callcode,
         // Return result
         Operation::Push0,
         Operation::MStore,
@@ -3522,7 +3538,7 @@ fn selfdestruct() {
                 0xDE, 0xF0, 0x12, 0x34, 0x56, 0x78,
             ]),
         )),
-        Operation::SelfDestruct,
+        Operation::Selfdestruct,
         Operation::Push0,
         // Return result
         Operation::Push0,
@@ -3539,7 +3555,7 @@ fn selfdestruct() {
 fn selfdestruct_zero_address() {
     let operations = vec![
         Operation::Push((1_u8, BigUint::from(0_u32))),
-        Operation::SelfDestruct,
+        Operation::Selfdestruct,
         Operation::Push0,
         // Return result
         Operation::Push0,

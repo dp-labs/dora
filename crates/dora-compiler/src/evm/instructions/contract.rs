@@ -81,25 +81,6 @@ impl<'c> EVMCompiler<'c> {
         Ok((start_block, start_block))
     }
 
-    pub(crate) fn callf<'r>(
-        _ctx: &mut CtxType<'c>,
-        region: &'r Region<'c>,
-        _target_section_index: u16,
-    ) -> Result<(BlockRef<'r, 'c>, BlockRef<'r, 'c>)> {
-        let start_block = region.append_block(Block::new(&[]));
-        // TODO : Needs EVMBuilder complete
-        Ok((start_block, start_block))
-    }
-
-    pub(crate) fn retf<'r>(
-        _ctx: &mut CtxType<'c>,
-        region: &'r Region<'c>,
-    ) -> Result<(BlockRef<'r, 'c>, BlockRef<'r, 'c>)> {
-        let start_block = region.append_block(Block::new(&[]));
-        // TODO : Needs EVMBuilder complete
-        Ok((start_block, start_block))
-    }
-
     pub(crate) fn callcode<'r>(
         ctx: &mut CtxType<'c>,
         region: &'r Region<'c>,

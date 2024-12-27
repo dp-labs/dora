@@ -1,7 +1,5 @@
 use crate::{
-    arith_constant, block_argument,
-    conversion::rewriter::DeferredRewriter,
-    create_var,
+    block_argument, create_var,
     dora::{conversion::ConversionPass, memory},
     errors::Result,
     load_var, operands, rewrite_ctx,
@@ -11,17 +9,17 @@ use melior::{
     dialect::{
         arith::{self},
         func,
-        llvm::{self, AllocaOptions, LoadStoreOptions},
+        llvm::{self},
     },
     ir::{
-        attribute::{FlatSymbolRefAttribute, IntegerAttribute, TypeAttribute},
+        attribute::{FlatSymbolRefAttribute, TypeAttribute},
         operation::OperationRef,
         r#type::IntegerType,
     },
     Context,
 };
 
-impl<'c> ConversionPass<'c> {
+impl ConversionPass<'_> {
     pub(crate) fn chainid(context: &Context, op: &OperationRef<'_, '_>) -> Result<()> {
         block_argument!(op, syscall_ctx);
         rewrite_ctx!(context, op, rewriter, location);
