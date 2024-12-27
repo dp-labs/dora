@@ -1,3 +1,4 @@
+//! Reference: https://github.com/wasmerio/wasmer/tree/main/lib/compiler-llvm
 #![allow(dead_code)]
 
 mod backend;
@@ -11,11 +12,23 @@ mod ty;
 #[cfg(test)]
 mod tests;
 
-use std::sync::Arc;
-
-use wasmer_compiler::ModuleMiddleware;
-
 use dora_primitives::config::OptimizationLevel;
+use func::FuncTranslator;
+use melior::ir::operation::OperationBuilder;
+use melior::ir::{Block, Region};
+use melior::ir::{Location, Module as MLIRModule};
+use std::sync::Arc;
+use wasmer_compiler::{
+    FunctionBodyData, ModuleEnvironment, ModuleMiddleware, ModuleTranslationState,
+};
+use wasmer_types::entity::{EntityRef, PrimaryMap};
+use wasmer_types::{
+    CompileModuleInfo, Features, FunctionIndex, LocalFunctionIndex, SectionIndex, SignatureIndex,
+    Symbol, SymbolRegistry,
+};
+
+use crate::errors::CompileError;
+use crate::{Context, Module};
 
 /// Represents a WebAssembly (Wasm) to LLVM/MLIR compiler. The `WASMCompiler` struct is responsible for
 /// compiling WebAssembly code into LLVM/MLIR, leveraging the configuration provided at the time of
@@ -44,12 +57,16 @@ use dora_primitives::config::OptimizationLevel;
 /// - The compiler that compiles a WebAssembly module with LLVM/MLIR, translating the Wasm to MLIR IR, optimizing
 ///   it and then translating to assembly or executing it with JIT mode.
 #[derive(Debug, Clone)]
-pub struct WASMCompiler {
+pub struct WASMCompiler<'c> {
+    /// The MLIR context used for generating operations and managing their lifetime. It encapsulates the state
+    /// of the MLIR infrastructure, including types, modules, and operations. This context is tied to the
+    /// lifetime `'c` of the EVMCompiler.
+    pub ctx: &'c Context,
     /// The configuration settings for the Wasm compiler.
-    config: Config,
+    pub config: Config,
 }
 
-impl WASMCompiler {
+impl<'c> WASMCompiler<'c> {
     /// Creates a new instance of the `WASMCompiler` with the given configuration.
     ///
     /// # Arguments:
@@ -59,8 +76,8 @@ impl WASMCompiler {
     /// # Returns:
     /// - A `WASMCompiler` instance initialized with the provided configuration.
     #[inline]
-    pub fn new(config: Config) -> WASMCompiler {
-        WASMCompiler { config }
+    pub fn new(ctx: &'c Context, config: Config) -> WASMCompiler {
+        WASMCompiler { ctx, config }
     }
 
     /// Retrieves the configuration for this `WASMCompiler`.
@@ -75,6 +92,109 @@ impl WASMCompiler {
     #[inline]
     fn config(&self) -> &Config {
         &self.config
+    }
+
+    /// Compile the WASM bytes using LLVM/MLIR.
+    pub fn compile(&self, data: &[u8]) -> Result<Module<'c>, CompileError> {
+        let environ = ModuleEnvironment::new();
+        let translation = environ
+            .translate(data)
+            .map_err(|err| CompileError::Codegen(err.to_string()))?;
+        let module = translation.module;
+        let compile_info = CompileModuleInfo {
+            module: Arc::new(module),
+            features: Features::default(),
+            memory_styles: PrimaryMap::new(),
+            table_styles: PrimaryMap::new(),
+        };
+        self.compile_module(
+            &compile_info,
+            translation.module_translation_state.as_ref().unwrap(),
+            translation.function_body_inputs,
+        )
+    }
+
+    fn compile_module(
+        &self,
+        compile_info: &CompileModuleInfo,
+        module_translation: &ModuleTranslationState,
+        function_body_inputs: PrimaryMap<LocalFunctionIndex, FunctionBodyData<'_>>,
+    ) -> Result<Module<'c>, CompileError> {
+        // WASM Module information
+        let memory_styles = &compile_info.memory_styles;
+        let table_styles = &compile_info.table_styles;
+        let wasm_module = &compile_info.module;
+        let function_body_inputs = function_body_inputs
+            .iter()
+            .collect::<Vec<(LocalFunctionIndex, &FunctionBodyData<'_>)>>();
+        let functions: Vec<_> = function_body_inputs
+            .iter()
+            .map(|(i, input)| {
+                FuncTranslator::translate(
+                    self.ctx,
+                    &self.config,
+                    wasm_module,
+                    module_translation,
+                    i,
+                    input,
+                    memory_styles,
+                    table_styles,
+                    &ShortNames {},
+                )
+            })
+            .collect();
+        // MLIR Module region and block
+        let module_block = Block::new(&[]);
+        for func in functions {
+            module_block
+                .append_operation(func.map_err(|err| CompileError::Codegen(err.to_string()))?);
+        }
+        let module_region = Region::new();
+        module_region.append_block(module_block);
+        // Build main module
+        let op = OperationBuilder::new("builtin.module", Location::unknown(&self.ctx.mlir_context))
+            .add_regions([module_region])
+            .build()?;
+        Ok(Module::new(
+            MLIRModule::from_operation(op).expect("module failed to create"),
+        ))
+    }
+}
+
+struct ShortNames {}
+
+impl SymbolRegistry for ShortNames {
+    fn symbol_to_name(&self, symbol: Symbol) -> String {
+        match symbol {
+            Symbol::Metadata => "M".to_string(),
+            Symbol::LocalFunction(index) => format!("f{}", index.index()),
+            Symbol::Section(index) => format!("s{}", index.index()),
+            Symbol::FunctionCallTrampoline(index) => format!("t{}", index.index()),
+            Symbol::DynamicFunctionTrampoline(index) => format!("d{}", index.index()),
+        }
+    }
+
+    fn name_to_symbol(&self, name: &str) -> Option<Symbol> {
+        if name.len() < 2 {
+            return None;
+        }
+        let (ty, idx) = name.split_at(1);
+        if ty.starts_with('M') {
+            return Some(Symbol::Metadata);
+        }
+
+        let idx = idx.parse::<u32>().ok()?;
+        match ty.chars().next().unwrap() {
+            'f' => Some(Symbol::LocalFunction(LocalFunctionIndex::from_u32(idx))),
+            's' => Some(Symbol::Section(SectionIndex::from_u32(idx))),
+            't' => Some(Symbol::FunctionCallTrampoline(SignatureIndex::from_u32(
+                idx,
+            ))),
+            'd' => Some(Symbol::DynamicFunctionTrampoline(FunctionIndex::from_u32(
+                idx,
+            ))),
+            _ => None,
+        }
     }
 }
 
@@ -108,13 +228,10 @@ impl WASMCompiler {
 pub struct Config {
     /// A flag to enable NaN canonicalization during floating-point operations.
     pub(crate) enable_nan_canonicalization: bool,
-
     /// A flag to enable or disable the verifier during compilation.
     pub(crate) enable_verifier: bool,
-
     /// The optimization level for the compilation process.
     pub(crate) opt_level: OptimizationLevel,
-
     /// A collection of middleware components that modify the behavior of the compiler.
     pub(crate) middlewares: Vec<Arc<dyn ModuleMiddleware>>,
 }

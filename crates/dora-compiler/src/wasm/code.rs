@@ -241,31 +241,20 @@ macro_rules! bin_op {
 pub struct FunctionCodeCtx<'c, 'a> {
     /// Local variables and function parameters as a vector of type-value pairs.
     pub locals: Vec<(Type<'c>, Value<'c, 'a>)>,
-
     /// Execution context that provides access to WebAssembly components like memories and globals.
     pub ctx: CtxType<'c, 'a>,
-
     /// Depth count of unreachable code blocks to manage unreachable code paths.
     pub unreachable_depth: usize,
-
     /// A reference to memory styles for the WebAssembly module.
     pub memory_styles: &'a PrimaryMap<MemoryIndex, MemoryStyle>,
-
     /// A reference to table styles for the WebAssembly module.
     pub _table_styles: &'a PrimaryMap<TableIndex, TableStyle>,
-
-    /// A reference to the MLIR module being generated.
-    pub module: &'a MLIRModule<'c>,
-
     /// State for translating the WebAssembly module.
     pub module_translation: &'a ModuleTranslationState,
-
     /// Metadata about the WebAssembly module, including imports and exports.
     pub wasm_module: &'a ModuleInfo,
-
     /// A symbol registry for resolving module symbols.
     pub symbol_registry: &'a dyn SymbolRegistry,
-
     /// Configuration settings for the code generation process.
     pub config: &'a Config,
 }
@@ -292,15 +281,18 @@ impl FunctionCodeGenerator {
     ///
     /// # Errors
     /// This function may return an error if the translation of specific operations fails.
-    pub fn translate<'c, 'a>(
+    pub fn translate_op<'c, 'a>(
         op: Operator,
         fcx: &mut FunctionCodeCtx<'c, 'a>,
         backend: &mut WASMBackend<'c>,
         region: &'c Region<'c>,
+        block: BlockRef<'c, 'a>,
         _source_loc: u32,
-    ) -> Result<(BlockRef<'c, 'a>, BlockRef<'c, 'a>)> {
-        let block = region.append_block(Block::new(&[]));
-        let mut builder = OpBuilder::new_with_block(&backend.ctx.mlir_context, block);
+    ) -> Result<BlockRef<'c, 'a>>
+    where
+        'a: 'c,
+    {
+        let builder = OpBuilder::new_with_block(&backend.ctx.mlir_context, block);
         let state = &mut backend.state;
         if !state.reachable {
             match op {
@@ -308,21 +300,21 @@ impl FunctionCodeGenerator {
                 | Operator::Loop { blockty: _ }
                 | Operator::If { blockty: _ } => {
                     fcx.unreachable_depth += 1;
-                    return Ok((block, block));
+                    return Ok(block);
                 }
                 Operator::Else => {
                     if fcx.unreachable_depth != 0 {
-                        return Ok((block, block));
+                        return Ok(block);
                     }
                 }
                 Operator::End => {
                     if fcx.unreachable_depth != 0 {
                         fcx.unreachable_depth -= 1;
-                        return Ok((block, block));
+                        return Ok(block);
                     }
                 }
                 _ => {
-                    return Ok((block, block));
+                    return Ok(block);
                 }
             }
         }
@@ -348,7 +340,7 @@ impl FunctionCodeGenerator {
                     .map(|&wp_ty| {
                         wptype_to_type(wp_ty).map(|wasm_ty| {
                             (
-                                type_to_mlir(&backend.intrinsics, wasm_ty),
+                                type_to_mlir(&backend.intrinsics, &wasm_ty),
                                 builder.unknown_loc(),
                             )
                         })
@@ -365,7 +357,7 @@ impl FunctionCodeGenerator {
                     .map(|&wp_ty| {
                         wptype_to_type(wp_ty).map(|wasm_ty| {
                             (
-                                type_to_mlir(&backend.intrinsics, wasm_ty),
+                                type_to_mlir(&backend.intrinsics, &wasm_ty),
                                 builder.unknown_loc(),
                             )
                         })
@@ -378,7 +370,7 @@ impl FunctionCodeGenerator {
                     .map(|&wp_ty| {
                         wptype_to_type(wp_ty).map(|wasm_ty| {
                             (
-                                type_to_mlir(&backend.intrinsics, wasm_ty),
+                                type_to_mlir(&backend.intrinsics, &wasm_ty),
                                 builder.unknown_loc(),
                             )
                         })
@@ -398,7 +390,7 @@ impl FunctionCodeGenerator {
                     .map(|&wp_ty| {
                         wptype_to_type(wp_ty).map(|wasm_ty| {
                             (
-                                type_to_mlir(&backend.intrinsics, wasm_ty),
+                                type_to_mlir(&backend.intrinsics, &wasm_ty),
                                 builder.unknown_loc(),
                             )
                         })
@@ -418,7 +410,7 @@ impl FunctionCodeGenerator {
                     .map(|&wp_ty| {
                         wptype_to_type(wp_ty).map(|wasm_ty| {
                             (
-                                type_to_mlir(&backend.intrinsics, wasm_ty),
+                                type_to_mlir(&backend.intrinsics, &wasm_ty),
                                 builder.unknown_loc(),
                             )
                         })
@@ -478,16 +470,8 @@ impl FunctionCodeGenerator {
                 state.reachable = true;
                 let frame = state.frame_at_depth(0)?;
 
-                return Ok((block, *frame.code_after()));
+                return Ok(*frame.code_after());
             }
-            Operator::TryTable { try_table } => todo!(),
-            Operator::Throw { tag_index } => todo!(),
-            Operator::ThrowRef => todo!(),
-            Operator::Try { blockty } => todo!(),
-            Operator::Catch { tag_index } => todo!(),
-            Operator::Rethrow { relative_depth } => todo!(),
-            Operator::Delegate { relative_depth } => todo!(),
-            Operator::CatchAll => todo!(),
             Operator::End => {
                 let frame = state.pop_frame()?;
                 let current_block = block;
@@ -508,12 +492,12 @@ impl FunctionCodeGenerator {
                     ..
                 } = &frame
                 {
-                    builder.set_insert_point_to_block_end(*if_else);
-                    builder.create(cf::br(next, &[], builder.get_insert_location()));
+                    (*if_else).append_operation(cf::br(next, &[], builder.get_insert_location()));
                 }
                 state.reset_stack(&frame);
                 state.reachable = true;
-                return Ok((block, *frame.code_after()));
+
+                return Ok(*frame.code_after());
             }
             Operator::Br { relative_depth } => {
                 let frame = state.frame_at_depth(relative_depth)?;
@@ -559,7 +543,7 @@ impl FunctionCodeGenerator {
                     &[],
                     builder.get_insert_location(),
                 ));
-                return Ok((block, else_block));
+                return Ok(else_block);
             }
             Operator::BrTable { targets } => {
                 let index = state.pop1()?;
@@ -632,7 +616,12 @@ impl FunctionCodeGenerator {
             }
             Operator::Select => todo!(),
             Operator::TypedSelect { ty } => todo!(),
-            Operator::LocalGet { local_index } => todo!(),
+            Operator::LocalGet { local_index } => {
+                let (type_value, pointer_value) = fcx.locals[local_index as usize];
+                let op = builder.load(pointer_value.to_ctx_value(), type_value);
+                let v = builder.make(op)?;
+                state.push1(v.to_ctx_value());
+            }
             Operator::LocalSet { local_index } => todo!(),
             Operator::LocalTee { local_index } => todo!(),
             Operator::GlobalGet { global_index } => todo!(),
@@ -1466,7 +1455,7 @@ impl FunctionCodeGenerator {
                     value,
                     type_to_mlir(
                         &backend.intrinsics,
-                        fcx.wasm_module
+                        &fcx.wasm_module
                             .tables
                             .get(TableIndex::from_u32(table))
                             .unwrap()
@@ -2101,8 +2090,13 @@ impl FunctionCodeGenerator {
                 array_type_index,
             } => todo!(),
             Operator::RefI31Shared => todo!(),
+            _ => {
+                return Err(
+                    CompileError::Codegen(format!("Operator {:?} unimplemented", op)).into(),
+                );
+            }
         }
-        Ok((block, block))
+        Ok(block)
     }
 
     /// Finalizes the translation of a WebAssembly function by appending a return operation.
@@ -2129,14 +2123,12 @@ impl FunctionCodeGenerator {
         wasm_fn_type: &FunctionType,
         fn_type: &melior::ir::r#type::FunctionType,
     ) -> Result<()> {
-        let results = backend
-            .state
-            .popn_save_extra(wasm_fn_type.results().len())?;
-        let results = results.into_iter().map(|(v, i)| v);
-        block.append_operation(func::r#return(
-            &results.collect::<Vec<_>>(),
-            backend.intrinsics.unknown_loc,
-        ));
+        debug_assert!(block.argument_count() == wasm_fn_type.results().len());
+        let mut results = vec![];
+        for i in 0..block.argument_count() {
+            results.push(block.argument(i)?.into());
+        }
+        block.append_operation(func::r#return(&results, backend.intrinsics.unknown_loc));
         Ok(())
     }
 }

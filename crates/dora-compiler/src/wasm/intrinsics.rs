@@ -57,19 +57,14 @@ use wasmer_types::{
 pub struct WASMIntrinsics<'c> {
     /// The type representing the WebAssembly execution context.
     pub ctx_ty: Type<'c>,
-
     /// The pointer type to the WebAssembly execution context.
     pub ctx_ptr_ty: Type<'c>,
-
     /// The type for representing any WebAssembly function.
     pub any_func_ty: Type<'c>,
-
     /// The type representing a reference to a WebAssembly function.
     pub func_ref_ty: Type<'c>,
-
     /// The type for representing a reference to an external object.
     pub extern_ref_ty: Type<'c>,
-
     /// Intrinsics inherited from the base `Intrinsics` structure.
     pub(crate) intrinsics: Intrinsics<'c>,
 }
@@ -206,28 +201,20 @@ pub struct FunctionCache<'c, 'a> {
 pub struct CtxType<'c, 'a> {
     /// A reference to the WebAssembly module information, providing metadata about the module.
     wasm_module: &'a ModuleInfo,
-
     /// A cache of WebAssembly memories, indexed by `MemoryIndex`.
     cached_memories: HashMap<MemoryIndex, MemoryCache<'c, 'a>>,
-
     /// A cache of WebAssembly tables, indexed by `TableIndex`.
     cached_tables: HashMap<TableIndex, TableCache<'c, 'a>>,
-
     /// A cache of signature indices as `Value` instances.
     cached_sigindices: HashMap<SignatureIndex, Value<'c, 'a>>,
-
     /// A cache of WebAssembly globals, indexed by `GlobalIndex`.
     cached_globals: HashMap<GlobalIndex, GlobalCache<'c, 'a>>,
-
     /// A cache of WebAssembly functions, indexed by `FunctionIndex`.
     cached_functions: HashMap<FunctionIndex, FunctionCache<'c, 'a>>,
-
     /// A cache for memory growth values, indexed by `MemoryIndex`.
     cached_memory_grow: HashMap<MemoryIndex, Value<'c, 'a>>,
-
     /// A cache for memory size values, indexed by `MemoryIndex`.
     cached_memory_size: HashMap<MemoryIndex, Value<'c, 'a>>,
-
     /// Contains the offsets for memory and table elements within the WebAssembly execution context.
     offsets: VMOffsets,
 }

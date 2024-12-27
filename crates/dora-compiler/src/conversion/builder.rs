@@ -7,7 +7,7 @@ use dora_ir::IRTypes;
 use melior::dialect::arith::CmpiPredicate;
 use melior::dialect::llvm::attributes::Linkage;
 use melior::dialect::llvm::r#type::r#struct;
-use melior::dialect::llvm::LoadStoreOptions;
+use melior::dialect::llvm::{AllocaOptions, LoadStoreOptions};
 use melior::dialect::{arith, func, llvm};
 use melior::ir::attribute::{
     DenseI32ArrayAttribute, FlatSymbolRefAttribute, FloatAttribute, IntegerAttribute,
@@ -636,6 +636,24 @@ impl<'c, 'a> OpBuilder<'c, 'a> {
             self.unknown_loc(),
             LoadStoreOptions::default(),
         )
+    }
+
+    /// Creates an operation to allocate memory on the stack for a specified type.
+    ///
+    /// # Parameters
+    /// - `ty`: The type of the memory block to allocate.
+    ///
+    /// # Returns
+    /// An operation representing the memory allocation.
+    pub fn alloca(&self, ty: Ty<'c, 'a>) -> Result<Op<'c, '_>> {
+        let array_size = self.make(self.iconst_64(1))?;
+        Ok(llvm::alloca(
+            self.context(),
+            array_size,
+            ty,
+            self.unknown_loc(),
+            AllocaOptions::new().elem_type(Some(TypeAttribute::new(ty))),
+        ))
     }
 
     /// Retrieves the value of a field from a given pointer at a specified offset and interprets it as a specific type.
