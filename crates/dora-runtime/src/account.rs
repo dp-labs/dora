@@ -4,8 +4,7 @@ use std::fmt::{self, Debug};
 
 use crate::db::{DbAccount, StorageSlot};
 use bitflags::bitflags;
-use dora_primitives::{Bytecode, B256, U256};
-use revm_primitives::{b256, SpecId};
+use dora_primitives::{b256, Bytecode, SpecId, B256, U256};
 use rustc_hash::FxHashMap;
 
 /// Keccak256 hash of an empty bytecode.
@@ -74,7 +73,10 @@ impl fmt::Debug for AccountInfo {
             .field("nonce", &self.nonce)
             .field("code_hash", &self.code_hash)
             // Use the hex output format
-            .field("code", &self.code.as_ref().map(hex::encode))
+            .field(
+                "code",
+                &hex::encode(self.code.clone().unwrap_or_default().bytecode()),
+            )
             .finish()
     }
 }
@@ -175,7 +177,7 @@ impl Account {
     /// assert!(!account.is_selfdestructed());
     /// ```
     pub fn is_selfdestructed(&self) -> bool {
-        self.status.contains(AccountStatus::SelfDestructed)
+        self.status.contains(AccountStatus::Selfdestructed)
     }
 
     /// Checks if the account was newly created.
@@ -223,12 +225,12 @@ impl Account {
 
     /// Mark account as self destructed.
     pub fn mark_selfdestruct(&mut self) {
-        self.status |= AccountStatus::SelfDestructed;
+        self.status |= AccountStatus::Selfdestructed;
     }
 
     /// Unmark account as self destructed.
     pub fn unmark_selfdestruct(&mut self) {
-        self.status -= AccountStatus::SelfDestructed;
+        self.status -= AccountStatus::Selfdestructed;
     }
 
     /// Mark account as newly created.
@@ -283,7 +285,7 @@ bitflags! {
     pub struct AccountStatus: u8 {
         const Loaded               = 0b00000000;
         const Created              = 0b00000001;
-        const SelfDestructed       = 0b00000010;
+        const Selfdestructed       = 0b00000010;
         const Touched              = 0b00000100;
         const LoadedAsNotExisting  = 0b00001000;  // Pre-EIP-161 state.
         const Cold                 = 0b00100000;

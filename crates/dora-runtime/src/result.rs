@@ -358,13 +358,13 @@ impl fmt::Display for InvalidHeader {
 /// This enum describes various reasons for successful completion:
 /// - `Stop`: The `STOP` opcode was executed.
 /// - `Return`: The `RETURN` opcode was executed.
-/// - `SelfDestruct`: The contract self-destructed.
+/// - `Selfdestruct`: The contract self-destructed.
 /// - `EofReturnContract`: EOF contract execution returned.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum SuccessReason {
     Stop,
     Return,
-    SelfDestruct,
+    Selfdestruct,
     EofReturnContract,
 }
 

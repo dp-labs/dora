@@ -49,7 +49,7 @@ pub struct ConversionPass<'c> {
     pub ctx: &'c Context,
 }
 
-impl<'c> ConversionPass<'c> {
+impl ConversionPass<'_> {
     /// Executes the conversion pass on the provided operation.
     ///
     /// This function transforms specific EVM (Ethereum Virtual Machine) operations into equivalent
@@ -507,6 +507,17 @@ impl<'c> ConversionPass<'c> {
                     )
                     .into(),
                 );
+            } else if name == "evm.returndataload" {
+                rewriter::replace_op(
+                    op,
+                    dora_ir::dora::returndataload(
+                        self.ctx,
+                        rewriter.uint256_ty(),
+                        op.operand(0)?,
+                        op.location(),
+                    )
+                    .into(),
+                );
             } else if name == "evm.returndatasize" {
                 rewriter::replace_op(
                     op,
@@ -909,7 +920,7 @@ impl<'c> RunExternalPass<'c> for ConversionPass<'c> {
     }
 }
 
-impl<'c> ConversionPass<'c> {
+impl ConversionPass<'_> {
     pub fn into_pass(self) -> Pass {
         create_external(
             self,

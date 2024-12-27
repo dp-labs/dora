@@ -213,7 +213,7 @@ pub struct State<'c, 'a> {
     pub reachable: bool,
 }
 
-impl<'c, 'a> Default for State<'c, 'a> {
+impl Default for State<'_, '_> {
     fn default() -> Self {
         Self::new()
     }

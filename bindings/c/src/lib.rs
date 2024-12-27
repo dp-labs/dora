@@ -4,7 +4,7 @@
 use dora::{
     build_artifact,
     compiler::evm::program::EOF_MAGIC_BYTES,
-    primitives::{Address, Bytes, Bytes32, SpecId},
+    primitives::{Address, Bytecode, Bytes, Bytes32, SpecId},
     runtime::{
         artifact::{Artifact, SymbolArtifact},
         call::CallKind,
@@ -52,7 +52,7 @@ impl EvmcVm for DoraVM {
         let spec_id = evmc_revision_to_spec_id(revision);
         let contract = Contract {
             input: message.input().cloned().unwrap_or_else(Vec::new).into(),
-            code: code.to_owned().into(),
+            code: Bytecode::new_raw(code.to_owned().into()),
             hash: None,
             target_address: evmc_address_to_address(message.recipient()),
             code_address: evmc_address_to_address(message.code_address()),
@@ -69,16 +69,18 @@ impl EvmcVm for DoraVM {
             spec_id,
         );
         let mut artifacts = ARTIFACTS.lock().unwrap();
-        let artifact = if let Some(artifact) = artifacts.get(&runtime_context.contract.code) {
+        let artifact = if let Some(artifact) =
+            artifacts.get(runtime_context.contract.code.bytecode().as_ref())
+        {
             artifact.clone()
         } else {
             let Ok(artifact) = build_artifact::<MemoryDB>(
-                &runtime_context.contract.code,
+                runtime_context.contract.code.bytecode(),
                 runtime_context.inner.spec_id,
             ) else {
                 return ExecutionResult::failure();
             };
-            artifacts.insert(runtime_context.contract.code.to_owned(), artifact.clone());
+            artifacts.insert(runtime_context.contract.code.bytes(), artifact.clone());
             artifact
         };
         drop(artifacts);
@@ -113,6 +115,7 @@ impl EvmcVm for DoraVM {
 }
 
 #[inline]
+#[allow(non_snake_case)]
 fn evmc_revision_to_spec_id(revision: Revision) -> SpecId {
     use evmc_sys::evmc_revision::*;
     match revision {
@@ -145,7 +148,7 @@ fn status_to_evmc_status(status: ExitStatusCode) -> StatusCode {
         ExitStatusCode::Continue
         | ExitStatusCode::Return
         | ExitStatusCode::Stop
-        | ExitStatusCode::SelfDestruct => StatusCode::EVMC_SUCCESS,
+        | ExitStatusCode::Selfdestruct => StatusCode::EVMC_SUCCESS,
         ExitStatusCode::Revert
         | ExitStatusCode::OutOfFunds
         | ExitStatusCode::CreateInitCodeStartingEF00
@@ -214,14 +217,17 @@ fn evmc_status_to_status(status: StatusCode) -> ExitStatusCode {
 #[inline]
 fn call_kind_to_evmc_msg_kind(kind: CallKind) -> MessageKind {
     match kind {
+        CallKind::EofCreate => MessageKind::EVMC_EOFCREATE,
         CallKind::Call => MessageKind::EVMC_CALL,
-        CallKind::CallCode => MessageKind::EVMC_CALLCODE,
+        CallKind::Callcode => MessageKind::EVMC_CALLCODE,
         CallKind::Delegatecall => MessageKind::EVMC_DELEGATECALL,
         CallKind::Staticcall => MessageKind::EVMC_CALL,
         CallKind::Create => MessageKind::EVMC_CREATE,
         CallKind::Create2 => MessageKind::EVMC_CREATE2,
-        CallKind::EofCreate => MessageKind::EVMC_EOFCREATE,
-        CallKind::ExtCall | CallKind::ExtStaticcall | CallKind::ExtDelegatecall => {
+        CallKind::ReturnContract
+        | CallKind::ExtCall
+        | CallKind::ExtStaticcall
+        | CallKind::ExtDelegatecall => {
             unimplemented!("{:?}", kind)
         }
     }

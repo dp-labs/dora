@@ -1,21 +1,18 @@
 use crate::{
-    arith_constant,
-    conversion::rewriter::{DeferredRewriter, Rewriter},
-    dora::conversion::ConversionPass,
-    errors::Result,
-    operands, rewrite_ctx,
+    arith_constant, conversion::rewriter::Rewriter, dora::conversion::ConversionPass,
+    errors::Result, operands, rewrite_ctx,
 };
 use melior::{
     dialect::{
         arith::{self, CmpiPredicate},
         scf,
     },
-    ir::{attribute::IntegerAttribute, operation::OperationRef, Block, Region},
+    ir::{operation::OperationRef, Block, Region},
     Context,
 };
 use num_bigint::BigUint;
 
-impl<'c> ConversionPass<'c> {
+impl ConversionPass<'_> {
     pub(crate) fn lt(context: &Context, op: &OperationRef<'_, '_>) -> Result<()> {
         operands!(op, l, r);
         rewrite_ctx!(context, op, rewriter, location);

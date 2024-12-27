@@ -1,11 +1,7 @@
 use crate::{
-    arith_constant,
     backend::IntCC,
-    block_argument, check_op_oog, check_runtime_error,
-    conversion::{
-        builder::OpBuilder,
-        rewriter::{DeferredRewriter, Rewriter},
-    },
+    block_argument, check_runtime_error,
+    conversion::{builder::OpBuilder, rewriter::Rewriter},
     create_var,
     dora::{
         conversion::ConversionPass,
@@ -13,14 +9,14 @@ use crate::{
         memory::{self, allocate_u256_and_assign_value},
     },
     errors::Result,
-    gas_or_fail, if_here, load_var, maybe_revert_here, operands, rewrite_ctx, u256_to_u64,
+    gas_or_fail, if_here, load_var, operands, rewrite_ctx, u256_to_u64,
 };
 use dora_runtime::symbols;
 use dora_runtime::ExitStatusCode;
 use melior::{
     dialect::{
-        arith, cf, func,
-        llvm::{self, AllocaOptions, LoadStoreOptions},
+        arith, func,
+        llvm::{self, LoadStoreOptions},
         ods, scf,
     },
     ir::{
@@ -33,7 +29,7 @@ use melior::{
 use num_bigint::BigUint;
 use std::mem::offset_of;
 
-impl<'c> ConversionPass<'c> {
+impl ConversionPass<'_> {
     pub(crate) fn keccak256(context: &Context, op: &OperationRef<'_, '_>) -> Result<()> {
         operands!(op, offset, size);
         block_argument!(op, syscall_ctx, gas_counter_ptr);
@@ -143,6 +139,7 @@ impl<'c> ConversionPass<'c> {
 
         let uint1 = rewriter.intrinsics.i1_ty;
         let uint8 = rewriter.intrinsics.i8_ty;
+        let uint64 = rewriter.uint64_ty();
         let uint256 = rewriter.intrinsics.i256_ty;
         let ptr_type = rewriter.intrinsics.ptr_ty;
 
@@ -157,14 +154,14 @@ impl<'c> ConversionPass<'c> {
             context,
             FlatSymbolRefAttribute::new(context, symbols::CALLDATA_SIZE),
             &[syscall_ctx.into()],
-            &[rewriter.intrinsics.i64_ty],
+            &[uint64],
             location,
         ))?;
-        // convert calldata_size from u64 to u256
+        // convert `calldata_size` from u64 to u256
         let calldata_size = rewriter.make(arith::extui(calldata_size, uint256, location))?;
         // Define the maximum slice width (32 bytes)
         let max_slice_width = rewriter.make(rewriter.iconst_256_from_u64(32)?)?;
-        // Compare offset with calldata size
+        // Compare offset with `calldata_size`
         let offset_cmpi = rewriter.make(arith::cmpi(
             context,
             arith::CmpiPredicate::Ult,
@@ -334,7 +331,7 @@ impl<'c> ConversionPass<'c> {
         rewriter.create(func::call(
             context,
             FlatSymbolRefAttribute::new(context, symbols::CODE_COPY),
-            &[syscall_ctx.into(), code_offset, size, memory_offset],
+            &[syscall_ctx.into(), memory_offset, code_offset, size],
             &[],
             location,
         ));
@@ -345,12 +342,14 @@ impl<'c> ConversionPass<'c> {
         block_argument!(op, syscall_ctx);
         rewrite_ctx!(context, op, rewriter, location);
 
-        let uint256 = rewriter.intrinsics.i256_ty;
+        let uint64 = rewriter.uint64_ty();
+        let uint256 = rewriter.uint256_ty();
+
         let data_size = rewriter.make(func::call(
             context,
             FlatSymbolRefAttribute::new(context, symbols::RETURNDATA_SIZE),
             &[syscall_ctx.into()],
-            &[rewriter.intrinsics.i64_ty],
+            &[uint64],
             location,
         ))?;
         rewriter.create(arith::extui(data_size, uint256, location));

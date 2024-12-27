@@ -164,7 +164,7 @@ impl<'c, 'a> OpBuilder<'c, 'a> {
     }
 }
 
-impl<'c, 'a> IRTypes for OpBuilder<'c, 'a> {
+impl<'c> IRTypes for OpBuilder<'c, '_> {
     type Type = Type<'c>;
     type Value = Value<'c, 'c>;
     type Region = Region<'c>;
@@ -199,10 +199,40 @@ impl<'c, 'a> OpBuilder<'c, 'a> {
         self.intrinsics.unknown_loc
     }
 
+    /// Returns the `boolean` type intrinsic, representing a 1-bit unsigned integer.
+    #[inline]
+    pub fn uint1_ty(&self) -> Type<'c> {
+        self.intrinsics.i1_ty
+    }
+
+    /// Returns the `i8` integer type intrinsic, representing a 8-bit unsigned integer.
+    #[inline]
+    pub fn uint8_ty(&self) -> Type<'c> {
+        self.intrinsics.i8_ty
+    }
+
+    /// Returns the `i16` integer type intrinsic, representing a 16-bit unsigned integer.
+    #[inline]
+    pub fn uint16_ty(&self) -> Type<'c> {
+        self.intrinsics.i16_ty
+    }
+
+    /// Returns the `i64` integer type intrinsic, representing a 64-bit unsigned integer.
+    #[inline]
+    pub fn uint64_ty(&self) -> Type<'c> {
+        self.intrinsics.i64_ty
+    }
+
     /// Returns the `i256` integer type intrinsic, representing a 256-bit unsigned integer.
     #[inline]
     pub fn uint256_ty(&self) -> Type<'c> {
         self.intrinsics.i256_ty
+    }
+
+    /// Returns the index(`usize`) type intrinsic.
+    #[inline]
+    pub fn index_ty(&self) -> Type<'c> {
+        self.intrinsics.index_ty
     }
 
     /// Returns the pointer type intrinsic.
@@ -361,6 +391,18 @@ impl<'c, 'a> OpBuilder<'c, 'a> {
     #[inline]
     pub fn iconst_8(&self, value: i8) -> Op<'c, '_> {
         self.iconst(self.intrinsics.i8_ty, value as i64)
+    }
+
+    /// Creates an 16-bit integer constant operation with the specified value.
+    ///
+    /// # Parameters
+    /// - `value`: The 16-bit integer value.
+    ///
+    /// # Returns
+    /// An integer constant operation of type `i16`.
+    #[inline]
+    pub fn iconst_16(&self, value: i16) -> Op<'c, '_> {
+        self.iconst(self.intrinsics.i16_ty, value as i64)
     }
 
     /// Creates a 32-bit integer constant operation with the specified value.

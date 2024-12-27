@@ -358,7 +358,7 @@ impl<'c> EVMCompiler<'c> {
             Operation::TLoad => EVMCompiler::tload(ctx, region),
             Operation::TStore => EVMCompiler::tstore(ctx, region),
             Operation::Log(x) => EVMCompiler::log(ctx, region, *x),
-            Operation::SelfDestruct => EVMCompiler::selfdestruct(ctx, region),
+            Operation::Selfdestruct => EVMCompiler::selfdestruct(ctx, region),
             // Stack instructions
             Operation::Push0 => EVMCompiler::push(ctx, region, BigUint::ZERO),
             Operation::Push((_, x)) => EVMCompiler::push(ctx, region, (*x).clone()),
@@ -371,10 +371,12 @@ impl<'c> EVMCompiler<'c> {
             // Control instructions
             Operation::Jump => EVMCompiler::jump(ctx, region),
             Operation::JumpI => EVMCompiler::jumpi(ctx, region),
-            Operation::JumpF(x) => EVMCompiler::jumpf(ctx, region, *x),
             Operation::RJump(x) => EVMCompiler::rjump(ctx, region, *x),
             Operation::RJumpI(x) => EVMCompiler::rjumpi(ctx, region, *x),
             Operation::RJumpV((x1, x2)) => EVMCompiler::rjumpv(ctx, region, *x1, (*x2).clone()),
+            Operation::CallF(x) => EVMCompiler::callf(ctx, region, *x),
+            Operation::RetF => EVMCompiler::retf(ctx, region),
+            Operation::JumpF(x) => EVMCompiler::jumpf(ctx, region, *x),
             Operation::PC { pc } => EVMCompiler::pc(ctx, region, *pc),
             Operation::Jumpdest { pc } => EVMCompiler::jumpdest(ctx, region, *pc),
             Operation::Revert => EVMCompiler::revert(ctx, region),
@@ -392,9 +394,7 @@ impl<'c> EVMCompiler<'c> {
             Operation::EofCreate(x) => EVMCompiler::eofcreate(ctx, region, *x),
             Operation::ReturnContract(x) => EVMCompiler::returncontract(ctx, region, *x),
             Operation::Call => EVMCompiler::call(ctx, region),
-            Operation::CallF(x) => EVMCompiler::callf(ctx, region, *x),
-            Operation::RetF => EVMCompiler::retf(ctx, region),
-            Operation::CallCode => EVMCompiler::callcode(ctx, region),
+            Operation::Callcode => EVMCompiler::callcode(ctx, region),
             Operation::Delegatecall => EVMCompiler::delegatecall(ctx, region),
             Operation::Staticcall => EVMCompiler::staticcall(ctx, region),
             Operation::Return => EVMCompiler::creturn(ctx, region),
@@ -819,6 +819,8 @@ pub struct CompileOptions {
     ///
     /// Information was obtained from the [Ethereum Execution Specifications](https://github.com/ethereum/execution-specs)
     pub spec_id: SpecId,
+    /// A flag indicating whether to do validation for possible eof bytecode before compilation.
+    pub validate_eof: bool,
     /// A flag indicating whether to perform gas metering during compilation.
     pub gas_metering: bool,
     /// Check for stack overflow or underflow errors. Note that there is no need to check for EOF Bytecode,
@@ -832,6 +834,7 @@ impl Default for CompileOptions {
     fn default() -> Self {
         Self {
             spec_id: SpecId::CANCUN,
+            validate_eof: true,
             gas_metering: true,
             stack_bound_checks: true,
             inline: false,

@@ -1,23 +1,12 @@
-use crate::backend::IntCC;
 use crate::dora::gas::{memory_gas_cost, num_words};
-use crate::{
-    arith_constant,
-    conversion::{builder::OpBuilder, rewriter::Rewriter},
-    create_var,
-    errors::Result,
-    store_var,
-};
-use crate::{check_op_oog, check_runtime_error, gas_or_fail, if_here, maybe_revert_here};
+use crate::{check_op_oog, check_runtime_error, gas_or_fail, if_here};
+use crate::{conversion::rewriter::Rewriter, create_var, errors::Result, store_var};
 use block::BlockArgument;
 use dora_runtime::symbols;
 use dora_runtime::ExitStatusCode;
 use melior::dialect::arith::CmpiPredicate;
 use melior::{
-    dialect::{
-        arith, cf, func,
-        llvm::{self, AllocaOptions, LoadStoreOptions},
-        scf,
-    },
+    dialect::{arith, func, llvm::LoadStoreOptions},
     ir::{
         attribute::{FlatSymbolRefAttribute, IntegerAttribute, TypeAttribute},
         r#type::IntegerType,

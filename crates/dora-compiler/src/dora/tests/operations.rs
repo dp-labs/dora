@@ -7,9 +7,13 @@ use num_bigint::BigUint;
 
 macro_rules! assert_snapshot {
     ($operations:expr) => {
+        assert_snapshot!($operations, false)
+    };
+    ($operations:expr, $is_eof:expr) => {
         let program = Program {
             operations: $operations,
             code_size: 0,
+            is_eof: $is_eof,
         };
         let context = Context::new();
         let compiler = EVMCompiler::new(&context);
@@ -1783,7 +1787,7 @@ fn push_callcode() {
         Operation::Push((1_u8, BigUint::from(32_u32))),
         Operation::Push((1_u8, BigUint::from(64_u32))),
         Operation::Push((1_u8, BigUint::from(64_u32))),
-        Operation::CallCode,
+        Operation::Callcode,
     ]);
 }
 
@@ -1810,7 +1814,7 @@ fn push_mstore_create_callcode() {
         Operation::Push((1_u8, BigUint::from(0_u8))),
         Operation::Dup(6),
         Operation::Push((2_u8, BigUint::from_bytes_be(&[0xFF, 0xFF]))),
-        Operation::CallCode,
+        Operation::Callcode,
         Operation::Push((1_u8, BigUint::from(1_u8))),
         Operation::Push((1_u8, BigUint::from(0_u8))),
         Operation::SStore,
@@ -1821,7 +1825,7 @@ fn push_mstore_create_callcode() {
         Operation::Push((1_u8, BigUint::from(0_u8))),
         Operation::Dup(7),
         Operation::Push((2_u8, BigUint::from_bytes_be(&[0xFF, 0xFF]))),
-        Operation::CallCode,
+        Operation::Callcode,
     ]);
 }
 
@@ -1980,7 +1984,7 @@ fn push_selfdestruct() {
                 0xDE, 0xF0, 0x12, 0x34, 0x56, 0x78
             ])
         )),
-        Operation::SelfDestruct,
+        Operation::Selfdestruct,
     ]);
 }
 
@@ -1988,7 +1992,7 @@ fn push_selfdestruct() {
 fn push_selfdestruct_zero_address() {
     assert_snapshot!(vec![
         Operation::Push((1_u8, BigUint::from(0_u32))),
-        Operation::SelfDestruct,
+        Operation::Selfdestruct,
     ]);
 }
 

@@ -7,7 +7,7 @@ use dora::runtime::call::{CallMessage, CallResult};
 use dora::runtime::context::Log;
 use dora::runtime::env::{BlobExcessGasAndPrice, BlockEnv, CfgEnv, Env, TxEnv};
 use dora::runtime::host::{
-    AccountLoad, CodeLoad, Host, SStoreResult, SStoreStatus, SelfDestructResult, StateLoad,
+    AccountLoad, CodeLoad, Host, SStoreResult, SStoreStatus, SelfdestructResult, StateLoad,
 };
 use dora::runtime::result::EVMError;
 use evmc_sys::{evmc_access_status, evmc_address, evmc_bytes32, evmc_storage_status};
@@ -68,7 +68,7 @@ impl<'a> EvmcDelegateHost<'a> {
     }
 }
 
-impl<'a> Host for EvmcDelegateHost<'a> {
+impl Host for EvmcDelegateHost<'_> {
     #[inline]
     fn env(&self) -> &Env {
         &self.env
@@ -185,7 +185,7 @@ impl<'a> Host for EvmcDelegateHost<'a> {
         &mut self,
         addr: Address,
         target: Address,
-    ) -> Option<StateLoad<SelfDestructResult>> {
+    ) -> Option<StateLoad<SelfdestructResult>> {
         unsafe {
             let addr = transmute::<Address, evmc_address>(addr);
             let target = transmute::<Address, evmc_address>(target);
@@ -198,7 +198,7 @@ impl<'a> Host for EvmcDelegateHost<'a> {
             let target_exists = self.context.account_exists(&target);
             let first_registerd = self.context.selfdestruct(&addr, &target);
             Some(StateLoad::new(
-                SelfDestructResult {
+                SelfdestructResult {
                     had_value,
                     target_exists,
                     previously_destroyed: !first_registerd,

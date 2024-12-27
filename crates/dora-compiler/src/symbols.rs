@@ -14,9 +14,12 @@ pub(crate) fn declare_symbols(context: &MLIRContext, module: &MLIRModule) {
     let builder = OpBuilder::new_with_block(context, block);
     let location = builder.get_insert_location();
 
-    let ptr_type = builder.intrinsics.ptr_ty;
     let uint8 = builder.intrinsics.i8_ty;
+    let uint16 = builder.intrinsics.i16_ty;
     let uint64 = builder.intrinsics.i64_ty;
+    let index_type = builder.index_ty();
+    let ptr_type = builder.intrinsics.ptr_ty;
+
     let attributes = &[(
         Identifier::new(context, "sym_visibility"),
         builder.str_attr("private").into(),
@@ -41,12 +44,19 @@ pub(crate) fn declare_symbols(context: &MLIRContext, module: &MLIRModule) {
             &[],
         ),
         (symbols::CALLDATA, &[ptr_type], &[ptr_type]),
+        (symbols::CALLDATA_SIZE, &[ptr_type], &[uint64]),
         (
             symbols::CALLDATA_COPY,
             &[ptr_type, uint64, ptr_type, uint64],
             &[],
         ),
-        (symbols::CALLDATA_SIZE, &[ptr_type], &[uint64]),
+        (symbols::DATA_SECTION, &[ptr_type], &[ptr_type]),
+        (symbols::DATA_SECTION_SIZE, &[ptr_type], &[uint16]),
+        (
+            symbols::DATA_SECTION_COPY,
+            &[ptr_type, uint64, ptr_type, uint64],
+            &[],
+        ),
         (symbols::CHAINID, &[ptr_type], &[uint64]),
         (symbols::CALLVALUE, &[ptr_type, ptr_type], &[]),
         (symbols::CALLER, &[ptr_type, ptr_type], &[]),
@@ -67,7 +77,7 @@ pub(crate) fn declare_symbols(context: &MLIRContext, module: &MLIRModule) {
         (symbols::MEMORY_SIZE, &[ptr_type], &[uint64]),
         (
             symbols::CODE_COPY,
-            &[ptr_type, ptr_type, uint64, uint64],
+            &[ptr_type, uint64, ptr_type, uint64],
             &[],
         ),
         (symbols::SLOAD, &[ptr_type, ptr_type, ptr_type], &[ptr_type]),
@@ -108,14 +118,6 @@ pub(crate) fn declare_symbols(context: &MLIRContext, module: &MLIRModule) {
         (symbols::STORE_IN_TIMESTAMP_PTR, &[ptr_type, ptr_type], &[]),
         (symbols::STORE_IN_BASEFEE_PTR, &[ptr_type, ptr_type], &[]),
         (
-            symbols::CALL,
-            &[
-                ptr_type, ptr_type, ptr_type, ptr_type, uint64, uint64, uint64, uint64, uint64,
-                uint8,
-            ],
-            &[ptr_type],
-        ),
-        (
             symbols::STORE_IN_BALANCE,
             &[ptr_type, ptr_type],
             &[ptr_type],
@@ -129,6 +131,24 @@ pub(crate) fn declare_symbols(context: &MLIRContext, module: &MLIRModule) {
         (symbols::BLOCK_HASH, &[ptr_type, ptr_type], &[ptr_type]),
         (symbols::EXT_CODE_HASH, &[ptr_type, ptr_type], &[ptr_type]),
         (
+            symbols::EOFCREATE,
+            &[ptr_type, uint8, uint64, uint64, ptr_type, uint64, ptr_type],
+            &[ptr_type],
+        ),
+        (
+            symbols::RETURNCONTRACT,
+            &[ptr_type, uint8, uint64, uint64, index_type, uint64, uint8],
+            &[ptr_type],
+        ),
+        (
+            symbols::CALL,
+            &[
+                ptr_type, ptr_type, ptr_type, ptr_type, uint64, uint64, uint64, uint64, uint64,
+                uint8,
+            ],
+            &[ptr_type],
+        ),
+        (
             symbols::CREATE,
             &[ptr_type, uint64, uint64, ptr_type, uint64],
             &[ptr_type],
@@ -138,6 +158,12 @@ pub(crate) fn declare_symbols(context: &MLIRContext, module: &MLIRModule) {
             &[ptr_type, uint64, uint64, ptr_type, uint64, ptr_type],
             &[ptr_type],
         ),
+        (
+            symbols::EXTCALL,
+            &[ptr_type, ptr_type, ptr_type, uint64, uint64, uint64, uint8],
+            &[ptr_type],
+        ),
+        (symbols::RETURNDATA, &[ptr_type], &[ptr_type]),
         (symbols::RETURNDATA_SIZE, &[ptr_type], &[uint64]),
         (
             symbols::RETURNDATA_COPY,

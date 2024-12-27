@@ -168,7 +168,8 @@ impl<'a, DB: Database> VM<'a, DB> {
                 salt: None,
                 code_address: ctx.env.tx.get_address(),
                 is_static: false,
-                is_eof: false,
+                is_eof_init: false,
+                validate_eof: true,
             };
             if std::env::var(DORA_TRACING).is_ok() {
                 println!("info: tx call msg {:?}", call_msg);
@@ -222,8 +223,8 @@ impl<'a, DB: Database> VM<'a, DB> {
                 output: Output::Call(return_values.into()),
                 logs,
             },
-            ExitStatusCode::SelfDestruct => ExecutionResult::Success {
-                reason: SuccessReason::SelfDestruct,
+            ExitStatusCode::Selfdestruct => ExecutionResult::Success {
+                reason: SuccessReason::Selfdestruct,
                 gas_used,
                 gas_refunded,
                 output: Output::Call(return_values.into()),
@@ -401,7 +402,7 @@ impl<'a, DB: Database> Deref for VM<'a, DB> {
     }
 }
 
-impl<'a, DB: Database> DerefMut for VM<'a, DB> {
+impl<DB: Database> DerefMut for VM<'_, DB> {
     fn deref_mut(&mut self) -> &mut Self::Target {
         &mut self.context
     }
