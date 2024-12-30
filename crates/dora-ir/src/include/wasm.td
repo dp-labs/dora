@@ -650,7 +650,7 @@ def Wasm_LtsOp : WASM_Op<"lts"> {
         AnyTypeOf<[I32, I64]>:$rhs
     );
 
-    let results = (outs AnyTypeOf<[I32, I64]>:$result);
+    let results = (outs I32:$result);
 
     let assemblyFormat = [{
         $lhs `,` $rhs `:` type($lhs) `->` type($result)
@@ -688,7 +688,7 @@ def Wasm_GtsOp : WASM_Op<"gts"> {
         AnyTypeOf<[I32, I64]>:$rhs
     );
 
-    let results = (outs AnyTypeOf<[I32, I64]>:$result);
+    let results = (outs I32:$result);
 
     let assemblyFormat = [{
         $lhs `,` $rhs `:` type($lhs) `->` type($result)
@@ -707,7 +707,7 @@ def Wasm_GtuOp : WASM_Op<"gtu"> {
         AnyTypeOf<[I32, I64]>:$rhs
     );
 
-    let results = (outs AnyTypeOf<[I32, I64]>:$result);
+    let results = (outs I32:$result);
 
     let assemblyFormat = [{
         $lhs `,` $rhs `:` type($lhs) `->` type($result)
@@ -726,7 +726,7 @@ def Wasm_LesOp : WASM_Op<"les"> {
         AnyTypeOf<[I32, I64]>:$rhs
     );
 
-    let results = (outs AnyTypeOf<[I32, I64]>:$result);
+    let results = (outs I32:$result);
 
     let assemblyFormat = [{
         $lhs `,` $rhs `:` type($lhs) `->` type($result)
@@ -745,7 +745,7 @@ def Wasm_LeuOp : WASM_Op<"leu"> {
         AnyTypeOf<[I32, I64]>:$rhs
     );
 
-    let results = (outs AnyTypeOf<[I32, I64]>:$result);
+    let results = (outs I32:$result);
 
     let assemblyFormat = [{
         $lhs `,` $rhs `:` type($lhs) `->` type($result)
@@ -764,7 +764,7 @@ def Wasm_GesOp : WASM_Op<"ges"> {
         AnyTypeOf<[I32, I64]>:$rhs
     );
 
-    let results = (outs AnyTypeOf<[I32, I64]>:$result);
+    let results = (outs I32:$result);
 
     let assemblyFormat = [{
         $lhs `,` $rhs `:` type($lhs) `->` type($result)
@@ -783,7 +783,7 @@ def Wasm_GeuOp : WASM_Op<"geu"> {
         AnyTypeOf<[I32, I64]>:$rhs
     );
 
-    let results = (outs AnyTypeOf<[I32, I64]>:$result);
+    let results = (outs I32:$result);
 
     let assemblyFormat = [{
         $lhs `,` $rhs `:` type($lhs) `->` type($result)

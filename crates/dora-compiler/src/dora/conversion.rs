@@ -17,11 +17,11 @@ static PASS: PassId = PassId;
 /// Dora IR (Intermediate Representation) operations and transforming them into equivalent LLVM/MLIR instructions.
 ///
 /// # Fields:
-/// - `program_code_size`: The size of the program's bytecode, typically measured in bytes.
+/// - `code_size`: The size of the program's bytecode, typically measured in bytes.
 ///
 /// # Example Usage:
 /// ```no_check
-/// let mut conversion_pass = ConversionPass { program_code_size: 512 };
+/// let mut conversion_pass = ConversionPass { code_size: 512 };
 /// conversion_pass.run(operation_ref).expect("Conversion failed");
 /// ```
 ///
@@ -35,7 +35,7 @@ pub struct ConversionPass<'c> {
     /// A reference to the MLIR context, which manages global state and resources required for MLIR operations.
     pub ctx: &'c Context,
     /// The size of the program's bytecode (in bytes).
-    pub program_code_size: u32,
+    pub code_size: u32,
     pub spec_id: SpecId,
     pub limit_contract_code_size: usize,
 }
@@ -144,7 +144,7 @@ impl ConversionPass<'_> {
             } else if name == "dora.calldatacopy" {
                 Self::calldatacopy(context, op)?
             } else if name == "dora.codesize" {
-                Self::codesize(context, op, self.program_code_size)?
+                Self::codesize(context, op, self.code_size)?
             } else if name == "dora.codecopy" {
                 Self::codecopy(context, op)?
             } else if name == "dora.gasprice" {

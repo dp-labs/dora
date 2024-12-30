@@ -3,9 +3,11 @@
 
 mod backend;
 mod code;
+mod conversion;
 mod errors;
 mod func;
 mod intrinsics;
+mod pass;
 mod state;
 mod ty;
 

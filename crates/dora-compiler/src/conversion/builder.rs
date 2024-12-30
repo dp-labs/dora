@@ -674,7 +674,7 @@ impl<'c, 'a> OpBuilder<'c, 'a> {
         Ok(llvm::alloca(
             self.context(),
             array_size,
-            ty,
+            self.ptr_ty(),
             self.unknown_loc(),
             AllocaOptions::new().elem_type(Some(TypeAttribute::new(ty))),
         ))

@@ -79,6 +79,23 @@ macro_rules! op {
             .to_ctx_value();
         $state.push1(result);
     };
+    ($builder:ident, $state:ident, $op:ident, i64 => i32) => {
+        let (input, _) = $state.pop1_extra()?;
+        let result = $builder
+            .create(
+                dora_ir::wasm::$op(
+                    $builder.context(),
+                    $builder.uint32_ty(),
+                    input,
+                    $builder.unknown_loc(),
+                )
+                .into(),
+            )
+            .result(0)
+            .map_err(|e| CompileError::Codegen(e.to_string()))?
+            .to_ctx_value();
+        $state.push1(result);
+    };
     ($builder:ident, $state:ident, $op:ident, f32) => {
         let (input, _) = $state.pop1_extra()?;
         let result = $builder
@@ -152,6 +169,24 @@ macro_rules! bin_op {
             .to_ctx_value();
         $state.push1(result);
     };
+    ($builder:ident, $state:ident, $op:ident, i64 => i32) => {
+        let ((v1, _), (v2, _)) = $state.pop2_extra()?;
+        let result = $builder
+            .create(
+                dora_ir::wasm::$op(
+                    $builder.context(),
+                    $builder.uint32_ty(),
+                    v1,
+                    v2,
+                    $builder.unknown_loc(),
+                )
+                .into(),
+            )
+            .result(0)
+            .map_err(|e| CompileError::Codegen(e.to_string()))?
+            .to_ctx_value();
+        $state.push1(result);
+    };
     ($builder:ident, $state:ident, $op:ident, f32) => {
         let ((v1, _), (v2, _)) = $state.pop2_extra()?;
         let result = $builder
@@ -170,6 +205,24 @@ macro_rules! bin_op {
             .to_ctx_value();
         $state.push1(result);
     };
+    ($builder:ident, $state:ident, $op:ident, f32 => i32) => {
+        let ((v1, _), (v2, _)) = $state.pop2_extra()?;
+        let result = $builder
+            .create(
+                dora_ir::wasm::$op(
+                    $builder.context(),
+                    $builder.uint32_ty(),
+                    v1,
+                    v2,
+                    $builder.unknown_loc(),
+                )
+                .into(),
+            )
+            .result(0)
+            .map_err(|e| CompileError::Codegen(e.to_string()))?
+            .to_ctx_value();
+        $state.push1(result);
+    };
     ($builder:ident, $state:ident, $op:ident, f64) => {
         let ((v1, _), (v2, _)) = $state.pop2_extra()?;
         let result = $builder
@@ -177,6 +230,24 @@ macro_rules! bin_op {
                 dora_ir::wasm::$op(
                     $builder.context(),
                     $builder.intrinsics.f64_ty,
+                    v1,
+                    v2,
+                    $builder.unknown_loc(),
+                )
+                .into(),
+            )
+            .result(0)
+            .map_err(|e| CompileError::Codegen(e.to_string()))?
+            .to_ctx_value();
+        $state.push1(result);
+    };
+    ($builder:ident, $state:ident, $op:ident, f64 => i32) => {
+        let ((v1, _), (v2, _)) = $state.pop2_extra()?;
+        let result = $builder
+            .create(
+                dora_ir::wasm::$op(
+                    $builder.context(),
+                    $builder.uint32_ty(),
                     v1,
                     v2,
                     $builder.unknown_loc(),
@@ -777,73 +848,73 @@ impl FunctionCodeGenerator {
                 bin_op!(builder, state, geu, i32);
             }
             Operator::I64Eqz => {
-                op!(builder, state, eqz, i64);
+                op!(builder, state, eqz, i64 => i32);
             }
             Operator::I64Eq => {
-                bin_op!(builder, state, eq, i64);
+                bin_op!(builder, state, eq, i64 => i32);
             }
             Operator::I64Ne => {
-                bin_op!(builder, state, ne, i64);
+                bin_op!(builder, state, ne, i64 => i32);
             }
             Operator::I64LtS => {
-                bin_op!(builder, state, lts, i64);
+                bin_op!(builder, state, lts, i64 => i32);
             }
             Operator::I64LtU => {
-                bin_op!(builder, state, ltu, i64);
+                bin_op!(builder, state, ltu, i64 => i32);
             }
             Operator::I64GtS => {
-                bin_op!(builder, state, gts, i64);
+                bin_op!(builder, state, gts, i64 => i32);
             }
             Operator::I64GtU => {
-                bin_op!(builder, state, gtu, i64);
+                bin_op!(builder, state, gtu, i64 => i32);
             }
             Operator::I64LeS => {
-                bin_op!(builder, state, les, i64);
+                bin_op!(builder, state, les, i64 => i32);
             }
             Operator::I64LeU => {
-                bin_op!(builder, state, leu, i64);
+                bin_op!(builder, state, leu, i64 => i32);
             }
             Operator::I64GeS => {
-                bin_op!(builder, state, ges, i64);
+                bin_op!(builder, state, ges, i64 => i32);
             }
             Operator::I64GeU => {
-                bin_op!(builder, state, geu, i64);
+                bin_op!(builder, state, geu, i64 => i32);
             }
             Operator::F32Eq => {
-                bin_op!(builder, state, eq, f32);
+                bin_op!(builder, state, eq, f32 => i32);
             }
             Operator::F32Ne => {
-                bin_op!(builder, state, ne, f32);
+                bin_op!(builder, state, ne, f32 => i32);
             }
             Operator::F32Lt => {
-                bin_op!(builder, state, lt, f32);
+                bin_op!(builder, state, lt, f32 => i32);
             }
             Operator::F32Gt => {
-                bin_op!(builder, state, gt, f32);
+                bin_op!(builder, state, gt, f32 => i32);
             }
             Operator::F32Le => {
-                bin_op!(builder, state, le, f32);
+                bin_op!(builder, state, le, f32 => i32);
             }
             Operator::F32Ge => {
-                bin_op!(builder, state, ge, f32);
+                bin_op!(builder, state, ge, f32 => i32);
             }
             Operator::F64Eq => {
-                bin_op!(builder, state, eq, f32);
+                bin_op!(builder, state, eq, f64 => i32);
             }
             Operator::F64Ne => {
-                bin_op!(builder, state, ne, f64);
+                bin_op!(builder, state, ne, f64 => i32);
             }
             Operator::F64Lt => {
-                bin_op!(builder, state, lt, f64);
+                bin_op!(builder, state, lt, f64 => i32);
             }
             Operator::F64Gt => {
-                bin_op!(builder, state, gt, f64);
+                bin_op!(builder, state, gt, f64 => i32);
             }
             Operator::F64Le => {
-                bin_op!(builder, state, le, f64);
+                bin_op!(builder, state, le, f64 => i32);
             }
             Operator::F64Ge => {
-                bin_op!(builder, state, ge, f64);
+                bin_op!(builder, state, ge, f64 => i32);
             }
             Operator::I32Clz => {
                 op!(builder, state, clz, i32);
