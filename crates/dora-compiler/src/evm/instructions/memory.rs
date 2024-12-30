@@ -7,7 +7,7 @@ use crate::evm::{CtxType, EVMCompiler};
 
 impl<'c> EVMCompiler<'c> {
     pub(crate) fn mload<'r>(
-        ctx: &mut CtxType<'c>,
+        ctx: &mut dyn CtxType<'c>,
         region: &'r Region<'c>,
     ) -> Result<(BlockRef<'r, 'c>, BlockRef<'r, 'c>)> {
         let start_block = region.append_block(Block::new(&[]));
@@ -19,7 +19,7 @@ impl<'c> EVMCompiler<'c> {
     }
 
     pub(crate) fn mstore<'r>(
-        ctx: &mut CtxType<'c>,
+        ctx: &mut dyn CtxType<'c>,
         region: &'r Region<'c>,
     ) -> Result<(BlockRef<'r, 'c>, BlockRef<'r, 'c>)> {
         let start_block = region.append_block(Block::new(&[]));
@@ -31,7 +31,7 @@ impl<'c> EVMCompiler<'c> {
     }
 
     pub(crate) fn mstore8<'r>(
-        ctx: &mut CtxType<'c>,
+        ctx: &mut dyn CtxType<'c>,
         region: &'r Region<'c>,
     ) -> Result<(BlockRef<'r, 'c>, BlockRef<'r, 'c>)> {
         let start_block = region.append_block(Block::new(&[]));
@@ -43,7 +43,7 @@ impl<'c> EVMCompiler<'c> {
     }
 
     pub(crate) fn msize<'r>(
-        ctx: &mut CtxType<'c>,
+        ctx: &mut dyn CtxType<'c>,
         region: &'r Region<'c>,
     ) -> Result<(BlockRef<'r, 'c>, BlockRef<'r, 'c>)> {
         let start_block = region.append_block(Block::new(&[]));
@@ -54,7 +54,7 @@ impl<'c> EVMCompiler<'c> {
     }
 
     pub(crate) fn mcopy<'r>(
-        ctx: &mut CtxType<'c>,
+        ctx: &mut dyn CtxType<'c>,
         region: &'r Region<'c>,
     ) -> Result<(BlockRef<'r, 'c>, BlockRef<'r, 'c>)> {
         let start_block = region.append_block(Block::new(&[]));

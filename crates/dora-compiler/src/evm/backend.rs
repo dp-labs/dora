@@ -1,3 +1,5 @@
+use std::mem::transmute;
+
 use crate::backend::{IntCC, TypeMethods};
 use crate::conversion::builder::OpBuilder;
 use crate::errors::{CompileError, Result};
@@ -16,7 +18,7 @@ use num_bigint::BigUint;
 
 use super::CtxType;
 
-/// The `EVMBuilder` struct provides a specialized builder for generating and managing EVM (Ethereum Virtual Machine)
+/// The [`EVMBuilder`] struct provides a specialized builder for generating and managing EVM (Ethereum Virtual Machine)
 /// related MLIR operations. It combines the MLIR context, operation builder, and optional configurations such as
 /// using a static stack. This struct facilitates the construction and manipulation of EVM-specific MLIR operations
 /// in a controlled and flexible manner.
@@ -45,15 +47,14 @@ use super::CtxType;
 /// ```
 ///
 /// # Notes:
-/// - The `EVMBuilder` provides a flexible interface for working with EVM operations in MLIR, allowing users to configure
+/// - The [`EVMBuilder`] provides a flexible interface for working with EVM operations in MLIR, allowing users to configure
 ///   the execution context and stack model as needed.
 /// - The `use_static_stack` option allows developers to optimize the execution model when a known stack size is required,
 ///   making it useful in environments where performance is critical and the stack behavior is predictable.
-#[derive(Debug)]
 pub struct EVMBuilder<'a, 'c> {
     /// The execution context for EVM operations, represented by `CtxType`. This holds the environment and settings
     /// used during the generation of EVM MLIR operations.
-    pub ctx: &'a mut CtxType<'c>,
+    pub ctx: &'a mut dyn CtxType<'c>,
 
     /// The `OpBuilder` responsible for generating MLIR operations. This is used to create operations within
     /// a specific block and insertion point.
@@ -106,7 +107,7 @@ impl crate::backend::Builder for EVMBuilder<'_, '_> {
             IntegerAttribute::new(uint1, if value { 1 } else { 0 }).into(),
             self.location(),
         ));
-        Ok(op.result(0)?.to_ctx_value())
+        Ok(unsafe { transmute::<_, Value<'_, '_>>(op.result(0)?) }.to_ctx_value())
     }
 
     fn iconst(&mut self, ty: Self::Type, value: i64) -> Result<Self::Value> {
@@ -115,7 +116,7 @@ impl crate::backend::Builder for EVMBuilder<'_, '_> {
             IntegerAttribute::new(ty, value).into(),
             self.location(),
         ));
-        Ok(op.result(0)?.to_ctx_value())
+        Ok(unsafe { transmute::<_, Value<'_, '_>>(op.result(0)?) }.to_ctx_value())
     }
 
     fn uconst(&mut self, ty: Self::Type, value: u64) -> Result<Self::Value> {
@@ -124,7 +125,7 @@ impl crate::backend::Builder for EVMBuilder<'_, '_> {
             IntegerAttribute::new(ty, value as i64).into(),
             self.location(),
         ));
-        Ok(op.result(0)?.to_ctx_value())
+        Ok(unsafe { transmute::<_, Value<'_, '_>>(op.result(0)?) }.to_ctx_value())
     }
 
     fn iconst_32(&mut self, value: i32) -> Result<Self::Value> {
@@ -143,7 +144,7 @@ impl crate::backend::Builder for EVMBuilder<'_, '_> {
             )?,
             self.location(),
         ));
-        Ok(op.result(0)?.to_ctx_value())
+        Ok(unsafe { transmute::<_, Value<'_, '_>>(op.result(0)?) }.to_ctx_value())
     }
 
     fn fconst(&mut self, ty: Self::Type, value: f64) -> Result<Self::Value> {
@@ -152,7 +153,7 @@ impl crate::backend::Builder for EVMBuilder<'_, '_> {
             FloatAttribute::new(self.context(), ty, value).into(),
             self.location(),
         ));
-        Ok(op.result(0)?.to_ctx_value())
+        Ok(unsafe { transmute::<_, Value<'_, '_>>(op.result(0)?) }.to_ctx_value())
     }
 
     fn fconst_32(&mut self, value: f32) -> Result<Self::Value> {
@@ -171,7 +172,7 @@ impl crate::backend::Builder for EVMBuilder<'_, '_> {
         let ptr_type = builder.ptr_ty();
 
         // Load stack pointer
-        let stack_ptr = builder.make(builder.load(self.ctx.values.stack_top_ptr, ptr_type))?;
+        let stack_ptr = builder.make(builder.load(self.ctx.values().stack_top_ptr, ptr_type))?;
         builder.create(builder.store(value, stack_ptr));
         // Increment stack pointer
         let new_stack_ptr = builder.make(llvm::get_element_ptr(
@@ -182,7 +183,7 @@ impl crate::backend::Builder for EVMBuilder<'_, '_> {
             ptr_type,
             builder.get_insert_location(),
         ))?;
-        builder.create(builder.store(new_stack_ptr, self.ctx.values.stack_top_ptr));
+        builder.create(builder.store(new_stack_ptr, self.ctx.values().stack_top_ptr));
         Ok(())
     }
 
@@ -193,7 +194,7 @@ impl crate::backend::Builder for EVMBuilder<'_, '_> {
         let ptr_type = builder.ptr_ty();
 
         // Load stack pointer
-        let stack_ptr = builder.make(builder.load(self.ctx.values.stack_top_ptr, ptr_type))?;
+        let stack_ptr = builder.make(builder.load(self.ctx.values().stack_top_ptr, ptr_type))?;
         let old_stack_ptr = builder.make(llvm::get_element_ptr(
             builder.context(),
             stack_ptr,
@@ -203,7 +204,7 @@ impl crate::backend::Builder for EVMBuilder<'_, '_> {
             builder.get_insert_location(),
         ))?;
         let value = builder.make(builder.load(old_stack_ptr, uint256))?;
-        builder.create(builder.store(old_stack_ptr, self.ctx.values.stack_top_ptr));
+        builder.create(builder.store(old_stack_ptr, self.ctx.values().stack_top_ptr));
         Ok(unsafe { Value::from_raw(value.to_raw()) })
     }
 
@@ -220,7 +221,7 @@ impl crate::backend::Builder for EVMBuilder<'_, '_> {
         let ptr_type = builder.ptr_ty();
 
         // Load stack pointer
-        let stack_ptr = builder.make(builder.load(self.ctx.values.stack_top_ptr, ptr_type))?;
+        let stack_ptr = builder.make(builder.load(self.ctx.values().stack_top_ptr, ptr_type))?;
         // n-th stack pointer
         let nth_stack_ptr = builder.make(llvm::get_element_ptr(
             builder.context(),
@@ -243,7 +244,7 @@ impl crate::backend::Builder for EVMBuilder<'_, '_> {
         let ptr_type = builder.ptr_ty();
 
         // Load stack pointer
-        let stack_ptr = builder.make(builder.load(self.ctx.values.stack_top_ptr, ptr_type))?;
+        let stack_ptr = builder.make(builder.load(self.ctx.values().stack_top_ptr, ptr_type))?;
         // n-th stack pointer
         let nth_stack_ptr = builder.make(llvm::get_element_ptr(
             builder.context(),
@@ -277,7 +278,7 @@ impl crate::backend::Builder for EVMBuilder<'_, '_> {
             self.location(),
             LoadStoreOptions::default(),
         ));
-        Ok(op.result(0)?.to_ctx_value())
+        Ok(unsafe { transmute::<_, Value<'_, '_>>(op.result(0)?) }.to_ctx_value())
     }
 
     fn store(&mut self, value: Self::Value, ptr: Self::Value) {
@@ -320,7 +321,7 @@ impl crate::backend::Builder for EVMBuilder<'_, '_> {
         let op = self
             .builder
             .create(arith::cmpi(self.context(), pred, lhs, rhs, self.location()));
-        Ok(op.result(0)?.to_ctx_value())
+        Ok(unsafe { transmute::<_, Value<'_, '_>>(op.result(0)?) }.to_ctx_value())
     }
 
     fn icmp_imm(
@@ -423,35 +424,35 @@ impl crate::backend::Builder for EVMBuilder<'_, '_> {
         let op = self.builder.create(
             dora_ir::evm::add(self.context(), self.uint256_ty(), lhs, rhs, self.location()).into(),
         );
-        Ok(op.result(0)?.to_ctx_value())
+        Ok(unsafe { transmute::<_, Value<'_, '_>>(op.result(0)?) }.to_ctx_value())
     }
 
     fn isub(&mut self, lhs: Self::Value, rhs: Self::Value) -> Result<Self::Value> {
         let op = self.builder.create(
             dora_ir::evm::sub(self.context(), self.uint256_ty(), lhs, rhs, self.location()).into(),
         );
-        Ok(op.result(0)?.to_ctx_value())
+        Ok(unsafe { transmute::<_, Value<'_, '_>>(op.result(0)?) }.to_ctx_value())
     }
 
     fn imul(&mut self, lhs: Self::Value, rhs: Self::Value) -> Result<Self::Value> {
         let op = self.builder.create(
             dora_ir::evm::mul(self.context(), self.uint256_ty(), lhs, rhs, self.location()).into(),
         );
-        Ok(op.result(0)?.to_ctx_value())
+        Ok(unsafe { transmute::<_, Value<'_, '_>>(op.result(0)?) }.to_ctx_value())
     }
 
     fn udiv(&mut self, lhs: Self::Value, rhs: Self::Value) -> Result<Self::Value> {
         let op = self.builder.create(
             dora_ir::evm::div(self.context(), self.uint256_ty(), lhs, rhs, self.location()).into(),
         );
-        Ok(op.result(0)?.to_ctx_value())
+        Ok(unsafe { transmute::<_, Value<'_, '_>>(op.result(0)?) }.to_ctx_value())
     }
 
     fn sdiv(&mut self, lhs: Self::Value, rhs: Self::Value) -> Result<Self::Value> {
         let op = self.builder.create(
             dora_ir::evm::sdiv(self.context(), self.uint256_ty(), lhs, rhs, self.location()).into(),
         );
-        Ok(op.result(0)?.to_ctx_value())
+        Ok(unsafe { transmute::<_, Value<'_, '_>>(op.result(0)?) }.to_ctx_value())
     }
 
     fn umod(&mut self, lhs: Self::Value, rhs: Self::Value) -> Result<Self::Value> {
@@ -459,14 +460,14 @@ impl crate::backend::Builder for EVMBuilder<'_, '_> {
             dora_ir::evm::r#mod(self.context(), self.uint256_ty(), lhs, rhs, self.location())
                 .into(),
         );
-        Ok(op.result(0)?.to_ctx_value())
+        Ok(unsafe { transmute::<_, Value<'_, '_>>(op.result(0)?) }.to_ctx_value())
     }
 
     fn smod(&mut self, lhs: Self::Value, rhs: Self::Value) -> Result<Self::Value> {
         let op = self.builder.create(
             dora_ir::evm::smod(self.context(), self.uint256_ty(), lhs, rhs, self.location()).into(),
         );
-        Ok(op.result(0)?.to_ctx_value())
+        Ok(unsafe { transmute::<_, Value<'_, '_>>(op.result(0)?) }.to_ctx_value())
     }
 
     fn addmod(
@@ -486,7 +487,7 @@ impl crate::backend::Builder for EVMBuilder<'_, '_> {
             )
             .into(),
         );
-        Ok(op.result(0)?.to_ctx_value())
+        Ok(unsafe { transmute::<_, Value<'_, '_>>(op.result(0)?) }.to_ctx_value())
     }
 
     fn mulmod(
@@ -506,7 +507,7 @@ impl crate::backend::Builder for EVMBuilder<'_, '_> {
             )
             .into(),
         );
-        Ok(op.result(0)?.to_ctx_value())
+        Ok(unsafe { transmute::<_, Value<'_, '_>>(op.result(0)?) }.to_ctx_value())
     }
 
     fn exp(&mut self, base: Self::Value, exponent: Self::Value) -> Result<Self::Value> {
@@ -520,7 +521,7 @@ impl crate::backend::Builder for EVMBuilder<'_, '_> {
             )
             .into(),
         );
-        Ok(op.result(0)?.to_ctx_value())
+        Ok(unsafe { transmute::<_, Value<'_, '_>>(op.result(0)?) }.to_ctx_value())
     }
 
     fn signextend(&mut self, byte: Self::Value, value: Self::Value) -> Result<Self::Value> {
@@ -534,77 +535,77 @@ impl crate::backend::Builder for EVMBuilder<'_, '_> {
             )
             .into(),
         );
-        Ok(op.result(0)?.to_ctx_value())
+        Ok(unsafe { transmute::<_, Value<'_, '_>>(op.result(0)?) }.to_ctx_value())
     }
 
     fn lt(&mut self, lhs: Self::Value, rhs: Self::Value) -> Result<Self::Value> {
         let op = self.builder.create(
             dora_ir::evm::lt(self.context(), self.uint256_ty(), lhs, rhs, self.location()).into(),
         );
-        Ok(op.result(0)?.to_ctx_value())
+        Ok(unsafe { transmute::<_, Value<'_, '_>>(op.result(0)?) }.to_ctx_value())
     }
 
     fn gt(&mut self, lhs: Self::Value, rhs: Self::Value) -> Result<Self::Value> {
         let op = self.builder.create(
             dora_ir::evm::gt(self.context(), self.uint256_ty(), lhs, rhs, self.location()).into(),
         );
-        Ok(op.result(0)?.to_ctx_value())
+        Ok(unsafe { transmute::<_, Value<'_, '_>>(op.result(0)?) }.to_ctx_value())
     }
 
     fn slt(&mut self, lhs: Self::Value, rhs: Self::Value) -> Result<Self::Value> {
         let op = self.builder.create(
             dora_ir::evm::slt(self.context(), self.uint256_ty(), lhs, rhs, self.location()).into(),
         );
-        Ok(op.result(0)?.to_ctx_value())
+        Ok(unsafe { transmute::<_, Value<'_, '_>>(op.result(0)?) }.to_ctx_value())
     }
 
     fn sgt(&mut self, lhs: Self::Value, rhs: Self::Value) -> Result<Self::Value> {
         let op = self.builder.create(
             dora_ir::evm::sgt(self.context(), self.uint256_ty(), lhs, rhs, self.location()).into(),
         );
-        Ok(op.result(0)?.to_ctx_value())
+        Ok(unsafe { transmute::<_, Value<'_, '_>>(op.result(0)?) }.to_ctx_value())
     }
 
     fn eq(&mut self, lhs: Self::Value, rhs: Self::Value) -> Result<Self::Value> {
         let op = self.builder.create(
             dora_ir::evm::eq(self.context(), self.uint256_ty(), lhs, rhs, self.location()).into(),
         );
-        Ok(op.result(0)?.to_ctx_value())
+        Ok(unsafe { transmute::<_, Value<'_, '_>>(op.result(0)?) }.to_ctx_value())
     }
 
     fn iszero(&mut self, value: Self::Value) -> Result<Self::Value> {
         let op = self.builder.create(
             dora_ir::evm::iszero(self.context(), self.uint256_ty(), value, self.location()).into(),
         );
-        Ok(op.result(0)?.to_ctx_value())
+        Ok(unsafe { transmute::<_, Value<'_, '_>>(op.result(0)?) }.to_ctx_value())
     }
 
     fn and(&mut self, lhs: Self::Value, rhs: Self::Value) -> Result<Self::Value> {
         let op = self.builder.create(
             dora_ir::evm::and(self.context(), self.uint256_ty(), lhs, rhs, self.location()).into(),
         );
-        Ok(op.result(0)?.to_ctx_value())
+        Ok(unsafe { transmute::<_, Value<'_, '_>>(op.result(0)?) }.to_ctx_value())
     }
 
     fn or(&mut self, lhs: Self::Value, rhs: Self::Value) -> Result<Self::Value> {
         let op = self.builder.create(
             dora_ir::evm::or(self.context(), self.uint256_ty(), lhs, rhs, self.location()).into(),
         );
-        Ok(op.result(0)?.to_ctx_value())
+        Ok(unsafe { transmute::<_, Value<'_, '_>>(op.result(0)?) }.to_ctx_value())
     }
 
     fn xor(&mut self, lhs: Self::Value, rhs: Self::Value) -> Result<Self::Value> {
         let op = self.builder.create(
             dora_ir::evm::xor(self.context(), self.uint256_ty(), lhs, rhs, self.location()).into(),
         );
-        Ok(op.result(0)?.to_ctx_value())
+        Ok(unsafe { transmute::<_, Value<'_, '_>>(op.result(0)?) }.to_ctx_value())
     }
 
     fn not(&mut self, value: Self::Value) -> Result<Self::Value> {
         let op = self.builder.create(
             dora_ir::evm::not(self.context(), self.uint256_ty(), value, self.location()).into(),
         );
-        Ok(op.result(0)?.to_ctx_value())
+        Ok(unsafe { transmute::<_, Value<'_, '_>>(op.result(0)?) }.to_ctx_value())
     }
 
     fn byte(&mut self, index: Self::Value, value: Self::Value) -> Result<Self::Value> {
@@ -618,7 +619,7 @@ impl crate::backend::Builder for EVMBuilder<'_, '_> {
             )
             .into(),
         );
-        Ok(op.result(0)?.to_ctx_value())
+        Ok(unsafe { transmute::<_, Value<'_, '_>>(op.result(0)?) }.to_ctx_value())
     }
 
     fn shl(&mut self, shift: Self::Value, value: Self::Value) -> Result<Self::Value> {
@@ -632,7 +633,7 @@ impl crate::backend::Builder for EVMBuilder<'_, '_> {
             )
             .into(),
         );
-        Ok(op.result(0)?.to_ctx_value())
+        Ok(unsafe { transmute::<_, Value<'_, '_>>(op.result(0)?) }.to_ctx_value())
     }
 
     fn shr(&mut self, shift: Self::Value, value: Self::Value) -> Result<Self::Value> {
@@ -646,7 +647,7 @@ impl crate::backend::Builder for EVMBuilder<'_, '_> {
             )
             .into(),
         );
-        Ok(op.result(0)?.to_ctx_value())
+        Ok(unsafe { transmute::<_, Value<'_, '_>>(op.result(0)?) }.to_ctx_value())
     }
 
     fn sar(&mut self, shift: Self::Value, value: Self::Value) -> Result<Self::Value> {
@@ -660,7 +661,7 @@ impl crate::backend::Builder for EVMBuilder<'_, '_> {
             )
             .into(),
         );
-        Ok(op.result(0)?.to_ctx_value())
+        Ok(unsafe { transmute::<_, Value<'_, '_>>(op.result(0)?) }.to_ctx_value())
     }
 
     fn urem(&mut self, lhs: Self::Value, rhs: Self::Value) -> Result<Self::Value> {
@@ -711,7 +712,7 @@ impl crate::backend::Builder for EVMBuilder<'_, '_> {
             result_ty,
             self.location(),
         );
-        Ok(op.result(0)?.to_ctx_value())
+        Ok(unsafe { transmute::<_, Value<'_, '_>>(op.result(0)?) }.to_ctx_value())
     }
 
     fn memcpy(&mut self, dst: Self::Value, src: Self::Value, len: Self::Value) -> Result<()> {
@@ -750,28 +751,28 @@ impl crate::backend::EVMBuilder for EVMBuilder<'_, '_> {
             )
             .into(),
         );
-        Ok(op.result(0)?.to_ctx_value())
+        Ok(unsafe { transmute::<_, Value<'_, '_>>(op.result(0)?) }.to_ctx_value())
     }
 
     fn address(&mut self) -> Result<Self::Value> {
         let op = self.builder.create(
             dora_ir::evm::address(self.context(), self.uint256_ty(), self.location()).into(),
         );
-        Ok(op.result(0)?.to_ctx_value())
+        Ok(unsafe { transmute::<_, Value<'_, '_>>(op.result(0)?) }.to_ctx_value())
     }
 
     fn caller(&mut self) -> Result<Self::Value> {
         let op = self.builder.create(
             dora_ir::evm::caller(self.context(), self.uint256_ty(), self.location()).into(),
         );
-        Ok(op.result(0)?.to_ctx_value())
+        Ok(unsafe { transmute::<_, Value<'_, '_>>(op.result(0)?) }.to_ctx_value())
     }
 
     fn callvalue(&mut self) -> Result<Self::Value> {
         let op = self.builder.create(
             dora_ir::evm::callvalue(self.context(), self.uint256_ty(), self.location()).into(),
         );
-        Ok(op.result(0)?.to_ctx_value())
+        Ok(unsafe { transmute::<_, Value<'_, '_>>(op.result(0)?) }.to_ctx_value())
     }
 
     fn calldataload(&mut self, offset: Self::Value) -> Result<Self::Value> {
@@ -779,14 +780,14 @@ impl crate::backend::EVMBuilder for EVMBuilder<'_, '_> {
             dora_ir::evm::calldataload(self.context(), self.uint256_ty(), offset, self.location())
                 .into(),
         );
-        Ok(op.result(0)?.to_ctx_value())
+        Ok(unsafe { transmute::<_, Value<'_, '_>>(op.result(0)?) }.to_ctx_value())
     }
 
     fn calldatasize(&mut self) -> Result<Self::Value> {
         let op = self.builder.create(
             dora_ir::evm::calldatasize(self.context(), self.uint256_ty(), self.location()).into(),
         );
-        Ok(op.result(0)?.to_ctx_value())
+        Ok(unsafe { transmute::<_, Value<'_, '_>>(op.result(0)?) }.to_ctx_value())
     }
 
     fn calldatacopy(
@@ -811,7 +812,7 @@ impl crate::backend::EVMBuilder for EVMBuilder<'_, '_> {
         let op = self.builder.create(
             dora_ir::evm::codesize(self.context(), self.uint256_ty(), self.location()).into(),
         );
-        Ok(op.result(0)?.to_ctx_value())
+        Ok(unsafe { transmute::<_, Value<'_, '_>>(op.result(0)?) }.to_ctx_value())
     }
 
     fn codecopy(
@@ -836,7 +837,7 @@ impl crate::backend::EVMBuilder for EVMBuilder<'_, '_> {
         let op = self.builder.create(
             dora_ir::evm::returndatasize(self.context(), self.uint256_ty(), self.location()).into(),
         );
-        Ok(op.result(0)?.to_ctx_value())
+        Ok(unsafe { transmute::<_, Value<'_, '_>>(op.result(0)?) }.to_ctx_value())
     }
 
     fn returndatacopy(
@@ -867,14 +868,14 @@ impl crate::backend::EVMBuilder for EVMBuilder<'_, '_> {
             )
             .into(),
         );
-        Ok(op.result(0)?.to_ctx_value())
+        Ok(unsafe { transmute::<_, Value<'_, '_>>(op.result(0)?) }.to_ctx_value())
     }
 
     fn gas(&mut self) -> Result<Self::Value> {
         let op = self
             .builder
             .create(dora_ir::evm::gas(self.context(), self.uint256_ty(), self.location()).into());
-        Ok(op.result(0)?.to_ctx_value())
+        Ok(unsafe { transmute::<_, Value<'_, '_>>(op.result(0)?) }.to_ctx_value())
     }
 
     fn balance(&mut self, account: Self::Value) -> Result<Self::Value> {
@@ -882,14 +883,14 @@ impl crate::backend::EVMBuilder for EVMBuilder<'_, '_> {
             dora_ir::evm::balance(self.context(), self.uint256_ty(), account, self.location())
                 .into(),
         );
-        Ok(op.result(0)?.to_ctx_value())
+        Ok(unsafe { transmute::<_, Value<'_, '_>>(op.result(0)?) }.to_ctx_value())
     }
 
     fn selfbalance(&mut self) -> Result<Self::Value> {
         let op = self.builder.create(
             dora_ir::evm::selfbalance(self.context(), self.uint256_ty(), self.location()).into(),
         );
-        Ok(op.result(0)?.to_ctx_value())
+        Ok(unsafe { transmute::<_, Value<'_, '_>>(op.result(0)?) }.to_ctx_value())
     }
 
     fn extcodesize(&mut self, account: Self::Value) -> Result<Self::Value> {
@@ -897,7 +898,7 @@ impl crate::backend::EVMBuilder for EVMBuilder<'_, '_> {
             dora_ir::evm::extcodesize(self.context(), self.uint256_ty(), account, self.location())
                 .into(),
         );
-        Ok(op.result(0)?.to_ctx_value())
+        Ok(unsafe { transmute::<_, Value<'_, '_>>(op.result(0)?) }.to_ctx_value())
     }
 
     fn extcodehash(&mut self, account: Self::Value) -> Result<Self::Value> {
@@ -905,7 +906,7 @@ impl crate::backend::EVMBuilder for EVMBuilder<'_, '_> {
             dora_ir::evm::extcodehash(self.context(), self.uint256_ty(), account, self.location())
                 .into(),
         );
-        Ok(op.result(0)?.to_ctx_value())
+        Ok(unsafe { transmute::<_, Value<'_, '_>>(op.result(0)?) }.to_ctx_value())
     }
 
     fn extcodecopy(
@@ -938,14 +939,14 @@ impl crate::backend::EVMBuilder for EVMBuilder<'_, '_> {
             )
             .into(),
         );
-        Ok(op.result(0)?.to_ctx_value())
+        Ok(unsafe { transmute::<_, Value<'_, '_>>(op.result(0)?) }.to_ctx_value())
     }
 
     fn sload(&mut self, key: Self::Value) -> Result<Self::Value> {
         let op = self.builder.create(
             dora_ir::evm::sload(self.context(), self.uint256_ty(), key, self.location()).into(),
         );
-        Ok(op.result(0)?.to_ctx_value())
+        Ok(unsafe { transmute::<_, Value<'_, '_>>(op.result(0)?) }.to_ctx_value())
     }
 
     fn sstore(&mut self, key: Self::Value, value: Self::Value) {
@@ -962,7 +963,7 @@ impl crate::backend::EVMBuilder for EVMBuilder<'_, '_> {
         let op = self.builder.create(
             dora_ir::evm::tload(self.context(), self.uint256_ty(), key, self.location()).into(),
         );
-        Ok(op.result(0)?.to_ctx_value())
+        Ok(unsafe { transmute::<_, Value<'_, '_>>(op.result(0)?) }.to_ctx_value())
     }
 
     fn log0(&mut self, offset: Self::Value, length: Self::Value) {
@@ -1047,7 +1048,7 @@ impl crate::backend::EVMBuilder for EVMBuilder<'_, '_> {
             dora_ir::evm::dataload(self.context(), self.uint256_ty(), offset, self.location())
                 .into(),
         );
-        Ok(op.result(0)?.to_ctx_value())
+        Ok(unsafe { transmute::<_, Value<'_, '_>>(op.result(0)?) }.to_ctx_value())
     }
 
     fn dataloadn(&mut self, offset: Self::Value) -> Result<Self::Value> {
@@ -1055,14 +1056,14 @@ impl crate::backend::EVMBuilder for EVMBuilder<'_, '_> {
             dora_ir::evm::dataloadn(self.context(), self.uint256_ty(), offset, self.location())
                 .into(),
         );
-        Ok(op.result(0)?.to_ctx_value())
+        Ok(unsafe { transmute::<_, Value<'_, '_>>(op.result(0)?) }.to_ctx_value())
     }
 
     fn datasize(&mut self) -> Result<Self::Value> {
         let op = self.builder.create(
             dora_ir::evm::datasize(self.context(), self.uint256_ty(), self.location()).into(),
         );
-        Ok(op.result(0)?.to_ctx_value())
+        Ok(unsafe { transmute::<_, Value<'_, '_>>(op.result(0)?) }.to_ctx_value())
     }
 
     fn datacopy(&mut self, mem_offset: Self::Value, offset: Self::Value, size: Self::Value) {
@@ -1081,63 +1082,63 @@ impl crate::backend::EVMBuilder for EVMBuilder<'_, '_> {
         let op = self.builder.create(
             dora_ir::evm::chainid(self.context(), self.uint256_ty(), self.location()).into(),
         );
-        Ok(op.result(0)?.to_ctx_value())
+        Ok(unsafe { transmute::<_, Value<'_, '_>>(op.result(0)?) }.to_ctx_value())
     }
 
     fn coinbase(&mut self) -> Result<Self::Value> {
         let op = self.builder.create(
             dora_ir::evm::coinbase(self.context(), self.uint256_ty(), self.location()).into(),
         );
-        Ok(op.result(0)?.to_ctx_value())
+        Ok(unsafe { transmute::<_, Value<'_, '_>>(op.result(0)?) }.to_ctx_value())
     }
 
     fn timestamp(&mut self) -> Result<Self::Value> {
         let op = self.builder.create(
             dora_ir::evm::timestamp(self.context(), self.uint256_ty(), self.location()).into(),
         );
-        Ok(op.result(0)?.to_ctx_value())
+        Ok(unsafe { transmute::<_, Value<'_, '_>>(op.result(0)?) }.to_ctx_value())
     }
 
     fn number(&mut self) -> Result<Self::Value> {
         let op = self.builder.create(
             dora_ir::evm::number(self.context(), self.uint256_ty(), self.location()).into(),
         );
-        Ok(op.result(0)?.to_ctx_value())
+        Ok(unsafe { transmute::<_, Value<'_, '_>>(op.result(0)?) }.to_ctx_value())
     }
 
     fn prevrandao(&mut self) -> Result<Self::Value> {
         let op = self.builder.create(
             dora_ir::evm::prevrandao(self.context(), self.uint256_ty(), self.location()).into(),
         );
-        Ok(op.result(0)?.to_ctx_value())
+        Ok(unsafe { transmute::<_, Value<'_, '_>>(op.result(0)?) }.to_ctx_value())
     }
 
     fn gaslimit(&mut self) -> Result<Self::Value> {
         let op = self.builder.create(
             dora_ir::evm::gaslimit(self.context(), self.uint256_ty(), self.location()).into(),
         );
-        Ok(op.result(0)?.to_ctx_value())
+        Ok(unsafe { transmute::<_, Value<'_, '_>>(op.result(0)?) }.to_ctx_value())
     }
 
     fn gasprice(&mut self) -> Result<Self::Value> {
         let op = self.builder.create(
             dora_ir::evm::gasprice(self.context(), self.uint256_ty(), self.location()).into(),
         );
-        Ok(op.result(0)?.to_ctx_value())
+        Ok(unsafe { transmute::<_, Value<'_, '_>>(op.result(0)?) }.to_ctx_value())
     }
 
     fn basefee(&mut self) -> Result<Self::Value> {
         let op = self.builder.create(
             dora_ir::evm::basefee(self.context(), self.uint256_ty(), self.location()).into(),
         );
-        Ok(op.result(0)?.to_ctx_value())
+        Ok(unsafe { transmute::<_, Value<'_, '_>>(op.result(0)?) }.to_ctx_value())
     }
 
     fn origin(&mut self) -> Result<Self::Value> {
         let op = self.builder.create(
             dora_ir::evm::origin(self.context(), self.uint256_ty(), self.location()).into(),
         );
-        Ok(op.result(0)?.to_ctx_value())
+        Ok(unsafe { transmute::<_, Value<'_, '_>>(op.result(0)?) }.to_ctx_value())
     }
 
     fn blobhash(&mut self, index: Self::Value) -> Result<Self::Value> {
@@ -1145,21 +1146,21 @@ impl crate::backend::EVMBuilder for EVMBuilder<'_, '_> {
             dora_ir::evm::blobhash(self.context(), self.uint256_ty(), index, self.location())
                 .into(),
         );
-        Ok(op.result(0)?.to_ctx_value())
+        Ok(unsafe { transmute::<_, Value<'_, '_>>(op.result(0)?) }.to_ctx_value())
     }
 
     fn blobbasefee(&mut self) -> Result<Self::Value> {
         let op = self.builder.create(
             dora_ir::evm::blobbasefee(self.context(), self.uint256_ty(), self.location()).into(),
         );
-        Ok(op.result(0)?.to_ctx_value())
+        Ok(unsafe { transmute::<_, Value<'_, '_>>(op.result(0)?) }.to_ctx_value())
     }
 
     fn mload(&mut self, offset: Self::Value) -> Result<Self::Value> {
         let op = self.builder.create(
             dora_ir::evm::mload(self.context(), self.uint256_ty(), offset, self.location()).into(),
         );
-        Ok(op.result(0)?.to_ctx_value())
+        Ok(unsafe { transmute::<_, Value<'_, '_>>(op.result(0)?) }.to_ctx_value())
     }
 
     fn mstore(&mut self, offset: Self::Value, data: Self::Value) {
@@ -1176,7 +1177,7 @@ impl crate::backend::EVMBuilder for EVMBuilder<'_, '_> {
         let op = self
             .builder
             .create(dora_ir::evm::msize(self.context(), self.uint256_ty(), self.location()).into());
-        Ok(op.result(0)?.to_ctx_value())
+        Ok(unsafe { transmute::<_, Value<'_, '_>>(op.result(0)?) }.to_ctx_value())
     }
 
     fn mcopy(&mut self, dest_offset: Self::Value, src_offset: Self::Value, length: Self::Value) {
@@ -1209,7 +1210,7 @@ impl crate::backend::EVMBuilder for EVMBuilder<'_, '_> {
             )
             .into(),
         );
-        Ok(op.result(0)?.to_ctx_value())
+        Ok(unsafe { transmute::<_, Value<'_, '_>>(op.result(0)?) }.to_ctx_value())
     }
 
     fn create2(
@@ -1231,7 +1232,7 @@ impl crate::backend::EVMBuilder for EVMBuilder<'_, '_> {
             )
             .into(),
         );
-        Ok(op.result(0)?.to_ctx_value())
+        Ok(unsafe { transmute::<_, Value<'_, '_>>(op.result(0)?) }.to_ctx_value())
     }
 
     fn eofcreate(
@@ -1255,7 +1256,7 @@ impl crate::backend::EVMBuilder for EVMBuilder<'_, '_> {
             )
             .into(),
         );
-        Ok(op.result(0)?.to_ctx_value())
+        Ok(unsafe { transmute::<_, Value<'_, '_>>(op.result(0)?) }.to_ctx_value())
     }
 
     fn returncontract(
@@ -1301,7 +1302,7 @@ impl crate::backend::EVMBuilder for EVMBuilder<'_, '_> {
             )
             .into(),
         );
-        Ok(op.result(0)?.to_ctx_value())
+        Ok(unsafe { transmute::<_, Value<'_, '_>>(op.result(0)?) }.to_ctx_value())
     }
 
     fn callf(&mut self, target_section_index: Self::Value) {
@@ -1340,7 +1341,7 @@ impl crate::backend::EVMBuilder for EVMBuilder<'_, '_> {
             )
             .into(),
         );
-        Ok(op.result(0)?.to_ctx_value())
+        Ok(unsafe { transmute::<_, Value<'_, '_>>(op.result(0)?) }.to_ctx_value())
     }
 
     fn delegatecall(
@@ -1366,7 +1367,7 @@ impl crate::backend::EVMBuilder for EVMBuilder<'_, '_> {
             )
             .into(),
         );
-        Ok(op.result(0)?.to_ctx_value())
+        Ok(unsafe { transmute::<_, Value<'_, '_>>(op.result(0)?) }.to_ctx_value())
     }
 
     fn extcall(
@@ -1388,7 +1389,7 @@ impl crate::backend::EVMBuilder for EVMBuilder<'_, '_> {
             )
             .into(),
         );
-        Ok(op.result(0)?.to_ctx_value())
+        Ok(unsafe { transmute::<_, Value<'_, '_>>(op.result(0)?) }.to_ctx_value())
     }
 
     fn extdelegatecall(
@@ -1408,7 +1409,7 @@ impl crate::backend::EVMBuilder for EVMBuilder<'_, '_> {
             )
             .into(),
         );
-        Ok(op.result(0)?.to_ctx_value())
+        Ok(unsafe { transmute::<_, Value<'_, '_>>(op.result(0)?) }.to_ctx_value())
     }
 
     fn staticcall(
@@ -1434,7 +1435,7 @@ impl crate::backend::EVMBuilder for EVMBuilder<'_, '_> {
             )
             .into(),
         );
-        Ok(op.result(0)?.to_ctx_value())
+        Ok(unsafe { transmute::<_, Value<'_, '_>>(op.result(0)?) }.to_ctx_value())
     }
 
     fn creturn(&mut self, offset: Self::Value, length: Self::Value) {
@@ -1459,7 +1460,7 @@ impl crate::backend::EVMBuilder for EVMBuilder<'_, '_> {
             )
             .into(),
         );
-        Ok(op.result(0)?.to_ctx_value())
+        Ok(unsafe { transmute::<_, Value<'_, '_>>(op.result(0)?) }.to_ctx_value())
     }
 
     fn revert(&mut self, offset: Self::Value, length: Self::Value) {
@@ -1484,8 +1485,8 @@ impl<'a, 'c> EVMBuilder<'a, 'c> {
     /// # Returns
     /// A reference to the `MLIRContext` that this builder uses.
     #[inline]
-    pub fn context(&self) -> &'a MLIRContext {
-        self.ctx.context
+    pub fn context(&self) -> &MLIRContext {
+        self.ctx.context()
     }
 
     /// Retrieves the unknown location intrinsic for operations.

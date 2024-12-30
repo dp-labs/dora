@@ -13,7 +13,7 @@ use crate::evm::EVMCompiler;
 
 impl<'c> EVMCompiler<'c> {
     pub(crate) fn jump<'r>(
-        ctx: &mut CtxType<'c>,
+        ctx: &mut dyn CtxType<'c>,
         region: &'r Region<'c>,
     ) -> Result<(BlockRef<'r, 'c>, BlockRef<'r, 'c>)> {
         let start_block = region.append_block(Block::new(&[]));
@@ -28,7 +28,7 @@ impl<'c> EVMCompiler<'c> {
     }
 
     pub(crate) fn jumpi<'r>(
-        ctx: &mut CtxType<'c>,
+        ctx: &mut dyn CtxType<'c>,
         region: &'r Region<'c>,
     ) -> Result<(BlockRef<'r, 'c>, BlockRef<'r, 'c>)> {
         let start_block = region.append_block(Block::new(&[]));
@@ -38,12 +38,13 @@ impl<'c> EVMCompiler<'c> {
         let false_block = region.append_block(Block::new(&[]));
         let zero = builder.iconst_256(BigUint::ZERO)?;
         let cond = builder.icmp(IntCC::NotEqual, condition, zero)?;
-        builder.brif(cond, builder.ctx.jumptable_block, false_block, &[pc], &[]);
+        let jumptable_block = builder.ctx.jumptable_block();
+        builder.brif(cond, jumptable_block, false_block, &[pc], &[]);
         Ok((start_block, false_block))
     }
 
     pub(crate) fn rjump<'r>(
-        _ctx: &mut CtxType<'c>,
+        _ctx: &mut dyn CtxType<'c>,
         region: &'r Region<'c>,
         _relative_offset: u16,
     ) -> Result<(BlockRef<'r, 'c>, BlockRef<'r, 'c>)> {
@@ -55,7 +56,7 @@ impl<'c> EVMCompiler<'c> {
     }
 
     pub(crate) fn rjumpi<'r>(
-        _ctx: &mut CtxType<'c>,
+        _ctx: &mut dyn CtxType<'c>,
         region: &'r Region<'c>,
         _relative_offset: u16,
     ) -> Result<(BlockRef<'r, 'c>, BlockRef<'r, 'c>)> {
@@ -67,7 +68,7 @@ impl<'c> EVMCompiler<'c> {
     }
 
     pub(crate) fn rjumpv<'r>(
-        _ctx: &mut CtxType<'c>,
+        _ctx: &mut dyn CtxType<'c>,
         region: &'r Region<'c>,
         _max_index: u8,
         _relative_offsets: Vec<u16>,
@@ -80,7 +81,7 @@ impl<'c> EVMCompiler<'c> {
     }
 
     pub(crate) fn callf<'r>(
-        _ctx: &mut CtxType<'c>,
+        _ctx: &mut dyn CtxType<'c>,
         region: &'r Region<'c>,
         _target_section_index: u16,
     ) -> Result<(BlockRef<'r, 'c>, BlockRef<'r, 'c>)> {
@@ -90,7 +91,7 @@ impl<'c> EVMCompiler<'c> {
     }
 
     pub(crate) fn retf<'r>(
-        _ctx: &mut CtxType<'c>,
+        _ctx: &mut dyn CtxType<'c>,
         region: &'r Region<'c>,
     ) -> Result<(BlockRef<'r, 'c>, BlockRef<'r, 'c>)> {
         let start_block = region.append_block(Block::new(&[]));
@@ -99,7 +100,7 @@ impl<'c> EVMCompiler<'c> {
     }
 
     pub(crate) fn jumpf<'r>(
-        _ctx: &mut CtxType<'c>,
+        _ctx: &mut dyn CtxType<'c>,
         region: &'r Region<'c>,
         _target_section_index: u16,
     ) -> Result<(BlockRef<'r, 'c>, BlockRef<'r, 'c>)> {
@@ -111,7 +112,7 @@ impl<'c> EVMCompiler<'c> {
     }
 
     pub(crate) fn pc<'r>(
-        ctx: &mut CtxType<'c>,
+        ctx: &mut dyn CtxType<'c>,
         region: &'r Region<'c>,
         pc: usize,
     ) -> Result<(BlockRef<'r, 'c>, BlockRef<'r, 'c>)> {
@@ -123,7 +124,7 @@ impl<'c> EVMCompiler<'c> {
     }
 
     pub(crate) fn jumpdest<'r>(
-        _ctx: &mut CtxType<'c>,
+        _ctx: &mut dyn CtxType<'c>,
         region: &'r Region<'c>,
         _pc: usize,
     ) -> Result<(BlockRef<'r, 'c>, BlockRef<'r, 'c>)> {
@@ -133,7 +134,7 @@ impl<'c> EVMCompiler<'c> {
     }
 
     pub(crate) fn revert<'r>(
-        ctx: &mut CtxType<'c>,
+        ctx: &mut dyn CtxType<'c>,
         region: &'r Region<'c>,
     ) -> Result<(BlockRef<'r, 'c>, BlockRef<'r, 'c>)> {
         let start_block = region.append_block(Block::new(&[]));
@@ -146,7 +147,7 @@ impl<'c> EVMCompiler<'c> {
     }
 
     pub(crate) fn stop<'r>(
-        ctx: &mut CtxType<'c>,
+        ctx: &mut dyn CtxType<'c>,
         region: &'r Region<'c>,
     ) -> Result<(BlockRef<'r, 'c>, BlockRef<'r, 'c>)> {
         let start_block = region.append_block(Block::new(&[]));
@@ -159,14 +160,14 @@ impl<'c> EVMCompiler<'c> {
 
     #[inline]
     pub(crate) fn invalid<'r>(
-        ctx: &mut CtxType<'c>,
+        ctx: &mut dyn CtxType<'c>,
         region: &'r Region<'c>,
     ) -> Result<(BlockRef<'r, 'c>, BlockRef<'r, 'c>)> {
         Self::invalid_with_error_code(ctx, region, ExitStatusCode::InvalidFEOpcode)
     }
 
     pub(crate) fn invalid_with_error_code<'r>(
-        ctx: &mut CtxType<'c>,
+        ctx: &mut dyn CtxType<'c>,
         region: &'r Region<'c>,
         error_code: ExitStatusCode,
     ) -> Result<(BlockRef<'r, 'c>, BlockRef<'r, 'c>)> {
@@ -175,7 +176,7 @@ impl<'c> EVMCompiler<'c> {
         let mut builder = Self::make_builder(ctx, start_block);
         builder.invalid();
         start_block.append_operation(cf::br(
-            &builder.ctx.revert_block,
+            &builder.ctx.revert_block(),
             &[builder.make(builder.iconst_8(error_code as i8))?],
             builder.location(),
         ));

@@ -7,7 +7,7 @@ use crate::evm::{CtxType, EVMCompiler};
 
 impl<'c> EVMCompiler<'c> {
     pub(crate) fn lt<'r>(
-        ctx: &mut CtxType<'c>,
+        ctx: &mut dyn CtxType<'c>,
         region: &'r Region<'c>,
     ) -> Result<(BlockRef<'r, 'c>, BlockRef<'r, 'c>)> {
         let start_block = region.append_block(Block::new(&[]));
@@ -20,7 +20,7 @@ impl<'c> EVMCompiler<'c> {
     }
 
     pub(crate) fn gt<'r>(
-        ctx: &mut CtxType<'c>,
+        ctx: &mut dyn CtxType<'c>,
         region: &'r Region<'c>,
     ) -> Result<(BlockRef<'r, 'c>, BlockRef<'r, 'c>)> {
         let start_block = region.append_block(Block::new(&[]));
@@ -33,7 +33,7 @@ impl<'c> EVMCompiler<'c> {
     }
 
     pub(crate) fn slt<'r>(
-        ctx: &mut CtxType<'c>,
+        ctx: &mut dyn CtxType<'c>,
         region: &'r Region<'c>,
     ) -> Result<(BlockRef<'r, 'c>, BlockRef<'r, 'c>)> {
         let start_block = region.append_block(Block::new(&[]));
@@ -46,7 +46,7 @@ impl<'c> EVMCompiler<'c> {
     }
 
     pub(crate) fn sgt<'r>(
-        ctx: &mut CtxType<'c>,
+        ctx: &mut dyn CtxType<'c>,
         region: &'r Region<'c>,
     ) -> Result<(BlockRef<'r, 'c>, BlockRef<'r, 'c>)> {
         let start_block = region.append_block(Block::new(&[]));
@@ -59,7 +59,7 @@ impl<'c> EVMCompiler<'c> {
     }
 
     pub(crate) fn eq<'r>(
-        ctx: &mut CtxType<'c>,
+        ctx: &mut dyn CtxType<'c>,
         region: &'r Region<'c>,
     ) -> Result<(BlockRef<'r, 'c>, BlockRef<'r, 'c>)> {
         let start_block = region.append_block(Block::new(&[]));
@@ -72,7 +72,7 @@ impl<'c> EVMCompiler<'c> {
     }
 
     pub(crate) fn iszero<'r>(
-        ctx: &mut CtxType<'c>,
+        ctx: &mut dyn CtxType<'c>,
         region: &'r Region<'c>,
     ) -> Result<(BlockRef<'r, 'c>, BlockRef<'r, 'c>)> {
         let start_block = region.append_block(Block::new(&[]));
@@ -84,7 +84,7 @@ impl<'c> EVMCompiler<'c> {
     }
 
     pub(crate) fn and<'r>(
-        ctx: &mut CtxType<'c>,
+        ctx: &mut dyn CtxType<'c>,
         region: &'r Region<'c>,
     ) -> Result<(BlockRef<'r, 'c>, BlockRef<'r, 'c>)> {
         let start_block = region.append_block(Block::new(&[]));
@@ -97,7 +97,7 @@ impl<'c> EVMCompiler<'c> {
     }
 
     pub(crate) fn or<'r>(
-        ctx: &mut CtxType<'c>,
+        ctx: &mut dyn CtxType<'c>,
         region: &'r Region<'c>,
     ) -> Result<(BlockRef<'r, 'c>, BlockRef<'r, 'c>)> {
         let start_block = region.append_block(Block::new(&[]));
@@ -110,7 +110,7 @@ impl<'c> EVMCompiler<'c> {
     }
 
     pub(crate) fn xor<'r>(
-        ctx: &mut CtxType<'c>,
+        ctx: &mut dyn CtxType<'c>,
         region: &'r Region<'c>,
     ) -> Result<(BlockRef<'r, 'c>, BlockRef<'r, 'c>)> {
         let start_block = region.append_block(Block::new(&[]));
@@ -123,7 +123,7 @@ impl<'c> EVMCompiler<'c> {
     }
 
     pub(crate) fn not<'r>(
-        ctx: &mut CtxType<'c>,
+        ctx: &mut dyn CtxType<'c>,
         region: &'r Region<'c>,
     ) -> Result<(BlockRef<'r, 'c>, BlockRef<'r, 'c>)> {
         let start_block = region.append_block(Block::new(&[]));
@@ -135,7 +135,7 @@ impl<'c> EVMCompiler<'c> {
     }
 
     pub(crate) fn byte<'r>(
-        ctx: &mut CtxType<'c>,
+        ctx: &mut dyn CtxType<'c>,
         region: &'r Region<'c>,
     ) -> Result<(BlockRef<'r, 'c>, BlockRef<'r, 'c>)> {
         let start_block = region.append_block(Block::new(&[]));
@@ -148,7 +148,7 @@ impl<'c> EVMCompiler<'c> {
     }
 
     pub(crate) fn shl<'r>(
-        ctx: &mut CtxType<'c>,
+        ctx: &mut dyn CtxType<'c>,
         region: &'r Region<'c>,
     ) -> Result<(BlockRef<'r, 'c>, BlockRef<'r, 'c>)> {
         let start_block = region.append_block(Block::new(&[]));
@@ -161,7 +161,7 @@ impl<'c> EVMCompiler<'c> {
     }
 
     pub(crate) fn shr<'r>(
-        ctx: &mut CtxType<'c>,
+        ctx: &mut dyn CtxType<'c>,
         region: &'r Region<'c>,
     ) -> Result<(BlockRef<'r, 'c>, BlockRef<'r, 'c>)> {
         let start_block = region.append_block(Block::new(&[]));
@@ -174,7 +174,7 @@ impl<'c> EVMCompiler<'c> {
     }
 
     pub(crate) fn sar<'r>(
-        ctx: &mut CtxType<'c>,
+        ctx: &mut dyn CtxType<'c>,
         region: &'r Region<'c>,
     ) -> Result<(BlockRef<'r, 'c>, BlockRef<'r, 'c>)> {
         let start_block = region.append_block(Block::new(&[]));

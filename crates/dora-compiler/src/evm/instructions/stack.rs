@@ -8,7 +8,7 @@ use crate::evm::{CtxType, EVMCompiler};
 
 impl<'c> EVMCompiler<'c> {
     pub(crate) fn push<'r>(
-        ctx: &mut CtxType<'c>,
+        ctx: &mut dyn CtxType<'c>,
         region: &'r Region<'c>,
         value_to_push: BigUint,
     ) -> Result<(BlockRef<'r, 'c>, BlockRef<'r, 'c>)> {
@@ -20,7 +20,7 @@ impl<'c> EVMCompiler<'c> {
     }
 
     pub(crate) fn pop<'r>(
-        ctx: &mut CtxType<'c>,
+        ctx: &mut dyn CtxType<'c>,
         region: &'r Region<'c>,
     ) -> Result<(BlockRef<'r, 'c>, BlockRef<'r, 'c>)> {
         let start_block = region.append_block(Block::new(&[]));
@@ -30,7 +30,7 @@ impl<'c> EVMCompiler<'c> {
     }
 
     pub(crate) fn dup<'r>(
-        ctx: &mut CtxType<'c>,
+        ctx: &mut dyn CtxType<'c>,
         region: &'r Region<'c>,
         n: usize,
     ) -> Result<(BlockRef<'r, 'c>, BlockRef<'r, 'c>)> {
@@ -44,7 +44,7 @@ impl<'c> EVMCompiler<'c> {
     }
 
     pub(crate) fn dupn<'r>(
-        _ctx: &mut CtxType<'c>,
+        _ctx: &mut dyn CtxType<'c>,
         region: &'r Region<'c>,
         _stack_index: u8,
     ) -> Result<(BlockRef<'r, 'c>, BlockRef<'r, 'c>)> {
@@ -54,7 +54,7 @@ impl<'c> EVMCompiler<'c> {
     }
 
     pub(crate) fn swap<'r>(
-        ctx: &mut CtxType<'c>,
+        ctx: &mut dyn CtxType<'c>,
         region: &'r Region<'c>,
         n: usize,
     ) -> Result<(BlockRef<'r, 'c>, BlockRef<'r, 'c>)> {
@@ -67,7 +67,7 @@ impl<'c> EVMCompiler<'c> {
     }
 
     pub(crate) fn swapn<'r>(
-        _ctx: &mut CtxType<'c>,
+        _ctx: &mut dyn CtxType<'c>,
         region: &'r Region<'c>,
         _stack_index: u8,
     ) -> Result<(BlockRef<'r, 'c>, BlockRef<'r, 'c>)> {
@@ -77,7 +77,7 @@ impl<'c> EVMCompiler<'c> {
     }
 
     pub(crate) fn exchange<'r>(
-        _ctx: &mut CtxType<'c>,
+        _ctx: &mut dyn CtxType<'c>,
         region: &'r Region<'c>,
         _imm: u8,
     ) -> Result<(BlockRef<'r, 'c>, BlockRef<'r, 'c>)> {

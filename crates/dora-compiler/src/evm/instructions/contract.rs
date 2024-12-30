@@ -7,7 +7,7 @@ use crate::evm::{CtxType, EVMCompiler};
 
 impl<'c> EVMCompiler<'c> {
     pub(crate) fn create<'r>(
-        ctx: &mut CtxType<'c>,
+        ctx: &mut dyn CtxType<'c>,
         region: &'r Region<'c>,
     ) -> Result<(BlockRef<'r, 'c>, BlockRef<'r, 'c>)> {
         let start_block = region.append_block(Block::new(&[]));
@@ -21,7 +21,7 @@ impl<'c> EVMCompiler<'c> {
     }
 
     pub(crate) fn create2<'r>(
-        ctx: &mut CtxType<'c>,
+        ctx: &mut dyn CtxType<'c>,
         region: &'r Region<'c>,
     ) -> Result<(BlockRef<'r, 'c>, BlockRef<'r, 'c>)> {
         let start_block = region.append_block(Block::new(&[]));
@@ -36,7 +36,7 @@ impl<'c> EVMCompiler<'c> {
     }
 
     pub(crate) fn eofcreate<'r>(
-        _ctx: &mut CtxType<'c>,
+        _ctx: &mut dyn CtxType<'c>,
         region: &'r Region<'c>,
         _initcontainer_index: u8,
     ) -> Result<(BlockRef<'r, 'c>, BlockRef<'r, 'c>)> {
@@ -46,7 +46,7 @@ impl<'c> EVMCompiler<'c> {
     }
 
     pub(crate) fn returncontract<'r>(
-        _ctx: &mut CtxType<'c>,
+        _ctx: &mut dyn CtxType<'c>,
         region: &'r Region<'c>,
         _deploy_container_index: u8,
     ) -> Result<(BlockRef<'r, 'c>, BlockRef<'r, 'c>)> {
@@ -56,7 +56,7 @@ impl<'c> EVMCompiler<'c> {
     }
 
     pub(crate) fn call<'r>(
-        ctx: &mut CtxType<'c>,
+        ctx: &mut dyn CtxType<'c>,
         region: &'r Region<'c>,
     ) -> Result<(BlockRef<'r, 'c>, BlockRef<'r, 'c>)> {
         let start_block = region.append_block(Block::new(&[]));
@@ -82,7 +82,7 @@ impl<'c> EVMCompiler<'c> {
     }
 
     pub(crate) fn callcode<'r>(
-        ctx: &mut CtxType<'c>,
+        ctx: &mut dyn CtxType<'c>,
         region: &'r Region<'c>,
     ) -> Result<(BlockRef<'r, 'c>, BlockRef<'r, 'c>)> {
         let start_block = region.append_block(Block::new(&[]));
@@ -108,7 +108,7 @@ impl<'c> EVMCompiler<'c> {
     }
 
     pub(crate) fn delegatecall<'r>(
-        ctx: &mut CtxType<'c>,
+        ctx: &mut dyn CtxType<'c>,
         region: &'r Region<'c>,
     ) -> Result<(BlockRef<'r, 'c>, BlockRef<'r, 'c>)> {
         let start_block = region.append_block(Block::new(&[]));
@@ -132,7 +132,7 @@ impl<'c> EVMCompiler<'c> {
     }
 
     pub(crate) fn staticcall<'r>(
-        ctx: &mut CtxType<'c>,
+        ctx: &mut dyn CtxType<'c>,
         region: &'r Region<'c>,
     ) -> Result<(BlockRef<'r, 'c>, BlockRef<'r, 'c>)> {
         let start_block = region.append_block(Block::new(&[]));
@@ -156,7 +156,7 @@ impl<'c> EVMCompiler<'c> {
     }
 
     pub(crate) fn extcall<'r>(
-        _ctx: &mut CtxType<'c>,
+        _ctx: &mut dyn CtxType<'c>,
         region: &'r Region<'c>,
     ) -> Result<(BlockRef<'r, 'c>, BlockRef<'r, 'c>)> {
         let start_block = region.append_block(Block::new(&[]));
@@ -165,7 +165,7 @@ impl<'c> EVMCompiler<'c> {
     }
 
     pub(crate) fn extdelegatecall<'r>(
-        _ctx: &mut CtxType<'c>,
+        _ctx: &mut dyn CtxType<'c>,
         region: &'r Region<'c>,
     ) -> Result<(BlockRef<'r, 'c>, BlockRef<'r, 'c>)> {
         let start_block = region.append_block(Block::new(&[]));
@@ -174,7 +174,7 @@ impl<'c> EVMCompiler<'c> {
     }
 
     pub(crate) fn extstaticcall<'r>(
-        _ctx: &mut CtxType<'c>,
+        _ctx: &mut dyn CtxType<'c>,
         region: &'r Region<'c>,
     ) -> Result<(BlockRef<'r, 'c>, BlockRef<'r, 'c>)> {
         let start_block = region.append_block(Block::new(&[]));
@@ -183,7 +183,7 @@ impl<'c> EVMCompiler<'c> {
     }
 
     pub(crate) fn creturn<'r>(
-        ctx: &mut CtxType<'c>,
+        ctx: &mut dyn CtxType<'c>,
         region: &'r Region<'c>,
     ) -> Result<(BlockRef<'r, 'c>, BlockRef<'r, 'c>)> {
         let start_block = region.append_block(Block::new(&[]));

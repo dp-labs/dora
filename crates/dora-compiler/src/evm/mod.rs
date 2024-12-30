@@ -231,8 +231,12 @@ impl<'c> EVMCompiler<'c> {
                 );
                 let op_func_region = op_func.region(0)?;
                 let setup_block = op_func_region.append_block(Block::new(&[]));
-                let mut ctx =
-                    CtxType::new_op_func_ctx(context, &op_func_region, &setup_block, program)?;
+                let mut ctx = LegacyCtxType::new_op_func_ctx(
+                    context,
+                    &op_func_region,
+                    &setup_block,
+                    program,
+                )?;
                 let (block_start, block_end) =
                     EVMCompiler::generate_code_for_op(&mut ctx, &op_func_region, op, options)?;
                 setup_block.append_operation(cf::br(&block_start, &[], location));
@@ -270,7 +274,7 @@ impl<'c> EVMCompiler<'c> {
     /// # Returns
     /// A `Result` containing a tuple of `BlockRef` representing the starting and last blocks.
     pub fn generate_code_for_op(
-        ctx: &mut CtxType<'c>,
+        ctx: &mut dyn CtxType<'c>,
         region: &'c Region<'c>,
         op: &Operation,
         options: &<EVMCompiler<'c> as Compiler>::Options,
@@ -417,7 +421,7 @@ impl<'c> EVMCompiler<'c> {
     }
 
     fn stack_bound_checks_block<'r>(
-        ctx: &mut CtxType<'c>,
+        ctx: &mut dyn CtxType<'c>,
         region: &'r Region<'c>,
         block_start: BlockRef<'r, 'c>,
         op: &Operation,
@@ -428,11 +432,11 @@ impl<'c> EVMCompiler<'c> {
         let may_underflow = section_input > 0;
         let may_overflow = diff > 0;
         let stack_check_block = region.append_block(Block::new(&[]));
-        let builder = OpBuilder::new_with_block(ctx.context, stack_check_block);
+        let builder = OpBuilder::new_with_block(ctx.context(), stack_check_block);
         let uint64 = builder.uint64_ty();
         let location = builder.get_insert_location();
         let stack_max_size = builder.make(builder.iconst_64(MAX_STACK_SIZE as i64))?;
-        let size_before = builder.make(builder.load(ctx.values.stack_size_ptr, uint64))?;
+        let size_before = builder.make(builder.load(ctx.values().stack_size_ptr, uint64))?;
         let size_after = builder.make(arith::addi(
             size_before,
             builder.make(builder.iconst_64(diff))?,
@@ -441,7 +445,7 @@ impl<'c> EVMCompiler<'c> {
         // Check potential underflow/overflow
         if may_underflow && may_overflow {
             // Update the stack length for this operation.
-            builder.create(builder.store(size_after, ctx.values.stack_size_ptr));
+            builder.create(builder.store(size_after, ctx.values().stack_size_ptr));
             // Check underflow
             let i = builder.make(builder.iconst_64(section_input as i64))?;
             let underflow = builder.make(builder.icmp(IntCC::UnsignedLessThan, size_before, i))?;
@@ -453,9 +457,9 @@ impl<'c> EVMCompiler<'c> {
             let code =
                 builder.make(builder.iconst_8(ExitStatusCode::StackOverflow.to_u8() as i8))?;
             builder.create(cf::cond_br(
-                ctx.context,
+                ctx.context(),
                 revert,
-                &ctx.revert_block,
+                &ctx.revert_block(),
                 &block_start,
                 &[],
                 &[code],
@@ -463,7 +467,7 @@ impl<'c> EVMCompiler<'c> {
             ));
         } else if may_underflow {
             // Update the stack length for this operation.
-            builder.create(builder.store(size_after, ctx.values.stack_size_ptr));
+            builder.create(builder.store(size_after, ctx.values().stack_size_ptr));
             // Whether revert (or underflow)
             let i = builder.make(builder.iconst_64(section_input as i64))?;
 
@@ -472,9 +476,9 @@ impl<'c> EVMCompiler<'c> {
             let code =
                 builder.make(builder.iconst_8(ExitStatusCode::StackUnderflow.to_u8() as i8))?;
             builder.create(cf::cond_br(
-                ctx.context,
+                ctx.context(),
                 revert,
-                &ctx.revert_block,
+                &ctx.revert_block(),
                 &block_start,
                 &[],
                 &[code],
@@ -482,16 +486,16 @@ impl<'c> EVMCompiler<'c> {
             ));
         } else if may_overflow {
             // Update the stack length for this operation.
-            builder.create(builder.store(size_after, ctx.values.stack_size_ptr));
+            builder.create(builder.store(size_after, ctx.values().stack_size_ptr));
             // Whether revert (or overflow)
             let revert =
                 builder.make(builder.icmp(IntCC::UnsignedLessThan, stack_max_size, size_after))?;
             let code =
                 builder.make(builder.iconst_8(ExitStatusCode::StackOverflow.to_u8() as i8))?;
             builder.create(cf::cond_br(
-                ctx.context,
+                ctx.context(),
                 revert,
-                &ctx.revert_block,
+                &ctx.revert_block(),
                 &block_start,
                 &[],
                 &[code],
@@ -499,14 +503,14 @@ impl<'c> EVMCompiler<'c> {
             ));
         } else {
             // Update the stack length for this operation.
-            builder.create(builder.store(size_after, ctx.values.stack_size_ptr));
+            builder.create(builder.store(size_after, ctx.values().stack_size_ptr));
             builder.create(cf::br(&block_start, &[], location));
         }
         Ok(stack_check_block)
     }
 
     fn gas_metering_block<'r>(
-        ctx: &mut CtxType<'c>,
+        ctx: &mut dyn CtxType,
         region: &'r Region<'c>,
         block_start: BlockRef<'r, 'c>,
         op: &Operation,
@@ -515,12 +519,12 @@ impl<'c> EVMCompiler<'c> {
         let base_gas = op_info.base_gas();
         let gas_check_block = region.append_block(Block::new(&[]));
         let update_gas_remaining_block = region.append_block(Block::new(&[]));
-        let builder = OpBuilder::new_with_block(ctx.context, gas_check_block);
+        let builder = OpBuilder::new_with_block(ctx.context(), gas_check_block);
         let uint8 = builder.uint8_ty();
         let uint64 = builder.uint64_ty();
         let location = builder.get_insert_location();
         // Get address of gas counter global
-        let gas_counter = builder.make(builder.load(ctx.values.gas_counter_ptr, uint64))?;
+        let gas_counter = builder.make(builder.load(ctx.values().gas_counter_ptr, uint64))?;
         let gas_value = builder.make(builder.iconst_64(base_gas as i64))?;
         if std::env::var(DORA_TRACING).is_ok() {
             let opcode = builder
@@ -531,11 +535,11 @@ impl<'c> EVMCompiler<'c> {
                 builder.context(),
                 FlatSymbolRefAttribute::new(builder.context(), symbols::TRACING),
                 &[
-                    ctx.values.syscall_ctx,
+                    ctx.values().syscall_ctx,
                     opcode,
                     gas_counter,
-                    ctx.values.stack_ptr,
-                    ctx.values.stack_size_ptr,
+                    ctx.values().stack_ptr,
+                    ctx.values().stack_size_ptr,
                 ],
                 &[],
                 builder.get_insert_location(),
@@ -561,17 +565,17 @@ impl<'c> EVMCompiler<'c> {
             builder.context(),
             flag,
             &update_gas_remaining_block,
-            &ctx.revert_block,
+            &ctx.revert_block(),
             &[],
             &[builder.make(builder.iconst_8(ExitStatusCode::OutOfGas.to_u8() as i8))?],
             location,
         ));
-        let builder = OpBuilder::new_with_block(ctx.context, update_gas_remaining_block);
+        let builder = OpBuilder::new_with_block(ctx.context(), update_gas_remaining_block);
         let new_gas_counter = builder.make(arith::subi(gas_counter, gas_value, location))?;
         builder.create(llvm::store(
             builder.context(),
             new_gas_counter,
-            ctx.values.gas_counter_ptr,
+            ctx.values().gas_counter_ptr,
             location,
             LoadStoreOptions::default(),
         ));
@@ -624,8 +628,13 @@ impl<'c> EVMCompiler<'c> {
         let main_region = main_func.region(0)?;
         let setup_block = main_region.append_block(Block::new(&[]));
 
-        let mut ctx =
-            CtxType::new_main_func_ctx(self.ctx, module, &main_region, &setup_block, program)?;
+        let mut ctx = LegacyCtxType::new_main_func_ctx(
+            self.ctx,
+            module,
+            &main_region,
+            &setup_block,
+            program,
+        )?;
         let mut last_block = setup_block;
         // Generate all opcode with the inline mode.
         if options.inline {
@@ -777,11 +786,11 @@ impl<'c> EVMCompiler<'c> {
     }
 
     fn return_empty_result(
-        ctx: &CtxType,
+        ctx: &dyn CtxType,
         block: BlockRef<'_, '_>,
         code: ExitStatusCode,
     ) -> Result<()> {
-        let builder = OpBuilder::new_with_block(ctx.context, block);
+        let builder = OpBuilder::new_with_block(ctx.context(), block);
         let uint8 = builder.uint8_ty();
         let uint64 = builder.uint64_ty();
         let zero = builder.create(builder.iconst_64(0)).result(0)?.into();
@@ -790,12 +799,12 @@ impl<'c> EVMCompiler<'c> {
             .result(0)?
             .into();
 
-        let gas_counter = builder.make(builder.load(ctx.values.gas_counter_ptr, uint64))?;
+        let gas_counter = builder.make(builder.load(ctx.values().gas_counter_ptr, uint64))?;
 
         builder.create(func::call(
             builder.context(),
             FlatSymbolRefAttribute::new(builder.context(), symbols::WRITE_RESULT),
-            &[ctx.values.syscall_ctx, zero, zero, gas_counter, reason],
+            &[ctx.values().syscall_ctx, zero, zero, gas_counter, reason],
             &[],
             builder.get_insert_location(),
         ));
@@ -833,65 +842,6 @@ impl Default for CompileOptions {
             inline: false,
         }
     }
-}
-
-/// The `CtxType` struct holds the necessary context and data structures for managing
-/// the execution environment when compiling or interpreting EVM (Ethereum Virtual Machine)
-/// bytecode using MLIR. It encapsulates references to essential components like the MLIR context,
-/// the program being executed, values, and blocks for control flow management.
-///
-/// # Fields:
-/// - `context`: A reference to the `MLIRContext` that manages the lifetime and state of the
-///   intermediate representation.
-/// - `program`: A reference to the current `Program` being executed or compiled.
-/// - `values`: A set of context-specific values, such as the remaining gas and syscall context,
-///   which are crucial during the execution of EVM bytecode.
-/// - `revert_block`: A reference to a block used for handling reverts (exceptions or errors) in
-///   the EVM execution model.
-/// - `jumptable_block`: A reference to a block that handles jump table operations for dynamic
-///   control flow in EVM bytecode.
-/// - `jumpdest_blocks`: A map that associates EVM jump destination indices with their corresponding
-///   blocks in MLIR.
-///
-/// # Purpose:
-/// The `CtxType` struct acts as the primary context for managing the execution of EVM bytecode.
-/// It provides a unified structure that encapsulates control flow blocks and essential values,
-/// facilitating smooth execution and handling of jumps, exceptions, and system calls.
-///
-/// # Example Usage:
-/// ```no_check
-/// let ctx_type = CtxType {
-///     context: &mlir_context,
-///     program: &evm_program,
-///     values: CtxValues {
-///         syscall_ctx: syscall_value,
-///         remaining_gas: gas_value,
-///     },
-///     revert_block: revert_block_ref,
-///     jumptable_block: jumptable_block_ref,
-///     jumpdest_blocks: jumpdest_map,
-/// };
-/// ```
-///
-/// # Notes:
-/// - `CtxType` is integral for managing the flow of execution in the context of EVM bytecode,
-///   particularly handling jumps, system calls, and reverts efficiently within the MLIR infrastructure.
-#[derive(Debug)]
-pub struct CtxType<'c> {
-    /// The MLIR context used for managing types, operations, and modules.
-    pub context: &'c MLIRContext,
-    /// The program being executed or compiled in this context.
-    pub program: &'c Program,
-    /// A set of values relevant to the context of EVM execution, such as the remaining gas and syscall context.
-    pub values: CtxValues<'c>,
-    /// The block used to handle reverts (errors or exceptions) in the EVM execution model.
-    pub revert_block: BlockRef<'c, 'c>,
-    /// The block used to handle stop logic with a return code in the EVM execution model.
-    pub stop_block: BlockRef<'c, 'c>,
-    /// The block used to handle jump table operations in the EVM bytecode.
-    pub jumptable_block: BlockRef<'c, 'c>,
-    /// A map from jump destination indices in EVM to their corresponding blocks in MLIR.
-    pub jumpdest_blocks: BTreeMap<usize, BlockRef<'c, 'c>>,
 }
 
 /// The `CtxValues` struct encapsulates values specific to the EVM context, such as those used for
@@ -932,7 +882,136 @@ pub struct CtxValues<'c> {
     pub stack_size_ptr: Value<'c, 'c>,
 }
 
-impl<'c> CtxType<'c> {
+pub trait CtxType<'c> {
+    /// The MLIR context used for managing types, operations, and modules.
+    fn context(&self) -> &MLIRContext;
+    /// The program being executed or compiled in this context.
+    fn program(&self) -> &Program;
+    /// A set of values relevant to the context of EVM execution, such as the remaining gas and syscall context.
+    fn values(&self) -> &CtxValues;
+    /// The block used to handle reverts (errors or exceptions) in the EVM execution model.
+    fn revert_block(&self) -> BlockRef;
+    /// The block used to handle stop logic with a return code in the EVM execution model.
+    fn stop_block(&self) -> BlockRef;
+    /// The block used to handle jump table operations in the EVM bytecode.
+    fn jumptable_block(&self) -> BlockRef;
+    /// A map from jump destination indices in EVM to their corresponding blocks in MLIR.
+    fn jumpdest_blocks(&self) -> &BTreeMap<usize, BlockRef>;
+
+    fn new_main_func_ctx(
+        context: &'c Context,
+        module: &'c Module,
+        region: &'c Region,
+        block: &'c Block<'c>,
+        program: &'c Program,
+    ) -> Result<Self>
+    where
+        Self: Sized;
+
+    fn new_op_func_ctx(
+        context: &'c Context,
+        region: &'c Region,
+        block: &'c Block<'c>,
+        program: &'c Program,
+    ) -> Result<Self>
+    where
+        Self: Sized;
+
+    fn populate_jumptable(&self) -> Result<()>;
+
+    fn register_jump_destination(&mut self, pc: usize, block: BlockRef<'c, 'c>);
+
+    fn add_jump_op(&mut self, block: BlockRef<'c, 'c>, pc_to_jump_to: Value, location: Location);
+}
+
+/// The [`LegacyCtxType`] struct holds the necessary context and data structures for managing
+/// the execution environment when compiling or interpreting EVM (Ethereum Virtual Machine)
+/// bytecode using MLIR. It encapsulates references to essential components like the MLIR context,
+/// the program being executed, values, and blocks for control flow management.
+///
+/// # Fields:
+/// - `context`: A reference to the `MLIRContext` that manages the lifetime and state of the
+///   intermediate representation.
+/// - `program`: A reference to the current `Program` being executed or compiled.
+/// - `values`: A set of context-specific values, such as the remaining gas and syscall context,
+///   which are crucial during the execution of EVM bytecode.
+/// - `revert_block`: A reference to a block used for handling reverts (exceptions or errors) in
+///   the EVM execution model.
+/// - `jumptable_block`: A reference to a block that handles jump table operations for dynamic
+///   control flow in EVM bytecode.
+/// - `jumpdest_blocks`: A map that associates EVM jump destination indices with their corresponding
+///   blocks in MLIR.
+///
+/// # Purpose:
+/// The [`LegacyCtxType`] struct acts as the primary context for managing the execution of EVM bytecode.
+/// It provides a unified structure that encapsulates control flow blocks and essential values,
+/// facilitating smooth execution and handling of jumps, exceptions, and system calls.
+///
+/// # Example Usage:
+/// ```no_check
+/// let ctx_type = LegacyCtxType {
+///     context: &mlir_context,
+///     program: &evm_program,
+///     values: CtxValues {
+///         syscall_ctx: syscall_value,
+///         remaining_gas: gas_value,
+///     },
+///     revert_block: revert_block_ref,
+///     jumptable_block: jumptable_block_ref,
+///     jumpdest_blocks: jumpdest_map,
+/// };
+/// ```
+///
+/// # Notes:
+/// - `LegacyCtxType` is integral for managing the flow of execution in the context of EVM bytecode,
+///   particularly handling jumps, system calls, and reverts efficiently within the MLIR infrastructure.
+#[derive(Debug)]
+pub struct LegacyCtxType<'c> {
+    context: &'c MLIRContext,
+
+    program: &'c Program,
+
+    values: CtxValues<'c>,
+
+    revert_block: BlockRef<'c, 'c>,
+
+    stop_block: BlockRef<'c, 'c>,
+
+    jumptable_block: BlockRef<'c, 'c>,
+
+    jumpdest_blocks: BTreeMap<usize, BlockRef<'c, 'c>>,
+}
+
+// impl<'c> LegacyCtxType<'c> {
+impl<'c> CtxType<'c> for LegacyCtxType<'c> {
+    fn context(&self) -> &MLIRContext {
+        &self.context
+    }
+
+    fn program(&self) -> &Program {
+        &self.program
+    }
+
+    fn values(&self) -> &CtxValues {
+        &self.values
+    }
+
+    fn revert_block(&self) -> BlockRef {
+        self.revert_block
+    }
+
+    fn stop_block(&self) -> BlockRef {
+        self.stop_block
+    }
+
+    fn jumptable_block(&self) -> BlockRef {
+        self.jumptable_block
+    }
+
+    fn jumpdest_blocks(&self) -> &BTreeMap<usize, BlockRef> {
+        &self.jumpdest_blocks
+    }
+
     /// Creates a new instance of `CtxType` with the specified parameters.
     ///
     /// This constructor initializes the context for code generation, setting up
@@ -949,7 +1028,7 @@ impl<'c> CtxType<'c> {
     /// # Returns
     /// A `Result<Self>` containing the new `CtxType` instance on success, or an
     /// error if the initialization fails.
-    pub fn new_main_func_ctx(
+    fn new_main_func_ctx(
         context: &'c Context,
         module: &'c Module,
         region: &'c Region,
@@ -993,7 +1072,7 @@ impl<'c> CtxType<'c> {
         )?);
         let jumptable_block = region.append_block(Block::new(&[(uint256, location)]));
         let return_block = region.append_block(return_block(&context.mlir_context)?);
-        Ok(CtxType {
+        Ok(LegacyCtxType {
             context: &context.mlir_context,
             program,
             values: CtxValues {
@@ -1011,7 +1090,7 @@ impl<'c> CtxType<'c> {
     }
 
     /// Creates a new instance of `CtxType` with the specified parameters for the op function
-    pub fn new_op_func_ctx(
+    fn new_op_func_ctx(
         context: &'c Context,
         region: &'c Region,
         block: &'c Block<'c>,
@@ -1030,7 +1109,7 @@ impl<'c> CtxType<'c> {
             gas_counter_ptr,
         )?);
         let return_block = region.append_block(return_block(&context.mlir_context)?);
-        Ok(CtxType {
+        Ok(LegacyCtxType {
             context: &context.mlir_context,
             program,
             values: CtxValues {
@@ -1057,7 +1136,7 @@ impl<'c> CtxType<'c> {
     ///
     /// # Returns
     /// A `Result<()>` indicating success or failure of the operation.
-    pub fn populate_jumptable(&self) -> Result<()> {
+    fn populate_jumptable(&self) -> Result<()> {
         let context = self.context;
         let program = self.program;
         let block = self.jumptable_block;
@@ -1118,7 +1197,7 @@ impl<'c> CtxType<'c> {
     /// * `pc` - The program counter associated with the jump destination.
     /// * `block` - A reference to the block that acts as the jump destination.
     #[inline]
-    pub fn register_jump_destination(&mut self, pc: usize, block: BlockRef<'c, 'c>) {
+    fn register_jump_destination(&mut self, pc: usize, block: BlockRef<'c, 'c>) {
         self.jumpdest_blocks.insert(pc, block);
     }
 
@@ -1133,12 +1212,299 @@ impl<'c> CtxType<'c> {
     /// * `pc_to_jump_to` - The program counter value to jump to.
     /// * `location` - The location context for the operation.
     #[inline]
-    pub fn add_jump_op(
-        &mut self,
-        block: BlockRef<'c, 'c>,
-        pc_to_jump_to: Value,
-        location: Location,
-    ) {
+    fn add_jump_op(&mut self, block: BlockRef<'c, 'c>, pc_to_jump_to: Value, location: Location) {
+        block.append_operation(cf::br(&self.jumptable_block, &[pc_to_jump_to], location));
+    }
+}
+
+/// The [`EofCtxType`] struct holds the necessary context and data structures for managing
+/// the execution environment when compiling or interpreting EVM (Ethereum Virtual Machine)
+/// bytecode using MLIR. It encapsulates references to essential components like the MLIR context,
+/// the program being executed, values, and blocks for control flow management.
+///
+/// # Fields:
+/// - `context`: A reference to the `MLIRContext` that manages the lifetime and state of the
+///   intermediate representation.
+/// - `program`: A reference to the current `Program` being executed or compiled.
+/// - `values`: A set of context-specific values, such as the remaining gas and syscall context,
+///   which are crucial during the execution of EVM bytecode.
+/// - `revert_block`: A reference to a block used for handling reverts (exceptions or errors) in
+///   the EVM execution model.
+/// - `jumptable_block`: A reference to a block that handles jump table operations for dynamic
+///   control flow in EVM bytecode.
+/// - `jumpdest_blocks`: A map that associates EVM jump destination indices with their corresponding
+///   blocks in MLIR.
+///
+/// # Purpose:
+/// The [`EofCtxType`] struct acts as the primary context for managing the execution of EVM bytecode.
+/// It provides a unified structure that encapsulates control flow blocks and essential values,
+/// facilitating smooth execution and handling of jumps, exceptions, and system calls.
+///
+/// # Example Usage:
+/// ```no_check
+/// let ctx_type = EofCtxType {
+///     context: &mlir_context,
+///     program: &evm_program,
+///     values: CtxValues {
+///         syscall_ctx: syscall_value,
+///         remaining_gas: gas_value,
+///     },
+///     revert_block: revert_block_ref,
+///     jumptable_block: jumptable_block_ref,
+///     jumpdest_blocks: jumpdest_map,
+/// };
+/// ```
+///
+/// # Notes:
+/// - `EofCtxType` is integral for managing the flow of execution in the context of EVM bytecode,
+///   particularly handling jumps, system calls, and reverts efficiently within the MLIR infrastructure.
+#[derive(Debug)]
+pub struct EofCtxType<'c> {
+    context: &'c MLIRContext,
+
+    program: &'c Program,
+
+    values: CtxValues<'c>,
+
+    revert_block: BlockRef<'c, 'c>,
+
+    stop_block: BlockRef<'c, 'c>,
+
+    jumptable_block: BlockRef<'c, 'c>,
+
+    jumpdest_blocks: BTreeMap<usize, BlockRef<'c, 'c>>,
+}
+
+impl<'c> CtxType<'c> for EofCtxType<'c> {
+    fn context(&self) -> &MLIRContext {
+        &self.context
+    }
+
+    fn program(&self) -> &Program {
+        &self.program
+    }
+
+    fn values(&self) -> &CtxValues {
+        &self.values
+    }
+
+    fn revert_block(&self) -> BlockRef {
+        self.revert_block
+    }
+
+    fn stop_block(&self) -> BlockRef {
+        self.stop_block
+    }
+
+    fn jumptable_block(&self) -> BlockRef {
+        self.jumptable_block
+    }
+
+    fn jumpdest_blocks(&self) -> &BTreeMap<usize, BlockRef> {
+        &self.jumpdest_blocks
+    }
+
+    /// Creates a new instance of `CtxType` with the specified parameters.
+    ///
+    /// This constructor initializes the context for code generation, setting up
+    /// the necessary components such as syscall context, initial gas, and symbol
+    /// declarations. It also prepares the revert and jump table blocks.
+    ///
+    /// # Parameters
+    /// * `context` - A reference to the MLIR context.
+    /// * `module` - A reference to the MLIR module.
+    /// * `region` - A reference to the region in which to create blocks.
+    /// * `block` - A reference to the block in which operations will be generated.
+    /// * `program` - A reference to the program being compiled.
+    ///
+    /// # Returns
+    /// A `Result<Self>` containing the new `CtxType` instance on success, or an
+    /// error if the initialization fails.
+    fn new_main_func_ctx(
+        context: &'c Context,
+        module: &'c Module,
+        region: &'c Region,
+        block: &'c Block<'c>,
+        program: &'c Program,
+    ) -> Result<Self> {
+        let intrinsics = Intrinsics::declare(context);
+        let builder = OpBuilder::new(&context.mlir_context);
+
+        let uint256 = builder.uint256_ty();
+        let ptr_type = builder.ptr_ty();
+        let location = builder.unknown_loc();
+
+        let syscall_ctx = block.add_argument(intrinsics.ptr_ty, location);
+        let gas_counter_ptr = block.add_argument(intrinsics.ptr_ty, location);
+        let stack_ptr = block.add_argument(intrinsics.ptr_ty, location);
+        let stack_size_ptr = block.add_argument(intrinsics.ptr_ty, location);
+
+        SetupBuilder::new(&context.mlir_context, module).declare_symbols()?;
+
+        let array_size = block
+            .append_operation(builder.iconst_64(0))
+            .result(0)?
+            .into();
+        let stack_top_ptr = block
+            .append_operation(llvm::alloca(
+                &context.mlir_context,
+                array_size,
+                builder.ptr_ty(),
+                location,
+                AllocaOptions::new().elem_type(Some(TypeAttribute::new(ptr_type))),
+            ))
+            .result(0)?
+            .into();
+        block.append_operation(builder.store(stack_ptr, stack_top_ptr));
+
+        let revert_block = region.append_block(revert_block(
+            &context.mlir_context,
+            syscall_ctx,
+            gas_counter_ptr,
+        )?);
+        let jumptable_block = region.append_block(Block::new(&[(uint256, location)]));
+        let return_block = region.append_block(return_block(&context.mlir_context)?);
+        Ok(EofCtxType {
+            context: &context.mlir_context,
+            program,
+            values: CtxValues {
+                syscall_ctx,
+                gas_counter_ptr,
+                stack_ptr,
+                stack_top_ptr,
+                stack_size_ptr,
+            },
+            revert_block,
+            stop_block: return_block,
+            jumptable_block,
+            jumpdest_blocks: Default::default(),
+        })
+    }
+
+    /// Creates a new instance of `CtxType` with the specified parameters for the op function
+    fn new_op_func_ctx(
+        context: &'c Context,
+        region: &'c Region,
+        block: &'c Block<'c>,
+        program: &'c Program,
+    ) -> Result<Self> {
+        let intrinsics = Intrinsics::declare(context);
+        let location = Location::unknown(&context.mlir_context);
+        let syscall_ctx = block.add_argument(intrinsics.ptr_ty, location);
+        let gas_counter_ptr = block.add_argument(intrinsics.ptr_ty, location);
+        let stack_ptr = block.add_argument(intrinsics.ptr_ty, location);
+        let stack_size_ptr = block.add_argument(intrinsics.ptr_ty, location);
+        let stack_top_ptr = block.add_argument(intrinsics.ptr_ty, location);
+        let revert_block = region.append_block(revert_block(
+            &context.mlir_context,
+            syscall_ctx,
+            gas_counter_ptr,
+        )?);
+        let return_block = region.append_block(return_block(&context.mlir_context)?);
+        Ok(EofCtxType {
+            context: &context.mlir_context,
+            program,
+            values: CtxValues {
+                syscall_ctx,
+                gas_counter_ptr,
+                stack_ptr,
+                stack_top_ptr,
+                stack_size_ptr,
+            },
+            revert_block,
+            stop_block: return_block,
+            // Note that we perform jump processing at all calls to the op function rather than within
+            // the op function itself, so this is an impossible situation.
+            jumptable_block: revert_block,
+            jumpdest_blocks: Default::default(),
+        })
+    }
+
+    /// Populates the jump table block with the jump destinations.
+    ///
+    /// This function iterates through the operations in the program to find
+    /// jump destination operations, creating a switch operation in the jump
+    /// table block. It also verifies the created operation.
+    ///
+    /// # Returns
+    /// A `Result<()>` indicating success or failure of the operation.
+    fn populate_jumptable(&self) -> Result<()> {
+        let context = self.context;
+        let program = self.program;
+        let block = self.jumptable_block;
+
+        let location = Location::unknown(context);
+        let uint256 = IntegerType::new(context, 256);
+        let uint8 = IntegerType::new(context, 8);
+
+        let jumpdest_pcs: Vec<i64> = program
+            .operations
+            .iter()
+            .filter_map(|op| match op {
+                Operation::Jumpdest { pc } => Some(*pc as i64),
+                _ => None,
+            })
+            .collect();
+
+        let arg = block.argument(0)?;
+
+        let case_destinations: Vec<_> = self
+            .jumpdest_blocks
+            .values()
+            .map(|b| {
+                let x: (&Block, &[Value]) = (b, &[]);
+                x
+            })
+            .collect();
+
+        let code = block
+            .append_operation(arith::constant(
+                context,
+                IntegerAttribute::new(uint8.into(), ExitStatusCode::InvalidJump.to_u8() as i64)
+                    .into(),
+                location,
+            ))
+            .result(0)?;
+
+        block.append_operation(cf::switch(
+            context,
+            &jumpdest_pcs,
+            arg.into(),
+            uint256.into(),
+            (&self.revert_block, &[code.into()]),
+            &case_destinations,
+            location,
+        )?);
+
+        Ok(())
+    }
+
+    /// Registers a jump destination block for a given program counter.
+    ///
+    /// This function adds the specified block as a jump destination for the
+    /// given program counter. The registered blocks will be used during code
+    /// generation for jump operations.
+    ///
+    /// # Parameters
+    /// * `pc` - The program counter associated with the jump destination.
+    /// * `block` - A reference to the block that acts as the jump destination.
+    #[inline]
+    fn register_jump_destination(&mut self, pc: usize, block: BlockRef<'c, 'c>) {
+        self.jumpdest_blocks.insert(pc, block);
+    }
+
+    /// Adds a jump operation to the specified block.
+    ///
+    /// This function appends a branch operation to the specified block that
+    /// directs control flow to the jump table block based on the provided
+    /// program counter value.
+    ///
+    /// # Parameters
+    /// * `block` - A reference to the block to which the jump operation will be added.
+    /// * `pc_to_jump_to` - The program counter value to jump to.
+    /// * `location` - The location context for the operation.
+    #[inline]
+    fn add_jump_op(&mut self, block: BlockRef<'c, 'c>, pc_to_jump_to: Value, location: Location) {
         block.append_operation(cf::br(&self.jumptable_block, &[pc_to_jump_to], location));
     }
 }

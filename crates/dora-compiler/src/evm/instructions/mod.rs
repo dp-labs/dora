@@ -19,11 +19,12 @@ pub mod system;
 impl<'c> EVMCompiler<'c> {
     #[inline]
     pub(crate) fn make_builder<'a>(
-        ctx: &'a mut CtxType<'c>,
+        ctx: &'a mut (dyn CtxType<'c> + 'a),
         block: BlockRef<'c, 'a>,
     ) -> EVMBuilder<'a, 'c> {
+        let builder = OpBuilder::new_with_block(ctx.context(), block);
         EVMBuilder {
-            builder: OpBuilder::new_with_block(ctx.context, block),
+            builder,
             ctx,
             use_static_stack: false,
         }
