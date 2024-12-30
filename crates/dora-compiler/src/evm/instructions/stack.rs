@@ -44,12 +44,14 @@ impl<'c> EVMCompiler<'c> {
     }
 
     pub(crate) fn dupn<'r>(
-        _ctx: &mut CtxType<'c>,
+        ctx: &mut CtxType<'c>,
         region: &'r Region<'c>,
-        _stack_index: u8,
+        stack_index: u8,
     ) -> Result<(BlockRef<'r, 'c>, BlockRef<'r, 'c>)> {
         let start_block = region.append_block(Block::new(&[]));
-        // TODO : Needs EVMBuilder complete
+        let mut builder = Self::make_builder(ctx, start_block);
+        let value = builder.stack_peek_nth(stack_index as usize + 1)?;
+        builder.stack_push(value)?;
         Ok((start_block, start_block))
     }
 
@@ -67,22 +69,26 @@ impl<'c> EVMCompiler<'c> {
     }
 
     pub(crate) fn swapn<'r>(
-        _ctx: &mut CtxType<'c>,
+        ctx: &mut CtxType<'c>,
         region: &'r Region<'c>,
-        _stack_index: u8,
+        stack_index: u8,
     ) -> Result<(BlockRef<'r, 'c>, BlockRef<'r, 'c>)> {
         let start_block = region.append_block(Block::new(&[]));
-        // TODO : Needs EVMBuilder complete
+        let mut builder = Self::make_builder(ctx, start_block);
+        builder.stack_exchange(0, stack_index as usize + 1)?;
         Ok((start_block, start_block))
     }
 
     pub(crate) fn exchange<'r>(
-        _ctx: &mut CtxType<'c>,
+        ctx: &mut CtxType<'c>,
         region: &'r Region<'c>,
-        _imm: u8,
+        imm: u8,
     ) -> Result<(BlockRef<'r, 'c>, BlockRef<'r, 'c>)> {
+        let n = (imm >> 4) + 1;
+        let m = (imm & 0x0F) + 1;
         let start_block = region.append_block(Block::new(&[]));
-        // TODO : Needs EVMBuilder complete
+        let mut builder = Self::make_builder(ctx, start_block);
+        builder.stack_exchange(n as usize, m as usize)?;
         Ok((start_block, start_block))
     }
 }

@@ -221,7 +221,9 @@ impl crate::backend::Builder for EVMBuilder<'_, '_> {
     }
 
     fn stack_peek_nth(&mut self, n: usize) -> Result<Self::Value> {
-        debug_assert!(n < MAX_STACK_SIZE);
+        if !self.ctx.program.is_eof {
+            debug_assert!(n < MAX_STACK_SIZE);
+        }
         let builder = &self.builder;
 
         let uint256 = builder.uint256_ty();
