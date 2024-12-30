@@ -12,7 +12,9 @@ macro_rules! assert_snapshot {
         let module = compiler
             .compile(&wasm_bytes)
             .expect("failed to compile program");
-        insta::assert_snapshot!(module.module().as_operation());
+        let op = module.module().as_operation();
+        assert!(op.verify());
+        insta::assert_snapshot!(op);
     };
 }
 

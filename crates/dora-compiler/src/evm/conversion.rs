@@ -16,7 +16,7 @@ struct PassId;
 static CONVERSION_PASS: PassId = PassId;
 
 /// The `ConversionPass` struct is responsible for transforming specific EVM (Ethereum Virtual Machine)
-/// operations into their Dora (eXtensible Virtual Machine) counterparts. It walks through the MLIR operation
+/// operations into their Dora counterparts. It walks through the MLIR operation
 /// tree, identifies certain EVM instructions, and replaces them with Dora operations.
 ///
 /// This transformation is essential in a system where WebAssembly or other intermediate representations
@@ -53,7 +53,7 @@ impl ConversionPass<'_> {
     /// Executes the conversion pass on the provided operation.
     ///
     /// This function transforms specific EVM (Ethereum Virtual Machine) operations into equivalent
-    /// Dora (eXtensible Virtual Machine) operations. It walks through the operation, checks for
+    /// Dora operations. It walks through the operation, checks for
     /// recognized EVM instructions (such as `evm.add`, `evm.sub`, etc.), and replaces them with their
     /// corresponding Dora counterparts (like `dora.add`, `dora.sub`, etc.).
     ///
