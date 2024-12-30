@@ -78,7 +78,7 @@ impl<'c> WASMCompiler<'c> {
     /// # Returns:
     /// - A `WASMCompiler` instance initialized with the provided configuration.
     #[inline]
-    pub fn new(ctx: &'c Context, config: Config) -> WASMCompiler {
+    pub fn new(ctx: &'c Context, config: Config) -> WASMCompiler<'c> {
         WASMCompiler { ctx, config }
     }
 
