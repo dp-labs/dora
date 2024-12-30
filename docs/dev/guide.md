@@ -17,7 +17,7 @@ The following hardware is recommended.
 #### macOS and OS X
 
 - `git`
-- `Rust 1.82+`
+- `Rust 1.83+`
 - `LLVM 19`
 
 You'll need LLVM installed and `llvm-config` in your `PATH`. Just download `llvm@19` using `brew`.
@@ -37,7 +37,7 @@ export TABLEGEN_190_PREFIX="$(brew --prefix llvm@19)"
 #### Linux
 
 - `git`
-- `Rust 1.82+`
+- `Rust 1.83+`
 - `LLVM 19`
 
 If you are on Debian/Ubuntu, check out the repository [https://apt.llvm.org/](https://apt.llvm.org/) Then you can install with:
