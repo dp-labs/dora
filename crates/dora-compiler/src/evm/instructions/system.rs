@@ -89,39 +89,51 @@ impl<'c> EVMCompiler<'c> {
     }
 
     pub(crate) fn dataload<'r>(
-        _ctx: &mut CtxType<'c>,
+        ctx: &mut CtxType<'c>,
         region: &'r Region<'c>,
     ) -> Result<(BlockRef<'r, 'c>, BlockRef<'r, 'c>)> {
         let start_block = region.append_block(Block::new(&[]));
-        // TODO : Needs EVMBuilder complete
+        let mut builder = Self::make_builder(ctx, start_block);
+        let offset = builder.stack_pop()?;
+        let value = builder.dataload(offset)?;
+        builder.stack_push(value)?;
         Ok((start_block, start_block))
     }
 
     pub(crate) fn dataloadn<'r>(
-        _ctx: &mut CtxType<'c>,
+        ctx: &mut CtxType<'c>,
         region: &'r Region<'c>,
-        _offset: u16,
+        offset: u16,
     ) -> Result<(BlockRef<'r, 'c>, BlockRef<'r, 'c>)> {
         let start_block = region.append_block(Block::new(&[]));
-        // TODO : Needs EVMBuilder complete
+        let mut builder = Self::make_builder(ctx, start_block);
+        let offset = builder.iconst_16(offset as i16)?;
+        let value = builder.dataloadn(offset)?;
+        builder.stack_push(value)?;
         Ok((start_block, start_block))
     }
 
     pub(crate) fn datasize<'r>(
-        _ctx: &mut CtxType<'c>,
+        ctx: &mut CtxType<'c>,
         region: &'r Region<'c>,
     ) -> Result<(BlockRef<'r, 'c>, BlockRef<'r, 'c>)> {
         let start_block = region.append_block(Block::new(&[]));
-        // TODO : Needs EVMBuilder complete
+        let mut builder = Self::make_builder(ctx, start_block);
+        let value = builder.datasize()?;
+        builder.stack_push(value)?;
         Ok((start_block, start_block))
     }
 
     pub(crate) fn datacopy<'r>(
-        _ctx: &mut CtxType<'c>,
+        ctx: &mut CtxType<'c>,
         region: &'r Region<'c>,
     ) -> Result<(BlockRef<'r, 'c>, BlockRef<'r, 'c>)> {
         let start_block = region.append_block(Block::new(&[]));
-        // TODO : Needs EVMBuilder complete
+        let mut builder = Self::make_builder(ctx, start_block);
+        let mem_offset = builder.stack_pop()?;
+        let offset = builder.stack_pop()?;
+        let size = builder.stack_pop()?;
+        builder.datacopy(mem_offset, offset, size);
         Ok((start_block, start_block))
     }
 

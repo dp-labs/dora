@@ -92,6 +92,24 @@ pub trait Builder: IRTypes + TypeMethods {
     /// - `Result<Self::Value>`: A value representing the constant.
     fn uconst(&mut self, ty: Self::Type, value: u64) -> Result<Self::Value>;
 
+    /// Creates a 8-bit signed integer constant.
+    ///
+    /// # Arguments
+    /// - `value`: The signed integer value.
+    ///
+    /// # Returns
+    /// - `Result<Self::Value>`: A value representing the constant.
+    fn iconst_8(&mut self, value: i8) -> Result<Self::Value>;
+
+    /// Creates a 16-bit signed integer constant.
+    ///
+    /// # Arguments
+    /// - `value`: The signed integer value.
+    ///
+    /// # Returns
+    /// - `Result<Self::Value>`: A value representing the constant.
+    fn iconst_16(&mut self, value: i16) -> Result<Self::Value>;
+
     /// Creates a 32-bit signed integer constant.
     ///
     /// # Arguments

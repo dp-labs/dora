@@ -127,6 +127,14 @@ impl crate::backend::Builder for EVMBuilder<'_, '_> {
         Ok(op.result(0)?.to_ctx_value())
     }
 
+    fn iconst_8(&mut self, value: i8) -> Result<Self::Value> {
+        self.iconst(self.uint8_ty(), value as i64)
+    }
+
+    fn iconst_16(&mut self, value: i16) -> Result<Self::Value> {
+        self.iconst(self.uint16_ty(), value as i64)
+    }
+
     fn iconst_32(&mut self, value: i32) -> Result<Self::Value> {
         self.iconst(self.uint32_ty(), value as i64)
     }
