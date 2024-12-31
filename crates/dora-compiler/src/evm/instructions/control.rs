@@ -173,10 +173,11 @@ impl<'c> EVMCompiler<'c> {
         let start_block = region.append_block(Block::new(&[]));
         let empty_block = region.append_block(Block::new(&[]));
         let mut builder = Self::make_builder(ctx, start_block);
+        let error_code = builder.iconst_8(error_code as i8)?;
         builder.invalid();
         start_block.append_operation(cf::br(
             &builder.ctx.revert_block,
-            &[builder.make(builder.iconst_8(error_code as i8))?],
+            &[error_code],
             builder.location(),
         ));
         Ok((start_block, empty_block))

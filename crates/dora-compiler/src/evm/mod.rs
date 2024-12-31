@@ -47,7 +47,7 @@ pub use program::Program;
 #[cfg(test)]
 mod tests;
 
-/// The `EVMCompiler` struct provides a compiler for translating EVM (Ethereum Virtual Machine) bytecode
+/// The [`EVMCompiler`] struct provides a compiler for translating EVM (Ethereum Virtual Machine) bytecode
 /// into MLIR (Multi-Level Intermediate Representation) operations. It encapsulates the MLIR context and
 /// EVM-specific intrinsic types required during compilation.
 ///
@@ -59,7 +59,7 @@ mod tests;
 ///   the compilation process. These types are necessary to generate correct MLIR operations for EVM instructions.
 ///
 /// # Purpose:
-/// The `EVMCompiler` serves as the main entry point for compiling EVM bytecode into MLIR-based representations.
+/// The [`EVMCompiler`] serves as the main entry point for compiling EVM bytecode into MLIR-based representations.
 /// It relies on the provided context (`ctx`) to manage the lifetime and validity of MLIR operations, and uses
 /// intrinsic types (`intrinsics`) to map EVM constructs into the appropriate MLIR types. This struct simplifies
 /// the process of working with MLIR when targeting EVM execution models.
@@ -83,7 +83,7 @@ mod tests;
 ///   intermediate representation during compilation.
 /// - The `intrinsics` field provides easy access to the basic types (e.g., integer, float, and index types)
 ///   necessary for compiling EVM operations.
-/// - The `EVMCompiler` simplifies the process of generating MLIR operations from EVM bytecode by abstracting
+/// - The [`EVMCompiler`] simplifies the process of generating MLIR operations from EVM bytecode by abstracting
 ///   away the details of managing the context and intrinsic types.
 pub struct EVMCompiler<'c> {
     /// The MLIR context used for generating operations and managing their lifetime. It encapsulates the state
@@ -138,13 +138,13 @@ impl<'c> Compiler for EVMCompiler<'c> {
 }
 
 impl<'c> EVMCompiler<'c> {
-    /// Creates a new instance of `EVMCompiler`.
+    /// Creates a new instance of [`EVMCompiler`].
     ///
     /// # Parameters
     /// * `ctx` - A reference to the context in which the compiler operates.
     ///
     /// # Returns
-    /// A new instance of `EVMCompiler`.
+    /// A new instance of [`EVMCompiler`].
     pub fn new(ctx: &'c Context) -> Self {
         Self {
             intrinsics: Intrinsics::declare(ctx),
@@ -175,7 +175,7 @@ impl<'c> EVMCompiler<'c> {
     ///
     /// # Returns
     ///
-    /// A `Result` containing a hash map of operation functions, where each key is an opcode and the value
+    /// A [`Result`] containing a hash map of operation functions, where each key is an opcode and the value
     /// is the corresponding MLIR function. If an error occurs during function generation, the `Err` variant
     /// is returned.
     pub fn generate_op_functions(
@@ -268,7 +268,7 @@ impl<'c> EVMCompiler<'c> {
     /// * `op` - The operation to generate code for.
     ///
     /// # Returns
-    /// A `Result` containing a tuple of `BlockRef` representing the starting and last blocks.
+    /// A [`Result`] containing a tuple of [`BlockRef`] representing the starting and last blocks.
     pub fn generate_code_for_op(
         ctx: &mut CtxType<'c>,
         region: &'c Region<'c>,
@@ -771,7 +771,9 @@ impl<'c> EVMCompiler<'c> {
             }
         }
         // Deal jump operations
-        ctx.populate_jumptable()?;
+        if !program.is_eof {
+            ctx.populate_jumptable()?;
+        }
         module.body().append_operation(main_func);
         Ok(())
     }
@@ -835,66 +837,7 @@ impl Default for CompileOptions {
     }
 }
 
-/// The `CtxType` struct holds the necessary context and data structures for managing
-/// the execution environment when compiling or interpreting EVM (Ethereum Virtual Machine)
-/// bytecode using MLIR. It encapsulates references to essential components like the MLIR context,
-/// the program being executed, values, and blocks for control flow management.
-///
-/// # Fields:
-/// - `context`: A reference to the `MLIRContext` that manages the lifetime and state of the
-///   intermediate representation.
-/// - `program`: A reference to the current `Program` being executed or compiled.
-/// - `values`: A set of context-specific values, such as the remaining gas and syscall context,
-///   which are crucial during the execution of EVM bytecode.
-/// - `revert_block`: A reference to a block used for handling reverts (exceptions or errors) in
-///   the EVM execution model.
-/// - `jumptable_block`: A reference to a block that handles jump table operations for dynamic
-///   control flow in EVM bytecode.
-/// - `jumpdest_blocks`: A map that associates EVM jump destination indices with their corresponding
-///   blocks in MLIR.
-///
-/// # Purpose:
-/// The `CtxType` struct acts as the primary context for managing the execution of EVM bytecode.
-/// It provides a unified structure that encapsulates control flow blocks and essential values,
-/// facilitating smooth execution and handling of jumps, exceptions, and system calls.
-///
-/// # Example Usage:
-/// ```no_check
-/// let ctx_type = CtxType {
-///     context: &mlir_context,
-///     program: &evm_program,
-///     values: CtxValues {
-///         syscall_ctx: syscall_value,
-///         remaining_gas: gas_value,
-///     },
-///     revert_block: revert_block_ref,
-///     jumptable_block: jumptable_block_ref,
-///     jumpdest_blocks: jumpdest_map,
-/// };
-/// ```
-///
-/// # Notes:
-/// - `CtxType` is integral for managing the flow of execution in the context of EVM bytecode,
-///   particularly handling jumps, system calls, and reverts efficiently within the MLIR infrastructure.
-#[derive(Debug)]
-pub struct CtxType<'c> {
-    /// The MLIR context used for managing types, operations, and modules.
-    pub context: &'c MLIRContext,
-    /// The program being executed or compiled in this context.
-    pub program: &'c Program,
-    /// A set of values relevant to the context of EVM execution, such as the remaining gas and syscall context.
-    pub values: CtxValues<'c>,
-    /// The block used to handle reverts (errors or exceptions) in the EVM execution model.
-    pub revert_block: BlockRef<'c, 'c>,
-    /// The block used to handle stop logic with a return code in the EVM execution model.
-    pub stop_block: BlockRef<'c, 'c>,
-    /// The block used to handle jump table operations in the EVM bytecode.
-    pub jumptable_block: BlockRef<'c, 'c>,
-    /// A map from jump destination indices in EVM to their corresponding blocks in MLIR.
-    pub jumpdest_blocks: BTreeMap<usize, BlockRef<'c, 'c>>,
-}
-
-/// The `CtxValues` struct encapsulates values specific to the EVM context, such as those used for
+/// The [`CtxValues`] struct encapsulates values specific to the EVM context, such as those used for
 /// system calls and gas management during execution.
 ///
 /// # Fields:
@@ -904,7 +847,7 @@ pub struct CtxType<'c> {
 ///   controls the computational cost within the EVM execution model.
 ///
 /// # Purpose:
-/// `CtxValues` simplifies the management of context-specific values during the execution of EVM bytecode.
+/// [`CtxValues`] simplifies the management of context-specific values during the execution of EVM bytecode.
 /// It abstracts the remaining gas and system call context, making it easier to access and manage these
 /// values within the MLIR execution framework.
 ///
@@ -932,8 +875,67 @@ pub struct CtxValues<'c> {
     pub stack_size_ptr: Value<'c, 'c>,
 }
 
+/// The [`CtxType`] struct holds the necessary context and data structures for managing
+/// the execution environment when compiling or interpreting EVM (Ethereum Virtual Machine)
+/// bytecode using MLIR. It encapsulates references to essential components like the MLIR context,
+/// the program being executed, values, and blocks for control flow management.
+///
+/// # Fields:
+/// - `context`: A reference to the `MLIRContext` that manages the lifetime and state of the
+///   intermediate representation.
+/// - `program`: A reference to the current `Program` being executed or compiled.
+/// - `values`: A set of context-specific values, such as the remaining gas and syscall context,
+///   which are crucial during the execution of EVM bytecode.
+/// - `revert_block`: A reference to a block used for handling reverts (exceptions or errors) in
+///   the EVM execution model.
+/// - `jumptable_block`: A reference to a block that handles jump table operations for dynamic
+///   control flow in EVM bytecode.
+/// - `jumpdest_blocks`: A map that associates EVM jump destination indices with their corresponding
+///   blocks in MLIR.
+///
+/// # Purpose:
+/// The [`CtxType`] struct acts as the primary context for managing the execution of EVM bytecode.
+/// It provides a unified structure that encapsulates control flow blocks and essential values,
+/// facilitating smooth execution and handling of jumps, exceptions, and system calls.
+///
+/// # Example Usage:
+/// ```no_check
+/// let ctx_type = CtxType {
+///     context: &mlir_context,
+///     program: &evm_program,
+///     values: CtxValues {
+///         syscall_ctx: syscall_value,
+///         remaining_gas: gas_value,
+///     },
+///     revert_block: revert_block_ref,
+///     jumptable_block: jumptable_block_ref,
+///     jumpdest_blocks: jumpdest_map,
+/// };
+/// ```
+///
+/// # Notes:
+/// - [`CtxType`] is integral for managing the flow of execution in the context of EVM bytecode,
+///   particularly handling jumps, system calls, and reverts efficiently within the MLIR infrastructure.
+#[derive(Debug)]
+pub struct CtxType<'c> {
+    /// The MLIR context used for managing types, operations, and modules.
+    pub context: &'c MLIRContext,
+    /// The program being executed or compiled in this context.
+    pub program: &'c Program,
+    /// A set of values relevant to the context of EVM execution, such as the remaining gas and syscall context.
+    pub values: CtxValues<'c>,
+    /// The block used to handle reverts (errors or exceptions) in the EVM execution model.
+    pub revert_block: BlockRef<'c, 'c>,
+    /// The block used to handle stop logic with a return code in the EVM execution model.
+    pub stop_block: BlockRef<'c, 'c>,
+    /// The block used to handle jump table operations in the EVM bytecode.
+    pub jumptable_block: BlockRef<'c, 'c>,
+    /// A map from jump destination indices in EVM to their corresponding blocks in MLIR.
+    pub jumpdest_blocks: BTreeMap<usize, BlockRef<'c, 'c>>,
+}
+
 impl<'c> CtxType<'c> {
-    /// Creates a new instance of `CtxType` with the specified parameters.
+    /// Creates a new instance of [`CtxType`] with the specified parameters.
     ///
     /// This constructor initializes the context for code generation, setting up
     /// the necessary components such as syscall context, initial gas, and symbol
@@ -947,7 +949,7 @@ impl<'c> CtxType<'c> {
     /// * `program` - A reference to the program being compiled.
     ///
     /// # Returns
-    /// A `Result<Self>` containing the new `CtxType` instance on success, or an
+    /// A [`Result<Self>`] containing the new [`CtxType`] instance on success, or an
     /// error if the initialization fails.
     pub fn new_main_func_ctx(
         context: &'c Context,
@@ -1209,19 +1211,19 @@ pub fn return_block(context: &MLIRContext) -> Result<Block<'_>> {
     Ok(block)
 }
 
-/// The `SetupBuilder` struct is used to initialize and set up the execution environment within MLIR.
+/// The [`SetupBuilder`] struct is used to initialize and set up the execution environment within MLIR.
 /// It encapsulates the MLIR context, module, block, and an operation builder used to generate
 /// the necessary operations for the execution of EVM bytecode.
 ///
 /// # Fields:
-/// - `context`: A reference to the `MLIRContext` that manages types, operations, and modules.
-/// - `module`: A reference to the `Module` that contains the operations generated during execution.
-/// - `block`: A reference to the `Block` in which operations are being generated.
-/// - `builder`: A reference to the `OpBuilder` that creates MLIR operations.
+/// - `context`: A reference to the [`MLIRContext`] that manages types, operations, and modules.
+/// - `module`: A reference to the [`Module`] that contains the operations generated during execution.
+/// - `block`: A reference to the [`Block`] in which operations are being generated.
+/// - `builder`: A reference to the [`OpBuilder`] that creates MLIR operations.
 /// - `location`: The location information used for debugging purposes when generating MLIR operations.
 ///
 /// # Purpose:
-/// The `SetupBuilder` is responsible for setting up the initial environment and generating the operations
+/// The [`SetupBuilder`] is responsible for setting up the initial environment and generating the operations
 /// necessary for the execution of EVM bytecode within MLIR. It provides a convenient way to manage
 /// the context, module, and builder required for operation generation.
 ///
@@ -1237,7 +1239,7 @@ pub fn return_block(context: &MLIRContext) -> Result<Block<'_>> {
 /// ```
 ///
 /// # Notes:
-/// - The `SetupBuilder` simplifies the process of setting up and managing the necessary components
+/// - The [`SetupBuilder`] simplifies the process of setting up and managing the necessary components
 ///   for generating and executing MLIR operations.
 pub struct SetupBuilder<'c> {
     /// The MLIR context used for managing types, operations, and modules.
@@ -1247,7 +1249,7 @@ pub struct SetupBuilder<'c> {
 }
 
 impl<'c> SetupBuilder<'c> {
-    /// Creates a new instance of `SetupBuilder`.
+    /// Creates a new instance of [`SetupBuilder`].
     ///
     /// # Parameters
     /// * `context` - A reference to the MLIR context for operation creation.
@@ -1256,7 +1258,7 @@ impl<'c> SetupBuilder<'c> {
     /// * `op_builder` - A reference to the operation builder used for creating operations.
     ///
     /// # Returns
-    /// A new instance of `SetupBuilder`.
+    /// A new instance of [`SetupBuilder`].
     pub fn new(context: &'c MLIRContext, module: &'c Module<'c>) -> Self {
         Self { context, module }
     }
@@ -1266,7 +1268,7 @@ impl<'c> SetupBuilder<'c> {
     /// This method sets up the symbol context for further operations.
     ///
     /// # Returns
-    /// A reference to `self` for method chaining.
+    /// A reference to [`self`] for method chaining.
     ///
     /// # Errors
     /// Returns an error if symbol declaration fails.
