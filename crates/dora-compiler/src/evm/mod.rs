@@ -771,7 +771,9 @@ impl<'c> EVMCompiler<'c> {
             }
         }
         // Deal jump operations
-        ctx.populate_jumptable()?;
+        if !program.is_eof {
+            ctx.populate_jumptable()?;
+        }
         module.body().append_operation(main_func);
         Ok(())
     }
