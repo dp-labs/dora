@@ -90,11 +90,9 @@ pub struct EVMCompiler<'c> {
     /// of the MLIR infrastructure, including types, modules, and operations. This context is tied to the
     /// lifetime `'c` of the EVMCompiler.
     pub ctx: &'c Context,
-
     /// The intrinsic types specific to the EVM execution model, such as integer and floating-point types.
     /// These are used to translate EVM operations into the corresponding MLIR types during compilation.
     pub intrinsics: Intrinsics<'c>,
-
     /// Check for stack overflow or underflow errors. Note that there is no need to check for EOF Bytecode,
     /// as stack operations are statically determined at compile time.
     pub stack_bound_checks: bool,
