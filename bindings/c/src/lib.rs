@@ -75,7 +75,7 @@ impl EvmcVm for DoraVM {
             artifact.clone()
         } else {
             let Ok(artifact) = build_artifact::<MemoryDB>(
-                runtime_context.contract.code.bytecode(),
+                &runtime_context.contract.code,
                 runtime_context.inner.spec_id,
             ) else {
                 return ExecutionResult::failure();

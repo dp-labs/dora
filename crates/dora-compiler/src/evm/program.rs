@@ -1,4 +1,4 @@
-use dora_primitives::SpecId;
+use dora_primitives::Bytecode;
 use num_bigint::BigUint;
 pub use revmc::{op_info_map, OpcodeInfo};
 use std::fmt;
@@ -957,43 +957,19 @@ operations!(
 pub struct Program {
     /// A vector of operations parsed from the bytecode.
     pub operations: Vec<Operation>,
-
     /// The total size of the bytecode (in bytes).
     pub code_size: u32,
-
     /// Whether eof bytecode
     pub is_eof: bool,
 }
 
-impl Program {
-    /// Constructs a `Program` from a slice of opcodes, checking for errors during parsing.
-    ///
-    /// This method attempts to parse the provided opcodes into operations and calculates
-    /// the total code size. If any opcodes fail to parse, a `ParseError` is returned containing
-    /// the failed opcodes.
-    ///
-    /// # Parameters
-    /// * `opcodes` - A slice of bytes representing the opcodes to be parsed.
-    ///
-    /// # Returns
-    /// - `Ok(Self)` - If all opcodes are successfully parsed.
-    /// - `Err(ParseError)` - If any opcodes fail to parse, containing the list of failed opcodes.
-    pub fn from_opcode_checked(opcodes: &[u8], spec_id: SpecId) -> Result<Self, ParseError> {
-        let is_eof = spec_id.is_enabled_in(SpecId::OSAKA) && opcodes.starts_with(&EOF_MAGIC_BYTES);
-        let (operations, failed_opcodes) = Self::parse_operations(opcodes, is_eof);
-        let code_size = Self::calculate_code_size(&operations);
-
-        if failed_opcodes.is_empty() {
-            Ok(Self {
-                operations,
-                code_size,
-                is_eof,
-            })
-        } else {
-            Err(ParseError(failed_opcodes))
-        }
+impl From<Bytecode> for Program {
+    fn from(bytecode: Bytecode) -> Self {
+        Self::from_opcodes(bytecode.bytecode(), bytecode.is_eof())
     }
+}
 
+impl Program {
     /// Constructs a `Program` from a slice of opcodes without error checking.
     ///
     /// This method parses the provided opcodes into operations and calculates the total
@@ -1004,8 +980,7 @@ impl Program {
     ///
     /// # Returns
     /// A `Program` instance constructed from the parsed operations.
-    pub fn from_opcodes(opcodes: &[u8], spec_id: SpecId) -> Self {
-        let is_eof = spec_id.is_enabled_in(SpecId::OSAKA) && opcodes.starts_with(&EOF_MAGIC_BYTES);
+    pub fn from_opcodes(opcodes: &[u8], is_eof: bool) -> Self {
         let (operations, _) = Self::parse_operations(opcodes, is_eof);
         let code_size = Self::calculate_code_size(&operations);
 

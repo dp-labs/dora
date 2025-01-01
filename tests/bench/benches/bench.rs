@@ -39,7 +39,7 @@ fn run_bench(c: &mut Criterion, bench: &Bench) {
     let spec_id = SpecId::CANCUN;
     let context = Context::new();
     let compiler = EVMCompiler::new(&context);
-    let program = Program::from_opcodes(bytecode, spec_id);
+    let program = Program::from_opcodes(bytecode, false);
     let mut module = compiler
         .compile(
             &program,
@@ -192,9 +192,10 @@ fn run_uniswapv3_bench(c: &mut Criterion) {
 
     let mut db = MemoryDB::new();
     for (address, info) in state.clone() {
-        let artifact = build_artifact::<MemoryDB>(&info.0, SpecId::CANCUN).unwrap();
+        let code = Bytecode::new_raw(info.0.into());
+        let artifact = build_artifact::<MemoryDB>(&code, SpecId::CANCUN).unwrap();
         db.set_artifact(info.1.bytecode_hash, artifact);
-        db = db.with_contract(address, Bytecode::new_raw(info.0.into()));
+        db = db.with_contract(address, code);
         db.set_account(address, info.1.nonce, info.1.balance, info.1.storage);
     }
 

@@ -72,7 +72,7 @@ pub fn call_frame<DB: Database>(
         artifact
     } else {
         // Issue: https://github.com/dp-labs/dora/issues/135
-        let artifact = build_artifact::<DB>(frame.contract.code.bytecode(), ctx.spec_id())
+        let artifact = build_artifact::<DB>(&frame.contract.code, ctx.spec_id())
             .map_err(|e| EVMError::Custom(e.to_string()))?;
         ctx.db.set_artifact(code_hash, artifact.clone());
         artifact
@@ -104,7 +104,7 @@ pub fn run_with_context<DB: Database>(
     initial_gas: u64,
 ) -> anyhow::Result<u8> {
     let artifact: DB::Artifact = build_artifact::<DB>(
-        runtime_context.contract.code.bytecode(),
+        &runtime_context.contract.code,
         runtime_context.inner.spec_id,
     )?;
     let mut initial_gas = initial_gas;
@@ -112,9 +112,12 @@ pub fn run_with_context<DB: Database>(
 }
 
 /// Build opcode to the artifact
-pub fn build_artifact<DB: Database>(code: &[u8], spec_id: SpecId) -> anyhow::Result<DB::Artifact> {
+pub fn build_artifact<DB: Database>(
+    code: &Bytecode,
+    spec_id: SpecId,
+) -> anyhow::Result<DB::Artifact> {
     // Compile the contract code
-    let program = Program::from_opcodes(code, spec_id);
+    let program = Program::from_opcodes(code.bytecode(), code.is_eof());
     let context = Context::new();
     let compiler = EVMCompiler::new(&context);
     let mut module = compiler.compile(
