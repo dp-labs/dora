@@ -144,6 +144,30 @@ impl ConversionPass<'_> {
                     op,
                     dora_ir::dora::smod(self.ctx, lhs.r#type(), lhs, rhs, op.location()).into(),
                 );
+            } else if name == dora_ir::wasm::AndOperation::name() {
+                let lhs = op.operand(0)?;
+                let rhs = op.operand(1)?;
+                debug_assert!(lhs.r#type() == rhs.r#type());
+                replace_op(
+                    op,
+                    dora_ir::dora::and(self.ctx, lhs.r#type(), lhs, rhs, op.location()).into(),
+                );
+            } else if name == dora_ir::wasm::OrOperation::name() {
+                let lhs = op.operand(0)?;
+                let rhs = op.operand(1)?;
+                debug_assert!(lhs.r#type() == rhs.r#type());
+                replace_op(
+                    op,
+                    dora_ir::dora::or(self.ctx, lhs.r#type(), lhs, rhs, op.location()).into(),
+                );
+            } else if name == dora_ir::wasm::XOrOperation::name() {
+                let lhs = op.operand(0)?;
+                let rhs = op.operand(1)?;
+                debug_assert!(lhs.r#type() == rhs.r#type());
+                replace_op(
+                    op,
+                    dora_ir::dora::xor(self.ctx, lhs.r#type(), lhs, rhs, op.location()).into(),
+                );
             }
         }
         Ok(())

@@ -45,3 +45,69 @@ fn sum() {
 "#
     );
 }
+
+#[test]
+fn and_i32() {
+    assert_snapshot!(
+        r#"
+(module
+  (func (export "and") (param $x i32) (param $y i32) (result i32) (i32.and (local.get $x) (local.get $y)))
+)
+"#
+    );
+}
+
+#[test]
+fn and_i64() {
+    assert_snapshot!(
+        r#"
+(module
+  (func (export "and") (param $x i64) (param $y i64) (result i64) (i64.and (local.get $x) (local.get $y)))
+)
+"#
+    );
+}
+
+#[test]
+fn or_i32() {
+    assert_snapshot!(
+        r#"
+(module
+  (func (export "or") (param $x i32) (param $y i32) (result i32) (i32.or (local.get $x) (local.get $y)))
+)
+"#
+    );
+}
+
+#[test]
+fn or_i64() {
+    assert_snapshot!(
+        r#"
+(module
+  (func (export "or") (param $x i64) (param $y i64) (result i64) (i64.or (local.get $x) (local.get $y)))
+)
+"#
+    );
+}
+
+#[test]
+fn xor_i32() {
+    assert_snapshot!(
+        r#"
+(module
+  (func (export "xor") (param $x i32) (param $y i32) (result i32) (i32.xor (local.get $x) (local.get $y)))
+)
+"#
+    );
+}
+
+#[test]
+fn xor_i64() {
+    assert_snapshot!(
+        r#"
+(module
+  (func (export "xor") (param $x i64) (param $y i64) (result i64) (i64.xor (local.get $x) (local.get $y)))
+)
+"#
+    );
+}
