@@ -18,10 +18,10 @@ Dora is currently in the MVP stage, with support for EVM functionalities. It is 
 
 Web3's programming and VM layers have attracted a growing developer community. Dora takes this a step further by introducing a next-gen blockchain programming and execution layer that addresses key needs:
 
-- Extreme performance and lower costs: Optimized execution for real-world use cases.
-- Multi-language support and toolchain flexibility: Accommodates a variety of programming languages and preferred toolchains.
-- Borderless on-chain use cases: Removes barriers to enable seamless on-chain interoperability.
-- Seamless integration with co-processors: Native support for collaboration with various co-processors, such as zkVM.
+- Extreme performance and lower costs: Optimized execution tailored for real-world on-chain use cases.
+- Multi-language support and toolchain flexibility: Enabling a wide range of programming languages and toolchains, supporting EVM and WASM specifications within a single VM.
+- Borderless on-chain use cases: Eliminating barriers to achieve seamless interoperability across a variety of on-chain use cases.
+- Seamless integration with co-processors: Providing native support for collaboration with various co-processors, such as zkVM, for enhanced capabilities.
 
 ## Key Features in Early Stage
 
