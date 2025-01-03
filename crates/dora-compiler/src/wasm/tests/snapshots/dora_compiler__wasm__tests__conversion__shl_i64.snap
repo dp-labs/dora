@@ -1,0 +1,28 @@
+---
+source: crates/dora-compiler/src/wasm/tests/conversion.rs
+expression: op
+---
+module {
+  func.func @f0(%arg0: i64, %arg1: i64) -> i64 {
+    %c1_i64 = arith.constant 1 : i64
+    %0 = llvm.alloca %c1_i64 x i64 : (i64) -> !llvm.ptr
+    llvm.store %arg0, %0 : i64, !llvm.ptr
+    %c1_i64_0 = arith.constant 1 : i64
+    %1 = llvm.alloca %c1_i64_0 x i64 : (i64) -> !llvm.ptr
+    llvm.store %arg1, %1 : i64, !llvm.ptr
+    %2 = llvm.load %0 : !llvm.ptr -> i64
+    %3 = llvm.load %1 : !llvm.ptr -> i64
+    %c255_i64 = arith.constant 255 : i64
+    %4 = arith.cmpi ule, %2, %c255_i64 : i64
+    %5 = scf.if %4 -> (i64) {
+      %7 = arith.shli %3, %2 : i64
+      scf.yield %7 : i64
+    } else {
+      %c0_i64 = arith.constant 0 : i64
+      scf.yield %c0_i64 : i64
+    }
+    cf.br ^bb1(%5 : i64)
+  ^bb1(%6: i64):  // pred: ^bb0
+    return %6 : i64
+  }
+}
