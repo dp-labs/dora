@@ -7,7 +7,7 @@ use melior::{
         arith::{self, CmpiPredicate},
         scf,
     },
-    ir::{operation::OperationRef, Block, Region},
+    ir::{operation::OperationRef, Block, Region, ValueLike},
     Context,
 };
 use num_bigint::BigUint;
@@ -231,12 +231,10 @@ impl ConversionPass<'_> {
         operands!(op, shift, value);
         rewrite_ctx!(context, op, rewriter, location);
 
-        let uint256 = rewriter.uint256_ty();
+        let ty = shift.r#type();
 
         // Define the constant value 255
-        let value_255 = rewriter.make(arith_constant!(
-            rewriter, context, uint256, 255_i64, location
-        ))?;
+        let value_255 = rewriter.make(rewriter.iconst(ty, 255_i64))?;
 
         // Compare if the shift amount (operand 0) is less than 255
         let flag = rewriter.make(arith::cmpi(
@@ -249,7 +247,7 @@ impl ConversionPass<'_> {
 
         rewriter.make(scf::r#if(
             flag,
-            &[uint256],
+            &[ty],
             {
                 let region = Region::new();
                 let block = region.append_block(Block::new(&[]));
@@ -266,8 +264,7 @@ impl ConversionPass<'_> {
                 let rewriter = Rewriter::new_with_block(context, block);
 
                 // if shift is greater than 255
-                let result =
-                    rewriter.make(arith_constant!(rewriter, context, uint256, 0_i64, location))?;
+                let result = rewriter.make(rewriter.iconst(ty, 0))?;
                 rewriter.create(scf::r#yield(&[result], location));
                 region
             },
@@ -280,12 +277,10 @@ impl ConversionPass<'_> {
         operands!(op, shift, value);
         rewrite_ctx!(context, op, rewriter, location);
 
-        let uint256 = rewriter.uint256_ty();
+        let ty = shift.r#type();
 
         // Define the constant value 255
-        let value_255 = rewriter.make(arith_constant!(
-            rewriter, context, uint256, 255_i64, location
-        ))?;
+        let value_255 = rewriter.make(rewriter.iconst(ty, 255_i64))?;
         // Compare if the shift amount (operand 0) is less than 255
         let flag = rewriter.make(arith::cmpi(
             context,
@@ -296,7 +291,7 @@ impl ConversionPass<'_> {
         ))?;
         rewriter.make(scf::r#if(
             flag,
-            &[uint256],
+            &[ty],
             {
                 let region = Region::new();
                 let block = region.append_block(Block::new(&[]));
@@ -313,8 +308,7 @@ impl ConversionPass<'_> {
                 let rewriter = Rewriter::new_with_block(context, block);
 
                 // if shift is greater than 255
-                let result =
-                    rewriter.make(arith_constant!(rewriter, context, uint256, 0_i64, location))?;
+                let result = rewriter.make(rewriter.iconst(ty, 0))?;
                 rewriter.create(scf::r#yield(&[result], location));
                 region
             },
@@ -327,12 +321,10 @@ impl ConversionPass<'_> {
         operands!(op, o1, o2);
         rewrite_ctx!(context, op, rewriter, location);
 
-        let uint256 = rewriter.uint256_ty();
+        let ty = o1.r#type();
 
         // Define the constant value 255
-        let value_255 = rewriter.make(arith_constant!(
-            rewriter, context, uint256, 255_i64, location
-        ))?;
+        let value_255 = rewriter.make(rewriter.iconst(ty, 255_i64))?;
 
         // Ensure the shift amount is capped at 255 to avoid poisoning the result in `shrsi`
         let shift = rewriter.make(arith::minui(o1, value_255, location))?;

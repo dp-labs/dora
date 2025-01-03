@@ -111,3 +111,69 @@ fn xor_i64() {
 "#
     );
 }
+
+#[test]
+fn shl_i32() {
+    assert_snapshot!(
+        r#"
+(module
+  (func (export "shl") (param $x i32) (param $y i32) (result i32) (i32.shl (local.get $x) (local.get $y)))
+)
+"#
+    );
+}
+
+#[test]
+fn shl_i64() {
+    assert_snapshot!(
+        r#"
+(module
+  (func (export "shl") (param $x i64) (param $y i64) (result i64) (i64.shl (local.get $x) (local.get $y)))
+)
+"#
+    );
+}
+
+#[test]
+fn shr_s_i32() {
+    assert_snapshot!(
+        r#"
+(module
+  (func (export "shr_s") (param $x i32) (param $y i32) (result i32) (i32.shr_s (local.get $x) (local.get $y)))
+)
+"#
+    );
+}
+
+#[test]
+fn shr_s_i64() {
+    assert_snapshot!(
+        r#"
+(module
+  (func (export "shr_s") (param $x i64) (param $y i64) (result i64) (i64.shr_s (local.get $x) (local.get $y)))
+)
+"#
+    );
+}
+
+#[test]
+fn shr_u_i32() {
+    assert_snapshot!(
+        r#"
+(module
+  (func (export "shr_u") (param $x i32) (param $y i32) (result i32) (i32.shr_u (local.get $x) (local.get $y)))
+)
+"#
+    );
+}
+
+#[test]
+fn shr_u_i64() {
+    assert_snapshot!(
+        r#"
+(module
+  (func (export "shr_u") (param $x i64) (param $y i64) (result i64) (i64.shr_u (local.get $x) (local.get $y)))
+)
+"#
+    );
+}
