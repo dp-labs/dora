@@ -3,14 +3,21 @@ use std::collections::HashMap;
 use std::ops::Deref;
 
 use crate::context::Context;
+use crate::conversion::builder::OpBuilder;
 use crate::intrinsics::Intrinsics;
+use crate::value::ToContextValue;
 use anyhow::Result;
+use melior::dialect::llvm;
+use melior::ir::attribute::DenseI32ArrayAttribute;
 use melior::ir::r#type::Type;
-use melior::ir::{OperationRef, Value};
+use melior::ir::{BlockRef, OperationRef, Value};
 use melior::{dialect::llvm::r#type::r#struct, ir::r#type::FunctionType};
+use wasmer::Mutability;
 use wasmer_types::{
     FunctionIndex, GlobalIndex, MemoryIndex, ModuleInfo, SignatureIndex, TableIndex, VMOffsets,
 };
+
+use super::ty::type_to_mlir;
 
 /// Represents a set of WebAssembly (WASM) intrinsic types and utilities for interacting with
 /// WebAssembly-specific constructs within the target intermediate representation (IR).
@@ -122,7 +129,7 @@ struct TableCache<'c, 'a> {
 pub enum GlobalCache<'c, 'a> {
     Mut {
         ptr_to_value: Value<'c, 'a>,
-        value_type: Value<'c, 'a>,
+        value_type: Type<'c>,
     },
     Const {
         value: Value<'c, 'a>,
@@ -199,6 +206,8 @@ pub struct FunctionCache<'c, 'a> {
 /// - The `CtxType` struct is essential for efficiently managing the state and resources of a WebAssembly
 ///   execution environment by caching frequently accessed elements like functions, memories, and tables.
 pub struct CtxType<'c, 'a> {
+    /// The WASM vm context value used during the execution.
+    vm_ctx: Value<'c, 'c>,
     /// A reference to the WebAssembly module information, providing metadata about the module.
     wasm_module: &'a ModuleInfo,
     /// A cache of WebAssembly memories, indexed by `MemoryIndex`.
@@ -220,8 +229,9 @@ pub struct CtxType<'c, 'a> {
 }
 
 impl<'c, 'a> CtxType<'c, 'a> {
-    pub fn new(wasm_module: &'a ModuleInfo) -> CtxType<'c, 'a> {
+    pub fn new(vm_ctx: Value<'c, 'c>, wasm_module: &'a ModuleInfo) -> CtxType<'c, 'a> {
         CtxType {
+            vm_ctx,
             wasm_module,
             cached_memories: HashMap::new(),
             cached_tables: HashMap::new(),
@@ -234,7 +244,7 @@ impl<'c, 'a> CtxType<'c, 'a> {
         }
     }
 
-    pub fn add_func(
+    pub(crate) fn add_func(
         &mut self,
         function_index: FunctionIndex,
         func: OperationRef<'c, 'a>,
@@ -247,30 +257,70 @@ impl<'c, 'a> CtxType<'c, 'a> {
             }
         }
     }
-}
 
-pub fn is_sret(func_sig: &wasmer_types::FunctionType) -> Result<bool> {
-    let func_sig_returns_bit_widths = func_sig
-        .results()
-        .iter()
-        .map(|ty| match ty {
-            wasmer_types::Type::I32 | wasmer_types::Type::F32 => 32,
-            wasmer_types::Type::I64 | wasmer_types::Type::F64 => 64,
-            wasmer_types::Type::V128 => 128,
-            wasmer_types::Type::ExternRef | wasmer_types::Type::FuncRef => 64, /* pointer */
-        })
-        .collect::<Vec<i32>>();
+    pub(crate) fn global(
+        &mut self,
+        index: GlobalIndex,
+        ctx: &'c Context,
+        intrinsics: &WASMIntrinsics<'c>,
+        block: BlockRef<'c, 'a>,
+    ) -> Result<GlobalCache<'c, 'a>> {
+        let (cached_globals, wasm_module, ctx_ptr_value, offsets) = (
+            &mut self.cached_globals,
+            self.wasm_module,
+            self.vm_ctx,
+            &self.offsets,
+        );
+        if let Entry::Vacant(entry) = cached_globals.entry(index) {
+            let global_type = wasm_module.globals[index];
+            let global_value_type = global_type.ty;
 
-    Ok(!matches!(
-        func_sig_returns_bit_widths.as_slice(),
-        [] | [_]
-            | [32, 32]
-            | [32, 64]
-            | [64, 32]
-            | [64, 64]
-            | [32, 32, 32]
-            | [32, 32, 64]
-            | [64, 32, 32]
-            | [32, 32, 32, 32]
-    ))
+            let global_mutability = global_type.mutability;
+            let offset = if let Some(local_global_index) = wasm_module.local_global_index(index) {
+                offsets.vmctx_vmglobal_definition(local_global_index)
+            } else {
+                offsets.vmctx_vmglobal_import(index)
+            };
+            let builder = OpBuilder::new_with_block(&ctx.mlir_context, block);
+            let global = {
+                let context = builder.context();
+                let global_ptr = {
+                    let global_ptr_ptr = builder
+                        .make(llvm::get_element_ptr(
+                            context,
+                            ctx_ptr_value,
+                            DenseI32ArrayAttribute::new(context, &[offset as i32]),
+                            builder.intrinsics.i8_ty,
+                            builder.intrinsics.ptr_ty,
+                            builder.get_insert_location(),
+                        ))?
+                        .to_ctx_value();
+                    let global_ptr = builder
+                        .make(builder.load(global_ptr_ptr, builder.ptr_ty()))?
+                        .to_ctx_value();
+                    global_ptr
+                };
+                match global_mutability {
+                    Mutability::Const => {
+                        let value = builder
+                            .make(
+                                builder
+                                    .load(global_ptr, type_to_mlir(intrinsics, &global_value_type)),
+                            )?
+                            .to_ctx_value();
+                        GlobalCache::Const { value }
+                    }
+                    Mutability::Var => GlobalCache::Mut {
+                        ptr_to_value: global_ptr,
+                        value_type: type_to_mlir(intrinsics, &global_value_type),
+                    },
+                }
+            };
+            entry.insert(global);
+        }
+        self.cached_globals
+            .get(&index)
+            .ok_or_else(|| anyhow::anyhow!("wasm global not found"))
+            .cloned()
+    }
 }

@@ -7,15 +7,18 @@ use std::rc::Rc;
 
 use crate::backend::IntCC;
 use crate::context::Context;
+use crate::conversion::builder;
 use crate::conversion::builder::OpBuilder;
 use crate::errors::Result;
 use crate::intrinsics::{is_f32_arithmetic, is_f64_arithmetic};
 use crate::value::ToContextValue;
 
+use super::backend;
 use super::backend::is_zero;
 use super::backend::WASMBackend;
 use super::backend::WASMBuilder;
-use super::intrinsics::{is_sret, CtxType, WASMIntrinsics};
+use super::intrinsics::GlobalCache;
+use super::intrinsics::{CtxType, WASMIntrinsics};
 use super::ty::{type_to_mlir, type_to_mlir_zero_attribute};
 use super::Config;
 use crate::errors::CompileError;
@@ -38,6 +41,7 @@ use wasmer_compiler::wasmparser::Operator;
 use wasmer_compiler::wptype_to_type;
 use wasmer_compiler::{wpheaptype_to_type, ModuleTranslationState};
 use wasmer_types::entity::PrimaryMap;
+use wasmer_types::GlobalIndex;
 use wasmer_types::TrapCode;
 use wasmer_types::WasmResult;
 use wasmer_types::{
@@ -693,10 +697,54 @@ impl FunctionCodeGenerator {
                 let v = builder.make(op)?;
                 state.push1(v.to_ctx_value());
             }
-            Operator::LocalSet { local_index } => todo!(),
-            Operator::LocalTee { local_index } => todo!(),
-            Operator::GlobalGet { global_index } => todo!(),
-            Operator::GlobalSet { global_index } => todo!(),
+            Operator::LocalSet { local_index } => {
+                let pointer_value = fcx.locals[local_index as usize].1;
+                let v = state.pop1()?;
+                builder.create(builder.store(v, pointer_value));
+            }
+            Operator::LocalTee { local_index } => {
+                let pointer_value = fcx.locals[local_index as usize].1;
+                let v = state.peek1()?;
+                builder.create(builder.store(v, pointer_value));
+            }
+            Operator::GlobalGet { global_index } => {
+                let global_index = GlobalIndex::from_u32(global_index);
+                match fcx
+                    .ctx
+                    .global(global_index, backend.ctx, &backend.intrinsics, block)?
+                {
+                    GlobalCache::Const { value } => {
+                        state.push1(value.to_ctx_value());
+                    }
+                    GlobalCache::Mut {
+                        ptr_to_value,
+                        value_type,
+                    } => {
+                        let builder = OpBuilder::new_with_block(builder.context(), block);
+                        let value = builder.make(builder.load(ptr_to_value, value_type))?;
+                        state.push1(value.to_ctx_value());
+                    }
+                }
+            }
+            Operator::GlobalSet { global_index } => {
+                let global_index = GlobalIndex::from_u32(global_index);
+                match fcx
+                    .ctx
+                    .global(global_index, backend.ctx, &backend.intrinsics, block)?
+                {
+                    GlobalCache::Const { value: _ } => {
+                        return Err(CompileError::Codegen(format!(
+                            "global.set on immutable global index {}",
+                            global_index.as_u32()
+                        ))
+                        .into())
+                    }
+                    GlobalCache::Mut { ptr_to_value, .. } => {
+                        let value = state.pop1()?;
+                        builder.create(builder.store(value, ptr_to_value));
+                    }
+                }
+            }
             Operator::I32Load { memarg } => todo!(),
             Operator::I64Load { memarg } => todo!(),
             Operator::F32Load { memarg } => todo!(),

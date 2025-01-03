@@ -134,7 +134,8 @@ impl FuncTranslator {
                     for idx in 0..wasm_fn_type.params().len() {
                         let ty = wasm_fn_type.params()[idx];
                         let ty = type_to_mlir(&intrinsics, &ty);
-                        let value = setup_block.argument(idx)?;
+                        // The first argument is the system context pointer.
+                        let value = setup_block.argument(idx + 1)?;
                         let value_ptr = builder.make(builder.alloca(ty)?)?;
                         builder.create(builder.store(value.into(), value_ptr));
                         params.push((ty, value_ptr));
@@ -176,9 +177,10 @@ impl FuncTranslator {
                         .collect();
                     let return_block = region.append_block(Block::new(&phis));
                     backend.state.push_block(return_block, phis);
+                    let vm_ctx = setup_block.argument(0)?;
                     let mut fcx = FunctionCodeCtx {
                         locals: params_locals,
-                        ctx: CtxType::new(wasm_module),
+                        ctx: CtxType::new(vm_ctx.into(), wasm_module),
                         unreachable_depth: 0,
                         memory_styles,
                         _table_styles: table_styles,
