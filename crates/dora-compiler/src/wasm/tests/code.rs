@@ -178,3 +178,48 @@ fn f64_arith() {
 "#
     );
 }
+
+#[test]
+fn global_get_and_set() {
+    assert_snapshot!(
+        r#"
+(module
+  (global $a i32 (i32.const -2))
+  (global $b i64 (i64.const -5))
+  (global $x (mut i32) (i32.const -12))
+  (global $y (mut i64) (i64.const -15))
+
+  (func (export "get-a") (result i32) (global.get $a))
+  (func (export "get-b") (result i64) (global.get $b))
+  (func (export "set-x") (param i32) (global.set $x (local.get 0)))
+  (func (export "set-y") (param i64) (global.set $y (local.get 0)))
+)
+"#
+    );
+}
+
+#[test]
+fn local_get_and_set() {
+    assert_snapshot!(
+        r#"
+(module
+  (func (export "type-local-i32") (result i32) (local i32) 
+    (local.set 0 (i32.const 42))
+    (local.get 0)
+  )
+  (func (export "type-local-i64") (result i64) (local i64) 
+    (local.set 0 (i64.const 42))
+    (local.get 0)
+  )
+  (func (export "type-local-f32") (result f32) (local f32) 
+    (local.set 0 (f32.const 42.0))
+    (local.get 0)
+  )
+  (func (export "type-local-f64") (result f64) (local f64) 
+    (local.set 0 (f64.const 42.0))
+    (local.get 0)
+  )
+)
+"#
+    );
+}

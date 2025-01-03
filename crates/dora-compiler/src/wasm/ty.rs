@@ -61,6 +61,8 @@ pub fn func_type_to_mlir<'c>(
     sig: &FunctionType,
 ) -> melior::ir::r#type::FunctionType<'c> {
     let param_types = sig.params().iter().map(|ty| type_to_mlir(intrinsics, ty));
+    // Add the WASM vm context pointer as the first parameter
+    let param_types = std::iter::once(intrinsics.ptr_ty).chain(param_types);
     let return_types = sig.results().iter().map(|ty| type_to_mlir(intrinsics, ty));
     melior::ir::r#type::FunctionType::new(
         &context.mlir_context,
