@@ -10,14 +10,14 @@ use anyhow::Result;
 use melior::dialect::llvm;
 use melior::ir::attribute::DenseI32ArrayAttribute;
 use melior::ir::r#type::Type;
-use melior::ir::{BlockRef, OperationRef, Value};
+use melior::ir::{BlockRef, Value};
 use melior::{dialect::llvm::r#type::r#struct, ir::r#type::FunctionType};
-use wasmer::Mutability;
+use wasmer::{LocalFunctionIndex, Mutability};
 use wasmer_types::{
     FunctionIndex, GlobalIndex, MemoryIndex, ModuleInfo, SignatureIndex, TableIndex, VMOffsets,
 };
 
-use super::ty::type_to_mlir;
+use super::ty::{func_type_to_mlir, type_to_mlir};
 
 /// Represents a set of WebAssembly (WASM) intrinsic types and utilities for interacting with
 /// WebAssembly-specific constructs within the target intermediate representation (IR).
@@ -160,10 +160,7 @@ pub enum GlobalCache<'c, 'a> {
 /// - The `FunctionCache` is used to optimize repeated access to WebAssembly functions by caching the operations
 ///   and function types during execution or code generation.
 #[derive(Clone)]
-pub struct FunctionCache<'c, 'a> {
-    /// A reference to the operation representing the WebAssembly function.
-    pub func: OperationRef<'c, 'a>,
-
+pub struct FunctionCache<'c> {
     /// The type of the WebAssembly function, including its parameter and return types.
     pub func_type: FunctionType<'c>,
 }
@@ -207,7 +204,7 @@ pub struct FunctionCache<'c, 'a> {
 ///   execution environment by caching frequently accessed elements like functions, memories, and tables.
 pub struct CtxType<'c, 'a> {
     /// The WASM vm context value used during the execution.
-    vm_ctx: Value<'c, 'c>,
+    pub vm_ctx: Value<'c, 'c>,
     /// A reference to the WebAssembly module information, providing metadata about the module.
     wasm_module: &'a ModuleInfo,
     /// A cache of WebAssembly memories, indexed by `MemoryIndex`.
@@ -219,7 +216,7 @@ pub struct CtxType<'c, 'a> {
     /// A cache of WebAssembly globals, indexed by `GlobalIndex`.
     cached_globals: HashMap<GlobalIndex, GlobalCache<'c, 'a>>,
     /// A cache of WebAssembly functions, indexed by `FunctionIndex`.
-    cached_functions: HashMap<FunctionIndex, FunctionCache<'c, 'a>>,
+    cached_functions: HashMap<FunctionIndex, FunctionCache<'c>>,
     /// A cache for memory growth values, indexed by `MemoryIndex`.
     cached_memory_grow: HashMap<MemoryIndex, Value<'c, 'a>>,
     /// A cache for memory size values, indexed by `MemoryIndex`.
@@ -244,18 +241,31 @@ impl<'c, 'a> CtxType<'c, 'a> {
         }
     }
 
-    pub(crate) fn add_func(
-        &mut self,
-        function_index: FunctionIndex,
-        func: OperationRef<'c, 'a>,
-        func_type: FunctionType<'c>,
-    ) {
+    pub(crate) fn add_func(&mut self, function_index: FunctionIndex, func_type: FunctionType<'c>) {
         match self.cached_functions.entry(function_index) {
             Entry::Occupied(_) => unreachable!("duplicate function"),
             Entry::Vacant(entry) => {
-                entry.insert(FunctionCache { func, func_type });
+                entry.insert(FunctionCache { func_type });
             }
         }
+    }
+
+    pub(crate) fn local_func(
+        &mut self,
+        _local_function_index: LocalFunctionIndex,
+        function_index: FunctionIndex,
+        func_type: &wasmer::FunctionType,
+        ctx: &'c Context,
+        intrinsics: &WASMIntrinsics<'c>,
+    ) -> Result<&FunctionCache<'c>> {
+        let cached_functions = &mut self.cached_functions;
+        Ok(match cached_functions.entry(function_index) {
+            Entry::Occupied(entry) => entry.into_mut(),
+            Entry::Vacant(entry) => {
+                let func_type = func_type_to_mlir(ctx, intrinsics, func_type);
+                entry.insert(FunctionCache { func_type })
+            }
+        })
     }
 
     pub(crate) fn global(

@@ -17,6 +17,7 @@ use super::backend;
 use super::backend::is_zero;
 use super::backend::WASMBackend;
 use super::backend::WASMBuilder;
+use super::intrinsics::FunctionCache;
 use super::intrinsics::GlobalCache;
 use super::intrinsics::{CtxType, WASMIntrinsics};
 use super::ty::{type_to_mlir, type_to_mlir_zero_attribute};
@@ -30,6 +31,7 @@ use crate::state::IfElseState;
 use crate::state::{PhiValue, State};
 use melior::dialect::arith::{CmpfPredicate, CmpiPredicate};
 use melior::dialect::{arith, cf, func, llvm};
+use melior::ir::attribute::FlatSymbolRefAttribute;
 use melior::ir::attribute::{FloatAttribute, IntegerAttribute};
 use melior::ir::{Block, BlockRef, Location, Region, RegionRef, Type, Value};
 use melior::ir::{Module as MLIRModule, TypeLike, ValueLike};
@@ -41,7 +43,9 @@ use wasmer_compiler::wasmparser::Operator;
 use wasmer_compiler::wptype_to_type;
 use wasmer_compiler::{wpheaptype_to_type, ModuleTranslationState};
 use wasmer_types::entity::PrimaryMap;
+use wasmer_types::FunctionIndex;
 use wasmer_types::GlobalIndex;
+use wasmer_types::Symbol;
 use wasmer_types::TrapCode;
 use wasmer_types::WasmResult;
 use wasmer_types::{
@@ -680,7 +684,53 @@ impl FunctionCodeGenerator {
                 ));
                 state.reachable = false;
             }
-            Operator::Call { function_index } => todo!(),
+            Operator::Call { function_index } => {
+                let func_index = FunctionIndex::from_u32(function_index);
+                let sigindex = fcx.wasm_module.functions[func_index];
+                let wasm_func_type = &fcx.wasm_module.signatures[sigindex];
+                let vm_ctx = fcx.ctx.vm_ctx;
+                let (FunctionCache { func_type }, func_name) =
+                    if let Some(local_func_index) = fcx.wasm_module.local_func_index(func_index) {
+                        let func_name = match fcx.wasm_module.function_names.get(&func_index) {
+                            Some(name) => name.to_string(),
+                            None => fcx
+                                .symbol_registry
+                                .symbol_to_name(Symbol::LocalFunction(local_func_index)),
+                        };
+                        (
+                            fcx.ctx.local_func(
+                                local_func_index,
+                                func_index,
+                                wasm_func_type,
+                                backend.ctx,
+                                &backend.intrinsics,
+                            )?,
+                            func_name,
+                        )
+                    } else {
+                        unimplemented!("wasm imported functions");
+                    };
+                let args = state.popn_save_extra(wasm_func_type.params().len())?;
+                let args = args.iter().map(|p| p.0).collect::<Vec<Value<'_, '_>>>();
+                let args = std::iter::once(vm_ctx)
+                    .chain(args.iter().copied())
+                    .collect::<Vec<Value<'_, '_>>>();
+                let result_count = func_type.result_count();
+                let result_types = (0..result_count)
+                    .map(|i| func_type.result(i).unwrap())
+                    .collect::<Vec<_>>();
+                let op = builder.create(func::call(
+                    &backend.ctx.mlir_context,
+                    FlatSymbolRefAttribute::new(&backend.ctx.mlir_context, &func_name),
+                    &args,
+                    &result_types,
+                    builder.get_insert_location(),
+                ));
+                for i in (0..result_count) {
+                    let value = op.result(i)?.to_ctx_value();
+                    state.push1(value);
+                }
+            }
             Operator::ReturnCall { function_index } => todo!(),
             Operator::ReturnCallIndirect {
                 type_index,
