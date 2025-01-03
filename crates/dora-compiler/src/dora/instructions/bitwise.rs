@@ -17,7 +17,7 @@ impl ConversionPass<'_> {
         operands!(op, l, r);
         rewrite_ctx!(context, op, rewriter, location);
 
-        let uint256 = rewriter.uint256_ty();
+        let ty = op.result(0)?.r#type();
 
         let lt = rewriter.make(arith::cmpi(
             context,
@@ -26,7 +26,7 @@ impl ConversionPass<'_> {
             r,
             location,
         ))?;
-        rewriter.make(arith::extui(lt, uint256, location))?;
+        rewriter.make(arith::extui(lt, ty, location))?;
         Ok(())
     }
 
@@ -34,7 +34,7 @@ impl ConversionPass<'_> {
         operands!(op, l, r);
         rewrite_ctx!(context, op, rewriter, location);
 
-        let uint256 = rewriter.uint256_ty();
+        let ty = l.r#type();
 
         let gt = rewriter.make(arith::cmpi(
             context,
@@ -43,7 +43,7 @@ impl ConversionPass<'_> {
             r,
             location,
         ))?;
-        rewriter.make(arith::extui(gt, uint256, location))?;
+        rewriter.make(arith::extui(gt, ty, location))?;
         Ok(())
     }
 
@@ -51,7 +51,7 @@ impl ConversionPass<'_> {
         operands!(op, l, r);
         rewrite_ctx!(context, op, rewriter, location);
 
-        let uint256 = rewriter.uint256_ty();
+        let ty = op.result(0)?.r#type();
 
         let slt = rewriter.make(arith::cmpi(
             context,
@@ -60,7 +60,7 @@ impl ConversionPass<'_> {
             r,
             location,
         ))?;
-        rewriter.make(arith::extui(slt, uint256, location))?;
+        rewriter.make(arith::extui(slt, ty, location))?;
         Ok(())
     }
 
@@ -68,7 +68,7 @@ impl ConversionPass<'_> {
         operands!(op, l, r);
         rewrite_ctx!(context, op, rewriter, location);
 
-        let uint256 = rewriter.uint256_ty();
+        let ty = op.result(0)?.r#type();
 
         let sgt = rewriter.make(arith::cmpi(
             context,
@@ -77,7 +77,7 @@ impl ConversionPass<'_> {
             r,
             location,
         ))?;
-        rewriter.make(arith::extui(sgt, uint256, location))?;
+        rewriter.make(arith::extui(sgt, ty, location))?;
         Ok(())
     }
 
@@ -85,7 +85,7 @@ impl ConversionPass<'_> {
         operands!(op, l, r);
         rewrite_ctx!(context, op, rewriter, location);
 
-        let uint256 = rewriter.uint256_ty();
+        let ty = op.result(0)?.r#type();
 
         let eq = rewriter.make(arith::cmpi(
             context,
@@ -94,7 +94,7 @@ impl ConversionPass<'_> {
             r,
             location,
         ))?;
-        rewriter.make(arith::extui(eq, uint256, location))?;
+        rewriter.make(arith::extui(eq, ty, location))?;
         Ok(())
     }
 
@@ -102,9 +102,10 @@ impl ConversionPass<'_> {
         operands!(op, value);
         rewrite_ctx!(context, op, rewriter, location);
 
-        let uint256 = rewriter.uint256_ty();
+        let value_ty = value.r#type();
+        let ret_ty = op.result(0)?.r#type();
 
-        let zero = rewriter.make(arith_constant!(rewriter, context, uint256, 0, location))?;
+        let zero = rewriter.make(rewriter.iconst(value_ty, 0))?;
         let is_zero = rewriter.make(arith::cmpi(
             context,
             arith::CmpiPredicate::Eq,
@@ -112,7 +113,7 @@ impl ConversionPass<'_> {
             zero,
             location,
         ))?;
-        rewriter.make(arith::extui(is_zero, uint256, location))?;
+        rewriter.make(arith::extui(is_zero, ret_ty, location))?;
         Ok(())
     }
 
@@ -233,15 +234,16 @@ impl ConversionPass<'_> {
 
         let ty = shift.r#type();
 
-        // Define the constant value 255
-        let value_255 = rewriter.make(rewriter.iconst(ty, 255_i64))?;
+        // Define the constant max shift value
+        let max_shift =
+            rewriter.make(rewriter.iconst(ty, rewriter.int_ty_width(ty)? as i64 - 1))?;
 
         // Compare if the shift amount (operand 0) is less than 255
         let flag = rewriter.make(arith::cmpi(
             context,
             CmpiPredicate::Ule,
             shift,
-            value_255,
+            max_shift,
             location,
         ))?;
 
@@ -279,14 +281,15 @@ impl ConversionPass<'_> {
 
         let ty = shift.r#type();
 
-        // Define the constant value 255
-        let value_255 = rewriter.make(rewriter.iconst(ty, 255_i64))?;
+        // Define the constant max shift value
+        let max_shift =
+            rewriter.make(rewriter.iconst(ty, rewriter.int_ty_width(ty)? as i64 - 1))?;
         // Compare if the shift amount (operand 0) is less than 255
         let flag = rewriter.make(arith::cmpi(
             context,
             CmpiPredicate::Ule,
             shift,
-            value_255,
+            max_shift,
             location,
         ))?;
         rewriter.make(scf::r#if(
@@ -323,11 +326,11 @@ impl ConversionPass<'_> {
 
         let ty = o1.r#type();
 
-        // Define the constant value 255
-        let value_255 = rewriter.make(rewriter.iconst(ty, 255_i64))?;
-
-        // Ensure the shift amount is capped at 255 to avoid poisoning the result in `shrsi`
-        let shift = rewriter.make(arith::minui(o1, value_255, location))?;
+        // Define the constant max shift value
+        let max_shift =
+            rewriter.make(rewriter.iconst(ty, rewriter.int_ty_width(ty)? as i64 - 1))?;
+        // Ensure the shift amount is capped at the max shift to avoid poisoning the result in `shrsi`
+        let shift = rewriter.make(arith::minui(o1, max_shift, location))?;
         // Perform the arithmetic shift right operation
         rewriter.make(arith::shrsi(o2, shift, location))?;
         Ok(())

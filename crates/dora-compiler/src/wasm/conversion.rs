@@ -182,7 +182,7 @@ impl ConversionPass<'_> {
                 debug_assert!(lhs.r#type() == rhs.r#type());
                 replace_op(
                     op,
-                    dora_ir::dora::shr(self.ctx, lhs.r#type(), lhs, rhs, op.location()).into(),
+                    dora_ir::dora::sar(self.ctx, lhs.r#type(), lhs, rhs, op.location()).into(),
                 );
             } else if name == dora_ir::wasm::ShrUOperation::name() {
                 let lhs = op.operand(0)?;
@@ -190,7 +190,7 @@ impl ConversionPass<'_> {
                 debug_assert!(lhs.r#type() == rhs.r#type());
                 replace_op(
                     op,
-                    dora_ir::dora::sar(self.ctx, lhs.r#type(), lhs, rhs, op.location()).into(),
+                    dora_ir::dora::shr(self.ctx, lhs.r#type(), lhs, rhs, op.location()).into(),
                 );
             }
         }
