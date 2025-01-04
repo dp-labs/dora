@@ -2601,4 +2601,116 @@ impl RuntimeContext<'_> {
             }
         }
     }
+
+    /// Registers all WASM libcalls as symbols in the execution engine.
+    pub fn register_wasm_symbols(engine: &ExecutionEngine) {
+        unsafe {
+            let symbols_and_signatures: &[SymbolSignature] = &[
+                (
+                    symbols::wasm::TABLE_INIT,
+                    wasmer_vm::libcalls::wasmer_vm_table_init as *const _,
+                ),
+                (
+                    symbols::wasm::TABLE_FILL,
+                    wasmer_vm::libcalls::wasmer_vm_table_fill as *const _,
+                ),
+                (
+                    symbols::wasm::TABLE_SIZE,
+                    wasmer_vm::libcalls::wasmer_vm_table_size as *const _,
+                ),
+                (
+                    symbols::wasm::TABLE_GET,
+                    wasmer_vm::libcalls::wasmer_vm_table_get as *const _,
+                ),
+                (
+                    symbols::wasm::TABLE_SET,
+                    wasmer_vm::libcalls::wasmer_vm_table_set as *const _,
+                ),
+                (
+                    symbols::wasm::TABLE_GROW,
+                    wasmer_vm::libcalls::wasmer_vm_table_grow as *const _,
+                ),
+                (
+                    symbols::wasm::IMPROTED_TABLE_SIZE,
+                    wasmer_vm::libcalls::wasmer_vm_imported_table_size as *const _,
+                ),
+                (
+                    symbols::wasm::IMPROTED_TABLE_GET,
+                    wasmer_vm::libcalls::wasmer_vm_imported_table_get as *const _,
+                ),
+                (
+                    symbols::wasm::IMPROTED_TABLE_SET,
+                    wasmer_vm::libcalls::wasmer_vm_imported_table_set as *const _,
+                ),
+                (
+                    symbols::wasm::IMPROTED_TABLE_GROW,
+                    wasmer_vm::libcalls::wasmer_vm_imported_table_grow as *const _,
+                ),
+                (
+                    symbols::wasm::MEMORY_INIT,
+                    wasmer_vm::libcalls::wasmer_vm_memory32_init as *const _,
+                ),
+                (
+                    symbols::wasm::MEMORY_COPY,
+                    wasmer_vm::libcalls::wasmer_vm_memory32_copy as *const _,
+                ),
+                (
+                    symbols::wasm::MEMORY_FILL,
+                    wasmer_vm::libcalls::wasmer_vm_memory32_fill as *const _,
+                ),
+                (
+                    symbols::wasm::MEMORY_NOTIFY,
+                    wasmer_vm::libcalls::wasmer_vm_memory32_atomic_notify as *const _,
+                ),
+                (
+                    symbols::wasm::MEMORY_WAIT32,
+                    wasmer_vm::libcalls::wasmer_vm_memory32_atomic_wait32 as *const _,
+                ),
+                (
+                    symbols::wasm::MEMORY_WAIT64,
+                    wasmer_vm::libcalls::wasmer_vm_memory32_atomic_wait64 as *const _,
+                ),
+                (
+                    symbols::wasm::IMPORTED_MEMORY_COPY,
+                    wasmer_vm::libcalls::wasmer_vm_imported_memory32_copy as *const _,
+                ),
+                (
+                    symbols::wasm::IMPORTED_MEMORY_FILL,
+                    wasmer_vm::libcalls::wasmer_vm_imported_memory32_fill as *const _,
+                ),
+                (
+                    symbols::wasm::IMPORTED_MEMORY_NOTIFY,
+                    wasmer_vm::libcalls::wasmer_vm_imported_memory32_atomic_notify as *const _,
+                ),
+                (
+                    symbols::wasm::IMPORTED_MEMORY_WAIT32,
+                    wasmer_vm::libcalls::wasmer_vm_imported_memory32_atomic_wait32 as *const _,
+                ),
+                (
+                    symbols::wasm::IMPORTED_MEMORY_WAIT64,
+                    wasmer_vm::libcalls::wasmer_vm_imported_memory32_atomic_wait64 as *const _,
+                ),
+                (
+                    symbols::wasm::FUNC_REF,
+                    wasmer_vm::libcalls::wasmer_vm_func_ref as *const _,
+                ),
+                (
+                    symbols::wasm::DATA_DROP,
+                    wasmer_vm::libcalls::wasmer_vm_data_drop as *const _,
+                ),
+                (
+                    symbols::wasm::ELEM_DROP,
+                    wasmer_vm::libcalls::wasmer_vm_elem_drop as *const _,
+                ),
+                (
+                    symbols::wasm::RAISE_TRAP,
+                    wasmer_vm::libcalls::wasmer_vm_raise_trap as *const _,
+                ),
+            ];
+
+            for (symbol, signature) in symbols_and_signatures {
+                engine.register_symbol(symbol, *signature as *mut ());
+            }
+        }
+    }
 }
