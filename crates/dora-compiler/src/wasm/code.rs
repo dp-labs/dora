@@ -29,6 +29,7 @@ use crate::state::ControlFrame;
 use crate::state::ExtraInfo;
 use crate::state::IfElseState;
 use crate::state::{PhiValue, State};
+use dora_runtime::symbols;
 use melior::dialect::arith::{CmpfPredicate, CmpiPredicate};
 use melior::dialect::{arith, cf, func, llvm};
 use melior::ir::attribute::FlatSymbolRefAttribute;
@@ -892,26 +893,21 @@ impl FunctionCodeGenerator {
                 backend.state.push1(is_zero(&builder, value)?)
             }
             Operator::RefFunc { function_index } => {
-                // TODO: get ref func from syscall context.
-                let index = builder
-                    .create(builder.iconst_32(function_index as i32))
-                    .result(0)?
+                let index = builder.make(builder.iconst_32(function_index as i32))?;
+                let value = builder
+                    .make(func::call(
+                        &backend.ctx.mlir_context,
+                        FlatSymbolRefAttribute::new(
+                            &backend.ctx.mlir_context,
+                            symbols::wasm::FUNC_REF,
+                        ),
+                        &[fcx.ctx.vm_ctx, index],
+                        &[builder.ptr_ty()],
+                        builder.get_insert_location(),
+                    ))?
                     .to_ctx_value();
-                // let value = self
-                //     .block
-                //     .append_operation(func::call(
-                //         self.mlir_context(),
-                //         function,
-                //         &[],
-                //         &[backend.intrinsics.i32_ty],
-                //         builder.unknown_loc(),
-                //     ))
-                //     .result(0)?
-                //     .into();
-                let value = index;
                 backend.state.push1(value);
             }
-            Operator::RefEq => todo!(),
             Operator::I32Eqz => {
                 op!(builder, state, eqz, i32);
             }

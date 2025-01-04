@@ -56,3 +56,32 @@ pub const RETURNDATA_COPY: &str = "dora_fn_returndata_copy";
 pub const TLOAD: &str = "dora_fn_tload";
 pub const TSTORE: &str = "dora_fn_tstore";
 pub const SELFDESTRUCT: &str = "dora_fn_selfdestruct";
+
+// WASM Related libcall functions
+pub mod wasm {
+    pub const TABLE_INIT: &str = "dora_fn_wasm_table_init";
+    pub const TABLE_FILL: &str = "dora_fn_wasm_table_fill";
+    pub const TABLE_SIZE: &str = "dora_fn_wasm_table_size";
+    pub const TABLE_GET: &str = "dora_fn_wasm_table_get";
+    pub const TABLE_SET: &str = "dora_fn_wasm_table_set";
+    pub const TABLE_GROW: &str = "dora_fn_wasm_table_grow";
+    pub const IMPROTED_TABLE_SIZE: &str = "dora_fn_wasm_imported_table_size";
+    pub const IMPROTED_TABLE_GET: &str = "dora_fn_wasm_imported_table_get";
+    pub const IMPROTED_TABLE_SET: &str = "dora_fn_wasm_imported_table_set";
+    pub const IMPROTED_TABLE_GROW: &str = "dora_fn_wasm_imported_table_grow";
+    pub const MEMORY_INIT: &str = "dora_fn_wasm_memory_init";
+    pub const MEMORY_COPY: &str = "dora_fn_wasm_memory_copy";
+    pub const MEMORY_FILL: &str = "dora_fn_wasm_memory_fill";
+    pub const MEMORY_NOTIFY: &str = "dora_fn_wasm_memory_notify";
+    pub const MEMORY_WAIT32: &str = "dora_fn_wasm_memory_wait32";
+    pub const MEMORY_WAIT64: &str = "dora_fn_wasm_memory_wait64";
+    pub const IMPORTED_MEMORY_COPY: &str = "dora_fn_wasm_imported_memory_copy";
+    pub const IMPORTED_MEMORY_FILL: &str = "dora_fn_wasm_imported_memory_fill";
+    pub const IMPORTED_MEMORY_NOTIFY: &str = "dora_fn_wasm_imported_memory_notify";
+    pub const IMPORTED_MEMORY_WAIT32: &str = "dora_fn_wasm_imported_memory_wait32";
+    pub const IMPORTED_MEMORY_WAIT64: &str = "dora_fn_wasm_imported_memory_wait64";
+    pub const FUNC_REF: &str = "dora_fn_wasm_func_ref";
+    pub const DATA_DROP: &str = "dora_fn_wasm_data_drop";
+    pub const ELEM_DROP: &str = "dora_fn_wasm_elem_drop";
+    pub const RAISE_TRAP: &str = "dora_fn_wasm_raise_trap";
+}
