@@ -1,4 +1,4 @@
-use crate::backend::{IntCC, TypeMethods};
+use crate::backend::{AtomicOrdering, IntCC, TypeMethods};
 use crate::errors::{CompileError, Result};
 use crate::intrinsics::Intrinsics;
 use crate::value::{IntoContextOperation, ToContextValue};
@@ -233,6 +233,12 @@ impl<'c, 'a> OpBuilder<'c, 'a> {
     #[inline]
     pub fn i64_ty(&self) -> Type<'c> {
         self.intrinsics.i64_ty
+    }
+
+    /// Returns the `i128` integer type intrinsic, representing a 128-bit unsigned integer.
+    #[inline]
+    pub fn i128_ty(&self) -> Type<'c> {
+        self.intrinsics.i128_ty
     }
 
     /// Returns the `i256` integer type intrinsic, representing a 256-bit unsigned integer.
@@ -667,6 +673,35 @@ impl<'c, 'a> OpBuilder<'c, 'a> {
         )
     }
 
+    /// Loads a value from the specified pointer with the atomic ordering option.
+    ///
+    /// # Parameters
+    /// - `ptr`: The pointer from which to load the value.
+    /// - `ty`: The type of the value to load.
+    /// - `order`: The atomic order of the load op.
+    ///
+    /// # Returns
+    /// An operation representing the load operation.
+    pub fn load_with_ordering(
+        &self,
+        ptr: Val<'c, 'a>,
+        ty: Ty<'c, 'a>,
+        order: AtomicOrdering,
+    ) -> Op<'c, '_> {
+        let mut load_op = llvm::load(
+            self.context(),
+            ptr,
+            ty,
+            self.intrinsics.unknown_loc,
+            LoadStoreOptions::default(),
+        );
+        load_op.set_attribute(
+            "ordering",
+            StringAttribute::new(self.context(), &order.attr_str()).into(),
+        );
+        load_op
+    }
+
     /// Stores a value at the specified pointer.
     ///
     /// # Parameters
@@ -684,6 +719,35 @@ impl<'c, 'a> OpBuilder<'c, 'a> {
             self.intrinsics.unknown_loc,
             LoadStoreOptions::default(),
         )
+    }
+
+    /// Stores a value at the specified pointer  with the atomic ordering option.
+    ///
+    /// # Parameters
+    /// - `value`: The value to store.
+    /// - `ptr`: The pointer where the value should be stored.
+    /// - `order`: The atomic order of the load op.
+    ///
+    /// # Returns
+    /// An operation representing the store operation.
+    pub fn store_with_ordering(
+        &self,
+        value: Val<'c, 'a>,
+        ptr: Val<'c, 'a>,
+        order: AtomicOrdering,
+    ) -> Op<'c, '_> {
+        let mut store_op = llvm::store(
+            self.context(),
+            value,
+            ptr,
+            self.intrinsics.unknown_loc,
+            LoadStoreOptions::default(),
+        );
+        store_op.set_attribute(
+            "ordering",
+            StringAttribute::new(self.context(), &order.attr_str()).into(),
+        );
+        store_op
     }
 
     /// Creates an operation to allocate memory on the stack for a specified type.
