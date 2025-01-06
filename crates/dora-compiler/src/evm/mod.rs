@@ -401,10 +401,8 @@ impl<'c> EVMCompiler<'c> {
             Operation::ExtStaticcall => EVMCompiler::extstaticcall(ctx, region),
         }?;
 
-        // FIXME : alter below hardcoded line with eof checks in Program in the future
-        let is_eof = false;
         // Stack overflow/underflow check.
-        if !is_eof && options.stack_bound_checks {
+        if !ctx.program.is_eof && options.stack_bound_checks {
             block_start = Self::stack_bound_checks_block(ctx, region, block_start, op)?;
         }
         // Static gas metering needs to be done before stack checking.
@@ -769,9 +767,7 @@ impl<'c> EVMCompiler<'c> {
             }
         }
         // Deal jump operations
-        if !program.is_eof {
-            ctx.populate_jumptable()?;
-        }
+        ctx.populate_jumptable()?;
         module.body().append_operation(main_func);
         Ok(())
     }

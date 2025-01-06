@@ -1,11 +1,11 @@
-use dora_compiler::evm::program::Operation;
-use dora_primitives::{spec::SpecId, Address, Bytes, Bytes32, B256, U256};
+use dora_compiler::evm::{program::Operation, Program};
+use dora_primitives::{spec::SpecId, Address, Bytes, Bytes32, Eof, EofBody, B256, U256};
 use dora_runtime::{
     constants::MAX_STACK_SIZE,
     context::{Log, LogData},
 };
 
-use crate::tests::utils::{run_result, run_result_with_spec};
+use crate::tests::utils::{run_result, run_result_eof, run_result_with_spec};
 
 #[test]
 fn empty() {
@@ -60,7 +60,7 @@ fn push0_stack_overflow() {
 #[test]
 fn push1_stack_overflow() {
     let overflow_stack_size = MAX_STACK_SIZE + 1;
-    let operations = vec![Operation::Push((1, 10_u8.into())); overflow_stack_size];
+    let operations = vec![Operation::Push((1_u8, 10_u8.into())); overflow_stack_size];
     let result = run_result(operations);
     assert!(result.status.is_stack_overflow());
     assert_eq!(result.gas_used(), 3 * overflow_stack_size as u64);
@@ -221,10 +221,10 @@ fn push0_dup2_stack_underflow() {
 #[test]
 fn addmod_1() {
     let operations = vec![
-        Operation::Push((1, 5_u8.into())),
+        Operation::Push((1_u8, 5_u8.into())),
         Operation::Push0,
-        Operation::Push((1, 1_u8.into())),
-        Operation::Push((1, 4_u8.into())),
+        Operation::Push((1_u8, 1_u8.into())),
+        Operation::Push((1_u8, 4_u8.into())),
         Operation::AddMod,
         Operation::Add,
     ];
@@ -235,33 +235,29 @@ fn addmod_1() {
 
 #[test]
 fn exp_1() {
-    let operations = vec![
-        Operation::Push((1, 0_u32.into())),
-        Operation::Push((1, 0_u32.into())),
-        Operation::Exp,
-    ];
+    let operations = vec![Operation::Push0, Operation::Push0, Operation::Exp];
     let result = run_result(operations);
     assert!(result.status.is_ok());
-    assert_eq!(result.gas_used(), 3 + 3 + 10)
+    assert_eq!(result.gas_used(), 2 + 2 + 10)
 }
 
 #[test]
 fn exp_2() {
     let operations = vec![
-        Operation::Push((1, 0_u32.into())),
-        Operation::Push((1, 2_u32.into())),
+        Operation::Push0,
+        Operation::Push((1_u8, 2_u32.into())),
         Operation::Exp,
     ];
     let result = run_result(operations);
     assert!(result.status.is_ok());
-    assert_eq!(result.gas_used(), 3 + 3 + 10)
+    assert_eq!(result.gas_used(), 2 + 3 + 10)
 }
 
 #[test]
 fn exp_3() {
     let operations = vec![
-        Operation::Push((1, 1_u32.into())),
-        Operation::Push((1, 2_u32.into())),
+        Operation::Push((1_u8, 1_u32.into())),
+        Operation::Push((1_u8, 2_u32.into())),
         Operation::Exp,
     ];
     let result = run_result(operations);
@@ -273,8 +269,8 @@ fn exp_3() {
 #[test]
 fn exp_overflow() {
     let operations = vec![
-        Operation::Push((2, 256_u32.into())),
-        Operation::Push((1, 2_u32.into())),
+        Operation::Push((2_u8, 256_u32.into())),
+        Operation::Push((1_u8, 2_u32.into())),
         Operation::Exp,
     ];
     let result = run_result(operations);
@@ -292,7 +288,7 @@ fn sar_mstore_return() {
         // Return result
         Operation::Push0,
         Operation::MStore,
-        Operation::Push((1, 32_u8.into())),
+        Operation::Push((1_u8, 32_u8.into())),
         Operation::Push0,
         Operation::Return,
     ];
@@ -324,7 +320,7 @@ fn push0_found_in_shanghai_spec() {
 
 #[test]
 fn stack_push1_pop() {
-    let operations = vec![Operation::Push((1, 1_u8.into())), Operation::Pop];
+    let operations = vec![Operation::Push((1_u8, 1_u8.into())), Operation::Pop];
     let result = run_result(operations);
     assert!(result.status.is_ok());
     assert_eq!(result.gas_used(), 3 + 2)
@@ -332,7 +328,7 @@ fn stack_push1_pop() {
 
 #[test]
 fn stack_push1_dup1() {
-    let operations = vec![Operation::Push((1, 1_u8.into())), Operation::Dup(1)];
+    let operations = vec![Operation::Push((1_u8, 1_u8.into())), Operation::Dup(1)];
     let result = run_result(operations);
     assert!(result.status.is_ok());
     assert_eq!(result.gas_used(), 3 + 3)
@@ -341,7 +337,7 @@ fn stack_push1_dup1() {
 #[test]
 fn stack_push1_dupn() {
     let operations = vec![
-        Operation::Push((1, 1_u8.into())),
+        Operation::Push((1_u8, 1_u8.into())),
         Operation::Dup(1),
         Operation::Stop,
     ];
@@ -353,8 +349,8 @@ fn stack_push1_dupn() {
 #[test]
 fn stack_push1_push1_swap1() {
     let operations = vec![
-        Operation::Push((1, 1_u8.into())),
-        Operation::Push((1, 1_u8.into())),
+        Operation::Push((1_u8, 1_u8.into())),
+        Operation::Push((1_u8, 1_u8.into())),
         Operation::Swap(1),
     ];
     let result = run_result(operations);
@@ -365,9 +361,9 @@ fn stack_push1_push1_swap1() {
 #[test]
 fn stack_push1_push1_swap2() {
     let operations = vec![
-        Operation::Push((1, 1_u8.into())),
-        Operation::Push((1, 1_u8.into())),
-        Operation::Push((1, 1_u8.into())),
+        Operation::Push((1_u8, 1_u8.into())),
+        Operation::Push((1_u8, 1_u8.into())),
+        Operation::Push((1_u8, 1_u8.into())),
         Operation::Swap(1),
     ];
     let result = run_result(operations);
@@ -378,10 +374,10 @@ fn stack_push1_push1_swap2() {
 #[test]
 fn basic_jump() {
     let operations = vec![
-        Operation::Push((1, 3_u8.into())),
+        Operation::Push((1_u8, 3_u8.into())),
         Operation::Jump,
         Operation::Jumpdest { pc: 3 },
-        Operation::Push((1, 69_u8.into())),
+        Operation::Push((1_u8, 69_u8.into())),
         Operation::Stop,
     ];
     let result = run_result(operations);
@@ -396,7 +392,7 @@ fn basic_jumpi() {
         Operation::Push0,
         Operation::Push0,
         Operation::JumpI,
-        Operation::Push((1, 1_u8.into())),
+        Operation::Push((1_u8, 1_u8.into())),
     ];
     let result = run_result(operations);
     assert!(result.status.is_ok());
@@ -406,11 +402,11 @@ fn basic_jumpi() {
 #[test]
 fn basic_jumpi_2() {
     let operations = vec![
-        Operation::Push((1, 1_u8.into())),
-        Operation::Push((1, 5_u8.into())),
+        Operation::Push((1_u8, 1_u8.into())),
+        Operation::Push((1_u8, 5_u8.into())),
         Operation::JumpI,
         Operation::Jumpdest { pc: 4 },
-        Operation::Push((1, 6_u8.into())),
+        Operation::Push((1_u8, 6_u8.into())),
     ];
     let result = run_result(operations);
     assert!(result.status.is_ok());
@@ -423,7 +419,7 @@ fn jumpi_invalid_target() {
         Operation::Push0,
         Operation::Push0,
         Operation::JumpI,
-        Operation::Push((1, 1_u8.into())),
+        Operation::Push((1_u8, 1_u8.into())),
     ];
     let result = run_result(operations);
     assert!(result.status.is_ok());
@@ -433,11 +429,11 @@ fn jumpi_invalid_target() {
 #[test]
 fn jumpi_invalid_target_2() {
     let operations = vec![
-        Operation::Push((1, 1_u8.into())),
+        Operation::Push((1_u8, 1_u8.into())),
         Operation::Push0,
         Operation::JumpI,
         Operation::Jumpdest { pc: 4 },
-        Operation::Push((1, 6_u8.into())),
+        Operation::Push((1_u8, 6_u8.into())),
     ];
     let result = run_result(operations);
     assert!(result.status.is_invalid_jump());
@@ -447,7 +443,7 @@ fn jumpi_invalid_target_2() {
 #[test]
 fn stack_underflow_after_push_jump() {
     let operations = vec![
-        Operation::Push((1, 3_u8.into())),
+        Operation::Push((1_u8, 3_u8.into())),
         Operation::Jump,
         Operation::Jumpdest { pc: 3 },
         Operation::Push0,
@@ -461,16 +457,16 @@ fn stack_underflow_after_push_jump() {
 #[test]
 fn basic_loop() {
     let operations = vec![
-        Operation::Push((1, 3_u8.into())), // i = 3; loop counter
+        Operation::Push((1_u8, 3_u8.into())), // i = 3; loop counter
         Operation::Jumpdest { pc: 2 },
-        Operation::Push((1, 1_u8.into())),
+        Operation::Push((1_u8, 1_u8.into())),
         Operation::Swap(1),
         Operation::Sub,
-        Operation::Dup(1),                 // i = i - 1
-        Operation::Push((1, 2_u8.into())), // 2; jump dest
+        Operation::Dup(1),                    // i = i - 1
+        Operation::Push((1_u8, 2_u8.into())), // 2; jump dest
         Operation::JumpI,
         Operation::Pop,
-        Operation::Push((1, 6_u8.into())),
+        Operation::Push((1_u8, 6_u8.into())),
     ];
     let result = run_result(operations);
     assert!(result.status.is_ok());
@@ -485,7 +481,7 @@ fn basic_pc() {
     let operations = vec![
         Operation::PC { pc: 0 },
         Operation::PC { pc: 1 },
-        Operation::Push((1, 6_u8.into())),
+        Operation::Push((1_u8, 6_u8.into())),
         Operation::PC { pc: 4 },
         Operation::Push0,
         Operation::PC { pc: 6 },
@@ -559,7 +555,7 @@ fn calldatasize() {
 #[test]
 fn calldatacopy() {
     let operations = vec![
-        Operation::Push((1, 32_u8.into())),
+        Operation::Push((1_u8, 32_u8.into())),
         Operation::Push0,
         Operation::Push0,
         Operation::CalldataCopy,
@@ -573,8 +569,8 @@ fn calldatacopy() {
 #[test]
 fn calldatacopy_large_offset() {
     let operations = vec![
-        Operation::Push((1, 32_u8.into())),
-        Operation::Push((1, 255_u8.into())),
+        Operation::Push((1_u8, 32_u8.into())),
+        Operation::Push((1_u8, 255_u8.into())),
         Operation::Push0,
         Operation::CalldataCopy,
     ];
@@ -595,7 +591,7 @@ fn codesize() {
 #[test]
 fn codecopy() {
     let operations = vec![
-        Operation::Push((1, 5_u8.into())),
+        Operation::Push((1_u8, 5_u8.into())),
         Operation::Push0,
         Operation::Push0,
         Operation::CodeCopy,
@@ -629,7 +625,7 @@ fn keccak256_empty_1() {
 fn keccak256_empty_2() {
     let operations = vec![
         Operation::Push0,
-        Operation::Push((1, 32_u8.into())),
+        Operation::Push((1_u8, 32_u8.into())),
         Operation::Keccak256,
     ];
     let result = run_result(operations);
@@ -640,7 +636,7 @@ fn keccak256_empty_2() {
 #[test]
 fn keccak256_1() {
     let operations = vec![
-        Operation::Push((1, 32_u8.into())),
+        Operation::Push((1_u8, 32_u8.into())),
         Operation::Push0,
         Operation::Keccak256,
     ];
@@ -659,10 +655,10 @@ fn keccak256_1() {
 #[test]
 fn keccak256_2() {
     let operations = vec![
-        Operation::Push((2, 55555_u16.into())),
+        Operation::Push((2_u8, 55555_u16.into())),
         Operation::Push0,
         Operation::MStore,
-        Operation::Push((1, 32_u8.into())),
+        Operation::Push((1_u8, 32_u8.into())),
         Operation::Push0,
         Operation::Keccak256,
     ];
@@ -681,27 +677,23 @@ fn keccak256_2() {
 
 #[test]
 fn creturn_1() {
-    let operations = vec![
-        Operation::Push((1, 0_u8.into())),
-        Operation::Push((1, 0_u8.into())),
-        Operation::Return,
-    ];
+    let operations = vec![Operation::Push0, Operation::Push0, Operation::Return];
     let result = run_result(operations);
     assert!(result.status.is_ok());
-    assert_eq!(result.gas_used(), 3 + 3);
+    assert_eq!(result.gas_used(), 2 + 2 + 0);
     assert_eq!(result.memory, vec![0; 0]);
 }
 
 #[test]
 fn creturn_2() {
     let operations = vec![
-        Operation::Push((1, 30_u8.into())),
-        Operation::Push((1, 0_u8.into())),
+        Operation::Push((1_u8, 30_u8.into())),
+        Operation::Push0,
         Operation::Return,
     ];
     let result = run_result(operations);
     assert!(result.status.is_ok());
-    assert_eq!(result.gas_used(), 3 + 3 + 3);
+    assert_eq!(result.gas_used(), 3 + 2 + 3);
     assert_eq!(result.output, vec![0; 30]);
 }
 
@@ -714,7 +706,7 @@ fn creturn_3() {
         // Return result
         Operation::Push0,
         Operation::MStore,
-        Operation::Push((1, 32_u8.into())),
+        Operation::Push((1_u8, 32_u8.into())),
         Operation::Push0,
         Operation::Return,
     ];
@@ -730,7 +722,7 @@ fn creturn_4() {
         Operation::Push((1_u8, 0x70_u8.into())),
         Operation::Push0,
         Operation::MStore,
-        Operation::Push((1, 32_u8.into())),
+        Operation::Push((1_u8, 32_u8.into())),
         Operation::Push0,
         Operation::Return,
     ];
@@ -758,7 +750,7 @@ fn returndatasize() {
 #[test]
 fn returndatacopy() {
     let operations = vec![
-        Operation::Push((1, 32_u8.into())),
+        Operation::Push((1_u8, 32_u8.into())),
         Operation::Push0,
         Operation::Push0,
         Operation::ReturndataCopy,
@@ -772,7 +764,7 @@ fn returndatacopy() {
 #[test]
 fn extcodesize() {
     let operations = vec![
-        Operation::Push((1, 32_u8.into())),
+        Operation::Push((1_u8, 32_u8.into())),
         Operation::Push0,
         Operation::Push0,
         Operation::ExtCodeSize,
@@ -927,7 +919,7 @@ fn mload_1() {
 
 #[test]
 fn mload_2() {
-    let operations = vec![Operation::Push((1, 1_u8.into())), Operation::MLoad];
+    let operations = vec![Operation::Push((1_u8, 1_u8.into())), Operation::MLoad];
     let result = run_result(operations);
     assert!(result.status.is_ok());
     assert_eq!(result.gas_used(), 3 + 3 + 3 * 2);
@@ -937,7 +929,7 @@ fn mload_2() {
 
 #[test]
 fn mload_3() {
-    let operations = vec![Operation::Push((1, 32_u8.into())), Operation::MLoad];
+    let operations = vec![Operation::Push((1_u8, 32_u8.into())), Operation::MLoad];
     let result = run_result(operations);
     assert!(result.status.is_ok());
     assert_eq!(result.gas_used(), 3 + 3 + 3 * 2);
@@ -947,7 +939,7 @@ fn mload_3() {
 
 #[test]
 fn mload_4() {
-    let operations = vec![Operation::Push((1, 33_u8.into())), Operation::MLoad];
+    let operations = vec![Operation::Push((1_u8, 33_u8.into())), Operation::MLoad];
     let result = run_result(operations);
     assert!(result.status.is_ok());
     assert_eq!(result.gas_used(), 3 + 3 + 3 * 3);
@@ -999,7 +991,7 @@ fn mstore_1() {
 #[test]
 fn mstore_2() {
     let operations = vec![
-        Operation::Push((1, 0xAA_u8.into())),
+        Operation::Push((1_u8, 0xAA_u8.into())),
         Operation::Push0,
         Operation::MStore,
     ];
@@ -1029,7 +1021,7 @@ fn mstore8_1() {
 #[test]
 fn mstore8_2() {
     let operations = vec![
-        Operation::Push((1, 0xAA_u8.into())),
+        Operation::Push((1_u8, 0xAA_u8.into())),
         Operation::Push0,
         Operation::MStore8,
     ];
@@ -1063,7 +1055,7 @@ fn msize_2() {
         Operation::MLoad,
         Operation::Pop,
         Operation::MSize,
-        Operation::Push((1, 1_u8.into())),
+        Operation::Push((1_u8, 1_u8.into())),
         Operation::MLoad,
         Operation::Pop,
         Operation::MSize,
@@ -1081,9 +1073,9 @@ fn msize_2() {
 #[test]
 fn mcopy_1() {
     let operations = vec![
-        Operation::Push((1, 32_u8.into())),
+        Operation::Push((1_u8, 32_u8.into())),
         Operation::Push0,
-        Operation::Push((1, 32_u8.into())),
+        Operation::Push((1_u8, 32_u8.into())),
         Operation::MCopy,
     ];
     let result = run_result(operations);
@@ -1096,12 +1088,12 @@ fn mcopy_1() {
 #[test]
 fn mcopy_2() {
     let operations = vec![
-        Operation::Push((2, 0xABCD_u16.into())),
+        Operation::Push((2_u8, 0xABCD_u16.into())),
         Operation::Push0,
         Operation::MStore,
-        Operation::Push((1, 2_u8.into())),
-        Operation::Push((1, 30_u8.into())),
-        Operation::Push((1, 1_u8.into())),
+        Operation::Push((1_u8, 2_u8.into())),
+        Operation::Push((1_u8, 30_u8.into())),
+        Operation::Push((1_u8, 1_u8.into())),
         Operation::MCopy,
     ];
     let result = run_result(operations);
@@ -1141,12 +1133,12 @@ fn sload_1() {
 #[test]
 fn sstore_1() {
     let operations = vec![
-        Operation::Push((1, 200_u8.into())),
+        Operation::Push((1_u8, 200_u8.into())),
         Operation::SLoad,
-        Operation::Push((1, 100_u8.into())),
-        Operation::Push((1, 200_u8.into())),
+        Operation::Push((1_u8, 100_u8.into())),
+        Operation::Push((1_u8, 200_u8.into())),
         Operation::SStore,
-        Operation::Push((1, 200_u8.into())),
+        Operation::Push((1_u8, 200_u8.into())),
         Operation::SLoad,
     ];
     let mut result = run_result(operations);
@@ -1161,18 +1153,18 @@ fn sstore_1() {
 #[test]
 fn sstore_2() {
     let operations = vec![
-        Operation::Push((1, 3_u8.into())),
-        Operation::Push((1, 1_u8.into())),
+        Operation::Push((1_u8, 3_u8.into())),
+        Operation::Push((1_u8, 1_u8.into())),
         Operation::SStore,
-        Operation::Push((1, 0x20_u8.into())),
-        Operation::Push((1, 0_u8.into())),
+        Operation::Push((1_u8, 0x20_u8.into())),
+        Operation::Push0,
         Operation::Return,
     ];
     let mut result = run_result(operations);
     assert!(result.status.is_ok());
     // 2100 is the cold storage cost
     // 20000 is the new value is set from zero cost
-    assert_eq!(result.gas_used(), 3 + 3 + 20000 + 2100 + 3 + 3 + 3);
+    assert_eq!(result.gas_used(), 3 + 3 + 20000 + 2100 + 3 + 2 + 3);
     assert_eq!(result.memory, vec![0x00; 32]);
     assert_eq!(result.sload(U256::from(1)), U256::from(3));
     assert_eq!(result.output, vec![0; 0x20]);
@@ -1190,12 +1182,12 @@ fn tload_1() {
 #[test]
 fn tstore_1() {
     let operations = vec![
-        Operation::Push((1, 200_u8.into())),
+        Operation::Push((1_u8, 200_u8.into())),
         Operation::TLoad,
-        Operation::Push((1, 100_u8.into())),
-        Operation::Push((1, 200_u8.into())),
+        Operation::Push((1_u8, 100_u8.into())),
+        Operation::Push((1_u8, 200_u8.into())),
         Operation::TStore,
-        Operation::Push((1, 200_u8.into())),
+        Operation::Push((1_u8, 200_u8.into())),
         Operation::TLoad,
     ];
     let mut result = run_result(operations);
@@ -1225,10 +1217,10 @@ fn log0() {
 #[test]
 fn log0_data() {
     let operations = vec![
-        Operation::Push((2, 0xAABB_u16.into())),
+        Operation::Push((2_u8, 0xAABB_u16.into())),
         Operation::Push0,
         Operation::MStore,
-        Operation::Push((1, 32_u8.into())),
+        Operation::Push((1_u8, 32_u8.into())),
         Operation::Push0,
         Operation::Log(0),
     ];
@@ -1275,8 +1267,8 @@ fn log1_1() {
 #[test]
 fn log1_2() {
     let operations = vec![
-        Operation::Push((32, 0xFFFFFFFF_FFFFFFFF_FFFFFFFF_u128.into())),
-        Operation::Push((32, 50_u8.into())),
+        Operation::Push((32_u8, 0xFFFFFFFF_FFFFFFFF_FFFFFFFF_u128.into())),
+        Operation::Push((32_u8, 50_u8.into())),
         Operation::Push0,
         Operation::Log(1),
     ];
@@ -1370,15 +1362,36 @@ fn log4_1() {
 }
 
 #[test]
+fn dataload() {
+    let operations = vec![Operation::Push0, Operation::DataLoad];
+
+    let program = Program {
+        operations,
+        code_size: 0,
+        is_eof: true,
+    };
+
+    let eof = Eof::new(EofBody {
+        code_section: vec![Bytes::from(program.to_opcode())],
+        data_section: Bytes::new(),
+        ..EofBody::default()
+    });
+
+    let result = run_result_eof(eof);
+    assert!(result.status.is_ok());
+    assert_eq!(result.gas_used(), 2 + 3);
+}
+
+#[test]
 fn call_1() {
     let operations = vec![
-        Operation::Push((1, 1_u32.into())), // ret length
-        Operation::Push((1, 2_u32.into())), // ret offset
-        Operation::Push((1, 3_u32.into())), // args length
-        Operation::Push((1, 4_u32.into())), // args offset
-        Operation::Push((1, 5_u32.into())), // value
-        Operation::Push((1, 6_u32.into())), // address
-        Operation::Push((1, 7_u32.into())), // gas
+        Operation::Push((1_u8, 1_u32.into())), // ret length
+        Operation::Push((1_u8, 2_u32.into())), // ret offset
+        Operation::Push((1_u8, 3_u32.into())), // args length
+        Operation::Push((1_u8, 4_u32.into())), // args offset
+        Operation::Push((1_u8, 5_u32.into())), // value
+        Operation::Push((1_u8, 6_u32.into())), // address
+        Operation::Push((1_u8, 7_u32.into())), // gas
         Operation::Call,
     ];
     let result = run_result(operations);
@@ -1390,12 +1403,12 @@ fn call_1() {
 #[test]
 fn delegatecall_1() {
     let operations = vec![
-        Operation::Push((1, 1_u32.into())), // ret length
-        Operation::Push((1, 2_u32.into())), // ret offset
-        Operation::Push((1, 3_u32.into())), // args length
-        Operation::Push((1, 4_u32.into())), // args offset
-        Operation::Push((1, 5_u32.into())), // address
-        Operation::Push((1, 6_u32.into())), // gas
+        Operation::Push((1_u8, 1_u32.into())), // ret length
+        Operation::Push((1_u8, 2_u32.into())), // ret offset
+        Operation::Push((1_u8, 3_u32.into())), // args length
+        Operation::Push((1_u8, 4_u32.into())), // args offset
+        Operation::Push((1_u8, 5_u32.into())), // address
+        Operation::Push((1_u8, 6_u32.into())), // gas
         Operation::Delegatecall,
     ];
     let result = run_result(operations);
@@ -1407,12 +1420,12 @@ fn delegatecall_1() {
 #[test]
 fn staticcall_1() {
     let operations = vec![
-        Operation::Push((1, 1_u32.into())), // ret length
-        Operation::Push((1, 2_u32.into())), // ret offset
-        Operation::Push((1, 3_u32.into())), // args length
-        Operation::Push((1, 4_u32.into())), // args offset
-        Operation::Push((1, 5_u32.into())), // address
-        Operation::Push((1, 6_u32.into())), // gas
+        Operation::Push((1_u8, 1_u32.into())), // ret length
+        Operation::Push((1_u8, 2_u32.into())), // ret offset
+        Operation::Push((1_u8, 3_u32.into())), // args length
+        Operation::Push((1_u8, 4_u32.into())), // args offset
+        Operation::Push((1_u8, 5_u32.into())), // address
+        Operation::Push((1_u8, 6_u32.into())), // gas
         Operation::Staticcall,
     ];
     let result = run_result(operations);
@@ -1424,10 +1437,10 @@ fn staticcall_1() {
 #[test]
 fn revert() {
     let operations = vec![
-        Operation::Push((1, 0xAA_u8.into())),
+        Operation::Push((1_u8, 0xAA_u8.into())),
         Operation::Push0,
         Operation::MStore,
-        Operation::Push((1, 32_u8.into())),
+        Operation::Push((1_u8, 32_u8.into())),
         Operation::Push0,
         Operation::Revert,
     ];
@@ -1443,7 +1456,7 @@ fn revert() {
 #[test]
 fn selfdestruct() {
     let operations = vec![
-        Operation::Push((1, 0xAA_u8.into())),
+        Operation::Push((1_u8, 0xAA_u8.into())),
         Operation::Selfdestruct,
     ];
     let result = run_result(operations);
