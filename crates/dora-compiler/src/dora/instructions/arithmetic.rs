@@ -265,4 +265,13 @@ impl ConversionPass<'_> {
         rewriter.make(llvm::ashr(context, left_shifted_value, bits_to_shift, location).into())?;
         Ok(())
     }
+
+    pub(crate) fn select(context: &Context, op: &OperationRef<'_, '_>) -> Result<()> {
+        operands!(op, lhs, rhs, cond);
+        rewrite_ctx!(context, op, rewriter, location);
+
+        let cond_value = rewriter.make(rewriter.icmp_imm(IntCC::NotEqual, cond, 0)?)?;
+        rewriter.create(arith::select(cond_value, lhs, rhs, location));
+        Ok(())
+    }
 }

@@ -732,16 +732,48 @@ impl FunctionCodeGenerator {
                     state.push1(value);
                 }
             }
-            Operator::ReturnCall { function_index } => todo!(),
-            Operator::ReturnCallIndirect {
-                type_index,
-                table_index,
-            } => todo!(),
             Operator::Drop => {
                 state.pop1()?;
             }
-            Operator::Select => todo!(),
-            Operator::TypedSelect { ty } => todo!(),
+            // `TypedSelect` must be used for extern refs so ref counting should
+            // be done with TypedSelect. But otherwise they're the same.
+            Operator::TypedSelect { .. } | Operator::Select => {
+                let ((v1, i1), (v2, i2), (cond, _)) = state.pop3_extra()?;
+                // If the pending bits of v1 and v2 are the same, we can pass
+                // them along to the result. Otherwise, apply pending
+                // canonicalizations now.
+                let (v1, i1, v2, i2) = if i1.has_pending_f32_nan() != i2.has_pending_f32_nan()
+                    || i1.has_pending_f64_nan() != i2.has_pending_f64_nan()
+                {
+                    (v1, i1.strip_pending(), v2, i2.strip_pending())
+                } else {
+                    (v1, i1, v2, i2)
+                };
+                let res = builder.make(
+                    dora_ir::wasm::select(
+                        builder.context(),
+                        v1.r#type(),
+                        v1,
+                        v2,
+                        cond,
+                        builder.get_insert_location(),
+                    )
+                    .into(),
+                )?;
+                let info = {
+                    let mut info = i1.strip_pending() & i2.strip_pending();
+                    if i1.has_pending_f32_nan() {
+                        debug_assert!(i2.has_pending_f32_nan());
+                        info |= ExtraInfo::pending_f32_nan();
+                    }
+                    if i1.has_pending_f64_nan() {
+                        debug_assert!(i2.has_pending_f64_nan());
+                        info |= ExtraInfo::pending_f64_nan();
+                    }
+                    info
+                };
+                state.push1_extra(res.to_ctx_value(), info);
+            }
             Operator::LocalGet { local_index } => {
                 let (type_value, pointer_value) = fcx.locals[local_index as usize];
                 let op = builder.load(pointer_value.to_ctx_value(), type_value);

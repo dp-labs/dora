@@ -177,3 +177,20 @@ fn shr_u_i64() {
 "#
     );
 }
+
+#[test]
+fn select() {
+    assert_snapshot!(
+        r#"
+(module
+    (func $select (param $cond i32) (param $a i32) (param $b i32) (result i32)
+        local.get $cond
+        local.get $a
+        local.get $b
+        select
+    )
+    (export "select" (func $select))
+)
+"#
+    );
+}
