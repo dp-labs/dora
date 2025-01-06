@@ -14,9 +14,9 @@ pub(crate) fn declare_symbols(context: &MLIRContext, module: &MLIRModule) {
     let builder = OpBuilder::new_with_block(context, block);
     let location = builder.get_insert_location();
 
-    let uint8 = builder.uint8_ty();
-    let uint16 = builder.uint16_ty();
-    let uint64 = builder.uint64_ty();
+    let uint8 = builder.i8_ty();
+    let uint16 = builder.i16_ty();
+    let uint64 = builder.i64_ty();
     let index_type = builder.index_ty();
     let ptr_type = builder.ptr_ty();
 

@@ -29,10 +29,10 @@ impl ConversionPass<'_> {
         rewrite_ctx!(context, op, rewriter, location);
 
         // List data types needed
-        let uint1 = rewriter.uint1_ty();
-        let uint8 = rewriter.uint8_ty();
-        let uint16 = rewriter.uint16_ty();
-        let uint256 = rewriter.uint256_ty();
+        let uint1 = rewriter.i1_ty();
+        let uint8 = rewriter.i8_ty();
+        let uint16 = rewriter.i16_ty();
+        let uint256 = rewriter.i256_ty();
         let ptr_type = rewriter.ptr_ty();
 
         // Define the maximum slice width (32 bytes)
@@ -132,7 +132,7 @@ impl ConversionPass<'_> {
         block_argument!(op, syscall_ctx);
         rewrite_ctx!(context, op, rewriter, location);
 
-        let uint16 = rewriter.uint16_ty();
+        let uint16 = rewriter.i16_ty();
 
         rewriter.make(func::call(
             context,
@@ -167,7 +167,7 @@ impl ConversionPass<'_> {
         });
         rewrite_ctx!(context, op, rewriter, location);
         let memory_offset =
-            rewriter.make(arith::trunci(memory_offset, rewriter.uint64_ty(), location))?;
+            rewriter.make(arith::trunci(memory_offset, rewriter.i64_ty(), location))?;
         let data_offset =
             memory::allocate_u256_and_assign_value(context, &rewriter, data_offset, location)?;
         rewriter.create(func::call(

@@ -76,7 +76,7 @@ impl ConversionPass<'_> {
             }),
         )?;
         let rewriter = Rewriter::new(self.ctx);
-        let uint256 = rewriter.uint256_ty();
+        let uint256 = rewriter.i256_ty();
 
         for op in evm_ops {
             let name = op.name().as_string_ref().as_str().unwrap().to_string();

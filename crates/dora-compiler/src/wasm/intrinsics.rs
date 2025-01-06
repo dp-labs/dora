@@ -13,8 +13,10 @@ use melior::ir::r#type::Type;
 use melior::ir::{BlockRef, Value};
 use melior::{dialect::llvm::r#type::r#struct, ir::r#type::FunctionType};
 use wasmer::{LocalFunctionIndex, Mutability};
+use wasmer_types::entity::PrimaryMap;
 use wasmer_types::{
-    FunctionIndex, GlobalIndex, MemoryIndex, ModuleInfo, SignatureIndex, TableIndex, VMOffsets,
+    FunctionIndex, GlobalIndex, MemoryIndex, MemoryStyle, ModuleInfo, SignatureIndex, TableIndex,
+    VMOffsets,
 };
 
 use super::ty::{func_type_to_mlir, type_to_mlir};
@@ -332,5 +334,82 @@ impl<'c, 'a> CtxType<'c, 'a> {
             .get(&index)
             .ok_or_else(|| anyhow::anyhow!("wasm global not found"))
             .cloned()
+    }
+
+    pub(crate) fn memory(
+        &mut self,
+        index: MemoryIndex,
+        memory_styles: &PrimaryMap<MemoryIndex, MemoryStyle>,
+        ctx: &'c Context,
+        block: BlockRef<'c, 'a>,
+    ) -> Result<MemoryCache<'c, 'a>> {
+        let (cached_memories, wasm_module, ctx_ptr_value, offsets) = (
+            &mut self.cached_memories,
+            self.wasm_module,
+            self.vm_ctx,
+            &self.offsets,
+        );
+        let memory_style = &memory_styles[index];
+        match cached_memories.get(&index) {
+            Some(r) => Ok(*r),
+            None => {
+                let builder = OpBuilder::new_with_block(&ctx.mlir_context, block);
+                let memory_definition_ptr =
+                    if let Some(local_memory_index) = wasm_module.local_memory_index(index) {
+                        let offset = offsets.vmctx_vmmemory_definition(local_memory_index);
+                        builder
+                            .make(builder.gep(
+                                ctx_ptr_value,
+                                offset as usize,
+                                builder.i8_ty(),
+                                builder.ptr_ty(),
+                            ))?
+                            .to_ctx_value()
+                    } else {
+                        let offset = offsets.vmctx_vmmemory_import(index);
+                        let memory_definition_ptr_ptr = builder
+                            .make(builder.gep(
+                                ctx_ptr_value,
+                                offset as usize,
+                                builder.i8_ty(),
+                                builder.ptr_ty(),
+                            ))?
+                            .to_ctx_value();
+                        builder
+                            .make(builder.load(memory_definition_ptr_ptr, builder.ptr_ty()))?
+                            .to_ctx_value()
+                    };
+                let base_ptr = builder
+                    .make(builder.gep(
+                        memory_definition_ptr,
+                        offsets.vmmemory_definition_base() as usize,
+                        builder.ptr_ty(),
+                        builder.ptr_ty(),
+                    ))?
+                    .to_ctx_value();
+                let value = if let MemoryStyle::Dynamic { .. } = memory_style {
+                    let current_length_ptr = builder
+                        .make(builder.gep(
+                            memory_definition_ptr,
+                            offsets.vmmemory_definition_current_length() as usize,
+                            builder.ptr_ty(),
+                            builder.ptr_ty(),
+                        ))?
+                        .to_ctx_value();
+                    MemoryCache::Dynamic {
+                        ptr_to_base_ptr: base_ptr,
+                        ptr_to_current_length: current_length_ptr,
+                    }
+                } else {
+                    let base_ptr = builder
+                        .make(builder.load(base_ptr, builder.ptr_ty()))?
+                        .to_ctx_value();
+                    MemoryCache::Static { base_ptr }
+                };
+
+                self.cached_memories.insert(index, value);
+                Ok(*self.cached_memories.get(&index).unwrap())
+            }
+        }
     }
 }

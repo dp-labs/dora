@@ -27,8 +27,8 @@ pub(crate) fn compute_exp_cost<'c>(
         location,
     ))?;
 
-    let uint64 = rewriter.uint64_ty();
-    let uint256 = rewriter.uint256_ty();
+    let uint64 = rewriter.i64_ty();
+    let uint256 = rewriter.i256_ty();
 
     rewriter.make(scf::r#if(
         is_exponent_zero,

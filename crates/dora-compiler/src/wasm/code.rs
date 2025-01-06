@@ -12,6 +12,7 @@ use crate::conversion::builder::OpBuilder;
 use crate::errors::Result;
 use crate::intrinsics::{is_f32_arithmetic, is_f64_arithmetic};
 use crate::value::ToContextValue;
+use crate::wasm::intrinsics::MemoryCache;
 
 use super::backend;
 use super::backend::is_zero;
@@ -39,6 +40,7 @@ use melior::ir::{Module as MLIRModule, TypeLike, ValueLike};
 use melior::Context as MLIRContext;
 use mlir_sys::mlirIntegerTypeGetWidth;
 use smallvec::SmallVec;
+use wasmer::wasmparser::MemArg;
 use wasmer_compiler::from_binaryreadererror_wasmerror;
 use wasmer_compiler::wasmparser::Operator;
 use wasmer_compiler::wptype_to_type;
@@ -60,7 +62,7 @@ macro_rules! op {
             .create(
                 dora_ir::wasm::$op(
                     $builder.context(),
-                    $builder.uint32_ty(),
+                    $builder.i32_ty(),
                     input,
                     $builder.unknown_loc(),
                 )
@@ -77,7 +79,7 @@ macro_rules! op {
             .create(
                 dora_ir::wasm::$op(
                     $builder.context(),
-                    $builder.uint64_ty(),
+                    $builder.i64_ty(),
                     input,
                     $builder.unknown_loc(),
                 )
@@ -94,7 +96,7 @@ macro_rules! op {
             .create(
                 dora_ir::wasm::$op(
                     $builder.context(),
-                    $builder.uint32_ty(),
+                    $builder.i32_ty(),
                     input,
                     $builder.unknown_loc(),
                 )
@@ -148,7 +150,7 @@ macro_rules! bin_op {
             .create(
                 dora_ir::wasm::$op(
                     $builder.context(),
-                    $builder.uint32_ty(),
+                    $builder.i32_ty(),
                     v1,
                     v2,
                     $builder.unknown_loc(),
@@ -166,7 +168,7 @@ macro_rules! bin_op {
             .create(
                 dora_ir::wasm::$op(
                     $builder.context(),
-                    $builder.uint64_ty(),
+                    $builder.i64_ty(),
                     v1,
                     v2,
                     $builder.unknown_loc(),
@@ -184,7 +186,7 @@ macro_rules! bin_op {
             .create(
                 dora_ir::wasm::$op(
                     $builder.context(),
-                    $builder.uint32_ty(),
+                    $builder.i32_ty(),
                     v1,
                     v2,
                     $builder.unknown_loc(),
@@ -220,7 +222,7 @@ macro_rules! bin_op {
             .create(
                 dora_ir::wasm::$op(
                     $builder.context(),
-                    $builder.uint32_ty(),
+                    $builder.i32_ty(),
                     v1,
                     v2,
                     $builder.unknown_loc(),
@@ -256,7 +258,7 @@ macro_rules! bin_op {
             .create(
                 dora_ir::wasm::$op(
                     $builder.context(),
-                    $builder.uint32_ty(),
+                    $builder.i32_ty(),
                     v1,
                     v2,
                     $builder.unknown_loc(),
@@ -665,7 +667,7 @@ impl FunctionCodeGenerator {
                     builder.context(),
                     &case_values,
                     index,
-                    builder.uint32_ty(),
+                    builder.i32_ty(),
                     (default_frame.br_dest(), &[]),
                     &case_destinations,
                     builder.get_insert_location(),
@@ -828,29 +830,44 @@ impl FunctionCodeGenerator {
                     }
                 }
             }
-            Operator::I32Load { memarg } => todo!(),
-            Operator::I64Load { memarg } => todo!(),
-            Operator::F32Load { memarg } => todo!(),
-            Operator::F64Load { memarg } => todo!(),
-            Operator::I32Load8S { memarg } => todo!(),
-            Operator::I32Load8U { memarg } => todo!(),
-            Operator::I32Load16S { memarg } => todo!(),
-            Operator::I32Load16U { memarg } => todo!(),
-            Operator::I64Load8S { memarg } => todo!(),
-            Operator::I64Load8U { memarg } => todo!(),
-            Operator::I64Load16S { memarg } => todo!(),
-            Operator::I64Load16U { memarg } => todo!(),
-            Operator::I64Load32S { memarg } => todo!(),
-            Operator::I64Load32U { memarg } => todo!(),
-            Operator::I32Store { memarg } => todo!(),
-            Operator::I64Store { memarg } => todo!(),
-            Operator::F32Store { memarg } => todo!(),
-            Operator::F64Store { memarg } => todo!(),
-            Operator::I32Store8 { memarg } => todo!(),
-            Operator::I32Store16 { memarg } => todo!(),
-            Operator::I64Store8 { memarg } => todo!(),
-            Operator::I64Store16 { memarg } => todo!(),
-            Operator::I64Store32 { memarg } => todo!(),
+            Operator::I32Load { ref memarg } => {
+                let offset = state.pop1()?;
+                let memory_index = MemoryIndex::from_u32(0);
+                let (block, effective_address) = Self::resolve_memory_ptr(
+                    memory_index,
+                    memarg,
+                    offset,
+                    4,
+                    fcx,
+                    backend.ctx,
+                    block,
+                )?;
+                let result = builder.make(builder.load(effective_address, builder.i32_ty()))?;
+                state.push1(result.to_ctx_value());
+                return Ok(block);
+            }
+            Operator::I64Load { ref memarg } => todo!(),
+            Operator::F32Load { ref memarg } => todo!(),
+            Operator::F64Load { ref memarg } => todo!(),
+            Operator::I32Load8S { ref memarg } => todo!(),
+            Operator::I32Load8U { ref memarg } => todo!(),
+            Operator::I32Load16S { ref memarg } => todo!(),
+            Operator::I32Load16U { ref memarg } => todo!(),
+            Operator::I64Load8S { ref memarg } => todo!(),
+            Operator::I64Load8U { ref memarg } => todo!(),
+            Operator::I64Load16S { ref memarg } => todo!(),
+            Operator::I64Load16U { ref memarg } => todo!(),
+            Operator::I64Load32S { ref memarg } => todo!(),
+            Operator::I64Load32U { ref memarg } => todo!(),
+            Operator::I32Store { ref memarg } => todo!(),
+            Operator::I64Store { ref memarg } => todo!(),
+            Operator::F32Store { ref memarg } => todo!(),
+            Operator::F64Store { ref memarg } => todo!(),
+            Operator::I32Store8 { ref memarg } => todo!(),
+            Operator::I32Store16 { ref memarg } => todo!(),
+            Operator::I64Store8 { ref memarg } => todo!(),
+            Operator::I64Store16 { ref memarg } => todo!(),
+            Operator::I64Store32 { ref memarg } => todo!(),
             Operator::I32Const { value } => {
                 let i = builder
                     .create(builder.iconst_32(value))
@@ -2327,5 +2344,70 @@ impl FunctionCodeGenerator {
         }
         block.append_operation(func::r#return(&results, backend.intrinsics.unknown_loc));
         Ok(())
+    }
+
+    fn resolve_memory_ptr<'c, 'a>(
+        memory_index: MemoryIndex,
+        memarg: &MemArg,
+        var_offset: Value<'c, 'a>,
+        value_size: usize,
+        fcx: &mut FunctionCodeCtx<'c, 'a>,
+        ctx: &'c Context,
+        block: BlockRef<'c, 'a>,
+    ) -> Result<(BlockRef<'c, 'a>, Value<'c, 'a>)>
+    where
+        'a: 'c,
+    {
+        let builder = OpBuilder::new_with_block(&ctx.mlir_context, block);
+        let location = builder.get_insert_location();
+        // Compute the offset into the storage.
+        let imm_offset = builder.make(builder.iconst_64(memarg.offset as i64))?;
+        let var_offset = builder.make(arith::extui(var_offset, builder.i64_ty(), location))?;
+        let offset = builder.make(arith::addi(var_offset, imm_offset, location))?;
+        // Look up the memory base (as pointer) and bounds (as unsigned integer).
+        let base_ptr = match fcx
+            .ctx
+            .memory(memory_index, fcx.memory_styles, ctx, block)?
+        {
+            MemoryCache::Dynamic {
+                ptr_to_base_ptr,
+                ptr_to_current_length,
+            } => {
+                let builder = OpBuilder::new_with_block(&ctx.mlir_context, block);
+                // Bounds check it.
+                let minimum = fcx.wasm_module.memories[memory_index].minimum;
+                let value_size_v = builder.make(builder.iconst_64(value_size as i64))?;
+                let load_offset_end = builder.make(arith::addi(
+                    offset,
+                    value_size_v,
+                    builder.get_insert_location(),
+                ))?;
+
+                let current_length =
+                    builder.make(builder.load(ptr_to_current_length, builder.i32_ty()))?;
+                let current_length =
+                    builder.make(arith::extui(current_length, builder.i64_ty(), location))?;
+
+                let ptr_in_bounds = builder.make(builder.icmp(
+                    IntCC::UnsignedLessThan,
+                    load_offset_end,
+                    current_length,
+                ))?;
+
+                // TODO: check Memory out of index error.
+
+                builder
+                    .make(builder.load(ptr_to_base_ptr, builder.ptr_ty()))?
+                    .to_ctx_value()
+            }
+            MemoryCache::Static { base_ptr } => base_ptr,
+        };
+        let memory_ptr = builder.make(builder.gep_dynamic(
+            base_ptr,
+            &[offset],
+            builder.ptr_ty(),
+            builder.ptr_ty(),
+        ))?;
+        Ok((block, unsafe { Value::from_raw(memory_ptr.to_raw()) }))
     }
 }
