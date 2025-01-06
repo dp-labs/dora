@@ -139,7 +139,7 @@ impl ConversionPass<'_> {
 
         let uint1 = rewriter.intrinsics.i1_ty;
         let uint8 = rewriter.intrinsics.i8_ty;
-        let uint64 = rewriter.uint64_ty();
+        let uint64 = rewriter.i64_ty();
         let uint256 = rewriter.intrinsics.i256_ty;
         let ptr_type = rewriter.intrinsics.ptr_ty;
 
@@ -342,8 +342,8 @@ impl ConversionPass<'_> {
         block_argument!(op, syscall_ctx);
         rewrite_ctx!(context, op, rewriter, location);
 
-        let uint64 = rewriter.uint64_ty();
-        let uint256 = rewriter.uint256_ty();
+        let uint64 = rewriter.i64_ty();
+        let uint256 = rewriter.i256_ty();
 
         let data_size = rewriter.make(func::call(
             context,

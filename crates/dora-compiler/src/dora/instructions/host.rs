@@ -31,8 +31,8 @@ impl ConversionPass<'_> {
         block_argument!(op, syscall_ctx, gas_counter_ptr);
         rewrite_ctx!(context, op, rewriter, location, NoDefer);
 
-        let uint64 = rewriter.uint64_ty();
-        let uint256 = rewriter.uint256_ty();
+        let uint64 = rewriter.i64_ty();
+        let uint256 = rewriter.i256_ty();
 
         let address_ptr =
             memory::allocate_u256_and_assign_value(context, &rewriter, account, location)?;
@@ -58,7 +58,7 @@ impl ConversionPass<'_> {
         block_argument!(op, syscall_ctx);
         rewrite_ctx!(context, op, rewriter, location);
 
-        let uint256 = rewriter.uint256_ty();
+        let uint256 = rewriter.i256_ty();
 
         let selfbalance_ptr = create_var!(rewriter, context, location);
         load_var!(
@@ -78,8 +78,8 @@ impl ConversionPass<'_> {
         block_argument!(op, syscall_ctx, gas_counter_ptr);
         rewrite_ctx!(context, op, rewriter, location, NoDefer);
 
-        let uint64 = rewriter.uint64_ty();
-        let uint256 = rewriter.uint256_ty();
+        let uint64 = rewriter.i64_ty();
+        let uint256 = rewriter.i256_ty();
         let ptr_type = rewriter.ptr_ty();
 
         let codesize_ptr =
@@ -113,8 +113,8 @@ impl ConversionPass<'_> {
         block_argument!(op, syscall_ctx, gas_counter_ptr);
         rewrite_ctx!(context, op, rewriter, location, NoDefer);
 
-        let uint64 = rewriter.uint64_ty();
-        let uint256 = rewriter.uint256_ty();
+        let uint64 = rewriter.i64_ty();
+        let uint256 = rewriter.i256_ty();
 
         let code_hash_ptr =
             memory::allocate_u256_and_assign_value(context, &rewriter, address, location)?;
@@ -141,7 +141,7 @@ impl ConversionPass<'_> {
         block_argument!(op, syscall_ctx, gas_counter_ptr);
         rewrite_ctx!(context, op, rewriter, NoDefer);
 
-        let uint64 = rewriter.uint64_ty();
+        let uint64 = rewriter.i64_ty();
         let ptr_type = rewriter.ptr_ty();
 
         u256_to_u64!(op, rewriter, size);
@@ -195,7 +195,7 @@ impl ConversionPass<'_> {
         block_argument!(op, syscall_ctx);
         rewrite_ctx!(context, op, rewriter, location);
 
-        let uint256 = rewriter.uint256_ty();
+        let uint256 = rewriter.i256_ty();
 
         let block_hash_ptr =
             memory::allocate_u256_and_assign_value(context, &rewriter, block_number, location)?;
@@ -216,8 +216,8 @@ impl ConversionPass<'_> {
         block_argument!(op, syscall_ctx, gas_counter_ptr);
         rewrite_ctx!(context, op, rewriter, location, NoDefer);
 
-        let uint64 = rewriter.uint64_ty();
-        let uint256 = rewriter.uint256_ty();
+        let uint64 = rewriter.i64_ty();
+        let uint256 = rewriter.i256_ty();
 
         let key_ptr = memory::allocate_u256_and_assign_value(context, &rewriter, key, location)?;
         let value_ptr = create_var!(rewriter, context, location);
@@ -244,8 +244,8 @@ impl ConversionPass<'_> {
         block_argument!(op, syscall_ctx, gas_counter_ptr);
         rewrite_ctx!(context, op, rewriter, location, NoDefer);
 
-        let uint8 = rewriter.uint8_ty();
-        let uint64 = rewriter.uint64_ty();
+        let uint8 = rewriter.i8_ty();
+        let uint64 = rewriter.i64_ty();
         let ptr_type = rewriter.ptr_ty();
 
         // Allocate and store the key and value
@@ -305,7 +305,7 @@ impl ConversionPass<'_> {
         block_argument!(op, syscall_ctx);
         rewrite_ctx!(context, op, rewriter, location);
 
-        let uint256 = rewriter.uint256_ty();
+        let uint256 = rewriter.i256_ty();
 
         let key_ptr = memory::allocate_u256_and_assign_value(context, &rewriter, key, location)?;
         let value_ptr = create_var!(rewriter, context, location);
@@ -333,7 +333,7 @@ impl ConversionPass<'_> {
         block_argument!(op, syscall_ctx, gas_counter_ptr);
         rewrite_ctx!(context, op, rewriter, NoDefer);
 
-        let uint64 = rewriter.uint64_ty();
+        let uint64 = rewriter.i64_ty();
 
         ensure_non_staticcall!(op, rewriter, syscall_ctx);
         rewrite_ctx!(context, op, rewriter, NoDefer);
@@ -401,7 +401,7 @@ impl ConversionPass<'_> {
         ensure_non_staticcall!(op, rewriter, syscall_ctx);
         rewrite_ctx!(context, op, rewriter, location);
 
-        let uint64 = rewriter.uint64_ty();
+        let uint64 = rewriter.i64_ty();
         let ptr_type = rewriter.ptr_ty();
 
         let address_ptr =

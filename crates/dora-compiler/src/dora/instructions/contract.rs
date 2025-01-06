@@ -54,9 +54,9 @@ impl ConversionPass<'_> {
         ensure_non_staticcall!(op, rewriter, syscall_ctx);
         rewrite_ctx!(context, op, rewriter, location, NoDefer);
 
-        let uint8 = rewriter.uint8_ty();
-        let uint64 = rewriter.uint64_ty();
-        let uint256 = rewriter.uint256_ty();
+        let uint8 = rewriter.i8_ty();
+        let uint64 = rewriter.i64_ty();
+        let uint256 = rewriter.i256_ty();
         let ptr_type = rewriter.ptr_ty();
 
         // Compare the input size with the limit
@@ -151,8 +151,8 @@ impl ConversionPass<'_> {
         block_argument!(op, syscall_ctx, gas_counter_ptr);
         rewrite_ctx!(context, op, rewriter, location, NoDefer);
 
-        let uint8 = rewriter.uint8_ty();
-        let uint64 = rewriter.uint64_ty();
+        let uint8 = rewriter.i8_ty();
+        let uint64 = rewriter.i64_ty();
 
         u256_to_u64!(op, rewriter, aux_data_size);
         let size_is_not_zero =
@@ -223,9 +223,9 @@ impl ConversionPass<'_> {
         ensure_non_staticcall!(op, rewriter, syscall_ctx);
         rewrite_ctx!(context, op, rewriter, location, NoDefer);
 
-        let uint8 = rewriter.uint8_ty();
-        let uint64 = rewriter.uint64_ty();
-        let uint256 = rewriter.uint256_ty();
+        let uint8 = rewriter.i8_ty();
+        let uint64 = rewriter.i64_ty();
+        let uint256 = rewriter.i256_ty();
         let ptr_type = rewriter.ptr_ty();
 
         u256_to_u64!(op, rewriter, size);
@@ -329,7 +329,7 @@ impl ConversionPass<'_> {
     ) -> Result<()> {
         rewrite_ctx!(context, op, rewriter, location, NoDefer);
 
-        let uint8 = rewriter.uint8_ty();
+        let uint8 = rewriter.i8_ty();
 
         match call_type {
             CallType::Call | CallType::Callcode => {
@@ -394,9 +394,9 @@ impl ConversionPass<'_> {
             op.operand(o_index + 3)?,
         );
 
-        let uint8 = rewriter.uint8_ty();
-        let uint64 = rewriter.uint64_ty();
-        let uint256 = rewriter.uint256_ty();
+        let uint8 = rewriter.i8_ty();
+        let uint64 = rewriter.i64_ty();
+        let uint256 = rewriter.i256_ty();
         let ptr_type = rewriter.ptr_ty();
 
         u256_to_u64!(op, rewriter, args_size);
@@ -495,8 +495,8 @@ impl ConversionPass<'_> {
         block_argument!(op, syscall_ctx, gas_counter_ptr);
         rewrite_ctx!(context, op, rewriter, location, NoDefer);
 
-        let uint8 = rewriter.uint8_ty();
-        let uint64 = rewriter.uint64_ty();
+        let uint8 = rewriter.i8_ty();
+        let uint64 = rewriter.i64_ty();
 
         u256_to_u64!(op, rewriter, size);
         let size_is_not_zero = rewriter.make(rewriter.icmp_imm(IntCC::NotEqual, size, 0)?)?;
@@ -541,7 +541,7 @@ impl ConversionPass<'_> {
     ) -> Result<()> {
         rewrite_ctx!(context, op, rewriter, location, NoDefer);
 
-        let uint8 = rewriter.uint8_ty();
+        let uint8 = rewriter.i8_ty();
 
         match call_type {
             ExtCallType::Call => {
@@ -595,9 +595,9 @@ impl ConversionPass<'_> {
         operands!(op, target_address, input_offset, input_size);
         rewrite_ctx!(context, op, rewriter, location, NoDefer);
 
-        let uint8 = rewriter.uint8_ty();
-        let uint64 = rewriter.uint64_ty();
-        let uint256 = rewriter.uint256_ty();
+        let uint8 = rewriter.i8_ty();
+        let uint64 = rewriter.i64_ty();
+        let uint256 = rewriter.i256_ty();
         let ptr_type = rewriter.ptr_ty();
 
         u256_to_u64!(op, rewriter, input_size);
@@ -677,10 +677,10 @@ impl ConversionPass<'_> {
         operands!(op, offset);
         rewrite_ctx!(context, op, rewriter, location);
 
-        let uint1 = rewriter.uint1_ty();
-        let uint8 = rewriter.uint8_ty();
-        let uint16 = rewriter.uint16_ty();
-        let uint256 = rewriter.uint256_ty();
+        let uint1 = rewriter.i1_ty();
+        let uint8 = rewriter.i8_ty();
+        let uint16 = rewriter.i16_ty();
+        let uint256 = rewriter.i256_ty();
         let ptr_type = rewriter.ptr_ty();
 
         let returndata_ptr = rewriter.make(func::call(

@@ -21,8 +21,8 @@ impl ConversionPass<'_> {
         block_argument!(op, syscall_ctx, gas_counter_ptr);
         rewrite_ctx!(context, op, rewriter, NoDefer);
 
-        let uint8 = rewriter.uint8_ty();
-        let uint64 = rewriter.uint64_ty();
+        let uint8 = rewriter.i8_ty();
+        let uint64 = rewriter.i64_ty();
 
         u256_to_u64!(op, rewriter, size);
         let size_is_not_zero = rewriter.make(rewriter.icmp_imm(IntCC::NotEqual, size, 0)?)?;

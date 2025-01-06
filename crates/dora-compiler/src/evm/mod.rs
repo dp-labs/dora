@@ -427,7 +427,7 @@ impl<'c> EVMCompiler<'c> {
         let may_overflow = diff > 0;
         let stack_check_block = region.append_block(Block::new(&[]));
         let builder = OpBuilder::new_with_block(ctx.context, stack_check_block);
-        let uint64 = builder.uint64_ty();
+        let uint64 = builder.i64_ty();
         let location = builder.get_insert_location();
         let stack_max_size = builder.make(builder.iconst_64(MAX_STACK_SIZE as i64))?;
         let size_before = builder.make(builder.load(ctx.values.stack_size_ptr, uint64))?;
@@ -514,8 +514,8 @@ impl<'c> EVMCompiler<'c> {
         let gas_check_block = region.append_block(Block::new(&[]));
         let update_gas_remaining_block = region.append_block(Block::new(&[]));
         let builder = OpBuilder::new_with_block(ctx.context, gas_check_block);
-        let uint8 = builder.uint8_ty();
-        let uint64 = builder.uint64_ty();
+        let uint8 = builder.i8_ty();
+        let uint64 = builder.i64_ty();
         let location = builder.get_insert_location();
         // Get address of gas counter global
         let gas_counter = builder.make(builder.load(ctx.values.gas_counter_ptr, uint64))?;
@@ -782,8 +782,8 @@ impl<'c> EVMCompiler<'c> {
         code: ExitStatusCode,
     ) -> Result<()> {
         let builder = OpBuilder::new_with_block(ctx.context, block);
-        let uint8 = builder.uint8_ty();
-        let uint64 = builder.uint64_ty();
+        let uint8 = builder.i8_ty();
+        let uint64 = builder.i64_ty();
         let zero = builder.create(builder.iconst_64(0)).result(0)?.into();
         let reason = builder
             .create(builder.iconst(uint8, code.to_u8() as i64))
@@ -959,7 +959,7 @@ impl<'c> CtxType<'c> {
         let intrinsics = Intrinsics::declare(context);
         let builder = OpBuilder::new(&context.mlir_context);
 
-        let uint256 = builder.uint256_ty();
+        let uint256 = builder.i256_ty();
         let ptr_type = builder.ptr_ty();
         let location = builder.unknown_loc();
 
@@ -1171,8 +1171,8 @@ pub fn revert_block<'c>(
     gas_counter_ptr: Value<'c, 'c>,
 ) -> Result<Block<'c>> {
     let builder = OpBuilder::new(context);
-    let uint8 = builder.uint8_ty();
-    let uint64 = builder.uint64_ty();
+    let uint8 = builder.i8_ty();
+    let uint64 = builder.i64_ty();
     let block = Block::new(&[(uint8, builder.unknown_loc())]);
     let location = builder.unknown_loc();
 
@@ -1201,7 +1201,7 @@ pub fn revert_block<'c>(
 /// Creates a return block that handles return codes.
 pub fn return_block(context: &MLIRContext) -> Result<Block<'_>> {
     let builder = OpBuilder::new(context);
-    let uint8 = builder.uint8_ty();
+    let uint8 = builder.i8_ty();
     let block = Block::new(&[(uint8, builder.unknown_loc())]);
     let location = builder.unknown_loc();
     let reason = block.argument(0)?.into();

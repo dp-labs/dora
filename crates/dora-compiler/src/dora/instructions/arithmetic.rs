@@ -57,7 +57,7 @@ impl ConversionPass<'_> {
         operands!(op, l, r);
         rewrite_ctx!(context, op, rewriter, location);
 
-        let uint256 = rewriter.uint256_ty();
+        let uint256 = rewriter.i256_ty();
 
         let zero = rewriter.make(rewriter.iconst_256_from_u64(0)?)?;
         let is_zero = rewriter.make(rewriter.icmp(IntCC::Equal, r, zero))?;
@@ -103,7 +103,7 @@ impl ConversionPass<'_> {
         operands!(op, l, r);
         rewrite_ctx!(context, op, rewriter, location);
 
-        let uint256 = rewriter.uint256_ty();
+        let uint256 = rewriter.i256_ty();
 
         let zero = rewriter.make(rewriter.iconst_256_from_u64(0)?)?;
         let is_zero = rewriter.make(rewriter.icmp(IntCC::Equal, r, zero))?;
@@ -134,7 +134,7 @@ impl ConversionPass<'_> {
         operands!(op, l, r);
         rewrite_ctx!(context, op, rewriter, location);
 
-        let uint256 = rewriter.uint256_ty();
+        let uint256 = rewriter.i256_ty();
 
         let zero = rewriter.make(rewriter.iconst_256_from_u64(0)?)?;
         let is_zero = rewriter.make(rewriter.icmp(IntCC::Equal, r, zero))?;
@@ -165,8 +165,8 @@ impl ConversionPass<'_> {
         operands!(op, a, b, den);
         rewrite_ctx!(context, op, rewriter, location);
 
-        let uint256 = rewriter.uint256_ty();
-        let uint257 = rewriter.uint257_ty();
+        let uint256 = rewriter.i256_ty();
+        let uint257 = rewriter.i257_ty();
 
         let a_i257 = rewriter.make(arith::extui(a, uint257, location))?;
         let b_i257 = rewriter.make(arith::extui(b, uint257, location))?;
@@ -185,7 +185,7 @@ impl ConversionPass<'_> {
         operands!(op, a, b, den);
         rewrite_ctx!(context, op, rewriter, location);
 
-        let uint256 = rewriter.uint256_ty();
+        let uint256 = rewriter.i256_ty();
 
         let uint512 = IntegerType::new(context, 512);
         let a_i512 = rewriter.make(arith::extui(a, uint512.into(), location))?;
@@ -210,7 +210,7 @@ impl ConversionPass<'_> {
         block_argument!(op, _system_ctx, gas_counter_ptr);
         rewrite_ctx!(context, op, rewriter, NoDefer);
 
-        let uint256 = rewriter.uint256_ty();
+        let uint256 = rewriter.i256_ty();
 
         let gas = compute_exp_cost(&rewriter, r, spec_id)?;
         gas_or_fail!(op, rewriter, gas, gas_counter_ptr);
@@ -234,7 +234,7 @@ impl ConversionPass<'_> {
         operands!(op, byte_size, value_to_extend);
         rewrite_ctx!(context, op, rewriter, location);
 
-        let uint256 = rewriter.uint256_ty();
+        let uint256 = rewriter.i256_ty();
 
         // Constant Definitions
         let max_byte_size =

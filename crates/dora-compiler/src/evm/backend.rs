@@ -100,7 +100,7 @@ impl TypeMethods for EVMBuilder<'_, '_> {
 
 impl crate::backend::Builder for EVMBuilder<'_, '_> {
     fn bool_const(&mut self, value: bool) -> Result<Self::Value> {
-        let uint1 = self.uint1_ty();
+        let uint1 = self.i1_ty();
         let op = self.builder.create(arith::constant(
             self.context(),
             IntegerAttribute::new(uint1, if value { 1 } else { 0 }).into(),
@@ -128,19 +128,19 @@ impl crate::backend::Builder for EVMBuilder<'_, '_> {
     }
 
     fn iconst_8(&mut self, value: i8) -> Result<Self::Value> {
-        self.iconst(self.uint8_ty(), value as i64)
+        self.iconst(self.i8_ty(), value as i64)
     }
 
     fn iconst_16(&mut self, value: i16) -> Result<Self::Value> {
-        self.iconst(self.uint16_ty(), value as i64)
+        self.iconst(self.i16_ty(), value as i64)
     }
 
     fn iconst_32(&mut self, value: i32) -> Result<Self::Value> {
-        self.iconst(self.uint32_ty(), value as i64)
+        self.iconst(self.i32_ty(), value as i64)
     }
 
     fn iconst_64(&mut self, value: i64) -> Result<Self::Value> {
-        self.iconst(self.uint64_ty(), value)
+        self.iconst(self.i64_ty(), value)
     }
 
     fn iconst_256(&mut self, value: BigUint) -> Result<Self::Value> {
@@ -164,18 +164,18 @@ impl crate::backend::Builder for EVMBuilder<'_, '_> {
     }
 
     fn fconst_32(&mut self, value: f32) -> Result<Self::Value> {
-        self.fconst(self.uint32_ty(), value as f64)
+        self.fconst(self.i32_ty(), value as f64)
     }
 
     fn fconst_64(&mut self, value: f64) -> Result<Self::Value> {
-        self.fconst(self.uint64_ty(), value)
+        self.fconst(self.i64_ty(), value)
     }
 
     fn stack_push(&mut self, value: Self::Value) -> Result<()> {
         let value = unsafe { Value::from_raw(value.to_raw()) };
         let builder = &self.builder;
 
-        let uint256 = builder.uint256_ty();
+        let uint256 = builder.i256_ty();
         let ptr_type = builder.ptr_ty();
 
         // Load stack pointer
@@ -197,7 +197,7 @@ impl crate::backend::Builder for EVMBuilder<'_, '_> {
     fn stack_pop(&mut self) -> Result<Self::Value> {
         let builder = &self.builder;
 
-        let uint256 = builder.uint256_ty();
+        let uint256 = builder.i256_ty();
         let ptr_type = builder.ptr_ty();
 
         // Load stack pointer
@@ -226,7 +226,7 @@ impl crate::backend::Builder for EVMBuilder<'_, '_> {
         }
         let builder = &self.builder;
 
-        let uint256 = builder.uint256_ty();
+        let uint256 = builder.i256_ty();
         let ptr_type = builder.ptr_ty();
 
         // Load stack pointer
@@ -249,7 +249,7 @@ impl crate::backend::Builder for EVMBuilder<'_, '_> {
         let m = m + 1;
         let builder = &self.builder;
 
-        let uint256 = builder.uint256_ty();
+        let uint256 = builder.i256_ty();
         let ptr_type = builder.ptr_ty();
 
         // Load stack pointer

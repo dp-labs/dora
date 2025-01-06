@@ -155,7 +155,7 @@ impl ConversionPass<'_> {
         operands!(op, offset, shift);
         rewrite_ctx!(context, op, rewriter, location);
 
-        let uint256 = rewriter.uint256_ty();
+        let uint256 = rewriter.i256_ty();
 
         let constant_bits_per_byte = rewriter.make(arith_constant!(
             rewriter,

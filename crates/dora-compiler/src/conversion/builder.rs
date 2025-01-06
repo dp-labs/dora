@@ -195,62 +195,86 @@ impl<'c, 'a> OpBuilder<'c, 'a> {
 
     /// Returns the `boolean` type intrinsic, representing a 1-bit unsigned integer.
     #[inline]
-    pub fn uint1_ty(&self) -> Type<'c> {
+    pub fn i1_ty(&self) -> Type<'c> {
         self.intrinsics.i1_ty
     }
 
     /// Returns the `i2` type intrinsic, representing a 2-bit unsigned integer.
     #[inline]
-    pub fn uint2_ty(&self) -> Type<'c> {
+    pub fn i2_ty(&self) -> Type<'c> {
         self.intrinsics.i2_ty
     }
 
     /// Returns the `i4` type intrinsic, representing a 4-bit unsigned integer.
     #[inline]
-    pub fn uint4_ty(&self) -> Type<'c> {
+    pub fn i4_ty(&self) -> Type<'c> {
         self.intrinsics.i4_ty
     }
 
     /// Returns the `i8` integer type intrinsic, representing a 8-bit unsigned integer.
     #[inline]
-    pub fn uint8_ty(&self) -> Type<'c> {
+    pub fn i8_ty(&self) -> Type<'c> {
         self.intrinsics.i8_ty
     }
 
     /// Returns the `i16` integer type intrinsic, representing a 16-bit unsigned integer.
     #[inline]
-    pub fn uint16_ty(&self) -> Type<'c> {
+    pub fn i16_ty(&self) -> Type<'c> {
         self.intrinsics.i16_ty
     }
 
     /// Returns the `i32` integer type intrinsic, representing a 32-bit unsigned integer.
     #[inline]
-    pub fn uint32_ty(&self) -> Type<'c> {
+    pub fn i32_ty(&self) -> Type<'c> {
         self.intrinsics.i32_ty
     }
 
     /// Returns the `i64` integer type intrinsic, representing a 64-bit unsigned integer.
     #[inline]
-    pub fn uint64_ty(&self) -> Type<'c> {
+    pub fn i64_ty(&self) -> Type<'c> {
         self.intrinsics.i64_ty
     }
 
     /// Returns the `i256` integer type intrinsic, representing a 256-bit unsigned integer.
     #[inline]
-    pub fn uint256_ty(&self) -> Type<'c> {
+    pub fn i256_ty(&self) -> Type<'c> {
         self.intrinsics.i256_ty
     }
 
     /// Returns the `i257` integer type intrinsic, representing a 257-bit unsigned integer.
     #[inline]
-    pub fn uint257_ty(&self) -> Type<'c> {
+    pub fn i257_ty(&self) -> Type<'c> {
         self.intrinsics.i257_ty
     }
 
-    /// Returns the index(`usize`) type intrinsic.
+    /// Returns the index type intrinsic.
     #[inline]
     pub fn index_ty(&self) -> Type<'c> {
         self.intrinsics.index_ty
+    }
+
+    /// Returns the usize type intrinsic.
+    #[inline]
+    pub fn usize_ty(&self) -> Type<'c> {
+        self.intrinsics.index_ty
+    }
+
+    /// Returns the isize type intrinsic.
+    #[inline]
+    pub fn isize_ty(&self) -> Type<'c> {
+        self.intrinsics.index_ty
+    }
+
+    /// Returns the f32 type intrinsic.
+    #[inline]
+    pub fn f32_ty(&self) -> Type<'c> {
+        self.intrinsics.f32_ty
+    }
+
+    /// Returns the f64 type intrinsic.
+    #[inline]
+    pub fn f64_ty(&self) -> Type<'c> {
+        self.intrinsics.f64_ty
     }
 
     /// Returns the pointer type intrinsic.
@@ -678,6 +702,56 @@ impl<'c, 'a> OpBuilder<'c, 'a> {
             self.unknown_loc(),
             AllocaOptions::new().elem_type(Some(TypeAttribute::new(ty))),
         ))
+    }
+
+    /// Creates a `llvm.getelementptr` operation.
+    ///
+    /// # Parameters
+    /// - `ptr`: The base pointer (`Val`) from which the field's offset is computed.
+    /// - `offset`: The byte offset of the field relative to the base pointer.
+    /// - `element_type`: The element type of the field value due to the offset.
+    /// - `result_type`: The expected type of the field value to be loaded.
+    #[inline]
+    pub fn gep(
+        &self,
+        ptr: Val<'c, 'a>,
+        offset: usize,
+        element_type: Type<'c>,
+        result_type: Type<'c>,
+    ) -> Op<'c, '_> {
+        llvm::get_element_ptr(
+            self.context(),
+            ptr,
+            DenseI32ArrayAttribute::new(self.context(), &[offset as i32]),
+            element_type,
+            result_type,
+            self.get_insert_location(),
+        )
+    }
+
+    /// Creates a `llvm.getelementptr` operation.
+    ///
+    /// # Parameters
+    /// - `ptr`: The base pointer (`Val`) from which the field's offset is computed.
+    /// - `indices`: The dynamic indices of the field relative to the base pointer.
+    /// - `element_type`: The element type of the field value due to the offset.
+    /// - `result_type`: The expected type of the field value to be loaded.
+    #[inline]
+    pub fn gep_dynamic<const N: usize>(
+        &self,
+        ptr: Val<'c, 'a>,
+        indices: &[Val<'c, '_>; N],
+        element_type: Type<'c>,
+        result_type: Type<'c>,
+    ) -> Op<'c, '_> {
+        llvm::get_element_ptr_dynamic(
+            self.context(),
+            ptr,
+            indices,
+            element_type,
+            result_type,
+            self.get_insert_location(),
+        )
     }
 
     /// Retrieves the value of a field from a given pointer at a specified offset and interprets it as a specific type.

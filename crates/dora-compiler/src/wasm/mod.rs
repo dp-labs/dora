@@ -20,13 +20,15 @@ use melior::ir::operation::OperationBuilder;
 use melior::ir::{Block, Region};
 use melior::ir::{Location, Module as MLIRModule};
 use std::sync::Arc;
+use wasmer::Target;
 use wasmer_compiler::{
     FunctionBodyData, ModuleEnvironment, ModuleMiddleware, ModuleTranslationState,
 };
+use wasmer_compiler_cli::store::SubsetTunables;
 use wasmer_types::entity::{EntityRef, PrimaryMap};
 use wasmer_types::{
-    CompileModuleInfo, Features, FunctionIndex, LocalFunctionIndex, SectionIndex, SignatureIndex,
-    Symbol, SymbolRegistry,
+    CompileModuleInfo, Features, FunctionIndex, LocalFunctionIndex, MemoryIndex, MemoryStyle,
+    SectionIndex, SignatureIndex, Symbol, SymbolRegistry, TableIndex, TableStyle,
 };
 
 use crate::errors::CompileError;
@@ -98,16 +100,28 @@ impl<'c> WASMCompiler<'c> {
 
     /// Compile the WASM bytes using LLVM/MLIR.
     pub fn compile(&self, data: &[u8]) -> Result<Module<'c>, CompileError> {
+        let target = Target::default();
+        let tunables = SubsetTunables::for_target(&target);
         let environ = ModuleEnvironment::new();
         let translation = environ
             .translate(data)
             .map_err(|err| CompileError::Codegen(err.to_string()))?;
         let module = translation.module;
+        let memory_styles: PrimaryMap<MemoryIndex, MemoryStyle> = module
+            .memories
+            .values()
+            .map(|memory_type| tunables.memory_style(memory_type))
+            .collect();
+        let table_styles: PrimaryMap<TableIndex, TableStyle> = module
+            .tables
+            .values()
+            .map(|table_type| tunables.table_style(table_type))
+            .collect();
         let compile_info = CompileModuleInfo {
             module: Arc::new(module),
             features: Features::default(),
-            memory_styles: PrimaryMap::new(),
-            table_styles: PrimaryMap::new(),
+            memory_styles,
+            table_styles,
         };
         self.compile_module(
             &compile_info,
