@@ -5,6 +5,8 @@ use std::cell::Ref;
 use std::cell::RefCell;
 use std::rc::Rc;
 
+use crate::backend::AtomicBinOp;
+use crate::backend::AtomicOrdering;
 use crate::backend::IntCC;
 use crate::context::Context;
 use crate::conversion::builder;
@@ -32,8 +34,11 @@ use crate::state::IfElseState;
 use crate::state::{PhiValue, State};
 use dora_runtime::symbols;
 use melior::dialect::arith::{CmpfPredicate, CmpiPredicate};
+use melior::dialect::ods;
 use melior::dialect::{arith, cf, func, llvm};
+use melior::ir::attribute::DenseI64ArrayAttribute;
 use melior::ir::attribute::FlatSymbolRefAttribute;
+use melior::ir::attribute::StringAttribute;
 use melior::ir::attribute::{FloatAttribute, IntegerAttribute};
 use melior::ir::{Block, BlockRef, Location, Region, RegionRef, Type, Value};
 use melior::ir::{Module as MLIRModule, TypeLike, ValueLike};
@@ -269,6 +274,374 @@ macro_rules! bin_op {
             .map_err(|e| CompileError::Codegen(e.to_string()))?
             .to_ctx_value();
         $state.push1(result);
+    };
+}
+macro_rules! atomicrmw_op {
+    ($builder:ident, $state:ident, $memarg:ident, $fcx:ident, $backend:ident, $block:ident, $op:ident, i32) => {
+        let (value, offset) = $state.pop2()?;
+        let memory_index = MemoryIndex::from_u32(0);
+        let (block, effective_address) =
+            Self::resolve_memory_ptr(memory_index, $memarg, offset, 4, $fcx, $backend.ctx, $block)?;
+        let result = $builder.make(
+            ods::llvm::atomicrmw(
+                $builder.context(),
+                $builder.i32_ty(),
+                effective_address,
+                value,
+                StringAttribute::new($builder.context(), AtomicBinOp::$op.attr_str().as_str())
+                    .into(),
+                StringAttribute::new(
+                    $builder.context(),
+                    AtomicOrdering::SequentiallyConsistent.attr_str().as_str(),
+                )
+                .into(),
+                $builder.get_insert_location(),
+            )
+            .into(),
+        )?;
+        $state.push1(result.to_ctx_value());
+        return Ok(block);
+    };
+    ($builder:ident, $state:ident, $memarg:ident, $fcx:ident, $backend:ident, $block:ident, $op:ident, i32, i8) => {
+        let (value, offset) = $state.pop2()?;
+        let memory_index = MemoryIndex::from_u32(0);
+        let (block, effective_address) = Self::resolve_memory_ptr(
+            memory_index,
+            $memarg,
+            offset,
+            size_of::<i8>(),
+            $fcx,
+            $backend.ctx,
+            $block,
+        )?;
+        let value = $builder.make(arith::trunci(
+            value,
+            $builder.i8_ty(),
+            $builder.get_insert_location(),
+        ))?;
+        let result = $builder.make(
+            ods::llvm::atomicrmw(
+                $builder.context(),
+                $builder.i8_ty(),
+                effective_address,
+                value,
+                StringAttribute::new($builder.context(), AtomicBinOp::$op.attr_str().as_str())
+                    .into(),
+                StringAttribute::new(
+                    $builder.context(),
+                    AtomicOrdering::SequentiallyConsistent.attr_str().as_str(),
+                )
+                .into(),
+                $builder.get_insert_location(),
+            )
+            .into(),
+        )?;
+        let result = $builder.make(arith::extui(
+            value,
+            $builder.i32_ty(),
+            $builder.get_insert_location(),
+        ))?;
+        $state.push1_extra(result.to_ctx_value(), ExtraInfo::arithmetic_f32());
+        return Ok(block);
+    };
+    ($builder:ident, $state:ident, $memarg:ident, $fcx:ident, $backend:ident, $block:ident, $op:ident, i32, i16) => {
+        let (value, offset) = $state.pop2()?;
+        let memory_index = MemoryIndex::from_u32(0);
+        let (block, effective_address) = Self::resolve_memory_ptr(
+            memory_index,
+            $memarg,
+            offset,
+            size_of::<i16>(),
+            $fcx,
+            $backend.ctx,
+            $block,
+        )?;
+        let value = $builder.make(arith::trunci(
+            value,
+            $builder.i16_ty(),
+            $builder.get_insert_location(),
+        ))?;
+        let result = $builder.make(
+            ods::llvm::atomicrmw(
+                $builder.context(),
+                $builder.i16_ty(),
+                effective_address,
+                value,
+                StringAttribute::new($builder.context(), AtomicBinOp::$op.attr_str().as_str())
+                    .into(),
+                StringAttribute::new(
+                    $builder.context(),
+                    AtomicOrdering::SequentiallyConsistent.attr_str().as_str(),
+                )
+                .into(),
+                $builder.get_insert_location(),
+            )
+            .into(),
+        )?;
+        let result = $builder.make(arith::extui(
+            value,
+            $builder.i32_ty(),
+            $builder.get_insert_location(),
+        ))?;
+        $state.push1_extra(result.to_ctx_value(), ExtraInfo::arithmetic_f32());
+        return Ok(block);
+    };
+    ($builder:ident, $state:ident, $memarg:ident, $fcx:ident, $backend:ident, $block:ident, $op:ident, i64) => {
+        let (value, offset) = $state.pop2()?;
+        let memory_index = MemoryIndex::from_u32(0);
+        let (block, effective_address) = Self::resolve_memory_ptr(
+            memory_index,
+            $memarg,
+            offset,
+            size_of::<i64>(),
+            $fcx,
+            $backend.ctx,
+            $block,
+        )?;
+        let result = $builder.make(
+            ods::llvm::atomicrmw(
+                $builder.context(),
+                $builder.i64_ty(),
+                effective_address,
+                value,
+                StringAttribute::new($builder.context(), AtomicBinOp::$op.attr_str().as_str())
+                    .into(),
+                StringAttribute::new(
+                    $builder.context(),
+                    AtomicOrdering::SequentiallyConsistent.attr_str().as_str(),
+                )
+                .into(),
+                $builder.get_insert_location(),
+            )
+            .into(),
+        )?;
+        $state.push1(result.to_ctx_value());
+        return Ok(block);
+    };
+    ($builder:ident, $state:ident, $memarg:ident, $fcx:ident, $backend:ident, $block:ident, $op:ident, i64, $ty:ident) => {
+        let (value, offset) = $state.pop2()?;
+        let memory_index = MemoryIndex::from_u32(0);
+        let (block, effective_address) = Self::resolve_memory_ptr(
+            memory_index,
+            $memarg,
+            offset,
+            size_of::<i8>(),
+            $fcx,
+            $backend.ctx,
+            $block,
+        )?;
+        let value = $builder.make(arith::trunci(
+            value,
+            $builder.i8_ty(),
+            $builder.get_insert_location(),
+        ))?;
+        let result = $builder.make(
+            ods::llvm::atomicrmw(
+                $builder.context(),
+                $builder.i8_ty(),
+                effective_address,
+                value,
+                StringAttribute::new($builder.context(), AtomicBinOp::$op.attr_str().as_str())
+                    .into(),
+                StringAttribute::new(
+                    $builder.context(),
+                    AtomicOrdering::SequentiallyConsistent.attr_str().as_str(),
+                )
+                .into(),
+                $builder.get_insert_location(),
+            )
+            .into(),
+        )?;
+        let result = $builder.make(arith::extui(
+            value,
+            $builder.i64_ty(),
+            $builder.get_insert_location(),
+        ))?;
+        $state.push1_extra(result.to_ctx_value(), ExtraInfo::arithmetic_f64());
+        return Ok(block);
+    };
+    ($builder:ident, $state:ident, $memarg:ident, $fcx:ident, $backend:ident, $block:ident, $op:ident, i64, i16) => {
+        let (value, offset) = $state.pop2()?;
+        let memory_index = MemoryIndex::from_u32(0);
+        let (block, effective_address) = Self::resolve_memory_ptr(
+            memory_index,
+            $memarg,
+            offset,
+            size_of::<i16>(),
+            $fcx,
+            $backend.ctx,
+            $block,
+        )?;
+        let value = $builder.make(arith::trunci(
+            value,
+            $builder.i16_ty(),
+            $builder.get_insert_location(),
+        ))?;
+        let result = $builder.make(
+            ods::llvm::atomicrmw(
+                $builder.context(),
+                $builder.i16_ty(),
+                effective_address,
+                value,
+                StringAttribute::new($builder.context(), AtomicBinOp::$op.attr_str().as_str())
+                    .into(),
+                StringAttribute::new(
+                    $builder.context(),
+                    AtomicOrdering::SequentiallyConsistent.attr_str().as_str(),
+                )
+                .into(),
+                $builder.get_insert_location(),
+            )
+            .into(),
+        )?;
+        let result = $builder.make(arith::extui(
+            value,
+            $builder.i64_ty(),
+            $builder.get_insert_location(),
+        ))?;
+        $state.push1_extra(result.to_ctx_value(), ExtraInfo::arithmetic_f64());
+        return Ok(block);
+    };
+    ($builder:ident, $state:ident, $memarg:ident, $fcx:ident, $backend:ident, $block:ident, $op:ident, i64, i32) => {
+        let (value, offset) = $state.pop2()?;
+        let memory_index = MemoryIndex::from_u32(0);
+        let (block, effective_address) = Self::resolve_memory_ptr(
+            memory_index,
+            $memarg,
+            offset,
+            size_of::<i32>(),
+            $fcx,
+            $backend.ctx,
+            $block,
+        )?;
+        let value = $builder.make(arith::trunci(
+            value,
+            $builder.i32_ty(),
+            $builder.get_insert_location(),
+        ))?;
+        let result = $builder.make(
+            ods::llvm::atomicrmw(
+                $builder.context(),
+                $builder.i32_ty(),
+                effective_address,
+                value,
+                StringAttribute::new($builder.context(), AtomicBinOp::$op.attr_str().as_str())
+                    .into(),
+                StringAttribute::new(
+                    $builder.context(),
+                    AtomicOrdering::SequentiallyConsistent.attr_str().as_str(),
+                )
+                .into(),
+                $builder.get_insert_location(),
+            )
+            .into(),
+        )?;
+        let result = $builder.make(arith::extui(
+            value,
+            $builder.i64_ty(),
+            $builder.get_insert_location(),
+        ))?;
+        $state.push1_extra(result.to_ctx_value(), ExtraInfo::arithmetic_f64());
+        return Ok(block);
+    };
+}
+macro_rules! atomicrmw_cmpxchg_op {
+    ($builder:ident, $state:ident, $memarg:ident, $fcx:ident, $backend:ident, $block:ident, $ty:ident, $ty_func:ident) => {
+        let (cmp, new) = $state.pop2()?;
+        let offset = $state.pop1()?;
+        let memory_index = MemoryIndex::from_u32(0);
+        let (block, effective_address) = Self::resolve_memory_ptr(
+            memory_index,
+            $memarg,
+            offset,
+            size_of::<$ty>(),
+            $fcx,
+            $backend.ctx,
+            $block,
+        )?;
+        let ordering = StringAttribute::new(
+            $builder.context(),
+            AtomicOrdering::SequentiallyConsistent.attr_str().as_str(),
+        )
+        .into();
+        let result = $builder.make(
+            ods::llvm::cmpxchg(
+                $builder.context(),
+                $builder.$ty_func(),
+                effective_address,
+                cmp,
+                new,
+                ordering,
+                ordering,
+                $builder.get_insert_location(),
+            )
+            .into(),
+        )?;
+        let result = $builder.make(llvm::extract_value(
+            $builder.context(),
+            result,
+            DenseI64ArrayAttribute::new($builder.context(), &[0]),
+            $builder.$ty_func(),
+            $builder.get_insert_location(),
+        ))?;
+        $state.push1(result.to_ctx_value());
+        return Ok(block);
+    };
+    ($builder:ident, $state:ident, $memarg:ident, $fcx:ident, $backend:ident, $block:ident, $ty:ident, $ty_func:ident, $narrow_ty_func:ident, $extra_ty_func:ident) => {
+        let (cmp, new) = $state.pop2()?;
+        let offset = $state.pop1()?;
+        let memory_index = MemoryIndex::from_u32(0);
+        let (block, effective_address) = Self::resolve_memory_ptr(
+            memory_index,
+            $memarg,
+            offset,
+            size_of::<$ty>(),
+            $fcx,
+            $backend.ctx,
+            $block,
+        )?;
+        let ordering = StringAttribute::new(
+            $builder.context(),
+            AtomicOrdering::SequentiallyConsistent.attr_str().as_str(),
+        )
+        .into();
+        let cmp = $builder.make(arith::trunci(
+            cmp,
+            $builder.$narrow_ty_func(),
+            $builder.get_insert_location(),
+        ))?;
+        let new = $builder.make(arith::trunci(
+            new,
+            $builder.$narrow_ty_func(),
+            $builder.get_insert_location(),
+        ))?;
+        let result = $builder.make(
+            ods::llvm::cmpxchg(
+                $builder.context(),
+                $builder.$ty_func(),
+                effective_address,
+                cmp,
+                new,
+                ordering,
+                ordering,
+                $builder.get_insert_location(),
+            )
+            .into(),
+        )?;
+        let result = $builder.make(llvm::extract_value(
+            $builder.context(),
+            result,
+            DenseI64ArrayAttribute::new($builder.context(), &[0]),
+            $builder.$narrow_ty_func(),
+            $builder.get_insert_location(),
+        ))?;
+        let result = $builder.make(arith::extui(
+            result,
+            $builder.$ty_func(),
+            $builder.get_insert_location(),
+        ))?;
+        $state.push1_extra(result.to_ctx_value(), ExtraInfo::$extra_ty_func());
+        return Ok(block);
     };
 }
 
@@ -1701,75 +2074,6 @@ impl FunctionCodeGenerator {
             Operator::I64Extend32S => {
                 op!(builder, state, i_64_extend_32_s, i64);
             }
-            Operator::StructNew { struct_type_index } => todo!(),
-            Operator::StructNewDefault { struct_type_index } => todo!(),
-            Operator::StructGet {
-                struct_type_index,
-                field_index,
-            } => todo!(),
-            Operator::StructGetS {
-                struct_type_index,
-                field_index,
-            } => todo!(),
-            Operator::StructGetU {
-                struct_type_index,
-                field_index,
-            } => todo!(),
-            Operator::StructSet {
-                struct_type_index,
-                field_index,
-            } => todo!(),
-            Operator::ArrayNew { array_type_index } => todo!(),
-            Operator::ArrayNewDefault { array_type_index } => todo!(),
-            Operator::ArrayNewFixed {
-                array_type_index,
-                array_size,
-            } => todo!(),
-            Operator::ArrayNewData {
-                array_type_index,
-                array_data_index,
-            } => todo!(),
-            Operator::ArrayNewElem {
-                array_type_index,
-                array_elem_index,
-            } => todo!(),
-            Operator::ArrayGet { array_type_index } => todo!(),
-            Operator::ArrayGetS { array_type_index } => todo!(),
-            Operator::ArrayGetU { array_type_index } => todo!(),
-            Operator::ArraySet { array_type_index } => todo!(),
-            Operator::ArrayLen => todo!(),
-            Operator::ArrayFill { array_type_index } => todo!(),
-            Operator::ArrayCopy {
-                array_type_index_dst,
-                array_type_index_src,
-            } => todo!(),
-            Operator::ArrayInitData {
-                array_type_index,
-                array_data_index,
-            } => todo!(),
-            Operator::ArrayInitElem {
-                array_type_index,
-                array_elem_index,
-            } => todo!(),
-            Operator::RefTestNonNull { hty } => todo!(),
-            Operator::RefTestNullable { hty } => todo!(),
-            Operator::RefCastNonNull { hty } => todo!(),
-            Operator::RefCastNullable { hty } => todo!(),
-            Operator::BrOnCast {
-                relative_depth,
-                from_ref_type,
-                to_ref_type,
-            } => todo!(),
-            Operator::BrOnCastFail {
-                relative_depth,
-                from_ref_type,
-                to_ref_type,
-            } => todo!(),
-            Operator::AnyConvertExtern => todo!(),
-            Operator::ExternConvertAny => todo!(),
-            Operator::RefI31 => todo!(),
-            Operator::I31GetS => todo!(),
-            Operator::I31GetU => todo!(),
             Operator::I32TruncSatF32S => {
                 op!(builder, state, i_32_trunc_sat_f_32_s, i32);
             }
@@ -2167,10 +2471,60 @@ impl FunctionCodeGenerator {
                 let size = op.result(0)?.to_ctx_value();
                 backend.state.push1(size);
             }
-            Operator::MemoryDiscard { mem } => todo!(),
-            Operator::MemoryAtomicNotify { memarg } => todo!(),
-            Operator::MemoryAtomicWait32 { memarg } => todo!(),
-            Operator::MemoryAtomicWait64 { memarg } => todo!(),
+            Operator::MemoryAtomicNotify { ref memarg } => {
+                let memory_index = MemoryIndex::from_u32(memarg.memory);
+                let (dst, count) = state.pop2()?;
+                let memory = builder.make(builder.iconst_32(memarg.memory as i32))?;
+                let value = builder
+                    .make(func::call(
+                        &backend.ctx.mlir_context,
+                        FlatSymbolRefAttribute::new(
+                            &backend.ctx.mlir_context,
+                            symbols::wasm::MEMORY_NOTIFY,
+                        ),
+                        &[fcx.ctx.vm_ctx, memory, dst, count],
+                        &[builder.ptr_ty()],
+                        builder.get_insert_location(),
+                    ))?
+                    .to_ctx_value();
+                backend.state.push1(value);
+            }
+            Operator::MemoryAtomicWait32 { ref memarg } => {
+                let memory_index = MemoryIndex::from_u32(memarg.memory);
+                let (dst, val) = state.pop2()?;
+                let memory = builder.make(builder.iconst_32(memarg.memory as i32))?;
+                let value = builder
+                    .make(func::call(
+                        &backend.ctx.mlir_context,
+                        FlatSymbolRefAttribute::new(
+                            &backend.ctx.mlir_context,
+                            symbols::wasm::MEMORY_WAIT32,
+                        ),
+                        &[fcx.ctx.vm_ctx, memory, dst, val],
+                        &[builder.ptr_ty()],
+                        builder.get_insert_location(),
+                    ))?
+                    .to_ctx_value();
+                backend.state.push1(value);
+            }
+            Operator::MemoryAtomicWait64 { ref memarg } => {
+                let memory_index = MemoryIndex::from_u32(memarg.memory);
+                let (dst, val) = state.pop2()?;
+                let memory = builder.make(builder.iconst_32(memarg.memory as i32))?;
+                let value = builder
+                    .make(func::call(
+                        &backend.ctx.mlir_context,
+                        FlatSymbolRefAttribute::new(
+                            &backend.ctx.mlir_context,
+                            symbols::wasm::MEMORY_WAIT64,
+                        ),
+                        &[fcx.ctx.vm_ctx, memory, dst, val],
+                        &[builder.ptr_ty()],
+                        builder.get_insert_location(),
+                    ))?
+                    .to_ctx_value();
+                backend.state.push1(value);
+            }
             Operator::AtomicFence => {
                 // Fence is a nop.
                 //
@@ -2180,486 +2534,551 @@ impl FunctionCodeGenerator {
                 // it would lead to data races that weren't present in the
                 // original source language.
             }
-            Operator::I32AtomicLoad { memarg } => todo!(),
-            Operator::I64AtomicLoad { memarg } => todo!(),
-            Operator::I32AtomicLoad8U { memarg } => todo!(),
-            Operator::I32AtomicLoad16U { memarg } => todo!(),
-            Operator::I64AtomicLoad8U { memarg } => todo!(),
-            Operator::I64AtomicLoad16U { memarg } => todo!(),
-            Operator::I64AtomicLoad32U { memarg } => todo!(),
-            Operator::I32AtomicStore { memarg } => todo!(),
-            Operator::I64AtomicStore { memarg } => todo!(),
-            Operator::I32AtomicStore8 { memarg } => todo!(),
-            Operator::I32AtomicStore16 { memarg } => todo!(),
-            Operator::I64AtomicStore8 { memarg } => todo!(),
-            Operator::I64AtomicStore16 { memarg } => todo!(),
-            Operator::I64AtomicStore32 { memarg } => todo!(),
-            Operator::I32AtomicRmwAdd { memarg } => todo!(),
-            Operator::I64AtomicRmwAdd { memarg } => todo!(),
-            Operator::I32AtomicRmw8AddU { memarg } => todo!(),
-            Operator::I32AtomicRmw16AddU { memarg } => todo!(),
-            Operator::I64AtomicRmw8AddU { memarg } => todo!(),
-            Operator::I64AtomicRmw16AddU { memarg } => todo!(),
-            Operator::I64AtomicRmw32AddU { memarg } => todo!(),
-            Operator::I32AtomicRmwSub { memarg } => todo!(),
-            Operator::I64AtomicRmwSub { memarg } => todo!(),
-            Operator::I32AtomicRmw8SubU { memarg } => todo!(),
-            Operator::I32AtomicRmw16SubU { memarg } => todo!(),
-            Operator::I64AtomicRmw8SubU { memarg } => todo!(),
-            Operator::I64AtomicRmw16SubU { memarg } => todo!(),
-            Operator::I64AtomicRmw32SubU { memarg } => todo!(),
-            Operator::I32AtomicRmwAnd { memarg } => todo!(),
-            Operator::I64AtomicRmwAnd { memarg } => todo!(),
-            Operator::I32AtomicRmw8AndU { memarg } => todo!(),
-            Operator::I32AtomicRmw16AndU { memarg } => todo!(),
-            Operator::I64AtomicRmw8AndU { memarg } => todo!(),
-            Operator::I64AtomicRmw16AndU { memarg } => todo!(),
-            Operator::I64AtomicRmw32AndU { memarg } => todo!(),
-            Operator::I32AtomicRmwOr { memarg } => todo!(),
-            Operator::I64AtomicRmwOr { memarg } => todo!(),
-            Operator::I32AtomicRmw8OrU { memarg } => todo!(),
-            Operator::I32AtomicRmw16OrU { memarg } => todo!(),
-            Operator::I64AtomicRmw8OrU { memarg } => todo!(),
-            Operator::I64AtomicRmw16OrU { memarg } => todo!(),
-            Operator::I64AtomicRmw32OrU { memarg } => todo!(),
-            Operator::I32AtomicRmwXor { memarg } => todo!(),
-            Operator::I64AtomicRmwXor { memarg } => todo!(),
-            Operator::I32AtomicRmw8XorU { memarg } => todo!(),
-            Operator::I32AtomicRmw16XorU { memarg } => todo!(),
-            Operator::I64AtomicRmw8XorU { memarg } => todo!(),
-            Operator::I64AtomicRmw16XorU { memarg } => todo!(),
-            Operator::I64AtomicRmw32XorU { memarg } => todo!(),
-            Operator::I32AtomicRmwXchg { memarg } => todo!(),
-            Operator::I64AtomicRmwXchg { memarg } => todo!(),
-            Operator::I32AtomicRmw8XchgU { memarg } => todo!(),
-            Operator::I32AtomicRmw16XchgU { memarg } => todo!(),
-            Operator::I64AtomicRmw8XchgU { memarg } => todo!(),
-            Operator::I64AtomicRmw16XchgU { memarg } => todo!(),
-            Operator::I64AtomicRmw32XchgU { memarg } => todo!(),
-            Operator::I32AtomicRmwCmpxchg { memarg } => todo!(),
-            Operator::I64AtomicRmwCmpxchg { memarg } => todo!(),
-            Operator::I32AtomicRmw8CmpxchgU { memarg } => todo!(),
-            Operator::I32AtomicRmw16CmpxchgU { memarg } => todo!(),
-            Operator::I64AtomicRmw8CmpxchgU { memarg } => todo!(),
-            Operator::I64AtomicRmw16CmpxchgU { memarg } => todo!(),
-            Operator::I64AtomicRmw32CmpxchgU { memarg } => todo!(),
-            Operator::V128Load { memarg } => todo!(),
-            Operator::V128Load8x8S { memarg } => todo!(),
-            Operator::V128Load8x8U { memarg } => todo!(),
-            Operator::V128Load16x4S { memarg } => todo!(),
-            Operator::V128Load16x4U { memarg } => todo!(),
-            Operator::V128Load32x2S { memarg } => todo!(),
-            Operator::V128Load32x2U { memarg } => todo!(),
-            Operator::V128Load8Splat { memarg } => todo!(),
-            Operator::V128Load16Splat { memarg } => todo!(),
-            Operator::V128Load32Splat { memarg } => todo!(),
-            Operator::V128Load64Splat { memarg } => todo!(),
-            Operator::V128Load32Zero { memarg } => todo!(),
-            Operator::V128Load64Zero { memarg } => todo!(),
-            Operator::V128Store { memarg } => todo!(),
-            Operator::V128Load8Lane { memarg, lane } => todo!(),
-            Operator::V128Load16Lane { memarg, lane } => todo!(),
-            Operator::V128Load32Lane { memarg, lane } => todo!(),
-            Operator::V128Load64Lane { memarg, lane } => todo!(),
-            Operator::V128Store8Lane { memarg, lane } => todo!(),
-            Operator::V128Store16Lane { memarg, lane } => todo!(),
-            Operator::V128Store32Lane { memarg, lane } => todo!(),
-            Operator::V128Store64Lane { memarg, lane } => todo!(),
-            Operator::V128Const { value } => todo!(),
-            Operator::I8x16Shuffle { lanes } => todo!(),
-            Operator::I8x16ExtractLaneS { lane } => todo!(),
-            Operator::I8x16ExtractLaneU { lane } => todo!(),
-            Operator::I8x16ReplaceLane { lane } => todo!(),
-            Operator::I16x8ExtractLaneS { lane } => todo!(),
-            Operator::I16x8ExtractLaneU { lane } => todo!(),
-            Operator::I16x8ReplaceLane { lane } => todo!(),
-            Operator::I32x4ExtractLane { lane } => todo!(),
-            Operator::I32x4ReplaceLane { lane } => todo!(),
-            Operator::I64x2ExtractLane { lane } => todo!(),
-            Operator::I64x2ReplaceLane { lane } => todo!(),
-            Operator::F32x4ExtractLane { lane } => todo!(),
-            Operator::F32x4ReplaceLane { lane } => todo!(),
-            Operator::F64x2ExtractLane { lane } => todo!(),
-            Operator::F64x2ReplaceLane { lane } => todo!(),
-            Operator::I8x16Swizzle => todo!(),
-            Operator::I8x16Splat => todo!(),
-            Operator::I16x8Splat => todo!(),
-            Operator::I32x4Splat => todo!(),
-            Operator::I64x2Splat => todo!(),
-            Operator::F32x4Splat => todo!(),
-            Operator::F64x2Splat => todo!(),
-            Operator::I8x16Eq => todo!(),
-            Operator::I8x16Ne => todo!(),
-            Operator::I8x16LtS => todo!(),
-            Operator::I8x16LtU => todo!(),
-            Operator::I8x16GtS => todo!(),
-            Operator::I8x16GtU => todo!(),
-            Operator::I8x16LeS => todo!(),
-            Operator::I8x16LeU => todo!(),
-            Operator::I8x16GeS => todo!(),
-            Operator::I8x16GeU => todo!(),
-            Operator::I16x8Eq => todo!(),
-            Operator::I16x8Ne => todo!(),
-            Operator::I16x8LtS => todo!(),
-            Operator::I16x8LtU => todo!(),
-            Operator::I16x8GtS => todo!(),
-            Operator::I16x8GtU => todo!(),
-            Operator::I16x8LeS => todo!(),
-            Operator::I16x8LeU => todo!(),
-            Operator::I16x8GeS => todo!(),
-            Operator::I16x8GeU => todo!(),
-            Operator::I32x4Eq => todo!(),
-            Operator::I32x4Ne => todo!(),
-            Operator::I32x4LtS => todo!(),
-            Operator::I32x4LtU => todo!(),
-            Operator::I32x4GtS => todo!(),
-            Operator::I32x4GtU => todo!(),
-            Operator::I32x4LeS => todo!(),
-            Operator::I32x4LeU => todo!(),
-            Operator::I32x4GeS => todo!(),
-            Operator::I32x4GeU => todo!(),
-            Operator::I64x2Eq => todo!(),
-            Operator::I64x2Ne => todo!(),
-            Operator::I64x2LtS => todo!(),
-            Operator::I64x2GtS => todo!(),
-            Operator::I64x2LeS => todo!(),
-            Operator::I64x2GeS => todo!(),
-            Operator::F32x4Eq => todo!(),
-            Operator::F32x4Ne => todo!(),
-            Operator::F32x4Lt => todo!(),
-            Operator::F32x4Gt => todo!(),
-            Operator::F32x4Le => todo!(),
-            Operator::F32x4Ge => todo!(),
-            Operator::F64x2Eq => todo!(),
-            Operator::F64x2Ne => todo!(),
-            Operator::F64x2Lt => todo!(),
-            Operator::F64x2Gt => todo!(),
-            Operator::F64x2Le => todo!(),
-            Operator::F64x2Ge => todo!(),
-            Operator::V128Not => todo!(),
-            Operator::V128And => todo!(),
-            Operator::V128AndNot => todo!(),
-            Operator::V128Or => todo!(),
-            Operator::V128Xor => todo!(),
-            Operator::V128Bitselect => todo!(),
-            Operator::V128AnyTrue => todo!(),
-            Operator::I8x16Abs => todo!(),
-            Operator::I8x16Neg => todo!(),
-            Operator::I8x16Popcnt => todo!(),
-            Operator::I8x16AllTrue => todo!(),
-            Operator::I8x16Bitmask => todo!(),
-            Operator::I8x16NarrowI16x8S => todo!(),
-            Operator::I8x16NarrowI16x8U => todo!(),
-            Operator::I8x16Shl => todo!(),
-            Operator::I8x16ShrS => todo!(),
-            Operator::I8x16ShrU => todo!(),
-            Operator::I8x16Add => todo!(),
-            Operator::I8x16AddSatS => todo!(),
-            Operator::I8x16AddSatU => todo!(),
-            Operator::I8x16Sub => todo!(),
-            Operator::I8x16SubSatS => todo!(),
-            Operator::I8x16SubSatU => todo!(),
-            Operator::I8x16MinS => todo!(),
-            Operator::I8x16MinU => todo!(),
-            Operator::I8x16MaxS => todo!(),
-            Operator::I8x16MaxU => todo!(),
-            Operator::I8x16AvgrU => todo!(),
-            Operator::I16x8ExtAddPairwiseI8x16S => todo!(),
-            Operator::I16x8ExtAddPairwiseI8x16U => todo!(),
-            Operator::I16x8Abs => todo!(),
-            Operator::I16x8Neg => todo!(),
-            Operator::I16x8Q15MulrSatS => todo!(),
-            Operator::I16x8AllTrue => todo!(),
-            Operator::I16x8Bitmask => todo!(),
-            Operator::I16x8NarrowI32x4S => todo!(),
-            Operator::I16x8NarrowI32x4U => todo!(),
-            Operator::I16x8ExtendLowI8x16S => todo!(),
-            Operator::I16x8ExtendHighI8x16S => todo!(),
-            Operator::I16x8ExtendLowI8x16U => todo!(),
-            Operator::I16x8ExtendHighI8x16U => todo!(),
-            Operator::I16x8Shl => todo!(),
-            Operator::I16x8ShrS => todo!(),
-            Operator::I16x8ShrU => todo!(),
-            Operator::I16x8Add => todo!(),
-            Operator::I16x8AddSatS => todo!(),
-            Operator::I16x8AddSatU => todo!(),
-            Operator::I16x8Sub => todo!(),
-            Operator::I16x8SubSatS => todo!(),
-            Operator::I16x8SubSatU => todo!(),
-            Operator::I16x8Mul => todo!(),
-            Operator::I16x8MinS => todo!(),
-            Operator::I16x8MinU => todo!(),
-            Operator::I16x8MaxS => todo!(),
-            Operator::I16x8MaxU => todo!(),
-            Operator::I16x8AvgrU => todo!(),
-            Operator::I16x8ExtMulLowI8x16S => todo!(),
-            Operator::I16x8ExtMulHighI8x16S => todo!(),
-            Operator::I16x8ExtMulLowI8x16U => todo!(),
-            Operator::I16x8ExtMulHighI8x16U => todo!(),
-            Operator::I32x4ExtAddPairwiseI16x8S => todo!(),
-            Operator::I32x4ExtAddPairwiseI16x8U => todo!(),
-            Operator::I32x4Abs => todo!(),
-            Operator::I32x4Neg => todo!(),
-            Operator::I32x4AllTrue => todo!(),
-            Operator::I32x4Bitmask => todo!(),
-            Operator::I32x4ExtendLowI16x8S => todo!(),
-            Operator::I32x4ExtendHighI16x8S => todo!(),
-            Operator::I32x4ExtendLowI16x8U => todo!(),
-            Operator::I32x4ExtendHighI16x8U => todo!(),
-            Operator::I32x4Shl => todo!(),
-            Operator::I32x4ShrS => todo!(),
-            Operator::I32x4ShrU => todo!(),
-            Operator::I32x4Add => todo!(),
-            Operator::I32x4Sub => todo!(),
-            Operator::I32x4Mul => todo!(),
-            Operator::I32x4MinS => todo!(),
-            Operator::I32x4MinU => todo!(),
-            Operator::I32x4MaxS => todo!(),
-            Operator::I32x4MaxU => todo!(),
-            Operator::I32x4DotI16x8S => todo!(),
-            Operator::I32x4ExtMulLowI16x8S => todo!(),
-            Operator::I32x4ExtMulHighI16x8S => todo!(),
-            Operator::I32x4ExtMulLowI16x8U => todo!(),
-            Operator::I32x4ExtMulHighI16x8U => todo!(),
-            Operator::I64x2Abs => todo!(),
-            Operator::I64x2Neg => todo!(),
-            Operator::I64x2AllTrue => todo!(),
-            Operator::I64x2Bitmask => todo!(),
-            Operator::I64x2ExtendLowI32x4S => todo!(),
-            Operator::I64x2ExtendHighI32x4S => todo!(),
-            Operator::I64x2ExtendLowI32x4U => todo!(),
-            Operator::I64x2ExtendHighI32x4U => todo!(),
-            Operator::I64x2Shl => todo!(),
-            Operator::I64x2ShrS => todo!(),
-            Operator::I64x2ShrU => todo!(),
-            Operator::I64x2Add => todo!(),
-            Operator::I64x2Sub => todo!(),
-            Operator::I64x2Mul => todo!(),
-            Operator::I64x2ExtMulLowI32x4S => todo!(),
-            Operator::I64x2ExtMulHighI32x4S => todo!(),
-            Operator::I64x2ExtMulLowI32x4U => todo!(),
-            Operator::I64x2ExtMulHighI32x4U => todo!(),
-            Operator::F32x4Ceil => todo!(),
-            Operator::F32x4Floor => todo!(),
-            Operator::F32x4Trunc => todo!(),
-            Operator::F32x4Nearest => todo!(),
-            Operator::F32x4Abs => todo!(),
-            Operator::F32x4Neg => todo!(),
-            Operator::F32x4Sqrt => todo!(),
-            Operator::F32x4Add => todo!(),
-            Operator::F32x4Sub => todo!(),
-            Operator::F32x4Mul => todo!(),
-            Operator::F32x4Div => todo!(),
-            Operator::F32x4Min => todo!(),
-            Operator::F32x4Max => todo!(),
-            Operator::F32x4PMin => todo!(),
-            Operator::F32x4PMax => todo!(),
-            Operator::F64x2Ceil => todo!(),
-            Operator::F64x2Floor => todo!(),
-            Operator::F64x2Trunc => todo!(),
-            Operator::F64x2Nearest => todo!(),
-            Operator::F64x2Abs => todo!(),
-            Operator::F64x2Neg => todo!(),
-            Operator::F64x2Sqrt => todo!(),
-            Operator::F64x2Add => todo!(),
-            Operator::F64x2Sub => todo!(),
-            Operator::F64x2Mul => todo!(),
-            Operator::F64x2Div => todo!(),
-            Operator::F64x2Min => todo!(),
-            Operator::F64x2Max => todo!(),
-            Operator::F64x2PMin => todo!(),
-            Operator::F64x2PMax => todo!(),
-            Operator::I32x4TruncSatF32x4S => todo!(),
-            Operator::I32x4TruncSatF32x4U => todo!(),
-            Operator::F32x4ConvertI32x4S => todo!(),
-            Operator::F32x4ConvertI32x4U => todo!(),
-            Operator::I32x4TruncSatF64x2SZero => todo!(),
-            Operator::I32x4TruncSatF64x2UZero => todo!(),
-            Operator::F64x2ConvertLowI32x4S => todo!(),
-            Operator::F64x2ConvertLowI32x4U => todo!(),
-            Operator::F32x4DemoteF64x2Zero => todo!(),
-            Operator::F64x2PromoteLowF32x4 => todo!(),
-            Operator::I8x16RelaxedSwizzle => todo!(),
-            Operator::I32x4RelaxedTruncF32x4S => todo!(),
-            Operator::I32x4RelaxedTruncF32x4U => todo!(),
-            Operator::I32x4RelaxedTruncF64x2SZero => todo!(),
-            Operator::I32x4RelaxedTruncF64x2UZero => todo!(),
-            Operator::F32x4RelaxedMadd => todo!(),
-            Operator::F32x4RelaxedNmadd => todo!(),
-            Operator::F64x2RelaxedMadd => todo!(),
-            Operator::F64x2RelaxedNmadd => todo!(),
-            Operator::I8x16RelaxedLaneselect => todo!(),
-            Operator::I16x8RelaxedLaneselect => todo!(),
-            Operator::I32x4RelaxedLaneselect => todo!(),
-            Operator::I64x2RelaxedLaneselect => todo!(),
-            Operator::F32x4RelaxedMin => todo!(),
-            Operator::F32x4RelaxedMax => todo!(),
-            Operator::F64x2RelaxedMin => todo!(),
-            Operator::F64x2RelaxedMax => todo!(),
-            Operator::I16x8RelaxedQ15mulrS => todo!(),
-            Operator::I16x8RelaxedDotI8x16I7x16S => todo!(),
-            Operator::I32x4RelaxedDotI8x16I7x16AddS => todo!(),
-            Operator::CallRef { type_index } => todo!(),
-            Operator::ReturnCallRef { type_index } => todo!(),
-            Operator::RefAsNonNull => todo!(),
-            Operator::BrOnNull { relative_depth } => todo!(),
-            Operator::BrOnNonNull { relative_depth } => todo!(),
+            Operator::I32AtomicLoad { ref memarg } => {
+                let offset = state.pop1()?;
+                let memory_index = MemoryIndex::from_u32(0);
+                let (block, effective_address) = Self::resolve_memory_ptr(
+                    memory_index,
+                    memarg,
+                    offset,
+                    4,
+                    fcx,
+                    backend.ctx,
+                    block,
+                )?;
+                let result = builder.make(builder.load_with_ordering(
+                    effective_address,
+                    builder.i32_ty(),
+                    AtomicOrdering::SequentiallyConsistent,
+                ))?;
+                state.push1(result.to_ctx_value());
+                return Ok(block);
+            }
+            Operator::I64AtomicLoad { ref memarg } => {
+                let offset = state.pop1()?;
+                let memory_index = MemoryIndex::from_u32(0);
+                let (block, effective_address) = Self::resolve_memory_ptr(
+                    memory_index,
+                    memarg,
+                    offset,
+                    8,
+                    fcx,
+                    backend.ctx,
+                    block,
+                )?;
+                let result = builder.make(builder.load_with_ordering(
+                    effective_address,
+                    builder.i64_ty(),
+                    AtomicOrdering::SequentiallyConsistent,
+                ))?;
+                state.push1(result.to_ctx_value());
+                return Ok(block);
+            }
+            Operator::I32AtomicLoad8U { ref memarg } => {
+                let offset = state.pop1()?;
+                let memory_index = MemoryIndex::from_u32(0);
+                let (block, effective_address) = Self::resolve_memory_ptr(
+                    memory_index,
+                    memarg,
+                    offset,
+                    1,
+                    fcx,
+                    backend.ctx,
+                    block,
+                )?;
+                let result = builder.make(builder.load_with_ordering(
+                    effective_address,
+                    builder.i8_ty(),
+                    AtomicOrdering::SequentiallyConsistent,
+                ))?;
+                let result = builder.make(arith::extui(
+                    result,
+                    builder.i32_ty(),
+                    builder.get_insert_location(),
+                ))?;
+                state.push1_extra(result.to_ctx_value(), ExtraInfo::arithmetic_f32());
+                return Ok(block);
+            }
+            Operator::I32AtomicLoad16U { ref memarg } => {
+                let offset = state.pop1()?;
+                let memory_index = MemoryIndex::from_u32(0);
+                let (block, effective_address) = Self::resolve_memory_ptr(
+                    memory_index,
+                    memarg,
+                    offset,
+                    2,
+                    fcx,
+                    backend.ctx,
+                    block,
+                )?;
+                let result = builder.make(builder.load_with_ordering(
+                    effective_address,
+                    builder.i16_ty(),
+                    AtomicOrdering::SequentiallyConsistent,
+                ))?;
+                let result = builder.make(arith::extui(
+                    result,
+                    builder.i32_ty(),
+                    builder.get_insert_location(),
+                ))?;
+                state.push1_extra(result.to_ctx_value(), ExtraInfo::arithmetic_f32());
+                return Ok(block);
+            }
+            Operator::I64AtomicLoad8U { ref memarg } => {
+                let offset = state.pop1()?;
+                let memory_index = MemoryIndex::from_u32(0);
+                let (block, effective_address) = Self::resolve_memory_ptr(
+                    memory_index,
+                    memarg,
+                    offset,
+                    1,
+                    fcx,
+                    backend.ctx,
+                    block,
+                )?;
+                let result = builder.make(builder.load_with_ordering(
+                    effective_address,
+                    builder.i8_ty(),
+                    AtomicOrdering::SequentiallyConsistent,
+                ))?;
+                let result = builder.make(arith::extui(
+                    result,
+                    builder.i64_ty(),
+                    builder.get_insert_location(),
+                ))?;
+                state.push1_extra(result.to_ctx_value(), ExtraInfo::arithmetic_f64());
+                return Ok(block);
+            }
+            Operator::I64AtomicLoad16U { ref memarg } => {
+                let offset = state.pop1()?;
+                let memory_index = MemoryIndex::from_u32(0);
+                let (block, effective_address) = Self::resolve_memory_ptr(
+                    memory_index,
+                    memarg,
+                    offset,
+                    2,
+                    fcx,
+                    backend.ctx,
+                    block,
+                )?;
+                let result = builder.make(builder.load_with_ordering(
+                    effective_address,
+                    builder.i16_ty(),
+                    AtomicOrdering::SequentiallyConsistent,
+                ))?;
+                let result = builder.make(arith::extui(
+                    result,
+                    builder.i64_ty(),
+                    builder.get_insert_location(),
+                ))?;
+                state.push1_extra(result.to_ctx_value(), ExtraInfo::arithmetic_f32());
+                return Ok(block);
+            }
+            Operator::I64AtomicLoad32U { ref memarg } => {
+                let offset = state.pop1()?;
+                let memory_index = MemoryIndex::from_u32(0);
+                let (block, effective_address) = Self::resolve_memory_ptr(
+                    memory_index,
+                    memarg,
+                    offset,
+                    4,
+                    fcx,
+                    backend.ctx,
+                    block,
+                )?;
+                let result = builder.make(builder.load_with_ordering(
+                    effective_address,
+                    builder.i32_ty(),
+                    AtomicOrdering::SequentiallyConsistent,
+                ))?;
+                let result = builder.make(arith::extui(
+                    result,
+                    builder.i64_ty(),
+                    builder.get_insert_location(),
+                ))?;
+                state.push1_extra(result.to_ctx_value(), ExtraInfo::arithmetic_f32());
+                return Ok(block);
+            }
+            Operator::I32AtomicStore { ref memarg } => {
+                let (value, offset) = state.pop2()?;
+                let memory_index = MemoryIndex::from_u32(0);
+                let (block, effective_address) = Self::resolve_memory_ptr(
+                    memory_index,
+                    memarg,
+                    offset,
+                    4,
+                    fcx,
+                    backend.ctx,
+                    block,
+                )?;
+                let result = builder.make(builder.store_with_ordering(
+                    value,
+                    effective_address,
+                    AtomicOrdering::SequentiallyConsistent,
+                ))?;
+                return Ok(block);
+            }
+            Operator::I64AtomicStore { ref memarg } => {
+                let (value, offset) = state.pop2()?;
+                let memory_index = MemoryIndex::from_u32(0);
+                let (block, effective_address) = Self::resolve_memory_ptr(
+                    memory_index,
+                    memarg,
+                    offset,
+                    8,
+                    fcx,
+                    backend.ctx,
+                    block,
+                )?;
+                let result = builder.make(builder.store_with_ordering(
+                    value,
+                    effective_address,
+                    AtomicOrdering::SequentiallyConsistent,
+                ))?;
+                return Ok(block);
+            }
+            Operator::I32AtomicStore8 { ref memarg } => {
+                let (value, offset) = state.pop2()?;
+                let memory_index = MemoryIndex::from_u32(0);
+                let (block, effective_address) = Self::resolve_memory_ptr(
+                    memory_index,
+                    memarg,
+                    offset,
+                    1,
+                    fcx,
+                    backend.ctx,
+                    block,
+                )?;
+                let value = builder.make(arith::trunci(
+                    value,
+                    builder.i8_ty(),
+                    builder.get_insert_location(),
+                ))?;
+                let result = builder.make(builder.store_with_ordering(
+                    value,
+                    effective_address,
+                    AtomicOrdering::SequentiallyConsistent,
+                ))?;
+                return Ok(block);
+            }
+            Operator::I32AtomicStore16 { ref memarg } => {
+                let (value, offset) = state.pop2()?;
+                let memory_index = MemoryIndex::from_u32(0);
+                let (block, effective_address) = Self::resolve_memory_ptr(
+                    memory_index,
+                    memarg,
+                    offset,
+                    2,
+                    fcx,
+                    backend.ctx,
+                    block,
+                )?;
+                let value = builder.make(arith::trunci(
+                    value,
+                    builder.i16_ty(),
+                    builder.get_insert_location(),
+                ))?;
+                let result = builder.make(builder.store_with_ordering(
+                    value,
+                    effective_address,
+                    AtomicOrdering::SequentiallyConsistent,
+                ))?;
+                return Ok(block);
+            }
+            Operator::I64AtomicStore8 { ref memarg } => {
+                let (value, offset) = state.pop2()?;
+                let memory_index = MemoryIndex::from_u32(0);
+                let (block, effective_address) = Self::resolve_memory_ptr(
+                    memory_index,
+                    memarg,
+                    offset,
+                    1,
+                    fcx,
+                    backend.ctx,
+                    block,
+                )?;
+                let value = builder.make(arith::trunci(
+                    value,
+                    builder.i8_ty(),
+                    builder.get_insert_location(),
+                ))?;
+                let result = builder.make(builder.store_with_ordering(
+                    value,
+                    effective_address,
+                    AtomicOrdering::SequentiallyConsistent,
+                ))?;
+                return Ok(block);
+            }
+            Operator::I64AtomicStore16 { ref memarg } => {
+                let (value, offset) = state.pop2()?;
+                let memory_index = MemoryIndex::from_u32(0);
+                let (block, effective_address) = Self::resolve_memory_ptr(
+                    memory_index,
+                    memarg,
+                    offset,
+                    2,
+                    fcx,
+                    backend.ctx,
+                    block,
+                )?;
+                let value = builder.make(arith::trunci(
+                    value,
+                    builder.i16_ty(),
+                    builder.get_insert_location(),
+                ))?;
+                let result = builder.make(builder.store_with_ordering(
+                    value,
+                    effective_address,
+                    AtomicOrdering::SequentiallyConsistent,
+                ))?;
+                return Ok(block);
+            }
+            Operator::I64AtomicStore32 { ref memarg } => {
+                let (value, offset) = state.pop2()?;
+                let memory_index = MemoryIndex::from_u32(0);
+                let (block, effective_address) = Self::resolve_memory_ptr(
+                    memory_index,
+                    memarg,
+                    offset,
+                    4,
+                    fcx,
+                    backend.ctx,
+                    block,
+                )?;
+                let value = builder.make(arith::trunci(
+                    value,
+                    builder.i32_ty(),
+                    builder.get_insert_location(),
+                ))?;
+                let result = builder.make(builder.store_with_ordering(
+                    value,
+                    effective_address,
+                    AtomicOrdering::SequentiallyConsistent,
+                ))?;
+                return Ok(block);
+            }
+            Operator::I32AtomicRmwAdd { ref memarg } => {
+                atomicrmw_op!(builder, state, memarg, fcx, backend, block, Add, i32);
+            }
+            Operator::I64AtomicRmwAdd { ref memarg } => {
+                atomicrmw_op!(builder, state, memarg, fcx, backend, block, Add, i64);
+            }
+            Operator::I32AtomicRmw8AddU { ref memarg } => {
+                atomicrmw_op!(builder, state, memarg, fcx, backend, block, Add, i32, i8);
+            }
+            Operator::I32AtomicRmw16AddU { ref memarg } => {
+                atomicrmw_op!(builder, state, memarg, fcx, backend, block, Add, i32, i16);
+            }
+            Operator::I64AtomicRmw8AddU { ref memarg } => {
+                atomicrmw_op!(builder, state, memarg, fcx, backend, block, Add, i64, i8);
+            }
+            Operator::I64AtomicRmw16AddU { ref memarg } => {
+                atomicrmw_op!(builder, state, memarg, fcx, backend, block, Add, i64, i16);
+            }
+            Operator::I64AtomicRmw32AddU { ref memarg } => {
+                atomicrmw_op!(builder, state, memarg, fcx, backend, block, Add, i64, i32);
+            }
+            Operator::I32AtomicRmwSub { ref memarg } => {
+                atomicrmw_op!(builder, state, memarg, fcx, backend, block, Sub, i32);
+            }
+            Operator::I64AtomicRmwSub { ref memarg } => {
+                atomicrmw_op!(builder, state, memarg, fcx, backend, block, Sub, i64);
+            }
+            Operator::I32AtomicRmw8SubU { ref memarg } => {
+                atomicrmw_op!(builder, state, memarg, fcx, backend, block, Sub, i32, i8);
+            }
+            Operator::I32AtomicRmw16SubU { ref memarg } => {
+                atomicrmw_op!(builder, state, memarg, fcx, backend, block, Sub, i32, i16);
+            }
+            Operator::I64AtomicRmw8SubU { ref memarg } => {
+                atomicrmw_op!(builder, state, memarg, fcx, backend, block, Sub, i64, i8);
+            }
+            Operator::I64AtomicRmw16SubU { ref memarg } => {
+                atomicrmw_op!(builder, state, memarg, fcx, backend, block, Sub, i64, i16);
+            }
+            Operator::I64AtomicRmw32SubU { ref memarg } => {
+                atomicrmw_op!(builder, state, memarg, fcx, backend, block, Sub, i64, i32);
+            }
+            Operator::I32AtomicRmwAnd { ref memarg } => {
+                atomicrmw_op!(builder, state, memarg, fcx, backend, block, And, i32);
+            }
+            Operator::I64AtomicRmwAnd { ref memarg } => {
+                atomicrmw_op!(builder, state, memarg, fcx, backend, block, And, i64);
+            }
+            Operator::I32AtomicRmw8AndU { ref memarg } => {
+                atomicrmw_op!(builder, state, memarg, fcx, backend, block, And, i32, i8);
+            }
+            Operator::I32AtomicRmw16AndU { ref memarg } => {
+                atomicrmw_op!(builder, state, memarg, fcx, backend, block, And, i32, i16);
+            }
+            Operator::I64AtomicRmw8AndU { ref memarg } => {
+                atomicrmw_op!(builder, state, memarg, fcx, backend, block, And, i64, i8);
+            }
+            Operator::I64AtomicRmw16AndU { ref memarg } => {
+                atomicrmw_op!(builder, state, memarg, fcx, backend, block, And, i64, i16);
+            }
+            Operator::I64AtomicRmw32AndU { ref memarg } => {
+                atomicrmw_op!(builder, state, memarg, fcx, backend, block, And, i64, i32);
+            }
+            Operator::I32AtomicRmwOr { ref memarg } => {
+                atomicrmw_op!(builder, state, memarg, fcx, backend, block, Or, i32);
+            }
+            Operator::I64AtomicRmwOr { ref memarg } => {
+                atomicrmw_op!(builder, state, memarg, fcx, backend, block, Or, i64);
+            }
+            Operator::I32AtomicRmw8OrU { ref memarg } => {
+                atomicrmw_op!(builder, state, memarg, fcx, backend, block, Or, i32, i8);
+            }
+            Operator::I32AtomicRmw16OrU { ref memarg } => {
+                atomicrmw_op!(builder, state, memarg, fcx, backend, block, Or, i32, i16);
+            }
+            Operator::I64AtomicRmw8OrU { ref memarg } => {
+                atomicrmw_op!(builder, state, memarg, fcx, backend, block, Or, i64, i8);
+            }
+            Operator::I64AtomicRmw16OrU { ref memarg } => {
+                atomicrmw_op!(builder, state, memarg, fcx, backend, block, Or, i64, i16);
+            }
+            Operator::I64AtomicRmw32OrU { ref memarg } => {
+                atomicrmw_op!(builder, state, memarg, fcx, backend, block, Or, i64, i32);
+            }
+            Operator::I32AtomicRmwXor { ref memarg } => {
+                atomicrmw_op!(builder, state, memarg, fcx, backend, block, Xor, i32);
+            }
+            Operator::I64AtomicRmwXor { ref memarg } => {
+                atomicrmw_op!(builder, state, memarg, fcx, backend, block, Xor, i64);
+            }
+            Operator::I32AtomicRmw8XorU { ref memarg } => {
+                atomicrmw_op!(builder, state, memarg, fcx, backend, block, Xor, i32, i8);
+            }
+            Operator::I32AtomicRmw16XorU { ref memarg } => {
+                atomicrmw_op!(builder, state, memarg, fcx, backend, block, Xor, i32, i16);
+            }
+            Operator::I64AtomicRmw8XorU { ref memarg } => {
+                atomicrmw_op!(builder, state, memarg, fcx, backend, block, Xor, i64, i8);
+            }
+            Operator::I64AtomicRmw16XorU { ref memarg } => {
+                atomicrmw_op!(builder, state, memarg, fcx, backend, block, Xor, i64, i16);
+            }
+            Operator::I64AtomicRmw32XorU { ref memarg } => {
+                atomicrmw_op!(builder, state, memarg, fcx, backend, block, Xor, i64, i32);
+            }
+            Operator::I32AtomicRmwXchg { ref memarg } => {
+                atomicrmw_op!(builder, state, memarg, fcx, backend, block, Xchg, i32);
+            }
+            Operator::I64AtomicRmwXchg { ref memarg } => {
+                atomicrmw_op!(builder, state, memarg, fcx, backend, block, Xchg, i64);
+            }
+            Operator::I32AtomicRmw8XchgU { ref memarg } => {
+                atomicrmw_op!(builder, state, memarg, fcx, backend, block, Xchg, i32, i8);
+            }
+            Operator::I32AtomicRmw16XchgU { ref memarg } => {
+                atomicrmw_op!(builder, state, memarg, fcx, backend, block, Xchg, i32, i16);
+            }
+            Operator::I64AtomicRmw8XchgU { ref memarg } => {
+                atomicrmw_op!(builder, state, memarg, fcx, backend, block, Xchg, i64, i8);
+            }
+            Operator::I64AtomicRmw16XchgU { ref memarg } => {
+                atomicrmw_op!(builder, state, memarg, fcx, backend, block, Xchg, i64, i16);
+            }
+            Operator::I64AtomicRmw32XchgU { ref memarg } => {
+                atomicrmw_op!(builder, state, memarg, fcx, backend, block, Xchg, i64, i32);
+            }
+            Operator::I32AtomicRmwCmpxchg { ref memarg } => {
+                atomicrmw_cmpxchg_op!(builder, state, memarg, fcx, backend, block, i32, i32_ty);
+            }
+            Operator::I64AtomicRmwCmpxchg { ref memarg } => {
+                atomicrmw_cmpxchg_op!(builder, state, memarg, fcx, backend, block, i64, i64_ty);
+            }
+            Operator::I32AtomicRmw8CmpxchgU { ref memarg } => {
+                atomicrmw_cmpxchg_op!(
+                    builder,
+                    state,
+                    memarg,
+                    fcx,
+                    backend,
+                    block,
+                    i32,
+                    i32_ty,
+                    i8_ty,
+                    arithmetic_f32
+                );
+            }
+            Operator::I32AtomicRmw16CmpxchgU { ref memarg } => {
+                atomicrmw_cmpxchg_op!(
+                    builder,
+                    state,
+                    memarg,
+                    fcx,
+                    backend,
+                    block,
+                    i32,
+                    i32_ty,
+                    i16_ty,
+                    arithmetic_f32
+                );
+            }
+            Operator::I64AtomicRmw8CmpxchgU { ref memarg } => {
+                atomicrmw_cmpxchg_op!(
+                    builder,
+                    state,
+                    memarg,
+                    fcx,
+                    backend,
+                    block,
+                    i64,
+                    i64_ty,
+                    i8_ty,
+                    arithmetic_f64
+                );
+            }
+            Operator::I64AtomicRmw16CmpxchgU { ref memarg } => {
+                atomicrmw_cmpxchg_op!(
+                    builder,
+                    state,
+                    memarg,
+                    fcx,
+                    backend,
+                    block,
+                    i64,
+                    i64_ty,
+                    i16_ty,
+                    arithmetic_f64
+                );
+            }
+            Operator::I64AtomicRmw32CmpxchgU { ref memarg } => {
+                atomicrmw_cmpxchg_op!(
+                    builder,
+                    state,
+                    memarg,
+                    fcx,
+                    backend,
+                    block,
+                    i64,
+                    i64_ty,
+                    i32_ty,
+                    arithmetic_f64
+                );
+            }
+            Operator::V128Load { ref memarg } => {
+                let offset = state.pop1()?;
+                let memory_index = MemoryIndex::from_u32(0);
+                let (block, effective_address) = Self::resolve_memory_ptr(
+                    memory_index,
+                    memarg,
+                    offset,
+                    16,
+                    fcx,
+                    backend.ctx,
+                    block,
+                )?;
+                let result = builder.make(builder.load(effective_address, builder.i128_ty()))?;
+                state.push1(result.to_ctx_value());
+                return Ok(block);
+            }
             Operator::CallIndirect {
                 type_index,
                 table_index,
             } => todo!(),
-            Operator::GlobalAtomicGet {
-                ordering,
-                global_index,
-            } => todo!(),
-            Operator::GlobalAtomicSet {
-                ordering,
-                global_index,
-            } => todo!(),
-            Operator::GlobalAtomicRmwAdd {
-                ordering,
-                global_index,
-            } => todo!(),
-            Operator::GlobalAtomicRmwSub {
-                ordering,
-                global_index,
-            } => todo!(),
-            Operator::GlobalAtomicRmwAnd {
-                ordering,
-                global_index,
-            } => todo!(),
-            Operator::GlobalAtomicRmwOr {
-                ordering,
-                global_index,
-            } => todo!(),
-            Operator::GlobalAtomicRmwXor {
-                ordering,
-                global_index,
-            } => todo!(),
-            Operator::GlobalAtomicRmwXchg {
-                ordering,
-                global_index,
-            } => todo!(),
-            Operator::GlobalAtomicRmwCmpxchg {
-                ordering,
-                global_index,
-            } => todo!(),
-            Operator::TableAtomicGet {
-                ordering,
-                table_index,
-            } => todo!(),
-            Operator::TableAtomicSet {
-                ordering,
-                table_index,
-            } => todo!(),
-            Operator::TableAtomicRmwXchg {
-                ordering,
-                table_index,
-            } => todo!(),
-            Operator::TableAtomicRmwCmpxchg {
-                ordering,
-                table_index,
-            } => todo!(),
-            Operator::StructAtomicGet {
-                ordering,
-                struct_type_index,
-                field_index,
-            } => todo!(),
-            Operator::StructAtomicGetS {
-                ordering,
-                struct_type_index,
-                field_index,
-            } => todo!(),
-            Operator::StructAtomicGetU {
-                ordering,
-                struct_type_index,
-                field_index,
-            } => todo!(),
-            Operator::StructAtomicSet {
-                ordering,
-                struct_type_index,
-                field_index,
-            } => todo!(),
-            Operator::StructAtomicRmwAdd {
-                ordering,
-                struct_type_index,
-                field_index,
-            } => todo!(),
-            Operator::StructAtomicRmwSub {
-                ordering,
-                struct_type_index,
-                field_index,
-            } => todo!(),
-            Operator::StructAtomicRmwAnd {
-                ordering,
-                struct_type_index,
-                field_index,
-            } => todo!(),
-            Operator::StructAtomicRmwOr {
-                ordering,
-                struct_type_index,
-                field_index,
-            } => todo!(),
-            Operator::StructAtomicRmwXor {
-                ordering,
-                struct_type_index,
-                field_index,
-            } => todo!(),
-            Operator::StructAtomicRmwXchg {
-                ordering,
-                struct_type_index,
-                field_index,
-            } => todo!(),
-            Operator::StructAtomicRmwCmpxchg {
-                ordering,
-                struct_type_index,
-                field_index,
-            } => todo!(),
-            Operator::ArrayAtomicGet {
-                ordering,
-                array_type_index,
-            } => todo!(),
-            Operator::ArrayAtomicGetS {
-                ordering,
-                array_type_index,
-            } => todo!(),
-            Operator::ArrayAtomicGetU {
-                ordering,
-                array_type_index,
-            } => todo!(),
-            Operator::ArrayAtomicSet {
-                ordering,
-                array_type_index,
-            } => todo!(),
-            Operator::ArrayAtomicRmwAdd {
-                ordering,
-                array_type_index,
-            } => todo!(),
-            Operator::ArrayAtomicRmwSub {
-                ordering,
-                array_type_index,
-            } => todo!(),
-            Operator::ArrayAtomicRmwAnd {
-                ordering,
-                array_type_index,
-            } => todo!(),
-            Operator::ArrayAtomicRmwOr {
-                ordering,
-                array_type_index,
-            } => todo!(),
-            Operator::ArrayAtomicRmwXor {
-                ordering,
-                array_type_index,
-            } => todo!(),
-            Operator::ArrayAtomicRmwXchg {
-                ordering,
-                array_type_index,
-            } => todo!(),
-            Operator::ArrayAtomicRmwCmpxchg {
-                ordering,
-                array_type_index,
-            } => todo!(),
-            Operator::RefI31Shared => todo!(),
             _ => {
                 return Err(
                     CompileError::Codegen(format!("Operator {:?} unimplemented", op)).into(),
