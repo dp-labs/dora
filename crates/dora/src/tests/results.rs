@@ -680,7 +680,7 @@ fn creturn_1() {
     let operations = vec![Operation::Push0, Operation::Push0, Operation::Return];
     let result = run_result(operations);
     assert!(result.status.is_ok());
-    assert_eq!(result.gas_used(), 2 + 2 + 0);
+    assert_eq!(result.gas_used(), 2 + 2); // 2 + 2 + 0
     assert_eq!(result.memory, vec![0; 0]);
 }
 
