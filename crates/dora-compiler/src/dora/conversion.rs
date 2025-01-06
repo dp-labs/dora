@@ -105,6 +105,8 @@ impl ConversionPass<'_> {
                 Self::slt(context, op)?
             } else if name == "dora.sgt" {
                 Self::sgt(context, op)?
+            } else if name == "dora.select" {
+                Self::select(context, op)?
             } else if name == "dora.eq" {
                 Self::eq(context, op)?
             } else if name == "dora.iszero" {

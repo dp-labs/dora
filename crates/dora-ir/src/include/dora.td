@@ -436,6 +436,17 @@ def Dora_Sar : Dora_Op<"sar"> {
   let assemblyFormat = "$shift `,` $value `:` type($shift) `->` type($result)";
 }
 
+// Select Operation
+def Dora_SelectOp :Dora_Op<"select"> {
+    let arguments = (ins
+        AnyTypeOf<[I32, I64, I<128>, I<256>, F32, F64, F128, F<256>]>:$lhs,
+        AnyTypeOf<[I32, I64, I<128>, I<256>, F32, F64, F128, F<256>]>:$rhs,
+        AnyTypeOf<[I32, I64, I<128>, I<256>, F32, F64, F128, F<256>]>:$cond
+    );
+
+    let results = (outs AnyTypeOf<[I32, I64, I<128>, I<256>, F32, F64, F128, F<256>]>:$result);
+}
+
 // Keccak256 Operation
 def Dora_Keccak256 : Dora_Op<"keccak256"> {
   let summary = "Computes the Keccak-256 hash of a memory region.";

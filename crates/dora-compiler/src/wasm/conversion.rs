@@ -192,6 +192,23 @@ impl ConversionPass<'_> {
                     op,
                     dora_ir::dora::shr(self.ctx, lhs.r#type(), lhs, rhs, op.location()).into(),
                 );
+            } else if name == dora_ir::wasm::SelectOperation::name() {
+                let lhs = op.operand(0)?;
+                let rhs = op.operand(1)?;
+                let cond = op.operand(2)?;
+                debug_assert!(lhs.r#type() == rhs.r#type());
+                replace_op(
+                    op,
+                    dora_ir::dora::select(
+                        self.ctx,
+                        op.result(0)?.r#type(),
+                        lhs,
+                        rhs,
+                        cond,
+                        op.location(),
+                    )
+                    .into(),
+                );
             }
         }
         Ok(())
