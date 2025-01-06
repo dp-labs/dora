@@ -1379,7 +1379,7 @@ fn dataload() {
 
     let result = run_result_eof(eof);
     assert!(result.status.is_ok());
-    assert_eq!(result.gas_used(), 2 + 3);
+    assert_eq!(result.gas_used(), 2 + 4);
 }
 
 #[test]
