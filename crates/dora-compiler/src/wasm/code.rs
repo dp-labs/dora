@@ -846,28 +846,384 @@ impl FunctionCodeGenerator {
                 state.push1(result.to_ctx_value());
                 return Ok(block);
             }
-            Operator::I64Load { ref memarg } => todo!(),
-            Operator::F32Load { ref memarg } => todo!(),
-            Operator::F64Load { ref memarg } => todo!(),
-            Operator::I32Load8S { ref memarg } => todo!(),
-            Operator::I32Load8U { ref memarg } => todo!(),
-            Operator::I32Load16S { ref memarg } => todo!(),
-            Operator::I32Load16U { ref memarg } => todo!(),
-            Operator::I64Load8S { ref memarg } => todo!(),
-            Operator::I64Load8U { ref memarg } => todo!(),
-            Operator::I64Load16S { ref memarg } => todo!(),
-            Operator::I64Load16U { ref memarg } => todo!(),
-            Operator::I64Load32S { ref memarg } => todo!(),
-            Operator::I64Load32U { ref memarg } => todo!(),
-            Operator::I32Store { ref memarg } => todo!(),
-            Operator::I64Store { ref memarg } => todo!(),
-            Operator::F32Store { ref memarg } => todo!(),
-            Operator::F64Store { ref memarg } => todo!(),
-            Operator::I32Store8 { ref memarg } => todo!(),
-            Operator::I32Store16 { ref memarg } => todo!(),
-            Operator::I64Store8 { ref memarg } => todo!(),
-            Operator::I64Store16 { ref memarg } => todo!(),
-            Operator::I64Store32 { ref memarg } => todo!(),
+            Operator::I64Load { ref memarg } => {
+                let offset = state.pop1()?;
+                let memory_index = MemoryIndex::from_u32(0);
+                let (block, effective_address) = Self::resolve_memory_ptr(
+                    memory_index,
+                    memarg,
+                    offset,
+                    8,
+                    fcx,
+                    backend.ctx,
+                    block,
+                )?;
+                let result = builder.make(builder.load(effective_address, builder.i64_ty()))?;
+                state.push1(result.to_ctx_value());
+                return Ok(block);
+            }
+            Operator::F32Load { ref memarg } => {
+                let offset = state.pop1()?;
+                let memory_index = MemoryIndex::from_u32(0);
+                let (block, effective_address) = Self::resolve_memory_ptr(
+                    memory_index,
+                    memarg,
+                    offset,
+                    4,
+                    fcx,
+                    backend.ctx,
+                    block,
+                )?;
+                let result = builder.make(builder.load(effective_address, builder.f32_ty()))?;
+                state.push1(result.to_ctx_value());
+                return Ok(block);
+            }
+            Operator::F64Load { ref memarg } => {
+                let offset = state.pop1()?;
+                let memory_index = MemoryIndex::from_u32(0);
+                let (block, effective_address) = Self::resolve_memory_ptr(
+                    memory_index,
+                    memarg,
+                    offset,
+                    8,
+                    fcx,
+                    backend.ctx,
+                    block,
+                )?;
+                let result = builder.make(builder.load(effective_address, builder.f64_ty()))?;
+                state.push1(result.to_ctx_value());
+                return Ok(block);
+            }
+            Operator::I32Load8S { ref memarg } => {
+                let offset = state.pop1()?;
+                let memory_index = MemoryIndex::from_u32(0);
+                let (block, effective_address) = Self::resolve_memory_ptr(
+                    memory_index,
+                    memarg,
+                    offset,
+                    1,
+                    fcx,
+                    backend.ctx,
+                    block,
+                )?;
+                let result = builder.make(builder.load(effective_address, builder.i8_ty()))?;
+                let result = builder.make(arith::extui(
+                    result,
+                    builder.i32_ty(),
+                    builder.get_insert_location(),
+                ))?;
+                state.push1(result.to_ctx_value());
+                return Ok(block);
+            }
+            Operator::I32Load8U { ref memarg } => {
+                let offset = state.pop1()?;
+                let memory_index = MemoryIndex::from_u32(0);
+                let (block, effective_address) = Self::resolve_memory_ptr(
+                    memory_index,
+                    memarg,
+                    offset,
+                    1,
+                    fcx,
+                    backend.ctx,
+                    block,
+                )?;
+                let result = builder.make(builder.load(effective_address, builder.i8_ty()))?;
+                let result = builder.make(arith::extui(
+                    result,
+                    builder.i32_ty(),
+                    builder.get_insert_location(),
+                ))?;
+                state.push1_extra(result.to_ctx_value(), ExtraInfo::arithmetic_f32());
+                return Ok(block);
+            }
+            Operator::I32Load16S { ref memarg } => {
+                let offset = state.pop1()?;
+                let memory_index = MemoryIndex::from_u32(0);
+                let (block, effective_address) = Self::resolve_memory_ptr(
+                    memory_index,
+                    memarg,
+                    offset,
+                    2,
+                    fcx,
+                    backend.ctx,
+                    block,
+                )?;
+                let result = builder.make(builder.load(effective_address, builder.i16_ty()))?;
+                let result = builder.make(arith::extui(
+                    result,
+                    builder.i32_ty(),
+                    builder.get_insert_location(),
+                ))?;
+                state.push1(result.to_ctx_value());
+                return Ok(block);
+            }
+            Operator::I32Load16U { ref memarg } => {
+                let offset = state.pop1()?;
+                let memory_index = MemoryIndex::from_u32(0);
+                let (block, effective_address) = Self::resolve_memory_ptr(
+                    memory_index,
+                    memarg,
+                    offset,
+                    2,
+                    fcx,
+                    backend.ctx,
+                    block,
+                )?;
+                let result = builder.make(builder.load(effective_address, builder.i16_ty()))?;
+                let result = builder.make(arith::extui(
+                    result,
+                    builder.i32_ty(),
+                    builder.get_insert_location(),
+                ))?;
+                state.push1_extra(result.to_ctx_value(), ExtraInfo::arithmetic_f32());
+                return Ok(block);
+            }
+            Operator::I64Load8S { ref memarg } => {
+                let offset = state.pop1()?;
+                let memory_index = MemoryIndex::from_u32(0);
+                let (block, effective_address) = Self::resolve_memory_ptr(
+                    memory_index,
+                    memarg,
+                    offset,
+                    1,
+                    fcx,
+                    backend.ctx,
+                    block,
+                )?;
+                let result = builder.make(builder.load(effective_address, builder.i8_ty()))?;
+                let result = builder.make(arith::extui(
+                    result,
+                    builder.i64_ty(),
+                    builder.get_insert_location(),
+                ))?;
+                state.push1(result.to_ctx_value());
+                return Ok(block);
+            }
+            Operator::I64Load8U { ref memarg } => {
+                let offset = state.pop1()?;
+                let memory_index = MemoryIndex::from_u32(0);
+                let (block, effective_address) = Self::resolve_memory_ptr(
+                    memory_index,
+                    memarg,
+                    offset,
+                    1,
+                    fcx,
+                    backend.ctx,
+                    block,
+                )?;
+                let result = builder.make(builder.load(effective_address, builder.i8_ty()))?;
+                let result = builder.make(arith::extui(
+                    result,
+                    builder.i64_ty(),
+                    builder.get_insert_location(),
+                ))?;
+                state.push1_extra(result.to_ctx_value(), ExtraInfo::arithmetic_f64());
+                return Ok(block);
+            }
+            Operator::I64Load16S { ref memarg } => {
+                let offset = state.pop1()?;
+                let memory_index = MemoryIndex::from_u32(0);
+                let (block, effective_address) = Self::resolve_memory_ptr(
+                    memory_index,
+                    memarg,
+                    offset,
+                    2,
+                    fcx,
+                    backend.ctx,
+                    block,
+                )?;
+                let result = builder.make(builder.load(effective_address, builder.i16_ty()))?;
+                let result = builder.make(arith::extui(
+                    result,
+                    builder.i64_ty(),
+                    builder.get_insert_location(),
+                ))?;
+                state.push1(result.to_ctx_value());
+                return Ok(block);
+            }
+            Operator::I64Load16U { ref memarg } => {
+                let offset = state.pop1()?;
+                let memory_index = MemoryIndex::from_u32(0);
+                let (block, effective_address) = Self::resolve_memory_ptr(
+                    memory_index,
+                    memarg,
+                    offset,
+                    2,
+                    fcx,
+                    backend.ctx,
+                    block,
+                )?;
+                let result = builder.make(builder.load(effective_address, builder.i16_ty()))?;
+                let result = builder.make(arith::extui(
+                    result,
+                    builder.i64_ty(),
+                    builder.get_insert_location(),
+                ))?;
+                state.push1_extra(result.to_ctx_value(), ExtraInfo::arithmetic_f32());
+                return Ok(block);
+            }
+            Operator::I64Load32S { ref memarg } => {
+                let offset = state.pop1()?;
+                let memory_index = MemoryIndex::from_u32(0);
+                let (block, effective_address) = Self::resolve_memory_ptr(
+                    memory_index,
+                    memarg,
+                    offset,
+                    4,
+                    fcx,
+                    backend.ctx,
+                    block,
+                )?;
+                let result = builder.make(builder.load(effective_address, builder.i32_ty()))?;
+                let result = builder.make(arith::extui(
+                    result,
+                    builder.i64_ty(),
+                    builder.get_insert_location(),
+                ))?;
+                state.push1(result.to_ctx_value());
+                return Ok(block);
+            }
+            Operator::I64Load32U { ref memarg } => {
+                let offset = state.pop1()?;
+                let memory_index = MemoryIndex::from_u32(0);
+                let (block, effective_address) = Self::resolve_memory_ptr(
+                    memory_index,
+                    memarg,
+                    offset,
+                    4,
+                    fcx,
+                    backend.ctx,
+                    block,
+                )?;
+                let result = builder.make(builder.load(effective_address, builder.i32_ty()))?;
+                let result = builder.make(arith::extui(
+                    result,
+                    builder.i64_ty(),
+                    builder.get_insert_location(),
+                ))?;
+                state.push1_extra(result.to_ctx_value(), ExtraInfo::arithmetic_f32());
+                return Ok(block);
+            }
+            Operator::I32Store { ref memarg } => {
+                let (value, offset) = state.pop2()?;
+                let memory_index = MemoryIndex::from_u32(0);
+                let (block, effective_address) = Self::resolve_memory_ptr(
+                    memory_index,
+                    memarg,
+                    offset,
+                    4,
+                    fcx,
+                    backend.ctx,
+                    block,
+                )?;
+                let result = builder.make(builder.store(value, effective_address))?;
+                return Ok(block);
+            }
+            Operator::I64Store { ref memarg } => {
+                let (value, offset) = state.pop2()?;
+                let memory_index = MemoryIndex::from_u32(0);
+                let (block, effective_address) = Self::resolve_memory_ptr(
+                    memory_index,
+                    memarg,
+                    offset,
+                    8,
+                    fcx,
+                    backend.ctx,
+                    block,
+                )?;
+                let result = builder.make(builder.store(value, effective_address))?;
+                return Ok(block);
+            }
+            Operator::F32Store { ref memarg } => {
+                let (value, offset) = state.pop2()?;
+                let memory_index = MemoryIndex::from_u32(0);
+                let (block, effective_address) = Self::resolve_memory_ptr(
+                    memory_index,
+                    memarg,
+                    offset,
+                    4,
+                    fcx,
+                    backend.ctx,
+                    block,
+                )?;
+                let result = builder.make(builder.store(value, effective_address))?;
+                return Ok(block);
+            }
+            Operator::F64Store { ref memarg } => {
+                let (value, offset) = state.pop2()?;
+                let memory_index = MemoryIndex::from_u32(0);
+                let (block, effective_address) = Self::resolve_memory_ptr(
+                    memory_index,
+                    memarg,
+                    offset,
+                    8,
+                    fcx,
+                    backend.ctx,
+                    block,
+                )?;
+                let result = builder.make(builder.store(value, effective_address))?;
+                return Ok(block);
+            }
+            Operator::I32Store8 { ref memarg } | Operator::I64Store8 { ref memarg } => {
+                let (value, offset) = state.pop2()?;
+                let memory_index = MemoryIndex::from_u32(0);
+                let (block, effective_address) = Self::resolve_memory_ptr(
+                    memory_index,
+                    memarg,
+                    offset,
+                    1,
+                    fcx,
+                    backend.ctx,
+                    block,
+                )?;
+                let value = builder.make(arith::trunci(
+                    value,
+                    builder.i8_ty(),
+                    builder.get_insert_location(),
+                ))?;
+                let result = builder.make(builder.store(value, effective_address))?;
+                return Ok(block);
+            }
+            Operator::I32Store16 { ref memarg } | Operator::I64Store16 { ref memarg } => {
+                let (value, offset) = state.pop2()?;
+                let memory_index = MemoryIndex::from_u32(0);
+                let (block, effective_address) = Self::resolve_memory_ptr(
+                    memory_index,
+                    memarg,
+                    offset,
+                    2,
+                    fcx,
+                    backend.ctx,
+                    block,
+                )?;
+                let value = builder.make(arith::trunci(
+                    value,
+                    builder.i16_ty(),
+                    builder.get_insert_location(),
+                ))?;
+                let result = builder.make(builder.store(value, effective_address))?;
+                return Ok(block);
+            }
+            Operator::I64Store32 { ref memarg } => {
+                let (value, offset) = state.pop2()?;
+                let memory_index = MemoryIndex::from_u32(0);
+                let (block, effective_address) = Self::resolve_memory_ptr(
+                    memory_index,
+                    memarg,
+                    offset,
+                    4,
+                    fcx,
+                    backend.ctx,
+                    block,
+                )?;
+                let value = builder.make(arith::trunci(
+                    value,
+                    builder.i32_ty(),
+                    builder.get_insert_location(),
+                ))?;
+                let result = builder.make(builder.store(value, effective_address))?;
+                return Ok(block);
+            }
             Operator::I32Const { value } => {
                 let i = builder
                     .create(builder.iconst_32(value))
