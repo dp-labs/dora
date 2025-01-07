@@ -2105,7 +2105,7 @@ fn push_log0() {
     assert_snapshot!(vec![
         Operation::Push((1_u8, 0x40_u8.into())),
         Operation::Push((1_u8, 0x20_u8.into())),
-        Operation::Log(0),
+        Operation::Log(0_u8),
     ]);
 }
 
@@ -2115,7 +2115,7 @@ fn push_log1() {
         Operation::Push((1_u8, 32_u8.into())),
         Operation::Push((1_u8, 10_u8.into())),
         Operation::Push((1_u8, 0x01_u8.into())),
-        Operation::Log(1),
+        Operation::Log(1_u8),
     ]);
 }
 
@@ -2126,7 +2126,7 @@ fn push_log2() {
         Operation::Push((1_u8, 10_u8.into())),
         Operation::Push((1_u8, 0x01_u8.into())),
         Operation::Push((1_u8, 0x02_u8.into())),
-        Operation::Log(2),
+        Operation::Log(2_u8),
     ]);
 }
 
@@ -2138,7 +2138,7 @@ fn push_log3() {
         Operation::Push((1_u8, 0x01_u8.into())),
         Operation::Push((1_u8, 0x02_u8.into())),
         Operation::Push((1_u8, 0x03_u8.into())),
-        Operation::Log(3),
+        Operation::Log(3_u8),
     ]);
 }
 
@@ -2151,7 +2151,7 @@ fn push_log4() {
         Operation::Push((1_u8, 0x02_u8.into())),
         Operation::Push((1_u8, 0x03_u8.into())),
         Operation::Push((1_u8, 0x04_u8.into())),
-        Operation::Log(4),
+        Operation::Log(4_u8),
     ]);
 }
 
@@ -2162,7 +2162,7 @@ fn push0_dataload() {
 
 #[test]
 fn dataloadn() {
-    assert_snapshot!(vec![Operation::DataLoadN(0)], true);
+    assert_snapshot!(vec![Operation::DataLoadN(0_u16)], true);
 }
 
 #[test]
@@ -2209,12 +2209,12 @@ fn push_datacopy_out_of_bounds() {
     );
 }
 
-// TODO : `rjump`, `rjumpi`, `rjumpv`, `callf`, `retf` and `jumpf` unit tests
+// TODO : `rjump`, `rjumpi`, `rjumpv`, `callf`, `retf` and `jumpf` snapshots
 
 #[test]
 fn push_dupn_0() {
     assert_snapshot!(
-        vec![Operation::Push((1_u8, 1_u8.into())), Operation::DupN(0),],
+        vec![Operation::Push((1_u8, 1_u8.into())), Operation::DupN(0_u8),],
         true
     );
 }
@@ -2240,7 +2240,7 @@ fn push_dupn_16() {
             Operation::Push0,
             Operation::Push0,
             Operation::Push0,
-            Operation::DupN(16),
+            Operation::DupN(16_u8),
         ],
         true
     );
@@ -2252,7 +2252,7 @@ fn push_swapn_0() {
         vec![
             Operation::Push((1_u8, 2_u8.into())),
             Operation::Push((1_u8, 1_u8.into())),
-            Operation::SwapN(0),
+            Operation::SwapN(0_u8),
         ],
         true
     );
@@ -2280,7 +2280,7 @@ fn push_swapn_16() {
             Operation::Push0,
             Operation::Push0,
             Operation::Push((1_u8, 1_u8.into())),
-            Operation::SwapN(16),
+            Operation::SwapN(16_u8),
         ],
         true
     );
@@ -2293,7 +2293,7 @@ fn push_exchange_0() {
             Operation::Push((1_u8, 1_u8.into())),
             Operation::Push((1_u8, 2_u8.into())),
             Operation::Push0,
-            Operation::Exchange(0),
+            Operation::Exchange(0_u8),
         ],
         true
     );
@@ -2336,7 +2336,7 @@ fn push_exchange_255() {
             Operation::Push0,
             Operation::Push0,
             Operation::Push0,
-            Operation::Exchange(255),
+            Operation::Exchange(255_u8),
         ],
         true
     );
@@ -2350,7 +2350,7 @@ fn push_eofcreate_with_salt() {
             Operation::Push((1_u8, 20_u8.into())),
             Operation::Push((1_u8, 0x1234_u16.into())),
             Operation::Push((1_u8, 10_u8.into())),
-            Operation::EofCreate(0),
+            Operation::EofCreate(0_u8),
         ],
         true
     );
@@ -2371,7 +2371,7 @@ fn push_eofcreate_with_large_salt() {
                 ])
             )),
             Operation::Push((1_u8, 50_u8.into())),
-            Operation::EofCreate(0),
+            Operation::EofCreate(0_u8),
         ],
         true
     );
@@ -2383,7 +2383,7 @@ fn push_returncontract() {
         vec![
             Operation::Push0,
             Operation::Push((1_u8, 20_u8.into())),
-            Operation::ReturnContract(0),
+            Operation::ReturnContract(0_u8),
         ],
         true
     );

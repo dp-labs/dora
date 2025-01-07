@@ -13,7 +13,8 @@ use num_bigint::{BigInt, BigUint};
 
 use super::utils::{
     biguint_256_from_bigint, default_env_and_db_setup, default_env_and_db_setup_eof,
-    run_program_assert_halt, run_program_assert_num_result, run_program_assert_revert,
+    run_program_assert_bytes_result, run_program_assert_halt, run_program_assert_num_result,
+    run_program_assert_revert,
 };
 
 const CREATE_ADDRESS_U256_STR: &str = "1145609038113382871769568181405607467656660548686";
@@ -1019,7 +1020,7 @@ fn not() {
 #[test]
 fn byte() {
     let operations = vec![
-        Operation::Push((32_u8, BigUint::from_bytes_be(&[0xff; 32]))),
+        Operation::Push((32_u8, BigUint::from_bytes_be(&[0xFF; 32]))),
         Operation::Push((1_u8, 32_u8.into())),
         Operation::Byte,
         // Return result
@@ -1247,6 +1248,33 @@ fn callvalue() {
 }
 
 #[test]
+fn calldataload() {
+    let operations = vec![
+        Operation::Push((1_u8, 0x1F_u8.into())),
+        Operation::CalldataLoad,
+        // Return result
+        Operation::Push0,
+        Operation::MStore,
+        Operation::Push((1_u8, 32_u8.into())),
+        Operation::Push0,
+        Operation::Return,
+    ];
+    let (env, db) = default_env_and_db_setup(operations);
+    let mut env = env.clone();
+    env.tx.data = Bytes::from_static(&[0xFF; 32]);
+    run_program_assert_bytes_result(
+        env,
+        db,
+        SpecId::CANCUN,
+        Bytes::from_static(&[
+            0xFF, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+            0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+            0x00, 0x00, 0x00, 0x00,
+        ]),
+    );
+}
+
+#[test]
 fn calldataload_zero_offset() {
     let operations = vec![
         Operation::Push0,
@@ -1259,11 +1287,56 @@ fn calldataload_zero_offset() {
         Operation::Return,
     ];
     let (env, db) = default_env_and_db_setup(operations);
-    run_program_assert_num_result(env, db, SpecId::CANCUN, 0_u8.into());
+    let mut env = env.clone();
+    env.tx.data = Bytes::from_static(&[0xFF; 32]);
+    run_program_assert_bytes_result(env, db, SpecId::CANCUN, Bytes::from_static(&[0xFF; 32]));
 }
 
 #[test]
-fn calldataload_non_zero_offset() {
+fn calldataload_zero_offset_empty_calldata() {
+    let operations = vec![
+        Operation::Push0,
+        Operation::CalldataLoad,
+        // Return result
+        Operation::Push0,
+        Operation::MStore,
+        Operation::Push((1_u8, 32_u8.into())),
+        Operation::Push0,
+        Operation::Return,
+    ];
+    let (env, db) = default_env_and_db_setup(operations);
+    run_program_assert_bytes_result(env, db, SpecId::CANCUN, Bytes::from_static(&[0x00; 32]));
+}
+
+#[test]
+fn calldataload_out_of_range() {
+    let operations = vec![
+        Operation::Push0,
+        Operation::CalldataLoad,
+        // Return result
+        Operation::Push0,
+        Operation::MStore,
+        Operation::Push((1_u8, 32_u8.into())),
+        Operation::Push0,
+        Operation::Return,
+    ];
+    let (env, db) = default_env_and_db_setup(operations);
+    let mut env = env.clone();
+    env.tx.data = Bytes::from_static(&[0xFF; 10]);
+    run_program_assert_bytes_result(
+        env,
+        db,
+        SpecId::CANCUN,
+        Bytes::from_static(&[
+            0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0x00, 0x00, 0x00, 0x00,
+            0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+            0x00, 0x00, 0x00, 0x00,
+        ]),
+    );
+}
+
+#[test]
+fn calldataload_out_of_bounds() {
     let operations = vec![
         Operation::Push((1_u8, 100_u8.into())),
         Operation::CalldataLoad,
@@ -1275,7 +1348,25 @@ fn calldataload_non_zero_offset() {
         Operation::Return,
     ];
     let (env, db) = default_env_and_db_setup(operations);
-    run_program_assert_num_result(env, db, SpecId::CANCUN, 0_u8.into());
+    let mut env = env.clone();
+    env.tx.data = Bytes::from_static(&[0xFF; 32]);
+    run_program_assert_bytes_result(env, db, SpecId::CANCUN, Bytes::from_static(&[0x00; 32]));
+}
+
+#[test]
+fn calldataload_out_of_bounds_empty_calldata() {
+    let operations = vec![
+        Operation::Push((1_u8, 100_u8.into())),
+        Operation::CalldataLoad,
+        // Return result
+        Operation::Push0,
+        Operation::MStore,
+        Operation::Push((1_u8, 32_u8.into())),
+        Operation::Push0,
+        Operation::Return,
+    ];
+    let (env, db) = default_env_and_db_setup(operations);
+    run_program_assert_bytes_result(env, db, SpecId::CANCUN, Bytes::from_static(&[0x00; 32]));
 }
 
 #[test]
@@ -1290,47 +1381,68 @@ fn calldatasize() {
         Operation::Return,
     ];
     let (env, db) = default_env_and_db_setup(operations);
-    run_program_assert_num_result(env, db, SpecId::CANCUN, 0_u8.into());
+    let mut env = env.clone();
+    env.tx.data = Bytes::from_static(&[0xFF; 32]);
+    run_program_assert_num_result(env, db, SpecId::CANCUN, 32_u32.into());
 }
 
 #[test]
-fn calldatacopy() {
+fn calldatasize_empty_calldata() {
     let operations = vec![
-        Operation::Push((1_u8, 32_u8.into())),
-        Operation::Push0,
-        Operation::Push0,
-        Operation::CalldataCopy,
+        Operation::CalldataSize,
         // Return result
+        Operation::Push0,
+        Operation::MStore,
         Operation::Push((1_u8, 32_u8.into())),
         Operation::Push0,
         Operation::Return,
     ];
     let (env, db) = default_env_and_db_setup(operations);
-    run_program_assert_num_result(env, db, SpecId::CANCUN, 0_u8.into());
+    run_program_assert_num_result(env, db, SpecId::CANCUN, 0_u32.into());
 }
 
 #[test]
 fn calldatacopy_small_range() {
     let operations = vec![
-        Operation::Push0,
         Operation::Push((1_u8, 10_u8.into())),
         Operation::Push((1_u8, 20_u8.into())),
+        Operation::Push0,
         Operation::CalldataCopy,
         // Return result
-        Operation::Push((1_u8, 32_u8.into())),
+        Operation::Push((1_u8, 10_u8.into())),
         Operation::Push0,
         Operation::Return,
     ];
     let (env, db) = default_env_and_db_setup(operations);
-    run_program_assert_num_result(env, db, SpecId::CANCUN, 0_u8.into());
+    let mut env = env.clone();
+    env.tx.data = Bytes::from_static(&[0xFF; 30]);
+    run_program_assert_bytes_result(env, db, SpecId::CANCUN, Bytes::from_static(&[0xFF; 10]));
 }
 
 #[test]
 fn calldatacopy_large_range() {
     let operations = vec![
-        Operation::Push0,
         Operation::Push((1_u8, 100_u8.into())),
         Operation::Push((1_u8, 10_u8.into())),
+        Operation::Push0,
+        Operation::CalldataCopy,
+        // Return result
+        Operation::Push((1_u8, 100_u8.into())),
+        Operation::Push0,
+        Operation::Return,
+    ];
+    let (env, db) = default_env_and_db_setup(operations);
+    let mut env = env.clone();
+    env.tx.data = Bytes::from_static(&[0xFF; 110]);
+    run_program_assert_bytes_result(env, db, SpecId::CANCUN, Bytes::from_static(&[0xFF; 100]));
+}
+
+#[test]
+fn calldatacopy_empty_calldata() {
+    let operations = vec![
+        Operation::Push((1_u8, 32_u8.into())),
+        Operation::Push0,
+        Operation::Push0,
         Operation::CalldataCopy,
         // Return result
         Operation::Push((1_u8, 32_u8.into())),
@@ -1338,23 +1450,64 @@ fn calldatacopy_large_range() {
         Operation::Return,
     ];
     let (env, db) = default_env_and_db_setup(operations);
-    run_program_assert_num_result(env, db, SpecId::CANCUN, 0_u8.into());
+    run_program_assert_bytes_result(env, db, SpecId::CANCUN, Bytes::from_static(&[0x00; 32]));
 }
 
 #[test]
 fn calldatacopy_out_of_range() {
     let operations = vec![
-        Operation::Push((1_u8, 1_u8.into())),
-        Operation::Push((1_u8, 1_u8.into())),
-        Operation::Push((1_u8, 1_u8.into())),
+        Operation::Push((1_u8, 10_u8.into())),
+        Operation::Push((1_u8, 5_u8.into())),
+        Operation::Push0,
         Operation::CalldataCopy,
         // Return result
-        Operation::Push((1_u8, 32_u8.into())),
+        Operation::Push((1_u8, 10_u8.into())),
         Operation::Push0,
         Operation::Return,
     ];
     let (env, db) = default_env_and_db_setup(operations);
-    run_program_assert_num_result(env, db, SpecId::CANCUN, 0_u8.into());
+    let mut env = env.clone();
+    env.tx.data = Bytes::from_static(&[0xFF; 10]);
+    run_program_assert_bytes_result(
+        env,
+        db,
+        SpecId::CANCUN,
+        Bytes::from_static(&[0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0x00, 0x00, 0x00, 0x00, 0x00]),
+    );
+}
+
+#[test]
+fn calldatacopy_out_of_bounds() {
+    let operations = vec![
+        Operation::Push((1_u8, 5_u8.into())),
+        Operation::Push((1_u8, 10_u8.into())),
+        Operation::Push0,
+        Operation::CalldataCopy,
+        // Return result
+        Operation::Push((1_u8, 5_u8.into())),
+        Operation::Push0,
+        Operation::Return,
+    ];
+    let (env, db) = default_env_and_db_setup(operations);
+    let mut env = env.clone();
+    env.tx.data = Bytes::from_static(&[0xFF; 5]);
+    run_program_assert_bytes_result(env, db, SpecId::CANCUN, Bytes::from_static(&[0x00; 5]));
+}
+
+#[test]
+fn calldatacopy_out_of_bounds_empty_calldata() {
+    let operations = vec![
+        Operation::Push((1_u8, 5_u8.into())),
+        Operation::Push((1_u8, 5_u8.into())),
+        Operation::Push0,
+        Operation::CalldataCopy,
+        // Return result
+        Operation::Push((1_u8, 5_u8.into())),
+        Operation::Push0,
+        Operation::Return,
+    ];
+    let (env, db) = default_env_and_db_setup(operations);
+    run_program_assert_bytes_result(env, db, SpecId::CANCUN, Bytes::from_static(&[0x00; 5]));
 }
 
 #[test]
@@ -1684,7 +1837,7 @@ fn returndatasize() {
         Operation::Return,
     ];
     let (env, db) = default_env_and_db_setup(operations);
-    run_program_assert_num_result(env, db, SpecId::CANCUN, 0_u8.into());
+    run_program_assert_num_result(env, db, SpecId::CANCUN, 0_u32.into());
 }
 
 #[test]
@@ -1698,11 +1851,7 @@ fn returndatacopy() {
         // Dest offset
         Operation::Push0,
         Operation::ReturndataCopy,
-        Operation::Push0,
-        Operation::MLoad,
         // Return result
-        Operation::Push0,
-        Operation::MStore,
         Operation::Push((1_u8, 32_u8.into())),
         Operation::Push0,
         Operation::Return,
@@ -1743,11 +1892,7 @@ fn returndatacopy_offset_size_adjustments() {
         // Dest offset
         Operation::Push0,
         Operation::ReturndataCopy,
-        Operation::Push0,
-        Operation::MLoad,
         // Return result
-        Operation::Push0,
-        Operation::MStore,
         Operation::Push((1_u8, 32_u8.into())),
         Operation::Push0,
         Operation::Return,
@@ -1763,11 +1908,7 @@ fn returndatacopy_out_of_bounds_with_empty_calldata() {
         Operation::Push((1_u8, 50_u8.into())),
         Operation::Push((1_u8, 10_u8.into())),
         Operation::ReturndataCopy,
-        Operation::Push0,
-        Operation::MLoad,
         // Return result
-        Operation::Push0,
-        Operation::MStore,
         Operation::Push((1_u8, 32_u8.into())),
         Operation::Push0,
         Operation::Return,
@@ -1787,11 +1928,7 @@ fn returndatacopy_out_of_bounds() {
         // Dest offset
         Operation::Push0,
         Operation::ReturndataCopy,
-        Operation::Push0,
-        Operation::MLoad,
         // Return result
-        Operation::Push0,
-        Operation::MStore,
         Operation::Push((1_u8, 32_u8.into())),
         Operation::Push0,
         Operation::Return,
@@ -2838,7 +2975,7 @@ fn mcopy_large_size_overflow() {
 }
 
 #[test]
-fn push_dup1() {
+fn dup1() {
     let operations = vec![
         Operation::Push((1_u8, 1_u8.into())),
         Operation::Dup(1),
@@ -2854,7 +2991,7 @@ fn push_dup1() {
 }
 
 #[test]
-fn push_dup2() {
+fn dup2() {
     let operations = vec![
         Operation::Push((1_u8, 1_u8.into())),
         Operation::Push0,
@@ -2871,7 +3008,7 @@ fn push_dup2() {
 }
 
 #[test]
-fn push_dup3() {
+fn dup3() {
     let operations = vec![
         Operation::Push((1_u8, 1_u8.into())),
         Operation::Push0,
@@ -2889,7 +3026,7 @@ fn push_dup3() {
 }
 
 #[test]
-fn push_dup4() {
+fn dup4() {
     let operations = vec![
         Operation::Push((1_u8, 1_u8.into())),
         Operation::Push0,
@@ -2908,7 +3045,7 @@ fn push_dup4() {
 }
 
 #[test]
-fn push_dup5() {
+fn dup5() {
     let operations = vec![
         Operation::Push((1_u8, 1_u8.into())),
         Operation::Push0,
@@ -2928,7 +3065,7 @@ fn push_dup5() {
 }
 
 #[test]
-fn push_dup6() {
+fn dup6() {
     let operations = vec![
         Operation::Push((1_u8, 1_u8.into())),
         Operation::Push0,
@@ -2949,7 +3086,7 @@ fn push_dup6() {
 }
 
 #[test]
-fn push_dup7() {
+fn dup7() {
     let operations = vec![
         Operation::Push((1_u8, 1_u8.into())),
         Operation::Push0,
@@ -2971,7 +3108,7 @@ fn push_dup7() {
 }
 
 #[test]
-fn push_dup8() {
+fn dup8() {
     let operations = vec![
         Operation::Push((1_u8, 1_u8.into())),
         Operation::Push0,
@@ -2994,7 +3131,7 @@ fn push_dup8() {
 }
 
 #[test]
-fn push_dup9() {
+fn dup9() {
     let operations = vec![
         Operation::Push((1_u8, 1_u8.into())),
         Operation::Push0,
@@ -3018,7 +3155,7 @@ fn push_dup9() {
 }
 
 #[test]
-fn push_dup10() {
+fn dup10() {
     let operations = vec![
         Operation::Push((1_u8, 1_u8.into())),
         Operation::Push0,
@@ -3043,7 +3180,7 @@ fn push_dup10() {
 }
 
 #[test]
-fn push_dup11() {
+fn dup11() {
     let operations = vec![
         Operation::Push((1_u8, 1_u8.into())),
         Operation::Push0,
@@ -3069,7 +3206,7 @@ fn push_dup11() {
 }
 
 #[test]
-fn push_dup12() {
+fn dup12() {
     let operations = vec![
         Operation::Push((1_u8, 1_u8.into())),
         Operation::Push0,
@@ -3096,7 +3233,7 @@ fn push_dup12() {
 }
 
 #[test]
-fn push_dup13() {
+fn dup13() {
     let operations = vec![
         Operation::Push((1_u8, 1_u8.into())),
         Operation::Push0,
@@ -3124,7 +3261,7 @@ fn push_dup13() {
 }
 
 #[test]
-fn push_dup14() {
+fn dup14() {
     let operations = vec![
         Operation::Push((1_u8, 1_u8.into())),
         Operation::Push0,
@@ -3153,7 +3290,7 @@ fn push_dup14() {
 }
 
 #[test]
-fn push_dup15() {
+fn dup15() {
     let operations = vec![
         Operation::Push((1_u8, 1_u8.into())),
         Operation::Push0,
@@ -3183,7 +3320,7 @@ fn push_dup15() {
 }
 
 #[test]
-fn push_dup16() {
+fn dup16() {
     let operations = vec![
         Operation::Push((1_u8, 1_u8.into())),
         Operation::Push0,
@@ -3731,7 +3868,7 @@ fn create_with_value() {
 }
 
 #[test]
-fn create2_with_salt() {
+fn create2() {
     let operations = vec![
         Operation::Push((32_u8, 0x1234_u16.into())),
         Operation::Push((1_u8, 1_u8.into())),
@@ -3746,11 +3883,15 @@ fn create2_with_salt() {
         Operation::Return,
     ];
     let (env, db) = default_env_and_db_setup(operations);
-    run_program_assert_num_result(
+    run_program_assert_bytes_result(
         env,
         db,
         SpecId::CANCUN,
-        BigUint::from_str("1298672851206845405429649291545422093257887715444").unwrap(),
+        Bytes::from_static(&[
+            0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xe3, 0x7a,
+            0x81, 0x34, 0x66, 0x59, 0x47, 0x83, 0x4e, 0xd6, 0x0a, 0xc4, 0xc8, 0xa1, 0xaa, 0x6f,
+            0x87, 0x40, 0x10, 0x74,
+        ]),
     );
 }
 
@@ -3803,7 +3944,7 @@ fn log0() {
     let operations = vec![
         Operation::Push((1_u8, 0x40_u8.into())),
         Operation::Push((1_u8, 0x20_u8.into())),
-        Operation::Log(0),
+        Operation::Log(0_u8),
         // Return result
         Operation::Push((1_u8, 32_u8.into())),
         Operation::Push0,
@@ -3819,7 +3960,7 @@ fn log1() {
         Operation::Push((1_u8, 32_u8.into())),
         Operation::Push((1_u8, 10_u8.into())),
         Operation::Push((1_u8, 0x01_u8.into())),
-        Operation::Log(1),
+        Operation::Log(1_u8),
         // Return result
         Operation::Push((1_u8, 32_u8.into())),
         Operation::Push0,
@@ -3836,7 +3977,7 @@ fn log2() {
         Operation::Push((1_u8, 10_u8.into())),
         Operation::Push((1_u8, 0x01_u8.into())),
         Operation::Push((1_u8, 0x02_u8.into())),
-        Operation::Log(2),
+        Operation::Log(2_u8),
         // Return result
         Operation::Push((1_u8, 32_u8.into())),
         Operation::Push0,
@@ -3854,7 +3995,7 @@ fn log3() {
         Operation::Push((1_u8, 0x01_u8.into())),
         Operation::Push((1_u8, 0x02_u8.into())),
         Operation::Push((1_u8, 0x03_u8.into())),
-        Operation::Log(3),
+        Operation::Log(3_u8),
         // Return resul
         Operation::Push((1_u8, 32_u8.into())),
         Operation::Push0,
@@ -3873,7 +4014,7 @@ fn log4() {
         Operation::Push((1_u8, 0x02_u8.into())),
         Operation::Push((1_u8, 0x03_u8.into())),
         Operation::Push((1_u8, 0x04_u8.into())),
-        Operation::Log(4),
+        Operation::Log(4_u8),
         // Return result
         Operation::Push((1_u8, 32_u8.into())),
         Operation::Push0,
@@ -3884,7 +4025,74 @@ fn log4() {
 }
 
 #[test]
+fn dataload() {
+    let operations = vec![
+        Operation::Push((1_u8, 0x1F_u8.into())),
+        Operation::DataLoad,
+        // Return result
+        Operation::Push0,
+        Operation::MStore,
+        Operation::Push((1_u8, 32_u8.into())),
+        Operation::Push0,
+        Operation::Return,
+    ];
+
+    let program = Program {
+        operations,
+        code_size: 0,
+        is_eof: true,
+    };
+
+    let eof = Eof::new(EofBody {
+        code_section: vec![Bytes::from(program.to_opcode())],
+        data_section: Bytes::from_static(&[0xFF; 32]),
+        ..EofBody::default()
+    });
+
+    let (env, db) = default_env_and_db_setup_eof(eof);
+    run_program_assert_bytes_result(
+        env,
+        db,
+        SpecId::OSAKA,
+        Bytes::from_static(&[
+            0xFF, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+            0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+            0x00, 0x00, 0x00, 0x00,
+        ]),
+    );
+}
+
+#[test]
 fn dataload_zero_offset() {
+    let operations = vec![
+        Operation::Push0,
+        Operation::DataLoad,
+        // Return result
+        Operation::Push0,
+        Operation::MStore,
+        Operation::Push((1_u8, 32_u8.into())),
+        Operation::Push0,
+        Operation::Return,
+    ];
+
+    let program = Program {
+        operations,
+        code_size: 0,
+        is_eof: true,
+    };
+
+    let eof = Eof::new(EofBody {
+        code_section: vec![Bytes::from(program.to_opcode())],
+        data_section: Bytes::from_static(&[0xFF; 32]),
+        ..EofBody::default()
+    });
+
+    let (env, db) = default_env_and_db_setup_eof(eof);
+    run_program_assert_bytes_result(env, db, SpecId::OSAKA, Bytes::from_static(&[0xFF; 32]));
+}
+
+#[test]
+fn dataload_zero_offset_empty_data_section() {
     let operations = vec![
         Operation::Push0,
         Operation::DataLoad,
@@ -3909,8 +4117,821 @@ fn dataload_zero_offset() {
     });
 
     let (env, db) = default_env_and_db_setup_eof(eof);
-    run_program_assert_num_result(env, db, SpecId::OSAKA, 0_u8.into());
+    run_program_assert_bytes_result(env, db, SpecId::OSAKA, Bytes::from_static(&[0x00; 32]));
 }
+
+#[test]
+fn dataload_out_of_range() {
+    let operations = vec![
+        Operation::Push0,
+        Operation::DataLoad,
+        // Return result
+        Operation::Push0,
+        Operation::MStore,
+        Operation::Push((1_u8, 32_u8.into())),
+        Operation::Push0,
+        Operation::Return,
+    ];
+
+    let program = Program {
+        operations,
+        code_size: 0,
+        is_eof: true,
+    };
+
+    let eof = Eof::new(EofBody {
+        code_section: vec![Bytes::from(program.to_opcode())],
+        data_section: Bytes::from_static(&[0xFF; 10]),
+        ..EofBody::default()
+    });
+
+    let (env, db) = default_env_and_db_setup_eof(eof);
+    run_program_assert_bytes_result(
+        env,
+        db,
+        SpecId::OSAKA,
+        Bytes::from_static(&[
+            0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0x00, 0x00, 0x00, 0x00,
+            0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+            0x00, 0x00, 0x00, 0x00,
+        ]),
+    );
+}
+
+#[test]
+fn dataload_out_of_bounds() {
+    let operations = vec![
+        Operation::Push((1_u8, 100_u8.into())),
+        Operation::DataLoad,
+        // Return result
+        Operation::Push0,
+        Operation::MStore,
+        Operation::Push((1_u8, 32_u8.into())),
+        Operation::Push0,
+        Operation::Return,
+    ];
+
+    let program = Program {
+        operations,
+        code_size: 0,
+        is_eof: true,
+    };
+
+    let eof = Eof::new(EofBody {
+        code_section: vec![Bytes::from(program.to_opcode())],
+        data_section: Bytes::from_static(&[0xFF; 32]),
+        ..EofBody::default()
+    });
+
+    let (env, db) = default_env_and_db_setup_eof(eof);
+    run_program_assert_bytes_result(env, db, SpecId::OSAKA, Bytes::from_static(&[0x00; 32]));
+}
+
+#[test]
+fn dataload_out_of_bounds_empty_data_section() {
+    let operations = vec![
+        Operation::Push((1_u8, 100_u8.into())),
+        Operation::DataLoad,
+        // Return result
+        Operation::Push0,
+        Operation::MStore,
+        Operation::Push((1_u8, 32_u8.into())),
+        Operation::Push0,
+        Operation::Return,
+    ];
+
+    let program = Program {
+        operations,
+        code_size: 0,
+        is_eof: true,
+    };
+
+    let eof = Eof::new(EofBody {
+        code_section: vec![Bytes::from(program.to_opcode())],
+        data_section: Bytes::new(),
+        ..EofBody::default()
+    });
+
+    let (env, db) = default_env_and_db_setup_eof(eof);
+    run_program_assert_bytes_result(env, db, SpecId::OSAKA, Bytes::from_static(&[0x00; 32]));
+}
+
+#[test]
+fn dataloadn() {
+    let operations = vec![
+        Operation::DataLoadN(0x1F_u16),
+        // Return result
+        Operation::Push0,
+        Operation::MStore,
+        Operation::Push((1_u8, 32_u8.into())),
+        Operation::Push0,
+        Operation::Return,
+    ];
+
+    let program = Program {
+        operations,
+        code_size: 0,
+        is_eof: true,
+    };
+
+    let eof = Eof::new(EofBody {
+        code_section: vec![Bytes::from(program.to_opcode())],
+        data_section: Bytes::from_static(&[0xFF; 32]),
+        ..EofBody::default()
+    });
+
+    let (env, db) = default_env_and_db_setup_eof(eof);
+    run_program_assert_bytes_result(
+        env,
+        db,
+        SpecId::OSAKA,
+        Bytes::from_static(&[
+            0xFF, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+            0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+            0x00, 0x00, 0x00, 0x00,
+        ]),
+    );
+}
+
+#[test]
+fn dataloadn_zero_offset() {
+    let operations = vec![
+        Operation::DataLoadN(0_u16),
+        // Return result
+        Operation::Push0,
+        Operation::MStore,
+        Operation::Push((1_u8, 32_u8.into())),
+        Operation::Push0,
+        Operation::Return,
+    ];
+
+    let program = Program {
+        operations,
+        code_size: 0,
+        is_eof: true,
+    };
+
+    let eof = Eof::new(EofBody {
+        code_section: vec![Bytes::from(program.to_opcode())],
+        data_section: Bytes::from_static(&[0xFF; 32]),
+        ..EofBody::default()
+    });
+
+    let (env, db) = default_env_and_db_setup_eof(eof);
+    run_program_assert_bytes_result(env, db, SpecId::OSAKA, Bytes::from_static(&[0xFF; 32]));
+}
+
+#[test]
+fn dataloadn_zero_offset_empty_data_section() {
+    let operations = vec![
+        Operation::DataLoadN(0_u16),
+        // Return result
+        Operation::Push0,
+        Operation::MStore,
+        Operation::Push((1_u8, 32_u8.into())),
+        Operation::Push0,
+        Operation::Return,
+    ];
+
+    let program = Program {
+        operations,
+        code_size: 0,
+        is_eof: true,
+    };
+
+    let eof = Eof::new(EofBody {
+        code_section: vec![Bytes::from(program.to_opcode())],
+        data_section: Bytes::new(),
+        ..EofBody::default()
+    });
+
+    let (env, db) = default_env_and_db_setup_eof(eof);
+    run_program_assert_bytes_result(env, db, SpecId::OSAKA, Bytes::from_static(&[0x00; 32]));
+}
+
+#[test]
+fn dataloadn_out_of_range() {
+    let operations = vec![
+        Operation::DataLoadN(0_u16),
+        // Return result
+        Operation::Push0,
+        Operation::MStore,
+        Operation::Push((1_u8, 32_u8.into())),
+        Operation::Push0,
+        Operation::Return,
+    ];
+
+    let program = Program {
+        operations,
+        code_size: 0,
+        is_eof: true,
+    };
+
+    let eof = Eof::new(EofBody {
+        code_section: vec![Bytes::from(program.to_opcode())],
+        data_section: Bytes::from_static(&[0xFF; 10]),
+        ..EofBody::default()
+    });
+
+    let (env, db) = default_env_and_db_setup_eof(eof);
+    run_program_assert_bytes_result(
+        env,
+        db,
+        SpecId::OSAKA,
+        Bytes::from_static(&[
+            0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0x00, 0x00, 0x00, 0x00,
+            0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+            0x00, 0x00, 0x00, 0x00,
+        ]),
+    );
+}
+
+#[test]
+fn dataloadn_out_of_bounds() {
+    let operations = vec![
+        Operation::DataLoadN(100_u16),
+        // Return result
+        Operation::Push0,
+        Operation::MStore,
+        Operation::Push((1_u8, 32_u8.into())),
+        Operation::Push0,
+        Operation::Return,
+    ];
+
+    let program = Program {
+        operations,
+        code_size: 0,
+        is_eof: true,
+    };
+
+    let eof = Eof::new(EofBody {
+        code_section: vec![Bytes::from(program.to_opcode())],
+        data_section: Bytes::from_static(&[0xFF; 32]),
+        ..EofBody::default()
+    });
+
+    let (env, db) = default_env_and_db_setup_eof(eof);
+    run_program_assert_bytes_result(env, db, SpecId::OSAKA, Bytes::from_static(&[0x00; 32]));
+}
+
+#[test]
+fn dataloadn_out_of_bounds_empty_data_section() {
+    let operations = vec![
+        Operation::DataLoadN(100_u16),
+        // Return result
+        Operation::Push0,
+        Operation::MStore,
+        Operation::Push((1_u8, 32_u8.into())),
+        Operation::Push0,
+        Operation::Return,
+    ];
+
+    let program = Program {
+        operations,
+        code_size: 0,
+        is_eof: true,
+    };
+
+    let eof = Eof::new(EofBody {
+        code_section: vec![Bytes::from(program.to_opcode())],
+        data_section: Bytes::new(),
+        ..EofBody::default()
+    });
+
+    let (env, db) = default_env_and_db_setup_eof(eof);
+    run_program_assert_bytes_result(env, db, SpecId::OSAKA, Bytes::from_static(&[0x00; 32]));
+}
+
+#[test]
+fn datasize() {
+    let operations = vec![
+        Operation::DataSize,
+        // Return result
+        Operation::Push0,
+        Operation::MStore,
+        Operation::Push((1_u8, 32_u8.into())),
+        Operation::Push0,
+        Operation::Return,
+    ];
+
+    let program = Program {
+        operations,
+        code_size: 0,
+        is_eof: true,
+    };
+
+    let eof = Eof::new(EofBody {
+        code_section: vec![Bytes::from(program.to_opcode())],
+        data_section: Bytes::from_static(&[0xFF; 32]),
+        ..EofBody::default()
+    });
+
+    let (env, db) = default_env_and_db_setup_eof(eof);
+    run_program_assert_num_result(env, db, SpecId::OSAKA, 32_u32.into());
+}
+
+#[test]
+fn datasize_empty_data_section() {
+    let operations = vec![
+        Operation::DataSize,
+        // Return result
+        Operation::Push0,
+        Operation::MStore,
+        Operation::Push((1_u8, 32_u8.into())),
+        Operation::Push0,
+        Operation::Return,
+    ];
+
+    let program = Program {
+        operations,
+        code_size: 0,
+        is_eof: true,
+    };
+
+    let eof = Eof::new(EofBody {
+        code_section: vec![Bytes::from(program.to_opcode())],
+        data_section: Bytes::new(),
+        ..EofBody::default()
+    });
+
+    let (env, db) = default_env_and_db_setup_eof(eof);
+    run_program_assert_num_result(env, db, SpecId::OSAKA, 0_u32.into());
+}
+
+#[test]
+fn datacopy_small_range() {
+    let operations = vec![
+        Operation::Push((1_u8, 20_u8.into())),
+        Operation::Push0,
+        Operation::Push0,
+        Operation::DataCopy,
+        // Return result
+        Operation::Push((1_u8, 20_u8.into())),
+        Operation::Push0,
+        Operation::Return,
+    ];
+
+    let program = Program {
+        operations,
+        code_size: 0,
+        is_eof: true,
+    };
+
+    let eof = Eof::new(EofBody {
+        code_section: vec![Bytes::from(program.to_opcode())],
+        data_section: Bytes::from_static(&[0xFF; 32]),
+        ..EofBody::default()
+    });
+
+    let (env, db) = default_env_and_db_setup_eof(eof);
+    run_program_assert_bytes_result(env, db, SpecId::OSAKA, Bytes::from_static(&[0xFF; 20]));
+}
+
+#[test]
+fn datacopy_large_range() {
+    let operations = vec![
+        Operation::Push((1_u8, 100_u8.into())),
+        Operation::Push0,
+        Operation::Push0,
+        Operation::DataCopy,
+        // Return result
+        Operation::Push((1_u8, 100_u8.into())),
+        Operation::Push0,
+        Operation::Return,
+    ];
+
+    let program = Program {
+        operations,
+        code_size: 0,
+        is_eof: true,
+    };
+
+    let eof = Eof::new(EofBody {
+        code_section: vec![Bytes::from(program.to_opcode())],
+        data_section: Bytes::from_static(&[0xFF; 200]),
+        ..EofBody::default()
+    });
+
+    let (env, db) = default_env_and_db_setup_eof(eof);
+    run_program_assert_bytes_result(env, db, SpecId::OSAKA, Bytes::from_static(&[0xFF; 100]));
+}
+
+#[test]
+fn datacopy_empty_data_section() {
+    let operations = vec![
+        Operation::Push((1_u8, 32_u8.into())),
+        Operation::Push0,
+        Operation::Push0,
+        Operation::DataCopy,
+        // Return result
+        Operation::Push((1_u8, 32_u8.into())),
+        Operation::Push0,
+        Operation::Return,
+    ];
+
+    let program = Program {
+        operations,
+        code_size: 0,
+        is_eof: true,
+    };
+
+    let eof = Eof::new(EofBody {
+        code_section: vec![Bytes::from(program.to_opcode())],
+        data_section: Bytes::new(),
+        ..EofBody::default()
+    });
+
+    let (env, db) = default_env_and_db_setup_eof(eof);
+    run_program_assert_bytes_result(env, db, SpecId::OSAKA, Bytes::from_static(&[0x00; 32]));
+}
+
+#[test]
+fn datacopy_out_of_range() {
+    let operations = vec![
+        Operation::Push((1_u8, 10_u8.into())),
+        Operation::Push((1_u8, 5_u8.into())),
+        Operation::Push0,
+        Operation::DataCopy,
+        // Return result
+        Operation::Push((1_u8, 10_u8.into())),
+        Operation::Push0,
+        Operation::Return,
+    ];
+
+    let program = Program {
+        operations,
+        code_size: 0,
+        is_eof: true,
+    };
+
+    let eof = Eof::new(EofBody {
+        code_section: vec![Bytes::from(program.to_opcode())],
+        data_section: Bytes::from_static(&[0xFF; 10]),
+        ..EofBody::default()
+    });
+
+    let (env, db) = default_env_and_db_setup_eof(eof);
+    run_program_assert_bytes_result(
+        env,
+        db,
+        SpecId::OSAKA,
+        Bytes::from_static(&[0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0x00, 0x00, 0x00, 0x00, 0x00]),
+    );
+}
+
+#[test]
+fn datacopy_out_of_bounds() {
+    let operations = vec![
+        Operation::Push((1_u8, 5_u8.into())),
+        Operation::Push((1_u8, 10_u8.into())),
+        Operation::Push0,
+        Operation::DataCopy,
+        // Return result
+        Operation::Push((1_u8, 5_u8.into())),
+        Operation::Push0,
+        Operation::Return,
+    ];
+
+    let program = Program {
+        operations,
+        code_size: 0,
+        is_eof: true,
+    };
+
+    let eof = Eof::new(EofBody {
+        code_section: vec![Bytes::from(program.to_opcode())],
+        data_section: Bytes::from_static(&[0xFF; 5]),
+        ..EofBody::default()
+    });
+
+    let (env, db) = default_env_and_db_setup_eof(eof);
+    run_program_assert_bytes_result(env, db, SpecId::OSAKA, Bytes::from_static(&[0x00; 5]));
+}
+
+#[test]
+fn datacopy_out_of_bounds_empty_data_section() {
+    let operations = vec![
+        Operation::Push((1_u8, 5_u8.into())),
+        Operation::Push((1_u8, 5_u8.into())),
+        Operation::Push0,
+        Operation::DataCopy,
+        // Return result
+        Operation::Push((1_u8, 5_u8.into())),
+        Operation::Push0,
+        Operation::Return,
+    ];
+
+    let program = Program {
+        operations,
+        code_size: 0,
+        is_eof: true,
+    };
+
+    let eof = Eof::new(EofBody {
+        code_section: vec![Bytes::from(program.to_opcode())],
+        data_section: Bytes::new(),
+        ..EofBody::default()
+    });
+
+    let (env, db) = default_env_and_db_setup_eof(eof);
+    run_program_assert_bytes_result(env, db, SpecId::OSAKA, Bytes::from_static(&[0x00; 5]));
+}
+
+// TODO : `rjump`, `rjumpi`, `rjumpv`, `callf`, `retf` and `jumpf` unit tests
+
+#[test]
+fn dupn_0() {
+    let operations = vec![
+        Operation::Push((1_u8, 1_u8.into())),
+        Operation::DupN(0_u8),
+        // Return result
+        Operation::Push0,
+        Operation::MStore,
+        Operation::Push((1_u8, 32_u8.into())),
+        Operation::Push0,
+        Operation::Return,
+    ];
+
+    let program = Program {
+        operations,
+        code_size: 0,
+        is_eof: true,
+    };
+
+    let eof = Eof::new(EofBody {
+        code_section: vec![Bytes::from(program.to_opcode())],
+        data_section: Bytes::new(),
+        ..EofBody::default()
+    });
+
+    let (env, db) = default_env_and_db_setup_eof(eof);
+    run_program_assert_num_result(env, db, SpecId::OSAKA, 1_u32.into());
+}
+
+#[test]
+fn dupn_16() {
+    let operations = vec![
+        Operation::Push((1_u8, 1_u8.into())),
+        Operation::Push0,
+        Operation::Push0,
+        Operation::Push0,
+        Operation::Push0,
+        Operation::Push0,
+        Operation::Push0,
+        Operation::Push0,
+        Operation::Push0,
+        Operation::Push0,
+        Operation::Push0,
+        Operation::Push0,
+        Operation::Push0,
+        Operation::Push0,
+        Operation::Push0,
+        Operation::Push0,
+        Operation::Push0,
+        Operation::DupN(16_u8),
+        // Return result
+        Operation::Push0,
+        Operation::MStore,
+        Operation::Push((1_u8, 32_u8.into())),
+        Operation::Push0,
+        Operation::Return,
+    ];
+
+    let program = Program {
+        operations,
+        code_size: 0,
+        is_eof: true,
+    };
+
+    let eof = Eof::new(EofBody {
+        code_section: vec![Bytes::from(program.to_opcode())],
+        data_section: Bytes::new(),
+        ..EofBody::default()
+    });
+
+    let (env, db) = default_env_and_db_setup_eof(eof);
+    run_program_assert_num_result(env, db, SpecId::OSAKA, 1_u32.into());
+}
+
+#[test]
+fn swapn_0() {
+    let operations = vec![
+        Operation::Push((1_u8, 2_u8.into())),
+        Operation::Push((1_u8, 1_u8.into())),
+        Operation::SwapN(0_u8),
+        // Return result
+        Operation::Push0,
+        Operation::MStore,
+        Operation::Push((1_u8, 32_u8.into())),
+        Operation::Push0,
+        Operation::Return,
+    ];
+
+    let program = Program {
+        operations,
+        code_size: 0,
+        is_eof: true,
+    };
+
+    let eof = Eof::new(EofBody {
+        code_section: vec![Bytes::from(program.to_opcode())],
+        data_section: Bytes::new(),
+        ..EofBody::default()
+    });
+
+    let (env, db) = default_env_and_db_setup_eof(eof);
+    run_program_assert_num_result(env, db, SpecId::OSAKA, 2_u32.into());
+}
+
+#[test]
+fn swapn_16() {
+    let operations = vec![
+        Operation::Push((1_u8, 2_u8.into())),
+        Operation::Push0,
+        Operation::Push0,
+        Operation::Push0,
+        Operation::Push0,
+        Operation::Push0,
+        Operation::Push0,
+        Operation::Push0,
+        Operation::Push0,
+        Operation::Push0,
+        Operation::Push0,
+        Operation::Push0,
+        Operation::Push0,
+        Operation::Push0,
+        Operation::Push0,
+        Operation::Push0,
+        Operation::Push0,
+        Operation::Push((1_u8, 1_u8.into())),
+        Operation::SwapN(16_u8),
+        // Return result
+        Operation::Push0,
+        Operation::MStore,
+        Operation::Push((1_u8, 32_u8.into())),
+        Operation::Push0,
+        Operation::Return,
+    ];
+
+    let program = Program {
+        operations,
+        code_size: 0,
+        is_eof: true,
+    };
+
+    let eof = Eof::new(EofBody {
+        code_section: vec![Bytes::from(program.to_opcode())],
+        data_section: Bytes::new(),
+        ..EofBody::default()
+    });
+
+    let (env, db) = default_env_and_db_setup_eof(eof);
+    run_program_assert_num_result(env, db, SpecId::OSAKA, 2_u32.into());
+}
+
+#[test]
+fn exchange_0() {
+    let operations = vec![
+        Operation::Push((1_u8, 1_u8.into())),
+        Operation::Push((1_u8, 2_u8.into())),
+        Operation::Push0,
+        Operation::Exchange(0_u8),
+        // Return result
+        Operation::Pop,
+        Operation::Push0,
+        Operation::MStore,
+        Operation::Push((1_u8, 32_u8.into())),
+        Operation::Push0,
+        Operation::Return,
+    ];
+
+    let program = Program {
+        operations,
+        code_size: 0,
+        is_eof: true,
+    };
+
+    let eof = Eof::new(EofBody {
+        code_section: vec![Bytes::from(program.to_opcode())],
+        data_section: Bytes::new(),
+        ..EofBody::default()
+    });
+
+    let (env, db) = default_env_and_db_setup_eof(eof);
+    run_program_assert_num_result(env, db, SpecId::OSAKA, 1_u32.into());
+}
+
+#[test]
+fn exchange_255() {
+    let operations = vec![
+        Operation::Push((1_u8, 1_u8.into())),
+        Operation::Push0,
+        Operation::Push0,
+        Operation::Push0,
+        Operation::Push0,
+        Operation::Push0,
+        Operation::Push0,
+        Operation::Push0,
+        Operation::Push0,
+        Operation::Push0,
+        Operation::Push0,
+        Operation::Push0,
+        Operation::Push0,
+        Operation::Push0,
+        Operation::Push0,
+        Operation::Push0,
+        Operation::Push((1_u8, 2_u8.into())),
+        Operation::Push0,
+        Operation::Push0,
+        Operation::Push0,
+        Operation::Push0,
+        Operation::Push0,
+        Operation::Push0,
+        Operation::Push0,
+        Operation::Push0,
+        Operation::Push0,
+        Operation::Push0,
+        Operation::Push0,
+        Operation::Push0,
+        Operation::Push0,
+        Operation::Push0,
+        Operation::Push0,
+        Operation::Push0,
+        Operation::Exchange(255_u8),
+        // Return result
+        Operation::Pop,
+        Operation::Pop,
+        Operation::Pop,
+        Operation::Pop,
+        Operation::Pop,
+        Operation::Pop,
+        Operation::Pop,
+        Operation::Pop,
+        Operation::Pop,
+        Operation::Pop,
+        Operation::Pop,
+        Operation::Pop,
+        Operation::Pop,
+        Operation::Pop,
+        Operation::Pop,
+        Operation::Pop,
+        Operation::Push0,
+        Operation::MStore,
+        Operation::Push((1_u8, 32_u8.into())),
+        Operation::Push0,
+        Operation::Return,
+    ];
+
+    let program = Program {
+        operations,
+        code_size: 0,
+        is_eof: true,
+    };
+
+    let eof = Eof::new(EofBody {
+        code_section: vec![Bytes::from(program.to_opcode())],
+        data_section: Bytes::new(),
+        ..EofBody::default()
+    });
+
+    let (env, db) = default_env_and_db_setup_eof(eof);
+    run_program_assert_num_result(env, db, SpecId::OSAKA, 1_u32.into());
+}
+
+// #[test]
+// fn eofcreate() {
+//     let operations = vec![
+//         Operation::Push0,
+//         Operation::Push((1_u8, 20_u8.into())),
+//         Operation::Push((1_u8, 0x1234_u16.into())),
+//         Operation::Push((1_u8, 10_u8.into())),
+//         Operation::EofCreate(0_u8),
+//     ];
+
+//     let program = Program {
+//         operations,
+//         code_size: 0,
+//         is_eof: true,
+//     };
+
+//     let eof = Eof::new(EofBody {
+//         code_section: vec![Bytes::from(program.to_opcode())],
+//         container_section: vec![Bytes::new()],
+//         ..EofBody::default()
+//     });
+
+//     let (env, db) = default_env_and_db_setup_eof(eof);
+//     run_program_assert_bytes_result(
+//         env,
+//         db,
+//         SpecId::OSAKA,
+//         Bytes::from_static(&[
+//             0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xe3, 0x7a,
+//             0x81, 0x34, 0x66, 0x59, 0x47, 0x83, 0x4e, 0xd6, 0x0a, 0xc4, 0xc8, 0xa1, 0xaa, 0x6f,
+//             0x87, 0x40, 0x10, 0x74,
+//         ]),
+//     );
+// }
 
 #[test]
 fn call() {

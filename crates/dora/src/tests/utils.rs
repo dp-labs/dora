@@ -159,6 +159,9 @@ pub(crate) fn default_env_and_db_setup_eof(eof: Eof) -> (Env, MemoryDB) {
     (env, db)
 }
 
+/// Asserts program execution result as `succcess`.
+///
+/// Asserts returned [`BigUint`] number result.
 pub(crate) fn run_program_assert_num_result(
     env: Env,
     db: MemoryDB,
@@ -171,11 +174,28 @@ pub(crate) fn run_program_assert_num_result(
     assert_eq!(result_data, expected_result);
 }
 
+/// Asserts program execution result as `succcess`.
+///
+/// Asserts returned [`Bytes`] result.
+pub(crate) fn run_program_assert_bytes_result(
+    env: Env,
+    db: MemoryDB,
+    spec_id: SpecId,
+    expected_result: Bytes,
+) {
+    let result = run_evm(env, db, spec_id).unwrap().result;
+    assert!(result.is_success(), "{:?}", result);
+    let result_data = result.output().unwrap_or(&Bytes::new()).clone();
+    assert_eq!(result_data, expected_result);
+}
+
+/// Asserts program execution result as `halt`.
 pub(crate) fn run_program_assert_halt(env: Env, db: MemoryDB, spec_id: SpecId) {
     let result = run_evm(env, db, spec_id).unwrap().result;
     assert!(result.is_halt());
 }
 
+/// Asserts program execution result as `revert`.
 pub(crate) fn run_program_assert_revert(env: Env, db: MemoryDB, spec_id: SpecId) {
     let result = run_evm(env, db, spec_id).unwrap().result;
     assert!(result.is_revert());

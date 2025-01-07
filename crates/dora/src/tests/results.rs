@@ -1,3 +1,5 @@
+//! This test checks result status and gas costs
+
 use dora_compiler::evm::{program::Operation, Program};
 use dora_primitives::{spec::SpecId, Address, Bytes, Bytes32, Eof, EofBody, B256, U256};
 use dora_runtime::{

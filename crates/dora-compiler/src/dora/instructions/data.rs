@@ -58,6 +58,9 @@ impl ConversionPass<'_> {
         let data_section_size =
             rewriter.make(arith::extui(data_section_size, uint256, location))?;
 
+        // Convert `offset` from u16 to u256 in case `DATALOADN`
+        let offset: melior::ir::Value<'_, '_> =
+            rewriter.make(arith::extui(offset, uint256, location))?;
         // Compare offset with data section size
         let offset_cmpi = rewriter.make(arith::cmpi(
             context,
