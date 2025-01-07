@@ -3909,7 +3909,7 @@ fn dataload_zero_offset() {
     });
 
     let (env, db) = default_env_and_db_setup_eof(eof);
-    run_program_assert_num_result(env, db, SpecId::PRAGUE, 0_u8.into());
+    run_program_assert_num_result(env, db, SpecId::OSAKA, 0_u8.into());
 }
 
 #[test]
@@ -4266,7 +4266,7 @@ fn staticcall() {
 //         Operation::Return,
 //     ];
 //     let (env, db) = default_env_and_db_setup(operations, true);
-//     run_program_assert_halt(env, db, SpecId::PRAGUE);
+//     run_program_assert_halt(env, db, SpecId::OSAKA);
 // }
 
 #[test]

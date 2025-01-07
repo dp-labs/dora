@@ -102,7 +102,7 @@ pub(crate) fn run_result_with_spec(operations: Vec<Operation>, spec_id: SpecId) 
 
 #[inline]
 pub(crate) fn run_result_eof(eof: Eof) -> TestResult {
-    run_result_with_spec_eof(eof, SpecId::PRAGUE)
+    run_result_with_spec_eof(eof, SpecId::OSAKA)
 }
 
 pub(crate) fn run_result_with_spec_eof(eof: Eof, spec_id: SpecId) -> TestResult {
