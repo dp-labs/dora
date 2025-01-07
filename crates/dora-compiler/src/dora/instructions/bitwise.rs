@@ -335,4 +335,44 @@ impl ConversionPass<'_> {
         rewriter.make(arith::shrsi(o2, shift, location))?;
         Ok(())
     }
+
+    pub(crate) fn rotl(context: &Context, op: &OperationRef<'_, '_>) -> Result<()> {
+        operands!(op, value, shift);
+        rewrite_ctx!(context, op, rewriter, location);
+
+        let ty = value.r#type();
+        let bit_width = rewriter.int_ty_width(ty)? as i64;
+
+        // Define constants
+        let max_shift = rewriter.make(rewriter.iconst(ty, bit_width))?;
+        let shift_mod = rewriter.make(arith::remui(shift, max_shift, location))?;
+
+        // Calculate the rotated left value
+        let left_shifted = rewriter.make(arith::shli(value, shift_mod, location))?;
+        let right_shift_amount = rewriter.make(arith::subi(max_shift, shift_mod, location))?;
+        let right_shifted = rewriter.make(arith::shrui(value, right_shift_amount, location))?;
+        rewriter.make(arith::ori(left_shifted, right_shifted, location))?;
+
+        Ok(())
+    }
+
+    pub(crate) fn rotr(context: &Context, op: &OperationRef<'_, '_>) -> Result<()> {
+        operands!(op, value, shift);
+        rewrite_ctx!(context, op, rewriter, location);
+
+        let ty = value.r#type();
+        let bit_width = rewriter.int_ty_width(ty)? as i64;
+
+        // Define constants
+        let max_shift = rewriter.make(rewriter.iconst(ty, bit_width))?;
+        let shift_mod = rewriter.make(arith::remui(shift, max_shift, location))?;
+
+        // Calculate the rotated right value
+        let right_shifted = rewriter.make(arith::shrui(value, shift_mod, location))?;
+        let left_shift_amount = rewriter.make(arith::subi(max_shift, shift_mod, location))?;
+        let left_shifted = rewriter.make(arith::shli(value, left_shift_amount, location))?;
+        rewriter.make(arith::ori(right_shifted, left_shifted, location))?;
+
+        Ok(())
+    }
 }

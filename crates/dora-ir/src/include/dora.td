@@ -436,6 +436,40 @@ def Dora_Sar : Dora_Op<"sar"> {
   let assemblyFormat = "$shift `,` $value `:` type($shift) `->` type($result)";
 }
 
+// Rotate left operation
+def Dora_Rotl : Dora_Op<"rotl"> {
+  let summary = "Rotates a 256-bit integer to the left by a specified number of bits.";
+  let description = [{
+    This operation takes two `i256` operands from the stack: the rotation amount and the value. It rotates the value left by the specified number of bits, wrapping the bits around to the right when they overflow.
+  }];
+
+  let arguments = (ins
+    AnyTypeOf<[I32, I64, I<128>, I<256>, F32, F64, F128, F<256>]>:$rotate,
+    AnyTypeOf<[I32, I64, I<128>, I<256>, F32, F64, F128, F<256>]>:$value
+  );
+
+  let results = (outs AnyTypeOf<[I32, I64, I<128>, I<256>, F32, F64, F128, F<256>]>:$result);
+
+  let assemblyFormat = "$rotate `,` $value `:` type($rotate) `->` type($result)";
+}
+
+// Rotate right operation
+def Dora_Rotr : Dora_Op<"rotr"> {
+  let summary = "Rotates a 256-bit integer to the right by a specified number of bits.";
+  let description = [{
+    This operation takes two `i256` operands from the stack: the rotation amount and the value. It rotates the value right by the specified number of bits, wrapping the bits around to the left when they overflow.
+  }];
+
+  let arguments = (ins
+    AnyTypeOf<[I32, I64, I<128>, I<256>, F32, F64, F128, F<256>]>:$rotate,
+    AnyTypeOf<[I32, I64, I<128>, I<256>, F32, F64, F128, F<256>]>:$value
+  );
+
+  let results = (outs AnyTypeOf<[I32, I64, I<128>, I<256>, F32, F64, F128, F<256>]>:$result);
+
+  let assemblyFormat = "$rotate `,` $value `:` type($rotate) `->` type($result)";
+}
+
 // Select Operation
 def Dora_SelectOp :Dora_Op<"select"> {
     let arguments = (ins
