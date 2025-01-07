@@ -9,6 +9,7 @@ on:
   pull_request:
     branches:
       - main
+    types: [synchronize, opened, reopened, converted_to_draft, ready_for_review]
   workflow_dispatch:
 
 env:
@@ -19,6 +20,7 @@ env:
 jobs:
   build:
     name: Build on ${{ matrix.build }}
+    if: github.event.pull_request.draft == false
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
@@ -90,8 +92,8 @@ jobs:
 
   release:
     needs: [build]
+    if: startsWith(github.ref, 'refs/tags/')
     runs-on: ubuntu-latest
-    if: "startsWith(github.ref, 'refs/tags/')"
     steps:
       - uses: actions/checkout@v4
       - name: Set up version env
