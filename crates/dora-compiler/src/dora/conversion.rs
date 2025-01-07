@@ -127,6 +127,10 @@ impl ConversionPass<'_> {
                 Self::shr(context, op)?
             } else if name == "dora.sar" {
                 Self::sar(context, op)?
+            } else if name == "dora.rotl" {
+                Self::rotl(context, op)?
+            } else if name == "dora.rotr" {
+                Self::rotr(context, op)?
             } else if name == "dora.keccak256" {
                 Self::keccak256(context, op)?
             } else if name == "dora.address" {

@@ -179,6 +179,50 @@ fn shr_u_i64() {
 }
 
 #[test]
+fn rotl_i32() {
+    assert_snapshot!(
+        r#"
+(module
+  (func (export "rotl") (param $x i32) (param $y i32) (result i32) (i32.rotl (local.get $x) (local.get $y)))
+)
+"#
+    );
+}
+
+#[test]
+fn rotl_i64() {
+    assert_snapshot!(
+        r#"
+(module
+  (func (export "rotl") (param $x i64) (param $y i64) (result i64) (i64.rotl (local.get $x) (local.get $y)))
+)
+"#
+    );
+}
+
+#[test]
+fn rotr_i32() {
+    assert_snapshot!(
+        r#"
+(module
+  (func (export "rotr") (param $x i32) (param $y i32) (result i32) (i32.rotr (local.get $x) (local.get $y)))
+)
+"#
+    );
+}
+
+#[test]
+fn rotr_i64() {
+    assert_snapshot!(
+        r#"
+(module
+  (func (export "rotr") (param $x i64) (param $y i64) (result i64) (i64.rotr (local.get $x) (local.get $y)))
+)
+"#
+    );
+}
+
+#[test]
 fn select() {
     assert_snapshot!(
         r#"
