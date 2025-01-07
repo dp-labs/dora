@@ -12,9 +12,14 @@ module {
     llvm.store %arg2, %1 : i32, !llvm.ptr
     %2 = llvm.load %0 : !llvm.ptr -> i32
     %3 = llvm.load %1 : !llvm.ptr -> i32
-    %4 = "dora.rotl"(%2, %3) : (i32, i32) -> i32
-    cf.br ^bb1(%4 : i32)
-  ^bb1(%5: i32):  // pred: ^bb0
-    return %5 : i32
+    %c32_i32 = arith.constant 32 : i32
+    %4 = arith.remui %3, %c32_i32 : i32
+    %5 = arith.shli %2, %4 : i32
+    %6 = arith.subi %c32_i32, %4 : i32
+    %7 = arith.shrui %2, %6 : i32
+    %8 = arith.ori %5, %7 : i32
+    cf.br ^bb1(%8 : i32)
+  ^bb1(%9: i32):  // pred: ^bb0
+    return %9 : i32
   }
 }
