@@ -1,0 +1,19 @@
+---
+source: crates/dora-compiler/src/wasm/tests/code.rs
+expression: op
+snapshot_kind: text
+---
+module {
+  func.func @"const-i32-a"(%arg0: !llvm.ptr) -> i32 {
+    %c65_i32 = arith.constant 65 : i32
+    cf.br ^bb1(%c65_i32 : i32)
+  ^bb1(%0: i32):  // pred: ^bb0
+    return %0 : i32
+  }
+  func.func @"const-i32-b"(%arg0: !llvm.ptr) -> i32 {
+    %c66_i32 = arith.constant 66 : i32
+    cf.br ^bb1(%c66_i32 : i32)
+  ^bb1(%0: i32):  // pred: ^bb0
+    return %0 : i32
+  }
+}

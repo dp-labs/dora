@@ -1,0 +1,243 @@
+---
+source: crates/dora-compiler/src/wasm/tests/code.rs
+expression: op
+snapshot_kind: text
+---
+module {
+  func.func @f0(%arg0: !llvm.ptr, %arg1: i64) -> i64 {
+    %c1_i64 = arith.constant 1 : i64
+    %0 = llvm.alloca %c1_i64 x i64 : (i64) -> !llvm.ptr
+    llvm.store %arg1, %0 : i64, !llvm.ptr
+    %1 = llvm.load %0 : !llvm.ptr -> i64
+    %c0_i64 = arith.constant 0 : i64
+    %2 = "wasm.eq"(%1, %c0_i64) : (i64, i64) -> i32
+    %c0_i32 = arith.constant 0 : i32
+    %3 = arith.cmpi ne, %2, %c0_i32 : i32
+    cf.cond_br %3, ^bb2, ^bb3
+  ^bb1(%4: i64):  // pred: ^bb4
+    return %4 : i64
+  ^bb2:  // pred: ^bb0
+    %c1_i64_0 = arith.constant 1 : i64
+    cf.br ^bb4(%c1_i64_0 : i64)
+  ^bb3:  // pred: ^bb0
+    %5 = llvm.load %0 : !llvm.ptr -> i64
+    %6 = llvm.load %0 : !llvm.ptr -> i64
+    %c1_i64_1 = arith.constant 1 : i64
+    %7 = "wasm.sub"(%6, %c1_i64_1) : (i64, i64) -> i64
+    %8 = call @f0(%arg0, %7) : (!llvm.ptr, i64) -> i64
+    %9 = "wasm.mul"(%5, %8) : (i64, i64) -> i64
+    cf.br ^bb4(%9 : i64)
+  ^bb4(%10: i64):  // 2 preds: ^bb2, ^bb3
+    cf.br ^bb1(%10 : i64)
+  }
+  func.func @"fac-rec-named"(%arg0: !llvm.ptr, %arg1: i64) -> i64 {
+    %c1_i64 = arith.constant 1 : i64
+    %0 = llvm.alloca %c1_i64 x i64 : (i64) -> !llvm.ptr
+    llvm.store %arg1, %0 : i64, !llvm.ptr
+    %1 = llvm.load %0 : !llvm.ptr -> i64
+    %c0_i64 = arith.constant 0 : i64
+    %2 = "wasm.eq"(%1, %c0_i64) : (i64, i64) -> i32
+    %c0_i32 = arith.constant 0 : i32
+    %3 = arith.cmpi ne, %2, %c0_i32 : i32
+    cf.cond_br %3, ^bb2, ^bb3
+  ^bb1(%4: i64):  // pred: ^bb4
+    return %4 : i64
+  ^bb2:  // pred: ^bb0
+    %c1_i64_0 = arith.constant 1 : i64
+    cf.br ^bb4(%c1_i64_0 : i64)
+  ^bb3:  // pred: ^bb0
+    %5 = llvm.load %0 : !llvm.ptr -> i64
+    %6 = llvm.load %0 : !llvm.ptr -> i64
+    %c1_i64_1 = arith.constant 1 : i64
+    %7 = "wasm.sub"(%6, %c1_i64_1) : (i64, i64) -> i64
+    %8 = call @"fac-rec-named"(%arg0, %7) : (!llvm.ptr, i64) -> i64
+    %9 = "wasm.mul"(%5, %8) : (i64, i64) -> i64
+    cf.br ^bb4(%9 : i64)
+  ^bb4(%10: i64):  // 2 preds: ^bb2, ^bb3
+    cf.br ^bb1(%10 : i64)
+  }
+  func.func @f2(%arg0: !llvm.ptr, %arg1: i64) -> i64 {
+    %c1_i64 = arith.constant 1 : i64
+    %0 = llvm.alloca %c1_i64 x i64 : (i64) -> !llvm.ptr
+    llvm.store %arg1, %0 : i64, !llvm.ptr
+    %c0_i64 = arith.constant 0 : i64
+    %c1_i64_0 = arith.constant 1 : i64
+    %1 = llvm.alloca %c1_i64_0 x i64 : (i64) -> !llvm.ptr
+    llvm.store %c0_i64, %1 : i64, !llvm.ptr
+    %c1_i64_1 = arith.constant 1 : i64
+    %2 = llvm.alloca %c1_i64_1 x i64 : (i64) -> !llvm.ptr
+    llvm.store %c0_i64, %2 : i64, !llvm.ptr
+    %3 = llvm.load %0 : !llvm.ptr -> i64
+    llvm.store %3, %1 : i64, !llvm.ptr
+    %c1_i64_2 = arith.constant 1 : i64
+    llvm.store %c1_i64_2, %2 : i64, !llvm.ptr
+    cf.br ^bb4
+  ^bb1(%4: i64):  // pred: ^bb2
+    return %4 : i64
+  ^bb2:  // 2 preds: ^bb3, ^bb5
+    %5 = llvm.load %2 : !llvm.ptr -> i64
+    cf.br ^bb1(%5 : i64)
+  ^bb3:  // no predecessors
+    cf.br ^bb2
+  ^bb4:  // 2 preds: ^bb0, ^bb7
+    %6 = llvm.load %1 : !llvm.ptr -> i64
+    %c0_i64_3 = arith.constant 0 : i64
+    %7 = "wasm.eq"(%6, %c0_i64_3) : (i64, i64) -> i32
+    %c0_i32 = arith.constant 0 : i32
+    %8 = arith.cmpi ne, %7, %c0_i32 : i32
+    cf.cond_br %8, ^bb5, ^bb6
+  ^bb5:  // pred: ^bb4
+    cf.br ^bb2
+  ^bb6:  // pred: ^bb4
+    %9 = llvm.load %1 : !llvm.ptr -> i64
+    %10 = llvm.load %2 : !llvm.ptr -> i64
+    %11 = "wasm.mul"(%9, %10) : (i64, i64) -> i64
+    llvm.store %11, %2 : i64, !llvm.ptr
+    %12 = llvm.load %1 : !llvm.ptr -> i64
+    %c1_i64_4 = arith.constant 1 : i64
+    %13 = "wasm.sub"(%12, %c1_i64_4) : (i64, i64) -> i64
+    llvm.store %13, %1 : i64, !llvm.ptr
+    cf.br ^bb7
+  ^bb7:  // pred: ^bb6
+    cf.br ^bb4
+  }
+  func.func @f3(%arg0: !llvm.ptr, %arg1: i64) -> i64 {
+    %c1_i64 = arith.constant 1 : i64
+    %0 = llvm.alloca %c1_i64 x i64 : (i64) -> !llvm.ptr
+    llvm.store %arg1, %0 : i64, !llvm.ptr
+    %c0_i64 = arith.constant 0 : i64
+    %c1_i64_0 = arith.constant 1 : i64
+    %1 = llvm.alloca %c1_i64_0 x i64 : (i64) -> !llvm.ptr
+    llvm.store %c0_i64, %1 : i64, !llvm.ptr
+    %c1_i64_1 = arith.constant 1 : i64
+    %2 = llvm.alloca %c1_i64_1 x i64 : (i64) -> !llvm.ptr
+    llvm.store %c0_i64, %2 : i64, !llvm.ptr
+    %3 = llvm.load %0 : !llvm.ptr -> i64
+    llvm.store %3, %1 : i64, !llvm.ptr
+    %c1_i64_2 = arith.constant 1 : i64
+    llvm.store %c1_i64_2, %2 : i64, !llvm.ptr
+    cf.br ^bb4
+  ^bb1(%4: i64):  // pred: ^bb2
+    return %4 : i64
+  ^bb2:  // 2 preds: ^bb3, ^bb5
+    %5 = llvm.load %2 : !llvm.ptr -> i64
+    cf.br ^bb1(%5 : i64)
+  ^bb3:  // no predecessors
+    cf.br ^bb2
+  ^bb4:  // 2 preds: ^bb0, ^bb7
+    %6 = llvm.load %1 : !llvm.ptr -> i64
+    %c0_i64_3 = arith.constant 0 : i64
+    %7 = "wasm.eq"(%6, %c0_i64_3) : (i64, i64) -> i32
+    %c0_i32 = arith.constant 0 : i32
+    %8 = arith.cmpi ne, %7, %c0_i32 : i32
+    cf.cond_br %8, ^bb5, ^bb6
+  ^bb5:  // pred: ^bb4
+    cf.br ^bb2
+  ^bb6:  // pred: ^bb4
+    %9 = llvm.load %1 : !llvm.ptr -> i64
+    %10 = llvm.load %2 : !llvm.ptr -> i64
+    %11 = "wasm.mul"(%9, %10) : (i64, i64) -> i64
+    llvm.store %11, %2 : i64, !llvm.ptr
+    %12 = llvm.load %1 : !llvm.ptr -> i64
+    %c1_i64_4 = arith.constant 1 : i64
+    %13 = "wasm.sub"(%12, %c1_i64_4) : (i64, i64) -> i64
+    llvm.store %13, %1 : i64, !llvm.ptr
+    cf.br ^bb7
+  ^bb7:  // pred: ^bb6
+    cf.br ^bb4
+  }
+  func.func @f4(%arg0: !llvm.ptr, %arg1: i64) -> i64 {
+    %c1_i64 = arith.constant 1 : i64
+    %0 = llvm.alloca %c1_i64 x i64 : (i64) -> !llvm.ptr
+    llvm.store %arg1, %0 : i64, !llvm.ptr
+    %c0_i64 = arith.constant 0 : i64
+    %c1_i64_0 = arith.constant 1 : i64
+    %1 = llvm.alloca %c1_i64_0 x i64 : (i64) -> !llvm.ptr
+    llvm.store %c0_i64, %1 : i64, !llvm.ptr
+    %c1_i64_1 = arith.constant 1 : i64
+    llvm.store %c1_i64_1, %1 : i64, !llvm.ptr
+    %2 = llvm.load %0 : !llvm.ptr -> i64
+    %c2_i64 = arith.constant 2 : i64
+    %3 = "wasm.lts"(%2, %c2_i64) : (i64, i64) -> i32
+    %c0_i32 = arith.constant 0 : i32
+    %4 = arith.cmpi ne, %3, %c0_i32 : i32
+    cf.cond_br %4, ^bb2, ^bb3
+  ^bb1(%5: i64):  // pred: ^bb2
+    return %5 : i64
+  ^bb2:  // 2 preds: ^bb0, ^bb4
+    %6 = llvm.load %1 : !llvm.ptr -> i64
+    cf.br ^bb1(%6 : i64)
+  ^bb3:  // pred: ^bb0
+    cf.br ^bb5
+  ^bb4:  // pred: ^bb6
+    cf.br ^bb2
+  ^bb5:  // 2 preds: ^bb3, ^bb5
+    %7 = llvm.load %1 : !llvm.ptr -> i64
+    %8 = llvm.load %0 : !llvm.ptr -> i64
+    %9 = "wasm.mul"(%7, %8) : (i64, i64) -> i64
+    llvm.store %9, %1 : i64, !llvm.ptr
+    %10 = llvm.load %0 : !llvm.ptr -> i64
+    %c-1_i64 = arith.constant -1 : i64
+    %11 = "wasm.add"(%10, %c-1_i64) : (i64, i64) -> i64
+    llvm.store %11, %0 : i64, !llvm.ptr
+    %12 = llvm.load %0 : !llvm.ptr -> i64
+    %c1_i64_2 = arith.constant 1 : i64
+    %13 = "wasm.gts"(%12, %c1_i64_2) : (i64, i64) -> i32
+    %c0_i32_3 = arith.constant 0 : i32
+    %14 = arith.cmpi ne, %13, %c0_i32_3 : i32
+    cf.cond_br %14, ^bb5, ^bb6
+  ^bb6:  // pred: ^bb5
+    cf.br ^bb4
+  }
+  func.func @pick0(%arg0: !llvm.ptr, %arg1: i64) -> (i64, i64) {
+    %c1_i64 = arith.constant 1 : i64
+    %0 = llvm.alloca %c1_i64 x i64 : (i64) -> !llvm.ptr
+    llvm.store %arg1, %0 : i64, !llvm.ptr
+    %1 = llvm.load %0 : !llvm.ptr -> i64
+    %2 = llvm.load %0 : !llvm.ptr -> i64
+    cf.br ^bb1(%1, %2 : i64, i64)
+  ^bb1(%3: i64, %4: i64):  // pred: ^bb0
+    return %3, %4 : i64, i64
+  }
+  func.func @pick1(%arg0: !llvm.ptr, %arg1: i64, %arg2: i64) -> (i64, i64, i64) {
+    %c1_i64 = arith.constant 1 : i64
+    %0 = llvm.alloca %c1_i64 x i64 : (i64) -> !llvm.ptr
+    llvm.store %arg1, %0 : i64, !llvm.ptr
+    %c1_i64_0 = arith.constant 1 : i64
+    %1 = llvm.alloca %c1_i64_0 x i64 : (i64) -> !llvm.ptr
+    llvm.store %arg2, %1 : i64, !llvm.ptr
+    %2 = llvm.load %0 : !llvm.ptr -> i64
+    %3 = llvm.load %1 : !llvm.ptr -> i64
+    %4 = llvm.load %0 : !llvm.ptr -> i64
+    cf.br ^bb1(%2, %3, %4 : i64, i64, i64)
+  ^bb1(%5: i64, %6: i64, %7: i64):  // pred: ^bb0
+    return %5, %6, %7 : i64, i64, i64
+  }
+  func.func @f7(%arg0: !llvm.ptr, %arg1: i64) -> i64 {
+    %c1_i64 = arith.constant 1 : i64
+    %0 = llvm.alloca %c1_i64 x i64 : (i64) -> !llvm.ptr
+    llvm.store %arg1, %0 : i64, !llvm.ptr
+    %c1_i64_0 = arith.constant 1 : i64
+    %1 = llvm.load %0 : !llvm.ptr -> i64
+    cf.br ^bb3(%c1_i64_0, %1 : i64, i64)
+  ^bb1(%2: i64):  // 2 preds: ^bb2, ^bb4
+    return %2 : i64
+  ^bb2(%3: i64):  // no predecessors
+    cf.br ^bb1(%3 : i64)
+  ^bb3(%4: i64, %5: i64):  // 2 preds: ^bb0, ^bb3
+    %6:3 = call @pick1(%arg0, %c1_i64_0, %1) : (!llvm.ptr, i64, i64) -> (i64, i64, i64)
+    %7:3 = call @pick1(%arg0, %6#1, %6#2) : (!llvm.ptr, i64, i64) -> (i64, i64, i64)
+    %8 = "wasm.mul"(%7#1, %7#2) : (i64, i64) -> i64
+    %9:3 = call @pick1(%arg0, %7#0, %8) : (!llvm.ptr, i64, i64) -> (i64, i64, i64)
+    %c1_i64_1 = arith.constant 1 : i64
+    %10 = "wasm.sub"(%9#2, %c1_i64_1) : (i64, i64) -> i64
+    %11:2 = call @pick0(%arg0, %10) : (!llvm.ptr, i64) -> (i64, i64)
+    %c0_i64 = arith.constant 0 : i64
+    %12 = "wasm.gtu"(%11#1, %c0_i64) : (i64, i64) -> i32
+    %c0_i32 = arith.constant 0 : i32
+    %13 = arith.cmpi ne, %12, %c0_i32 : i32
+    cf.cond_br %13, ^bb3(%9#1, %11#0 : i64, i64), ^bb4(%9#1, %11#0 : i64, i64)
+  ^bb4(%14: i64, %15: i64):  // pred: ^bb3
+    cf.br ^bb1(%9#1 : i64)
+  }
+}
