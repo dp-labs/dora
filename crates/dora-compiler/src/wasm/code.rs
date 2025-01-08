@@ -278,7 +278,7 @@ macro_rules! bin_op {
 }
 macro_rules! atomicrmw_op {
     ($builder:ident, $state:ident, $memarg:ident, $fcx:ident, $backend:ident, $block:ident, $op:ident, i32) => {
-        let (value, offset) = $state.pop2()?;
+        let (offset, value) = $state.pop2()?;
         let memory_index = MemoryIndex::from_u32(0);
         let (block, effective_address) =
             Self::resolve_memory_ptr(memory_index, $memarg, offset, 4, $fcx, $backend.ctx, $block)?;
@@ -303,7 +303,7 @@ macro_rules! atomicrmw_op {
         return Ok(block);
     };
     ($builder:ident, $state:ident, $memarg:ident, $fcx:ident, $backend:ident, $block:ident, $op:ident, i32, i8) => {
-        let (value, offset) = $state.pop2()?;
+        let (offset, value) = $state.pop2()?;
         let memory_index = MemoryIndex::from_u32(0);
         let (block, effective_address) = Self::resolve_memory_ptr(
             memory_index,
@@ -345,7 +345,7 @@ macro_rules! atomicrmw_op {
         return Ok(block);
     };
     ($builder:ident, $state:ident, $memarg:ident, $fcx:ident, $backend:ident, $block:ident, $op:ident, i32, i16) => {
-        let (value, offset) = $state.pop2()?;
+        let (offset, value) = $state.pop2()?;
         let memory_index = MemoryIndex::from_u32(0);
         let (block, effective_address) = Self::resolve_memory_ptr(
             memory_index,
@@ -387,7 +387,7 @@ macro_rules! atomicrmw_op {
         return Ok(block);
     };
     ($builder:ident, $state:ident, $memarg:ident, $fcx:ident, $backend:ident, $block:ident, $op:ident, i64) => {
-        let (value, offset) = $state.pop2()?;
+        let (offset, value) = $state.pop2()?;
         let memory_index = MemoryIndex::from_u32(0);
         let (block, effective_address) = Self::resolve_memory_ptr(
             memory_index,
@@ -419,7 +419,7 @@ macro_rules! atomicrmw_op {
         return Ok(block);
     };
     ($builder:ident, $state:ident, $memarg:ident, $fcx:ident, $backend:ident, $block:ident, $op:ident, i64, $ty:ident) => {
-        let (value, offset) = $state.pop2()?;
+        let (offset, value) = $state.pop2()?;
         let memory_index = MemoryIndex::from_u32(0);
         let (block, effective_address) = Self::resolve_memory_ptr(
             memory_index,
@@ -461,7 +461,7 @@ macro_rules! atomicrmw_op {
         return Ok(block);
     };
     ($builder:ident, $state:ident, $memarg:ident, $fcx:ident, $backend:ident, $block:ident, $op:ident, i64, i16) => {
-        let (value, offset) = $state.pop2()?;
+        let (offset, value) = $state.pop2()?;
         let memory_index = MemoryIndex::from_u32(0);
         let (block, effective_address) = Self::resolve_memory_ptr(
             memory_index,
@@ -503,7 +503,7 @@ macro_rules! atomicrmw_op {
         return Ok(block);
     };
     ($builder:ident, $state:ident, $memarg:ident, $fcx:ident, $backend:ident, $block:ident, $op:ident, i64, i32) => {
-        let (value, offset) = $state.pop2()?;
+        let (offset, value) = $state.pop2()?;
         let memory_index = MemoryIndex::from_u32(0);
         let (block, effective_address) = Self::resolve_memory_ptr(
             memory_index,
@@ -1478,7 +1478,7 @@ impl FunctionCodeGenerator {
                 return Ok(block);
             }
             Operator::I32Store { ref memarg } => {
-                let (value, offset) = state.pop2()?;
+                let (offset, value) = state.pop2()?;
                 let memory_index = MemoryIndex::from_u32(0);
                 let (block, effective_address) = Self::resolve_memory_ptr(
                     memory_index,
@@ -1489,11 +1489,11 @@ impl FunctionCodeGenerator {
                     backend.ctx,
                     block,
                 )?;
-                let result = builder.make(builder.store(value, effective_address))?;
+                builder.create(builder.store(value, effective_address));
                 return Ok(block);
             }
             Operator::I64Store { ref memarg } => {
-                let (value, offset) = state.pop2()?;
+                let (offset, value) = state.pop2()?;
                 let memory_index = MemoryIndex::from_u32(0);
                 let (block, effective_address) = Self::resolve_memory_ptr(
                     memory_index,
@@ -1504,11 +1504,11 @@ impl FunctionCodeGenerator {
                     backend.ctx,
                     block,
                 )?;
-                let result = builder.make(builder.store(value, effective_address))?;
+                builder.create(builder.store(value, effective_address));
                 return Ok(block);
             }
             Operator::F32Store { ref memarg } => {
-                let (value, offset) = state.pop2()?;
+                let (offset, value) = state.pop2()?;
                 let memory_index = MemoryIndex::from_u32(0);
                 let (block, effective_address) = Self::resolve_memory_ptr(
                     memory_index,
@@ -1519,11 +1519,11 @@ impl FunctionCodeGenerator {
                     backend.ctx,
                     block,
                 )?;
-                let result = builder.make(builder.store(value, effective_address))?;
+                builder.create(builder.store(value, effective_address));
                 return Ok(block);
             }
             Operator::F64Store { ref memarg } => {
-                let (value, offset) = state.pop2()?;
+                let (offset, value) = state.pop2()?;
                 let memory_index = MemoryIndex::from_u32(0);
                 let (block, effective_address) = Self::resolve_memory_ptr(
                     memory_index,
@@ -1534,11 +1534,11 @@ impl FunctionCodeGenerator {
                     backend.ctx,
                     block,
                 )?;
-                let result = builder.make(builder.store(value, effective_address))?;
+                builder.create(builder.store(value, effective_address));
                 return Ok(block);
             }
             Operator::I32Store8 { ref memarg } | Operator::I64Store8 { ref memarg } => {
-                let (value, offset) = state.pop2()?;
+                let (offset, value) = state.pop2()?;
                 let memory_index = MemoryIndex::from_u32(0);
                 let (block, effective_address) = Self::resolve_memory_ptr(
                     memory_index,
@@ -1554,11 +1554,11 @@ impl FunctionCodeGenerator {
                     builder.i8_ty(),
                     builder.get_insert_location(),
                 ))?;
-                let result = builder.make(builder.store(value, effective_address))?;
+                builder.create(builder.store(value, effective_address));
                 return Ok(block);
             }
             Operator::I32Store16 { ref memarg } | Operator::I64Store16 { ref memarg } => {
-                let (value, offset) = state.pop2()?;
+                let (offset, value) = state.pop2()?;
                 let memory_index = MemoryIndex::from_u32(0);
                 let (block, effective_address) = Self::resolve_memory_ptr(
                     memory_index,
@@ -1574,11 +1574,11 @@ impl FunctionCodeGenerator {
                     builder.i16_ty(),
                     builder.get_insert_location(),
                 ))?;
-                let result = builder.make(builder.store(value, effective_address))?;
+                builder.create(builder.store(value, effective_address));
                 return Ok(block);
             }
             Operator::I64Store32 { ref memarg } => {
-                let (value, offset) = state.pop2()?;
+                let (offset, value) = state.pop2()?;
                 let memory_index = MemoryIndex::from_u32(0);
                 let (block, effective_address) = Self::resolve_memory_ptr(
                     memory_index,
@@ -1594,7 +1594,7 @@ impl FunctionCodeGenerator {
                     builder.i32_ty(),
                     builder.get_insert_location(),
                 ))?;
-                let result = builder.make(builder.store(value, effective_address))?;
+                builder.create(builder.store(value, effective_address));
                 return Ok(block);
             }
             Operator::I32Const { value } => {
@@ -2700,7 +2700,7 @@ impl FunctionCodeGenerator {
                 return Ok(block);
             }
             Operator::I32AtomicStore { ref memarg } => {
-                let (value, offset) = state.pop2()?;
+                let (offset, value) = state.pop2()?;
                 let memory_index = MemoryIndex::from_u32(0);
                 let (block, effective_address) = Self::resolve_memory_ptr(
                     memory_index,
@@ -2719,7 +2719,7 @@ impl FunctionCodeGenerator {
                 return Ok(block);
             }
             Operator::I64AtomicStore { ref memarg } => {
-                let (value, offset) = state.pop2()?;
+                let (offset, value) = state.pop2()?;
                 let memory_index = MemoryIndex::from_u32(0);
                 let (block, effective_address) = Self::resolve_memory_ptr(
                     memory_index,
@@ -2738,7 +2738,7 @@ impl FunctionCodeGenerator {
                 return Ok(block);
             }
             Operator::I32AtomicStore8 { ref memarg } => {
-                let (value, offset) = state.pop2()?;
+                let (offset, value) = state.pop2()?;
                 let memory_index = MemoryIndex::from_u32(0);
                 let (block, effective_address) = Self::resolve_memory_ptr(
                     memory_index,
@@ -2762,7 +2762,7 @@ impl FunctionCodeGenerator {
                 return Ok(block);
             }
             Operator::I32AtomicStore16 { ref memarg } => {
-                let (value, offset) = state.pop2()?;
+                let (offset, value) = state.pop2()?;
                 let memory_index = MemoryIndex::from_u32(0);
                 let (block, effective_address) = Self::resolve_memory_ptr(
                     memory_index,
@@ -2786,7 +2786,7 @@ impl FunctionCodeGenerator {
                 return Ok(block);
             }
             Operator::I64AtomicStore8 { ref memarg } => {
-                let (value, offset) = state.pop2()?;
+                let (offset, value) = state.pop2()?;
                 let memory_index = MemoryIndex::from_u32(0);
                 let (block, effective_address) = Self::resolve_memory_ptr(
                     memory_index,
@@ -2810,7 +2810,7 @@ impl FunctionCodeGenerator {
                 return Ok(block);
             }
             Operator::I64AtomicStore16 { ref memarg } => {
-                let (value, offset) = state.pop2()?;
+                let (offset, value) = state.pop2()?;
                 let memory_index = MemoryIndex::from_u32(0);
                 let (block, effective_address) = Self::resolve_memory_ptr(
                     memory_index,
@@ -2834,7 +2834,7 @@ impl FunctionCodeGenerator {
                 return Ok(block);
             }
             Operator::I64AtomicStore32 { ref memarg } => {
-                let (value, offset) = state.pop2()?;
+                let (offset, value) = state.pop2()?;
                 let memory_index = MemoryIndex::from_u32(0);
                 let (block, effective_address) = Self::resolve_memory_ptr(
                     memory_index,
@@ -3137,7 +3137,11 @@ impl FunctionCodeGenerator {
         let location = builder.get_insert_location();
         // Compute the offset into the storage.
         let imm_offset = builder.make(builder.iconst_64(memarg.offset as i64))?;
-        let var_offset = builder.make(arith::extui(var_offset, builder.i64_ty(), location))?;
+        let var_offset = if builder.int_ty_width(var_offset.r#type())? == 64 {
+            var_offset
+        } else {
+            builder.make(arith::extui(var_offset, builder.i64_ty(), location))?
+        };
         let offset = builder.make(arith::addi(var_offset, imm_offset, location))?;
         // Look up the memory base (as pointer) and bounds (as unsigned integer).
         let base_ptr = match fcx
