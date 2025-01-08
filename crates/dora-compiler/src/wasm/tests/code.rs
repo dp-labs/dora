@@ -180,6 +180,171 @@ fn f64_arith() {
 }
 
 #[test]
+fn float_literals() {
+    assert_snapshot!(
+        r#"
+(module
+  ;; f32 special values
+  (func (export "f32.nan") (result i32) (i32.reinterpret_f32 (f32.const nan)))
+  (func (export "f32.positive_nan") (result i32) (i32.reinterpret_f32 (f32.const +nan)))
+  (func (export "f32.negative_nan") (result i32) (i32.reinterpret_f32 (f32.const -nan)))
+  (func (export "f32.plain_nan") (result i32) (i32.reinterpret_f32 (f32.const nan:0x400000)))
+  (func (export "f32.informally_known_as_plain_snan") (result i32) (i32.reinterpret_f32 (f32.const nan:0x200000)))
+  (func (export "f32.all_ones_nan") (result i32) (i32.reinterpret_f32 (f32.const -nan:0x7fffff)))
+  (func (export "f32.misc_nan") (result i32) (i32.reinterpret_f32 (f32.const nan:0x012345)))
+  (func (export "f32.misc_positive_nan") (result i32) (i32.reinterpret_f32 (f32.const +nan:0x304050)))
+  (func (export "f32.misc_negative_nan") (result i32) (i32.reinterpret_f32 (f32.const -nan:0x2abcde)))
+  (func (export "f32.infinity") (result i32) (i32.reinterpret_f32 (f32.const inf)))
+  (func (export "f32.positive_infinity") (result i32) (i32.reinterpret_f32 (f32.const +inf)))
+  (func (export "f32.negative_infinity") (result i32) (i32.reinterpret_f32 (f32.const -inf)))
+
+  ;; f32 numbers
+  (func (export "f32.zero") (result i32) (i32.reinterpret_f32 (f32.const 0x0.0p0)))
+  (func (export "f32.positive_zero") (result i32) (i32.reinterpret_f32 (f32.const +0x0.0p0)))
+  (func (export "f32.negative_zero") (result i32) (i32.reinterpret_f32 (f32.const -0x0.0p0)))
+  (func (export "f32.misc") (result i32) (i32.reinterpret_f32 (f32.const 0x1.921fb6p+2)))
+  (func (export "f32.min_positive") (result i32) (i32.reinterpret_f32 (f32.const 0x1p-149)))
+  (func (export "f32.min_normal") (result i32) (i32.reinterpret_f32 (f32.const 0x1p-126)))
+  (func (export "f32.max_finite") (result i32) (i32.reinterpret_f32 (f32.const 0x1.fffffep+127)))
+  (func (export "f32.max_subnormal") (result i32) (i32.reinterpret_f32 (f32.const 0x1.fffffcp-127)))
+  (func (export "f32.trailing_dot") (result i32) (i32.reinterpret_f32 (f32.const 0x1.p10)))
+  (func (export "f32.misc_int") (result i32) (i32.reinterpret_f32 (f32.const 0x12345)))
+  (func (export "f32.large_int") (result i32) (i32.reinterpret_f32 (f32.const 0x1_0000_0000_0000_0000_0000)))
+  (func (export "f32.min_int32") (result i32) (i32.reinterpret_f32 (f32.const -0x8000_0000)))
+  (func (export "f32.min_int64") (result i32) (i32.reinterpret_f32 (f32.const -0x8000_0000_0000_0000)))
+
+  ;; f32 in decimal format
+  (func (export "f32_dec.zero") (result i32) (i32.reinterpret_f32 (f32.const 0.0e0)))
+  (func (export "f32_dec.positive_zero") (result i32) (i32.reinterpret_f32 (f32.const +0.0e0)))
+  (func (export "f32_dec.negative_zero") (result i32) (i32.reinterpret_f32 (f32.const -0.0e0)))
+  (func (export "f32_dec.misc") (result i32) (i32.reinterpret_f32 (f32.const 6.28318548202514648)))
+  (func (export "f32_dec.min_positive") (result i32) (i32.reinterpret_f32 (f32.const 1.4013e-45)))
+  (func (export "f32_dec.min_normal") (result i32) (i32.reinterpret_f32 (f32.const 1.1754944e-38)))
+  (func (export "f32_dec.max_subnormal") (result i32) (i32.reinterpret_f32 (f32.const 1.1754942e-38)))
+  (func (export "f32_dec.max_finite") (result i32) (i32.reinterpret_f32 (f32.const 3.4028234e+38)))
+  (func (export "f32_dec.trailing_dot") (result i32) (i32.reinterpret_f32 (f32.const 1.e10)))
+  (func (export "f32_dec.misc_int") (result i32) (i32.reinterpret_f32 (f32.const 12345)))
+  (func (export "f32_dec.large_int") (result i32) (i32.reinterpret_f32 (f32.const 100_000_000_000_000_000_000)))
+  (func (export "f32_dec.min_int32") (result i32) (i32.reinterpret_f32 (f32.const -2147483648)))
+  (func (export "f32_dec.min_int64") (result i32) (i32.reinterpret_f32 (f32.const -9223372036854775808)))
+
+  ;; https://twitter.com/Archivd/status/994637336506912768
+  (func (export "f32_dec.root_beer_float") (result i32) (i32.reinterpret_f32 (f32.const 1.000000119)))
+
+  ;; f64 special values
+  (func (export "f64.nan") (result i64) (i64.reinterpret_f64 (f64.const nan)))
+  (func (export "f64.positive_nan") (result i64) (i64.reinterpret_f64 (f64.const +nan)))
+  (func (export "f64.negative_nan") (result i64) (i64.reinterpret_f64 (f64.const -nan)))
+  (func (export "f64.plain_nan") (result i64) (i64.reinterpret_f64 (f64.const nan:0x8000000000000)))
+  (func (export "f64.informally_known_as_plain_snan") (result i64) (i64.reinterpret_f64 (f64.const nan:0x4000000000000)))
+  (func (export "f64.all_ones_nan") (result i64) (i64.reinterpret_f64 (f64.const -nan:0xfffffffffffff)))
+  (func (export "f64.misc_nan") (result i64) (i64.reinterpret_f64 (f64.const nan:0x0123456789abc)))
+  (func (export "f64.misc_positive_nan") (result i64) (i64.reinterpret_f64 (f64.const +nan:0x3040506070809)))
+  (func (export "f64.misc_negative_nan") (result i64) (i64.reinterpret_f64 (f64.const -nan:0x2abcdef012345)))
+  (func (export "f64.infinity") (result i64) (i64.reinterpret_f64 (f64.const inf)))
+  (func (export "f64.positive_infinity") (result i64) (i64.reinterpret_f64 (f64.const +inf)))
+  (func (export "f64.negative_infinity") (result i64) (i64.reinterpret_f64 (f64.const -inf)))
+
+  ;; f64 numbers
+  (func (export "f64.zero") (result i64) (i64.reinterpret_f64 (f64.const 0x0.0p0)))
+  (func (export "f64.positive_zero") (result i64) (i64.reinterpret_f64 (f64.const +0x0.0p0)))
+  (func (export "f64.negative_zero") (result i64) (i64.reinterpret_f64 (f64.const -0x0.0p0)))
+  (func (export "f64.misc") (result i64) (i64.reinterpret_f64 (f64.const 0x1.921fb54442d18p+2)))
+  (func (export "f64.min_positive") (result i64) (i64.reinterpret_f64 (f64.const 0x0.0000000000001p-1022)))
+  (func (export "f64.min_normal") (result i64) (i64.reinterpret_f64 (f64.const 0x1p-1022)))
+  (func (export "f64.max_subnormal") (result i64) (i64.reinterpret_f64 (f64.const 0x0.fffffffffffffp-1022)))
+  (func (export "f64.max_finite") (result i64) (i64.reinterpret_f64 (f64.const 0x1.fffffffffffffp+1023)))
+  (func (export "f64.trailing_dot") (result i64) (i64.reinterpret_f64 (f64.const 0x1.p100)))
+  (func (export "f64.misc_int") (result i64) (i64.reinterpret_f64 (f64.const 0x12345)))
+  (func (export "f64.large_int") (result i64) (i64.reinterpret_f64 (f64.const 0x1_0000_0000_0000_0000_0000)))
+  (func (export "f64.min_int32") (result i64) (i64.reinterpret_f64 (f64.const -0x8000_0000)))
+  (func (export "f64.min_int64") (result i64) (i64.reinterpret_f64 (f64.const -0x8000_0000_0000_0000)))
+
+  ;; f64 numbers in decimal format
+  (func (export "f64_dec.zero") (result i64) (i64.reinterpret_f64 (f64.const 0.0e0)))
+  (func (export "f64_dec.positive_zero") (result i64) (i64.reinterpret_f64 (f64.const +0.0e0)))
+  (func (export "f64_dec.negative_zero") (result i64) (i64.reinterpret_f64 (f64.const -0.0e0)))
+  (func (export "f64_dec.misc") (result i64) (i64.reinterpret_f64 (f64.const 6.28318530717958623)))
+  (func (export "f64_dec.min_positive") (result i64) (i64.reinterpret_f64 (f64.const 4.94066e-324)))
+  (func (export "f64_dec.min_normal") (result i64) (i64.reinterpret_f64 (f64.const 2.2250738585072012e-308)))
+  (func (export "f64_dec.max_subnormal") (result i64) (i64.reinterpret_f64 (f64.const 2.2250738585072011e-308)))
+  (func (export "f64_dec.max_finite") (result i64) (i64.reinterpret_f64 (f64.const 1.7976931348623157e+308)))
+  (func (export "f64_dec.trailing_dot") (result i64) (i64.reinterpret_f64 (f64.const 1.e100)))
+  (func (export "f64_dec.misc_int") (result i64) (i64.reinterpret_f64 (f64.const 12345)))
+  (func (export "f64_dec.large_int") (result i64) (i64.reinterpret_f64 (f64.const 100_000_000_000_000_000_000)))
+  (func (export "f64_dec.min_int32") (result i64) (i64.reinterpret_f64 (f64.const -2147483648)))
+  (func (export "f64_dec.min_int64") (result i64) (i64.reinterpret_f64 (f64.const -9223372036854775808)))
+
+  ;; https://twitter.com/Archivd/status/994637336506912768
+  (func (export "f64_dec.root_beer_float") (result i64) (i64.reinterpret_f64 (f64.const 1.000000119)))
+
+  (func (export "f32-dec-sep1") (result f32) (f32.const 1_000_000))
+  (func (export "f32-dec-sep2") (result f32) (f32.const 1_0_0_0))
+  (func (export "f32-dec-sep3") (result f32) (f32.const 100_3.141_592))
+  (func (export "f32-dec-sep4") (result f32) (f32.const 99e+1_3))
+  (func (export "f32-dec-sep5") (result f32) (f32.const 122_000.11_3_54E0_2_3))
+  (func (export "f32-hex-sep1") (result f32) (f32.const 0xa_0f_00_99))
+  (func (export "f32-hex-sep2") (result f32) (f32.const 0x1_a_A_0_f))
+  (func (export "f32-hex-sep3") (result f32) (f32.const 0xa0_ff.f141_a59a))
+  (func (export "f32-hex-sep4") (result f32) (f32.const 0xf0P+1_3))
+  (func (export "f32-hex-sep5") (result f32) (f32.const 0x2a_f00a.1f_3_eep2_3))
+
+  (func (export "f64-dec-sep1") (result f64) (f64.const 1_000_000))
+  (func (export "f64-dec-sep2") (result f64) (f64.const 1_0_0_0))
+  (func (export "f64-dec-sep3") (result f64) (f64.const 100_3.141_592))
+  (func (export "f64-dec-sep4") (result f64) (f64.const 99e-1_23))
+  (func (export "f64-dec-sep5") (result f64) (f64.const 122_000.11_3_54e0_2_3))
+  (func (export "f64-hex-sep1") (result f64) (f64.const 0xa_f00f_0000_9999))
+  (func (export "f64-hex-sep2") (result f64) (f64.const 0x1_a_A_0_f))
+  (func (export "f64-hex-sep3") (result f64) (f64.const 0xa0_ff.f141_a59a))
+  (func (export "f64-hex-sep4") (result f64) (f64.const 0xf0P+1_3))
+  (func (export "f64-hex-sep5") (result f64) (f64.const 0x2a_f00a.1f_3_eep2_3))
+)
+"#
+    );
+}
+
+#[test]
+fn forwald() {
+    assert_snapshot!(
+        r#"
+(module
+  (func $even (export "even") (param $n i32) (result i32)
+    (if (result i32) (i32.eq (local.get $n) (i32.const 0))
+      (then (i32.const 1))
+      (else (call $odd (i32.sub (local.get $n) (i32.const 1))))
+    )
+  )
+
+  (func $odd (export "odd") (param $n i32) (result i32)
+    (if (result i32) (i32.eq (local.get $n) (i32.const 0))
+      (then (i32.const 0))
+      (else (call $even (i32.sub (local.get $n) (i32.const 1))))
+    )
+  )
+)
+"#
+    );
+}
+
+#[test]
+fn float_memory() {
+    assert_snapshot!(
+        r#"
+(module
+  (memory (data "\00\00\00\00\00\00\00\f4\7f"))
+
+  (func (export "f64.load") (result f64) (f64.load (i32.const 1)))
+  (func (export "i64.load") (result i64) (i64.load (i32.const 1)))
+  (func (export "f64.store") (f64.store (i32.const 1) (f64.const nan:0x4000000000000)))
+  (func (export "i64.store") (i64.store (i32.const 1) (i64.const 0x7ff4000000000000)))
+  (func (export "reset") (i64.store (i32.const 1) (i64.const 0)))
+)
+"#
+    );
+}
+
+#[test]
 fn global_get_and_set() {
     assert_snapshot!(
         r#"
@@ -2838,6 +3003,253 @@ fn conversions() {
   (func (export "f64.reinterpret_i64") (param $x i64) (result f64) (f64.reinterpret_i64 (local.get $x)))
   (func (export "i32.reinterpret_f32") (param $x f32) (result i32) (i32.reinterpret_f32 (local.get $x)))
   (func (export "i64.reinterpret_f64") (param $x f64) (result i64) (i64.reinterpret_f64 (local.get $x)))
+)
+"#
+    );
+}
+
+#[test]
+fn endianness() {
+    assert_snapshot!(
+        r#"
+(module
+  (memory 1)
+
+  ;; Stores an i16 value in little-endian-format
+  (func $i16_store_little (param $address i32) (param $value i32)
+    (i32.store8 (local.get $address) (local.get $value))
+    (i32.store8 (i32.add (local.get $address) (i32.const 1)) (i32.shr_u (local.get $value) (i32.const 8)))
+  )
+
+  ;; Stores an i32 value in little-endian format
+  (func $i32_store_little (param $address i32) (param $value i32)
+    (call $i16_store_little (local.get $address) (local.get $value))
+    (call $i16_store_little (i32.add (local.get $address) (i32.const 2)) (i32.shr_u (local.get $value) (i32.const 16)))
+  )
+
+  ;; Stores an i64 value in little-endian format
+  (func $i64_store_little (param $address i32) (param $value i64)
+    (call $i32_store_little (local.get $address) (i32.wrap_i64 (local.get $value)))
+    (call $i32_store_little (i32.add (local.get $address) (i32.const 4)) (i32.wrap_i64 (i64.shr_u (local.get $value) (i64.const 32))))
+  )
+
+  ;; Loads an i16 value in little-endian format
+  (func $i16_load_little (param $address i32) (result i32)
+    (i32.or
+      (i32.load8_u (local.get $address))
+      (i32.shl (i32.load8_u (i32.add (local.get $address) (i32.const 1))) (i32.const 8))
+    )
+  )
+
+  ;; Loads an i32 value in little-endian format
+  (func $i32_load_little (param $address i32) (result i32)
+    (i32.or
+      (call $i16_load_little (local.get $address))
+      (i32.shl (call $i16_load_little (i32.add (local.get $address) (i32.const 2))) (i32.const 16))
+    )
+  )
+
+  ;; Loads an i64 value in little-endian format
+  (func $i64_load_little (param $address i32) (result i64)
+    (i64.or
+      (i64.extend_i32_u (call $i32_load_little (local.get $address)))
+      (i64.shl (i64.extend_i32_u (call $i32_load_little (i32.add (local.get $address) (i32.const 4)))) (i64.const 32))
+    )
+  )
+
+  (func (export "i32_load16_s") (param $value i32) (result i32)
+    (call $i16_store_little (i32.const 0) (local.get $value))
+    (i32.load16_s (i32.const 0))
+  )
+
+  (func (export "i32_load16_u") (param $value i32) (result i32)
+    (call $i16_store_little (i32.const 0) (local.get $value))
+    (i32.load16_u (i32.const 0))
+  )
+
+  (func (export "i32_load") (param $value i32) (result i32)
+    (call $i32_store_little (i32.const 0) (local.get $value))
+    (i32.load (i32.const 0))
+  )
+
+  (func (export "i64_load16_s") (param $value i64) (result i64)
+    (call $i16_store_little (i32.const 0) (i32.wrap_i64 (local.get $value)))
+    (i64.load16_s (i32.const 0))
+  )
+
+  (func (export "i64_load16_u") (param $value i64) (result i64)
+    (call $i16_store_little (i32.const 0) (i32.wrap_i64 (local.get $value)))
+    (i64.load16_u (i32.const 0))
+  )
+
+  (func (export "i64_load32_s") (param $value i64) (result i64)
+    (call $i32_store_little (i32.const 0) (i32.wrap_i64 (local.get $value)))
+    (i64.load32_s (i32.const 0))
+  )
+
+  (func (export "i64_load32_u") (param $value i64) (result i64)
+    (call $i32_store_little (i32.const 0) (i32.wrap_i64 (local.get $value)))
+    (i64.load32_u (i32.const 0))
+  )
+
+  (func (export "i64_load") (param $value i64) (result i64)
+    (call $i64_store_little (i32.const 0) (local.get $value))
+    (i64.load (i32.const 0))
+  )
+
+  (func (export "f32_load") (param $value f32) (result f32)
+    (call $i32_store_little (i32.const 0) (i32.reinterpret_f32 (local.get $value)))
+    (f32.load (i32.const 0))
+  )
+
+  (func (export "f64_load") (param $value f64) (result f64)
+    (call $i64_store_little (i32.const 0) (i64.reinterpret_f64 (local.get $value)))
+    (f64.load (i32.const 0))
+  )
+
+
+  (func (export "i32_store16") (param $value i32) (result i32)
+    (i32.store16 (i32.const 0) (local.get $value))
+    (call $i16_load_little (i32.const 0))
+  )
+
+  (func (export "i32_store") (param $value i32) (result i32)
+    (i32.store (i32.const 0) (local.get $value))
+    (call $i32_load_little (i32.const 0))
+  )
+
+  (func (export "i64_store16") (param $value i64) (result i64)
+    (i64.store16 (i32.const 0) (local.get $value))
+    (i64.extend_i32_u (call $i16_load_little (i32.const 0)))
+  )
+
+  (func (export "i64_store32") (param $value i64) (result i64)
+    (i64.store32 (i32.const 0) (local.get $value))
+    (i64.extend_i32_u (call $i32_load_little (i32.const 0)))
+  )
+
+  (func (export "i64_store") (param $value i64) (result i64)
+    (i64.store (i32.const 0) (local.get $value))
+    (call $i64_load_little (i32.const 0))
+  )
+
+  (func (export "f32_store") (param $value f32) (result f32)
+    (f32.store (i32.const 0) (local.get $value))
+    (f32.reinterpret_i32 (call $i32_load_little (i32.const 0)))
+  )
+
+  (func (export "f64_store") (param $value f64) (result f64)
+    (f64.store (i32.const 0) (local.get $value))
+    (f64.reinterpret_i64 (call $i64_load_little (i32.const 0)))
+  )
+)
+"#
+    );
+}
+
+#[test]
+fn fac() {
+    assert_snapshot!(
+        r#"
+(module
+  ;; Recursive factorial
+  (func (export "fac-rec") (param i64) (result i64)
+    (if (result i64) (i64.eq (local.get 0) (i64.const 0))
+      (then (i64.const 1))
+      (else
+        (i64.mul (local.get 0) (call 0 (i64.sub (local.get 0) (i64.const 1))))
+      )
+    )
+  )
+
+  ;; Recursive factorial named
+  (func $fac-rec-named (export "fac-rec-named") (param $n i64) (result i64)
+    (if (result i64) (i64.eq (local.get $n) (i64.const 0))
+      (then (i64.const 1))
+      (else
+        (i64.mul
+          (local.get $n)
+          (call $fac-rec-named (i64.sub (local.get $n) (i64.const 1)))
+        )
+      )
+    )
+  )
+
+  ;; Iterative factorial
+  (func (export "fac-iter") (param i64) (result i64)
+    (local i64 i64)
+    (local.set 1 (local.get 0))
+    (local.set 2 (i64.const 1))
+    (block
+      (loop
+        (if
+          (i64.eq (local.get 1) (i64.const 0))
+          (then (br 2))
+          (else
+            (local.set 2 (i64.mul (local.get 1) (local.get 2)))
+            (local.set 1 (i64.sub (local.get 1) (i64.const 1)))
+          )
+        )
+        (br 0)
+      )
+    )
+    (local.get 2)
+  )
+
+  ;; Iterative factorial named
+  (func (export "fac-iter-named") (param $n i64) (result i64)
+    (local $i i64)
+    (local $res i64)
+    (local.set $i (local.get $n))
+    (local.set $res (i64.const 1))
+    (block $done
+      (loop $loop
+        (if
+          (i64.eq (local.get $i) (i64.const 0))
+          (then (br $done))
+          (else
+            (local.set $res (i64.mul (local.get $i) (local.get $res)))
+            (local.set $i (i64.sub (local.get $i) (i64.const 1)))
+          )
+        )
+        (br $loop)
+      )
+    )
+    (local.get $res)
+  )
+
+  ;; Optimized factorial.
+  (func (export "fac-opt") (param i64) (result i64)
+    (local i64)
+    (local.set 1 (i64.const 1))
+    (block
+      (br_if 0 (i64.lt_s (local.get 0) (i64.const 2)))
+      (loop
+        (local.set 1 (i64.mul (local.get 1) (local.get 0)))
+        (local.set 0 (i64.add (local.get 0) (i64.const -1)))
+        (br_if 0 (i64.gt_s (local.get 0) (i64.const 1)))
+      )
+    )
+    (local.get 1)
+  )
+
+  ;; Iterative factorial without locals.
+  (func $pick0 (param i64) (result i64 i64)
+    (local.get 0) (local.get 0)
+  )
+  (func $pick1 (param i64 i64) (result i64 i64 i64)
+    (local.get 0) (local.get 1) (local.get 0)
+  )
+  (func (export "fac-ssa") (param i64) (result i64)
+    (i64.const 1) (local.get 0)
+    (loop $l (param i64 i64) (result i64)
+      (call $pick1) (call $pick1) (i64.mul)
+      (call $pick1) (i64.const 1) (i64.sub)
+      (call $pick0) (i64.const 0) (i64.gt_u)
+      (br_if $l)
+      (drop) (return)
+    )
+  )
 )
 "#
     );
