@@ -832,9 +832,10 @@ impl FunctionCodeGenerator {
                     })
                     .collect::<WasmResult<_>>()?;
                 let loop_body = region.append_block(Block::new(&loop_phis));
-                let (value, _) = state.peek1_extra()?;
-                builder.create(cf::br(&loop_body, &[value], builder.unknown_loc()));
+                let values = state.peekn(loop_phis.len())?;
+                builder.create(cf::br(&loop_body, &values, builder.unknown_loc()));
                 state.push_loop(loop_body, loop_next, loop_phis, phis);
+                return Ok(loop_body);
             }
             Operator::If { blockty } => {
                 let block_param_types = fcx
@@ -873,17 +874,19 @@ impl FunctionCodeGenerator {
                     .collect::<WasmResult<_>>()?;
 
                 let if_then_block = region.append_block(Block::new(&then_phis));
+                // Note that the else block here may be an empty block that can be ignored.
                 let if_else_block = region.append_block(Block::new(&else_phis));
                 let end_block = region.append_block(Block::new(&end_phis));
                 let cond = state.pop1()?;
-                let (value, _) = state.peek1_extra()?;
+                let cond = builder.make(builder.icmp_imm(IntCC::NotEqual, cond, 0)?)?;
+                let values = state.peekn(then_phis.len())?;
                 builder.create(cf::cond_br(
                     builder.context(),
                     cond,
                     &if_then_block,
                     &if_else_block,
-                    &[value],
-                    &[value],
+                    &values,
+                    &values,
                     builder.unknown_loc(),
                 ));
                 state.push_if(
@@ -894,6 +897,7 @@ impl FunctionCodeGenerator {
                     else_phis,
                     end_phis,
                 );
+                return Ok(if_then_block);
             }
             Operator::Else => {
                 if state.reachable {
@@ -918,20 +922,22 @@ impl FunctionCodeGenerator {
                     } else {
                         unreachable!()
                     };
-
                     *if_else_state = IfElseState::Else;
                 }
-
                 state.reachable = true;
-                let frame = state.frame_at_depth(0)?;
 
-                return Ok(*frame.code_after());
+                if let ControlFrame::IfElse { if_else, .. } = state.frame_at_depth(0)? {
+                    return Ok(*if_else);
+                } else {
+                    unreachable!()
+                }
             }
             Operator::End => {
                 let frame = state.pop_frame()?;
                 let current_block = block;
                 if state.reachable {
                     let values = state.peekn(frame.phis().len())?;
+                    state.popn(frame.phis().len())?;
                     builder.create(cf::br(
                         frame.code_after(),
                         &values,
@@ -951,6 +957,10 @@ impl FunctionCodeGenerator {
                 }
                 state.reset_stack(&frame);
                 state.reachable = true;
+                for i in 0..frame.code_after().argument_count() {
+                    let value: Value = frame.code_after().argument(i)?.into();
+                    state.push1(value.to_ctx_value());
+                }
 
                 return Ok(*frame.code_after());
             }
@@ -995,7 +1005,7 @@ impl FunctionCodeGenerator {
                     frame.br_dest(),
                     &else_block,
                     &param_stack,
-                    &[],
+                    &param_stack,
                     builder.get_insert_location(),
                 ));
                 return Ok(else_block);
@@ -1041,7 +1051,7 @@ impl FunctionCodeGenerator {
                     &case_values,
                     index,
                     builder.i32_ty(),
-                    (default_frame.br_dest(), &[]),
+                    (default_frame.br_dest(), &args),
                     &case_destinations,
                     builder.get_insert_location(),
                 )?);
@@ -2465,8 +2475,14 @@ impl FunctionCodeGenerator {
                     .into();
                 let delta = state.pop1()?;
                 let op = builder.create(
-                    dora_ir::wasm::mem_grow(builder.context(), delta, mem, builder.unknown_loc())
-                        .into(),
+                    dora_ir::wasm::mem_grow(
+                        builder.context(),
+                        builder.i32_ty(),
+                        delta,
+                        mem,
+                        builder.unknown_loc(),
+                    )
+                    .into(),
                 );
                 let size = op.result(0)?.to_ctx_value();
                 backend.state.push1(size);

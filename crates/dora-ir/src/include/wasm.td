@@ -180,7 +180,7 @@ def Wasm_MemSizeOp : WASM_Op<"mem_size"> {
 // Memory Grow Operation
 def Wasm_MemGrowOp : WASM_Op<"mem_grow"> {
     let arguments = (ins I32:$delta, I32:$mem);
-    let results = (outs);
+    let results = (outs I32:$value);
 }
 
 def Wasm_ElemDropOp : WASM_Op<"elem_drop"> {
