@@ -382,3 +382,37 @@ fn address() {
 "#
     );
 }
+
+#[test]
+fn align() {
+    assert_snapshot!(
+        r#"
+(module
+  (memory 0)
+  (func (export "load_i32_8s") (drop (i32.load8_s align=1 (i32.const 0))))
+  (func (export "load_i32_8u") (drop (i32.load8_u align=1 (i32.const 0))))
+  (func (export "load_i32_16s") (drop (i32.load16_s align=2 (i32.const 0))))
+  (func (export "load_i32_16u") (drop (i32.load16_u align=2 (i32.const 0))))
+  (func (export "load_i32") (drop (i32.load align=4 (i32.const 0))))
+  (func (export "load_i64_8s") (drop (i64.load8_s align=1 (i32.const 0))))
+  (func (export "load_i64_8u") (drop (i64.load8_u align=1 (i32.const 0))))
+  (func (export "load_i64_16s") (drop (i64.load16_s align=2 (i32.const 0))))
+  (func (export "load_i64_16u") (drop (i64.load16_u align=2 (i32.const 0))))
+  (func (export "load_i64_32s") (drop (i64.load32_s align=4 (i32.const 0))))
+  (func (export "load_i64_32u") (drop (i64.load32_u align=4 (i32.const 0))))
+  (func (export "load_i64") (drop (i64.load align=8 (i32.const 0))))
+  (func (export "load_f32") (drop (f32.load align=4 (i32.const 0))))
+  (func (export "load_f64") (drop (f64.load align=8 (i32.const 0))))
+  (func (export "store_i32_8") (i32.store8 align=1 (i32.const 0) (i32.const 1)))
+  (func (export "store_i32_16") (i32.store16 align=2 (i32.const 0) (i32.const 1)))
+  (func (export "store_i32") (i32.store align=4 (i32.const 0) (i32.const 1)))
+  (func (export "store_i64_8") (i64.store8 align=1 (i32.const 0) (i64.const 1)))
+  (func (export "store_i64_16") (i64.store16 align=2 (i32.const 0) (i64.const 1)))
+  (func (export "store_i64_32") (i64.store32 align=4 (i32.const 0) (i64.const 1)))
+  (func (export "store_i64") (i64.store align=8 (i32.const 0) (i64.const 1)))
+  (func (export "store_f32") (f32.store align=4 (i32.const 0) (f32.const 1.0)))
+  (func (export "store_f64") (f64.store align=8 (i32.const 0) (f64.const 1.0)))
+)
+"#
+    );
+}
