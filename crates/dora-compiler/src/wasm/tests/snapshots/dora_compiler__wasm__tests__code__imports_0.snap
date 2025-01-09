@@ -1,0 +1,58 @@
+---
+source: crates/dora-compiler/src/wasm/tests/code.rs
+expression: op
+snapshot_kind: text
+---
+module {
+  func.func @f0(%arg0: !llvm.ptr) {
+    cf.br ^bb1
+  ^bb1:  // pred: ^bb0
+    return
+  }
+  func.func @f1(%arg0: !llvm.ptr, %arg1: i32) {
+    %c1_i64 = arith.constant 1 : i64
+    %0 = llvm.alloca %c1_i64 x i32 : (i64) -> !llvm.ptr
+    llvm.store %arg1, %0 : i32, !llvm.ptr
+    cf.br ^bb1
+  ^bb1:  // pred: ^bb0
+    return
+  }
+  func.func @f2(%arg0: !llvm.ptr, %arg1: f32) {
+    %c1_i64 = arith.constant 1 : i64
+    %0 = llvm.alloca %c1_i64 x f32 : (i64) -> !llvm.ptr
+    llvm.store %arg1, %0 : f32, !llvm.ptr
+    cf.br ^bb1
+  ^bb1:  // pred: ^bb0
+    return
+  }
+  func.func @f3(%arg0: !llvm.ptr) -> i32 {
+    %c22_i32 = arith.constant 22 : i32
+    cf.br ^bb1(%c22_i32 : i32)
+  ^bb1(%0: i32):  // pred: ^bb0
+    return %0 : i32
+  }
+  func.func @f4(%arg0: !llvm.ptr) -> f32 {
+    %cst = arith.constant 1.09366477E+9 : f32
+    cf.br ^bb1(%cst : f32)
+  ^bb1(%0: f32):  // pred: ^bb0
+    return %0 : f32
+  }
+  func.func @f5(%arg0: !llvm.ptr, %arg1: i32) -> i32 {
+    %c1_i64 = arith.constant 1 : i64
+    %0 = llvm.alloca %c1_i64 x i32 : (i64) -> !llvm.ptr
+    llvm.store %arg1, %0 : i32, !llvm.ptr
+    %1 = llvm.load %0 : !llvm.ptr -> i32
+    cf.br ^bb1(%1 : i32)
+  ^bb1(%2: i32):  // pred: ^bb0
+    return %2 : i32
+  }
+  func.func @f6(%arg0: !llvm.ptr, %arg1: i64) -> i64 {
+    %c1_i64 = arith.constant 1 : i64
+    %0 = llvm.alloca %c1_i64 x i64 : (i64) -> !llvm.ptr
+    llvm.store %arg1, %0 : i64, !llvm.ptr
+    %1 = llvm.load %0 : !llvm.ptr -> i64
+    cf.br ^bb1(%1 : i64)
+  ^bb1(%2: i64):  // pred: ^bb0
+    return %2 : i64
+  }
+}

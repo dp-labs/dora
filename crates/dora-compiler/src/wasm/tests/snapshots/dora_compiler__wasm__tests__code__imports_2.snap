@@ -1,0 +1,63 @@
+---
+source: crates/dora-compiler/src/wasm/tests/code.rs
+expression: op
+snapshot_kind: text
+---
+module {
+  func.func @f0(%arg0: !llvm.ptr) -> i32 {
+    %0 = llvm.getelementptr %arg0[16] : (!llvm.ptr) -> !llvm.ptr, i8
+    %1 = llvm.load %0 : !llvm.ptr -> !llvm.ptr
+    %2 = llvm.load %1 : !llvm.ptr -> i32
+    cf.br ^bb1(%2 : i32)
+  ^bb1(%3: i32):  // pred: ^bb0
+    return %3 : i32
+  }
+  func.func @f1(%arg0: !llvm.ptr) -> i32 {
+    %0 = llvm.getelementptr %arg0[32] : (!llvm.ptr) -> !llvm.ptr, i8
+    %1 = llvm.load %0 : !llvm.ptr -> !llvm.ptr
+    %2 = llvm.load %1 : !llvm.ptr -> i32
+    cf.br ^bb1(%2 : i32)
+  ^bb1(%3: i32):  // pred: ^bb0
+    return %3 : i32
+  }
+  func.func @f2(%arg0: !llvm.ptr) -> i32 {
+    %0 = llvm.getelementptr %arg0[48] : (!llvm.ptr) -> !llvm.ptr, i8
+    %1 = llvm.load %0 : !llvm.ptr -> !llvm.ptr
+    %2 = llvm.load %1 : !llvm.ptr -> i32
+    cf.br ^bb1(%2 : i32)
+  ^bb1(%3: i32):  // pred: ^bb0
+    return %3 : i32
+  }
+  func.func @f3(%arg0: !llvm.ptr) -> i32 {
+    %0 = llvm.getelementptr %arg0[64] : (!llvm.ptr) -> !llvm.ptr, i8
+    %1 = llvm.load %0 : !llvm.ptr -> !llvm.ptr
+    %2 = llvm.load %1 : !llvm.ptr -> i32
+    cf.br ^bb1(%2 : i32)
+  ^bb1(%3: i32):  // pred: ^bb0
+    return %3 : i32
+  }
+  func.func @f4(%arg0: !llvm.ptr) -> i64 {
+    %0 = llvm.getelementptr %arg0[80] : (!llvm.ptr) -> !llvm.ptr, i8
+    %1 = llvm.load %0 : !llvm.ptr -> !llvm.ptr
+    %2 = llvm.load %1 : !llvm.ptr -> i64
+    cf.br ^bb1(%2 : i64)
+  ^bb1(%3: i64):  // pred: ^bb0
+    return %3 : i64
+  }
+  func.func @f5(%arg0: !llvm.ptr) -> f32 {
+    %0 = llvm.getelementptr %arg0[96] : (!llvm.ptr) -> !llvm.ptr, i8
+    %1 = llvm.load %0 : !llvm.ptr -> !llvm.ptr
+    %2 = llvm.load %1 : !llvm.ptr -> f32
+    cf.br ^bb1(%2 : f32)
+  ^bb1(%3: f32):  // pred: ^bb0
+    return %3 : f32
+  }
+  func.func @f6(%arg0: !llvm.ptr) -> f64 {
+    %0 = llvm.getelementptr %arg0[112] : (!llvm.ptr) -> !llvm.ptr, i8
+    %1 = llvm.load %0 : !llvm.ptr -> !llvm.ptr
+    %2 = llvm.load %1 : !llvm.ptr -> f64
+    cf.br ^bb1(%2 : f64)
+  ^bb1(%3: f64):  // pred: ^bb0
+    return %3 : f64
+  }
+}
