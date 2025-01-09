@@ -225,17 +225,17 @@ def Wasm_TableFillOp : WASM_Op<"table_fill"> {
 
 def Wasm_TableGrowOp : WASM_Op<"table_grow"> {
     let arguments = (ins I32:$elem, I32:$delta, I32:$tableIndex);
-    let results = (outs);
+    let results = (outs I32:$value);
 }
 
 def Wasm_ImportedTableGrowOp : WASM_Op<"imported_table_grow"> {
     let arguments = (ins I32:$elem, I32:$delta, I32:$tableIndex);
-    let results = (outs);
+    let results = (outs I32:$value);
 }
 
 def Wasm_TableSizeOp : WASM_Op<"table_size"> {
     let arguments = (ins I32:$table);
-    let results = (outs);
+    let results = (outs I32:$value);
 }
 
 def Wasm_ImportedTableSizeOp : WASM_Op<"imported_table_size"> {
