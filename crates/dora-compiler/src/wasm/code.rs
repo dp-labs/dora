@@ -803,7 +803,7 @@ impl FunctionCodeGenerator {
                     })
                     .collect::<WasmResult<_>>()?;
                 let end_block = region.append_block(Block::new(&phis));
-                backend.state.push_block(end_block, phis);
+                state.push_block(end_block, phis);
             }
             Operator::Loop { blockty } => {
                 let blocktypes = fcx.module_translation.blocktype_params_results(&blockty)?;
@@ -1645,7 +1645,7 @@ impl FunctionCodeGenerator {
                 } else {
                     Default::default()
                 };
-                backend.state.push1_extra(i, info);
+                state.push1_extra(i, info);
             }
             Operator::I64Const { value } => {
                 let i = builder
@@ -1657,7 +1657,7 @@ impl FunctionCodeGenerator {
                 } else {
                     Default::default()
                 };
-                backend.state.push1_extra(i, info);
+                state.push1_extra(i, info);
             }
             Operator::F32Const { value } => {
                 let bits = value.bits();
@@ -1670,7 +1670,7 @@ impl FunctionCodeGenerator {
                     .create(builder.fconst_32(bits as f32))
                     .result(0)?
                     .to_ctx_value();
-                backend.state.push1_extra(f, info);
+                state.push1_extra(f, info);
             }
             Operator::F64Const { value } => {
                 let bits = value.bits();
@@ -1683,7 +1683,7 @@ impl FunctionCodeGenerator {
                     .create(builder.fconst_64(bits as f64))
                     .result(0)?
                     .to_ctx_value();
-                backend.state.push1_extra(f, info);
+                state.push1_extra(f, info);
             }
             /***************************
              * Reference types.
@@ -1693,20 +1693,31 @@ impl FunctionCodeGenerator {
                 let ty = wpheaptype_to_type(hty)?;
 
                 let attr = type_to_mlir_zero_attribute(builder.context(), &backend.intrinsics, ty);
-                let value = builder
-                    .create(arith::constant(
-                        builder.context(),
-                        attr,
-                        builder.unknown_loc(),
-                    ))
-                    .result(0)?
-                    .to_ctx_value();
-
-                backend.state.push1(value);
+                let value = if matches!(ty, wasmer::Type::FuncRef | wasmer::Type::ExternRef) {
+                    builder
+                        .make(llvm::zero(builder.ptr_ty(), builder.get_insert_location()))?
+                        .to_ctx_value()
+                } else {
+                    builder
+                        .make(arith::constant(
+                            builder.context(),
+                            attr,
+                            builder.unknown_loc(),
+                        ))?
+                        .to_ctx_value()
+                };
+                state.push1(value);
             }
             Operator::RefIsNull => {
+                // Note value is a pointer type
                 let value = state.pop1()?;
-                backend.state.push1(is_zero(&builder, value)?)
+                let result = is_zero(&builder, value)?;
+                let result_i32 = builder.make(arith::extui(
+                    result,
+                    builder.i32_ty(),
+                    builder.get_insert_location(),
+                ))?;
+                state.push1(result_i32.to_ctx_value())
             }
             Operator::RefFunc { function_index } => {
                 let index = builder.make(builder.iconst_32(function_index as i32))?;
@@ -1722,7 +1733,7 @@ impl FunctionCodeGenerator {
                         builder.get_insert_location(),
                     ))?
                     .to_ctx_value();
-                backend.state.push1(value);
+                state.push1(value);
             }
             Operator::I32Eqz => {
                 op!(builder, state, eqz, i32);
@@ -2345,6 +2356,7 @@ impl FunctionCodeGenerator {
                     builder.create(
                         dora_ir::wasm::table_get(
                             builder.context(),
+                            builder.ptr_ty(),
                             table_index,
                             elem,
                             builder.unknown_loc(),
@@ -2355,6 +2367,7 @@ impl FunctionCodeGenerator {
                     builder.create(
                         dora_ir::wasm::imported_table_get(
                             builder.context(),
+                            builder.ptr_ty(),
                             table_index,
                             elem,
                             builder.unknown_loc(),
@@ -2376,7 +2389,7 @@ impl FunctionCodeGenerator {
                     builder.unknown_loc(),
                 ));
                 let value = op.result(0)?.to_ctx_value();
-                backend.state.push1(value);
+                state.push1(value);
             }
             Operator::TableSet { table } => {
                 let table_index = builder
@@ -2449,7 +2462,7 @@ impl FunctionCodeGenerator {
                     )
                 };
                 let size = op.result(0)?.to_ctx_value();
-                backend.state.push1(size);
+                state.push1(size);
             }
             Operator::TableSize { table } => {
                 let op = if let Some(local_table_index) = fcx
@@ -2483,7 +2496,7 @@ impl FunctionCodeGenerator {
                     )
                 };
                 let size = op.result(0)?.to_ctx_value();
-                backend.state.push1(size);
+                state.push1(size);
             }
             Operator::MemorySize { mem } => {
                 let mem = builder
@@ -2500,7 +2513,7 @@ impl FunctionCodeGenerator {
                     .into(),
                 );
                 let size = op.result(0)?.to_ctx_value();
-                backend.state.push1(size);
+                state.push1(size);
             }
             Operator::MemoryGrow { mem } => {
                 let mem = builder
@@ -2519,7 +2532,7 @@ impl FunctionCodeGenerator {
                     .into(),
                 );
                 let size = op.result(0)?.to_ctx_value();
-                backend.state.push1(size);
+                state.push1(size);
             }
             Operator::MemoryAtomicNotify { ref memarg } => {
                 let memory_index = MemoryIndex::from_u32(memarg.memory);
@@ -2537,7 +2550,7 @@ impl FunctionCodeGenerator {
                         builder.get_insert_location(),
                     ))?
                     .to_ctx_value();
-                backend.state.push1(value);
+                state.push1(value);
             }
             Operator::MemoryAtomicWait32 { ref memarg } => {
                 let memory_index = MemoryIndex::from_u32(memarg.memory);
@@ -2555,7 +2568,7 @@ impl FunctionCodeGenerator {
                         builder.get_insert_location(),
                     ))?
                     .to_ctx_value();
-                backend.state.push1(value);
+                state.push1(value);
             }
             Operator::MemoryAtomicWait64 { ref memarg } => {
                 let memory_index = MemoryIndex::from_u32(memarg.memory);
@@ -2573,7 +2586,7 @@ impl FunctionCodeGenerator {
                         builder.get_insert_location(),
                     ))?
                     .to_ctx_value();
-                backend.state.push1(value);
+                state.push1(value);
             }
             Operator::AtomicFence => {
                 // Fence is a nop.

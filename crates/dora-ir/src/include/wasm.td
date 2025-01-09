@@ -200,12 +200,12 @@ def Wasm_TableInitOp : WASM_Op<"table_init"> {
 
 def Wasm_TableGetOp : WASM_Op<"table_get"> {
     let arguments = (ins I32:$table, I32:$elem);
-    let results = (outs);
+    let results = (outs I32:$value);
 }
 
 def Wasm_ImportedTableGetOp : WASM_Op<"imported_table_get"> {
     let arguments = (ins I32:$table, I32:$elem);
-    let results = (outs);
+    let results = (outs I32:$value);
 }
 
 def Wasm_TableSetOp : WASM_Op<"table_set"> {

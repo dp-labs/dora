@@ -1,0 +1,19 @@
+---
+source: crates/dora-compiler/src/wasm/tests/code.rs
+expression: op
+snapshot_kind: text
+---
+module {
+  func.func @f0(%arg0: !llvm.ptr) -> !llvm.ptr {
+    %0 = llvm.mlir.zero : !llvm.ptr
+    cf.br ^bb1(%0 : !llvm.ptr)
+  ^bb1(%1: !llvm.ptr):  // pred: ^bb0
+    return %1 : !llvm.ptr
+  }
+  func.func @f1(%arg0: !llvm.ptr) -> !llvm.ptr {
+    %0 = llvm.mlir.zero : !llvm.ptr
+    cf.br ^bb1(%0 : !llvm.ptr)
+  ^bb1(%1: !llvm.ptr):  // pred: ^bb0
+    return %1 : !llvm.ptr
+  }
+}

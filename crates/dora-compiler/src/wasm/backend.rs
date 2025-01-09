@@ -4,6 +4,7 @@ use melior::ir::{
     r#type::IntegerType, BlockRef, OperationRef, Region, Type, TypeLike, Value, ValueLike,
 };
 
+use crate::backend::IntCC;
 use crate::errors::Result;
 use crate::value::ToContextValue;
 use crate::{backend::TypeMethods, context::Context, conversion::builder::OpBuilder, state::State};
@@ -138,7 +139,7 @@ pub fn is_zero<'c, 'a>(builder: &OpBuilder<'c, 'a>, value: Value<'c, 'a>) -> Res
             ))
             .result(0)?
             .to_ctx_value())
-    } else {
+    } else if ty.is_float() {
         Ok(builder
             .create(arith::cmpf(
                 builder.context(),
@@ -153,5 +154,10 @@ pub fn is_zero<'c, 'a>(builder: &OpBuilder<'c, 'a>, value: Value<'c, 'a>) -> Res
             ))
             .result(0)?
             .to_ctx_value())
+    } else {
+        // WASM pointer type
+        let value = builder.make(builder.load(value, builder.i32_ty()))?;
+        let result = builder.make(builder.icmp_imm(IntCC::Equal, value, 0)?)?;
+        Ok(unsafe { Value::from_raw(result.to_raw()) })
     }
 }
