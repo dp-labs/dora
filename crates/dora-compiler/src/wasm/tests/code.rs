@@ -3619,7 +3619,8 @@ fn func_ptr() {
 
 #[test]
 fn global() {
-    assert_snapshot!(r#"
+    assert_snapshot!(
+        r#"
 (module
   (global (import "spectest" "global_i32") i32)
   (global (import "spectest" "global_i64") i64)
@@ -3812,5 +3813,6 @@ fn global() {
     )
   )
 )
-"#);
+"#
+    );
 }
