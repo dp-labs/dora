@@ -116,6 +116,212 @@ fn i64_arith() {
 }
 
 #[test]
+fn int_exprs() {
+    assert_snapshot!(
+        r#"
+(module
+  (func (export "i32.no_fold_cmp_s_offset") (param $x i32) (param $y i32) (result i32)
+    (i32.lt_s (i32.add (local.get $x) (i32.const 1)) (i32.add (local.get $y) (i32.const 1))))
+  (func (export "i32.no_fold_cmp_u_offset") (param $x i32) (param $y i32) (result i32)
+    (i32.lt_u (i32.add (local.get $x) (i32.const 1)) (i32.add (local.get $y) (i32.const 1))))
+
+  (func (export "i64.no_fold_cmp_s_offset") (param $x i64) (param $y i64) (result i32)
+    (i64.lt_s (i64.add (local.get $x) (i64.const 1)) (i64.add (local.get $y) (i64.const 1))))
+  (func (export "i64.no_fold_cmp_u_offset") (param $x i64) (param $y i64) (result i32)
+    (i64.lt_u (i64.add (local.get $x) (i64.const 1)) (i64.add (local.get $y) (i64.const 1))))
+
+  (func (export "i64.no_fold_wrap_extend_s") (param $x i64) (result i64)
+    (i64.extend_i32_s (i32.wrap_i64 (local.get $x))))
+
+  (func (export "i64.no_fold_wrap_extend_u") (param $x i64) (result i64)
+    (i64.extend_i32_u (i32.wrap_i64 (local.get $x))))
+
+  (func (export "i32.no_fold_shl_shr_s") (param $x i32) (result i32)
+    (i32.shr_s (i32.shl (local.get $x) (i32.const 1)) (i32.const 1)))
+  (func (export "i32.no_fold_shl_shr_u") (param $x i32) (result i32)
+    (i32.shr_u (i32.shl (local.get $x) (i32.const 1)) (i32.const 1)))
+
+  (func (export "i64.no_fold_shl_shr_s") (param $x i64) (result i64)
+    (i64.shr_s (i64.shl (local.get $x) (i64.const 1)) (i64.const 1)))
+  (func (export "i64.no_fold_shl_shr_u") (param $x i64) (result i64)
+    (i64.shr_u (i64.shl (local.get $x) (i64.const 1)) (i64.const 1)))
+
+  (func (export "i32.no_fold_div_s_mul") (param $x i32) (result i32)
+    (i32.mul (i32.div_s (local.get $x) (i32.const 6)) (i32.const 6)))
+  (func (export "i32.no_fold_div_u_mul") (param $x i32) (result i32)
+    (i32.mul (i32.div_u (local.get $x) (i32.const 6)) (i32.const 6)))
+
+  (func (export "i64.no_fold_div_s_mul") (param $x i64) (result i64)
+    (i64.mul (i64.div_s (local.get $x) (i64.const 6)) (i64.const 6)))
+  (func (export "i64.no_fold_div_u_mul") (param $x i64) (result i64)
+    (i64.mul (i64.div_u (local.get $x) (i64.const 6)) (i64.const 6)))
+
+  (func (export "i32.no_fold_div_s_self") (param $x i32) (result i32)
+    (i32.div_s (local.get $x) (local.get $x)))
+  (func (export "i32.no_fold_div_u_self") (param $x i32) (result i32)
+    (i32.div_u (local.get $x) (local.get $x)))
+
+  (func (export "i64.no_fold_div_s_self") (param $x i64) (result i64)
+    (i64.div_s (local.get $x) (local.get $x)))
+  (func (export "i64.no_fold_div_u_self") (param $x i64) (result i64)
+    (i64.div_u (local.get $x) (local.get $x)))
+
+  (func (export "i32.no_fold_rem_s_self") (param $x i32) (result i32)
+    (i32.rem_s (local.get $x) (local.get $x)))
+  (func (export "i32.no_fold_rem_u_self") (param $x i32) (result i32)
+    (i32.rem_u (local.get $x) (local.get $x)))
+
+  (func (export "i64.no_fold_rem_s_self") (param $x i64) (result i64)
+    (i64.rem_s (local.get $x) (local.get $x)))
+  (func (export "i64.no_fold_rem_u_self") (param $x i64) (result i64)
+    (i64.rem_u (local.get $x) (local.get $x)))
+
+  (func (export "i32.no_fold_mul_div_s") (param $x i32) (result i32)
+    (i32.div_s (i32.mul (local.get $x) (i32.const 6)) (i32.const 6)))
+  (func (export "i32.no_fold_mul_div_u") (param $x i32) (result i32)
+    (i32.div_u (i32.mul (local.get $x) (i32.const 6)) (i32.const 6)))
+
+  (func (export "i64.no_fold_mul_div_s") (param $x i64) (result i64)
+    (i64.div_s (i64.mul (local.get $x) (i64.const 6)) (i64.const 6)))
+  (func (export "i64.no_fold_mul_div_u") (param $x i64) (result i64)
+    (i64.div_u (i64.mul (local.get $x) (i64.const 6)) (i64.const 6)))
+
+  (func (export "i32.no_fold_div_s_2") (param $x i32) (result i32)
+    (i32.div_s (local.get $x) (i32.const 2)))
+
+  (func (export "i64.no_fold_div_s_2") (param $x i64) (result i64)
+    (i64.div_s (local.get $x) (i64.const 2)))
+
+  (func (export "i32.no_fold_rem_s_2") (param $x i32) (result i32)
+    (i32.rem_s (local.get $x) (i32.const 2)))
+
+  (func (export "i64.no_fold_rem_s_2") (param $x i64) (result i64)
+    (i64.rem_s (local.get $x) (i64.const 2)))
+
+  (func (export "i32.div_s_0") (param $x i32) (result i32)
+    (i32.div_s (local.get $x) (i32.const 0)))
+  (func (export "i32.div_u_0") (param $x i32) (result i32)
+    (i32.div_u (local.get $x) (i32.const 0)))
+
+  (func (export "i64.div_s_0") (param $x i64) (result i64)
+    (i64.div_s (local.get $x) (i64.const 0)))
+  (func (export "i64.div_u_0") (param $x i64) (result i64)
+    (i64.div_u (local.get $x) (i64.const 0)))
+
+  (func (export "i32.div_s_3") (param $x i32) (result i32)
+    (i32.div_s (local.get $x) (i32.const 3)))
+  (func (export "i32.div_u_3") (param $x i32) (result i32)
+    (i32.div_u (local.get $x) (i32.const 3)))
+
+  (func (export "i64.div_s_3") (param $x i64) (result i64)
+    (i64.div_s (local.get $x) (i64.const 3)))
+  (func (export "i64.div_u_3") (param $x i64) (result i64)
+    (i64.div_u (local.get $x) (i64.const 3)))
+
+  (func (export "i32.div_s_5") (param $x i32) (result i32)
+    (i32.div_s (local.get $x) (i32.const 5)))
+  (func (export "i32.div_u_5") (param $x i32) (result i32)
+    (i32.div_u (local.get $x) (i32.const 5)))
+
+  (func (export "i64.div_s_5") (param $x i64) (result i64)
+    (i64.div_s (local.get $x) (i64.const 5)))
+  (func (export "i64.div_u_5") (param $x i64) (result i64)
+    (i64.div_u (local.get $x) (i64.const 5)))
+
+  (func (export "i32.div_s_7") (param $x i32) (result i32)
+    (i32.div_s (local.get $x) (i32.const 7)))
+  (func (export "i32.div_u_7") (param $x i32) (result i32)
+    (i32.div_u (local.get $x) (i32.const 7)))
+
+  (func (export "i64.div_s_7") (param $x i64) (result i64)
+    (i64.div_s (local.get $x) (i64.const 7)))
+  (func (export "i64.div_u_7") (param $x i64) (result i64)
+    (i64.div_u (local.get $x) (i64.const 7)))
+
+  (func (export "i32.rem_s_3") (param $x i32) (result i32)
+    (i32.rem_s (local.get $x) (i32.const 3)))
+  (func (export "i32.rem_u_3") (param $x i32) (result i32)
+    (i32.rem_u (local.get $x) (i32.const 3)))
+
+  (func (export "i64.rem_s_3") (param $x i64) (result i64)
+    (i64.rem_s (local.get $x) (i64.const 3)))
+  (func (export "i64.rem_u_3") (param $x i64) (result i64)
+    (i64.rem_u (local.get $x) (i64.const 3)))
+
+  (func (export "i32.rem_s_5") (param $x i32) (result i32)
+    (i32.rem_s (local.get $x) (i32.const 5)))
+  (func (export "i32.rem_u_5") (param $x i32) (result i32)
+    (i32.rem_u (local.get $x) (i32.const 5)))
+
+  (func (export "i64.rem_s_5") (param $x i64) (result i64)
+    (i64.rem_s (local.get $x) (i64.const 5)))
+  (func (export "i64.rem_u_5") (param $x i64) (result i64)
+    (i64.rem_u (local.get $x) (i64.const 5)))
+
+  (func (export "i32.rem_s_7") (param $x i32) (result i32)
+    (i32.rem_s (local.get $x) (i32.const 7)))
+  (func (export "i32.rem_u_7") (param $x i32) (result i32)
+    (i32.rem_u (local.get $x) (i32.const 7)))
+
+  (func (export "i64.rem_s_7") (param $x i64) (result i64)
+    (i64.rem_s (local.get $x) (i64.const 7)))
+  (func (export "i64.rem_u_7") (param $x i64) (result i64)
+    (i64.rem_u (local.get $x) (i64.const 7)))
+
+  (func (export "i32.no_fold_div_neg1") (param $x i32) (result i32)
+    (i32.div_s (local.get $x) (i32.const -1)))
+
+  (func (export "i64.no_fold_div_neg1") (param $x i64) (result i64)
+    (i64.div_s (local.get $x) (i64.const -1)))
+)
+"#
+    );
+}
+
+#[test]
+fn int_literals() {
+    assert_snapshot!(
+        r#"
+(module
+  (func (export "i32.test") (result i32) (return (i32.const 0x0bAdD00D)))
+  (func (export "i32.umax") (result i32) (return (i32.const 0xffffffff)))
+  (func (export "i32.smax") (result i32) (return (i32.const 0x7fffffff)))
+  (func (export "i32.neg_smax") (result i32) (return (i32.const -0x7fffffff)))
+  (func (export "i32.smin") (result i32) (return (i32.const -0x80000000)))
+  (func (export "i32.alt_smin") (result i32) (return (i32.const 0x80000000)))
+  (func (export "i32.inc_smin") (result i32) (return (i32.add (i32.const -0x80000000) (i32.const 1))))
+  (func (export "i32.neg_zero") (result i32) (return (i32.const -0x0)))
+  (func (export "i32.not_octal") (result i32) (return (i32.const 010)))
+  (func (export "i32.unsigned_decimal") (result i32) (return (i32.const 4294967295)))
+  (func (export "i32.plus_sign") (result i32) (return (i32.const +42)))
+
+  (func (export "i64.test") (result i64) (return (i64.const 0x0CABBA6E0ba66a6e)))
+  (func (export "i64.umax") (result i64) (return (i64.const 0xffffffffffffffff)))
+  (func (export "i64.smax") (result i64) (return (i64.const 0x7fffffffffffffff)))
+  (func (export "i64.neg_smax") (result i64) (return (i64.const -0x7fffffffffffffff)))
+  (func (export "i64.smin") (result i64) (return (i64.const -0x8000000000000000)))
+  (func (export "i64.alt_smin") (result i64) (return (i64.const 0x8000000000000000)))
+  (func (export "i64.inc_smin") (result i64) (return (i64.add (i64.const -0x8000000000000000) (i64.const 1))))
+  (func (export "i64.neg_zero") (result i64) (return (i64.const -0x0)))
+  (func (export "i64.not_octal") (result i64) (return (i64.const 010)))
+  (func (export "i64.unsigned_decimal") (result i64) (return (i64.const 18446744073709551615)))
+  (func (export "i64.plus_sign") (result i64) (return (i64.const +42)))
+
+  (func (export "i32-dec-sep1") (result i32) (i32.const 1_000_000))
+  (func (export "i32-dec-sep2") (result i32) (i32.const 1_0_0_0))
+  (func (export "i32-hex-sep1") (result i32) (i32.const 0xa_0f_00_99))
+  (func (export "i32-hex-sep2") (result i32) (i32.const 0x1_a_A_0_f))
+
+  (func (export "i64-dec-sep1") (result i64) (i64.const 1_000_000))
+  (func (export "i64-dec-sep2") (result i64) (i64.const 1_0_0_0))
+  (func (export "i64-hex-sep1") (result i64) (i64.const 0xa_f00f_0000_9999))
+  (func (export "i64-hex-sep2") (result i64) (i64.const 0x1_a_A_0_f))
+)
+"#
+    );
+}
+
+#[test]
 fn f32_arith() {
     assert_snapshot!(
         r#"
