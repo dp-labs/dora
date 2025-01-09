@@ -834,8 +834,13 @@ impl FunctionCodeGenerator {
                     .collect::<WasmResult<_>>()?;
                 let loop_body = region.append_block(Block::new(&loop_phis));
                 let values = state.peekn(loop_phis.len())?;
+                state.popn(loop_phis.len());
                 builder.create(cf::br(&loop_body, &values, builder.unknown_loc()));
                 state.push_loop(loop_body, loop_next, loop_phis, phis);
+                for i in 0..loop_body.argument_count() {
+                    let value: Value = loop_body.argument(i)?.into();
+                    state.push1(value.to_ctx_value());
+                }
                 return Ok(loop_body);
             }
             Operator::If { blockty } => {
@@ -881,6 +886,7 @@ impl FunctionCodeGenerator {
                 let cond = state.pop1()?;
                 let cond = builder.make(builder.icmp_imm(IntCC::NotEqual, cond, 0)?)?;
                 let values = state.peekn(then_phis.len())?;
+                state.popn(then_phis.len())?;
                 builder.create(cf::cond_br(
                     builder.context(),
                     cond,
@@ -890,6 +896,10 @@ impl FunctionCodeGenerator {
                     &values,
                     builder.unknown_loc(),
                 ));
+                for i in 0..if_then_block.argument_count() {
+                    let value: Value = if_then_block.argument(i)?.into();
+                    state.push1(value.to_ctx_value());
+                }
                 state.push_if(
                     if_then_block,
                     if_else_block,
@@ -904,6 +914,7 @@ impl FunctionCodeGenerator {
                 if state.reachable {
                     let frame = state.frame_at_depth(0)?;
                     let values = state.peekn(frame.phis().len())?;
+                    state.popn(frame.phis().len())?;
                     let frame = state.frame_at_depth(0)?;
                     builder.create(cf::br(
                         frame.code_after(),
@@ -927,11 +938,17 @@ impl FunctionCodeGenerator {
                 }
                 state.reachable = true;
 
-                if let ControlFrame::IfElse { if_else, .. } = state.frame_at_depth(0)? {
-                    return Ok(*if_else);
-                } else {
-                    unreachable!()
+                let if_else_block =
+                    if let ControlFrame::IfElse { if_else, .. } = state.frame_at_depth(0)? {
+                        *if_else
+                    } else {
+                        unreachable!()
+                    };
+                for i in 0..if_else_block.argument_count() {
+                    let value: Value = if_else_block.argument(i)?.into();
+                    state.push1(value.to_ctx_value());
                 }
+                return Ok(if_else_block);
             }
             Operator::End => {
                 let frame = state.pop_frame()?;
@@ -946,6 +963,7 @@ impl FunctionCodeGenerator {
                     ));
                 }
 
+                // No else branch
                 if let ControlFrame::IfElse {
                     if_else,
                     next,
@@ -954,7 +972,16 @@ impl FunctionCodeGenerator {
                     ..
                 } = &frame
                 {
-                    (*if_else).append_operation(cf::br(next, &[], builder.get_insert_location()));
+                    let mut values = vec![];
+                    for i in 0..if_else.argument_count() {
+                        let value: Value = if_else.argument(i)?.into();
+                        values.push(value.to_ctx_value());
+                    }
+                    (*if_else).append_operation(cf::br(
+                        next,
+                        &values,
+                        builder.get_insert_location(),
+                    ));
                 }
                 state.reset_stack(&frame);
                 state.reachable = true;
