@@ -600,14 +600,13 @@ module {
     %c0_i32 = arith.constant 0 : i32
     %1 = arith.cmpi ne, %c1_i32, %c0_i32 : i32
     cf.cond_br %1, ^bb3, ^bb4
-  ^bb3:  // 2 preds: ^bb2, ^bb4
+  ^bb3:  // pred: ^bb2
     %c0_i32_0 = arith.constant 0 : i32
     cf.switch %c0_i32_0 : i32, [
       default: ^bb5
     ]
   ^bb4:  // pred: ^bb2
     "wasm.unreachable"() : () -> ()
-    cf.br ^bb3
   ^bb5:  // pred: ^bb3
     %c1_i32_1 = arith.constant 1 : i32
     %c0_i64 = arith.constant 0 : i64
