@@ -1,0 +1,71 @@
+---
+source: crates/dora-compiler/src/wasm/tests/code.rs
+expression: op
+snapshot_kind: text
+---
+module {
+  func.func @f0(%arg0: !llvm.ptr, %arg1: i32) -> !llvm.ptr {
+    %c1_i64 = arith.constant 1 : i64
+    %0 = llvm.alloca %c1_i64 x i32 : (i64) -> !llvm.ptr
+    llvm.store %arg1, %0 : i32, !llvm.ptr
+    %1 = llvm.load %0 : !llvm.ptr -> i32
+    %c0_i32 = arith.constant 0 : i32
+    %2 = "wasm.table_get"(%c0_i32, %1) : (i32, i32) -> !llvm.ptr
+    %3 = llvm.bitcast %2 : !llvm.ptr to !llvm.ptr
+    cf.br ^bb1(%3 : !llvm.ptr)
+  ^bb1(%4: !llvm.ptr):  // pred: ^bb0
+    return %4 : !llvm.ptr
+  }
+  func.func @f1(%arg0: !llvm.ptr, %arg1: i32, %arg2: !llvm.ptr) {
+    %c1_i64 = arith.constant 1 : i64
+    %0 = llvm.alloca %c1_i64 x i32 : (i64) -> !llvm.ptr
+    llvm.store %arg1, %0 : i32, !llvm.ptr
+    %c1_i64_0 = arith.constant 1 : i64
+    %1 = llvm.alloca %c1_i64_0 x !llvm.ptr : (i64) -> !llvm.ptr
+    llvm.store %arg2, %1 : !llvm.ptr, !llvm.ptr
+    %2 = llvm.load %0 : !llvm.ptr -> i32
+    %3 = llvm.load %1 : !llvm.ptr -> !llvm.ptr
+    %c0_i32 = arith.constant 0 : i32
+    "wasm.table_set"(%c0_i32, %2, %3) : (i32, i32, !llvm.ptr) -> ()
+    cf.br ^bb1
+  ^bb1:  // pred: ^bb0
+    return
+  }
+  func.func @f2(%arg0: !llvm.ptr, %arg1: i32, %arg2: !llvm.ptr) -> i32 {
+    %c1_i64 = arith.constant 1 : i64
+    %0 = llvm.alloca %c1_i64 x i32 : (i64) -> !llvm.ptr
+    llvm.store %arg1, %0 : i32, !llvm.ptr
+    %c1_i64_0 = arith.constant 1 : i64
+    %1 = llvm.alloca %c1_i64_0 x !llvm.ptr : (i64) -> !llvm.ptr
+    llvm.store %arg2, %1 : !llvm.ptr, !llvm.ptr
+    %2 = llvm.load %1 : !llvm.ptr -> !llvm.ptr
+    %3 = llvm.load %0 : !llvm.ptr -> i32
+    %c0_i32 = arith.constant 0 : i32
+    %4 = "wasm.table_grow"(%2, %3, %c0_i32) : (!llvm.ptr, i32, i32) -> i32
+    cf.br ^bb1(%4 : i32)
+  ^bb1(%5: i32):  // pred: ^bb0
+    return %5 : i32
+  }
+  func.func @f3(%arg0: !llvm.ptr, %arg1: i32, %arg2: !llvm.ptr) -> i32 {
+    %c1_i64 = arith.constant 1 : i64
+    %0 = llvm.alloca %c1_i64 x i32 : (i64) -> !llvm.ptr
+    llvm.store %arg1, %0 : i32, !llvm.ptr
+    %c1_i64_0 = arith.constant 1 : i64
+    %1 = llvm.alloca %c1_i64_0 x !llvm.ptr : (i64) -> !llvm.ptr
+    llvm.store %arg2, %1 : !llvm.ptr, !llvm.ptr
+    %2 = llvm.load %1 : !llvm.ptr -> !llvm.ptr
+    %3 = llvm.load %0 : !llvm.ptr -> i32
+    %c0_i32 = arith.constant 0 : i32
+    %4 = "wasm.table_grow"(%2, %3, %c0_i32) : (!llvm.ptr, i32, i32) -> i32
+    cf.br ^bb1(%4 : i32)
+  ^bb1(%5: i32):  // pred: ^bb0
+    return %5 : i32
+  }
+  func.func @f4(%arg0: !llvm.ptr) -> i32 {
+    %c0_i32 = arith.constant 0 : i32
+    %0 = "wasm.table_size"(%c0_i32) : (i32) -> i32
+    cf.br ^bb1(%0 : i32)
+  ^bb1(%1: i32):  // pred: ^bb0
+    return %1 : i32
+  }
+}

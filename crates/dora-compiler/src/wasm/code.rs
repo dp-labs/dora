@@ -2438,6 +2438,7 @@ impl FunctionCodeGenerator {
                     builder.create(
                         dora_ir::wasm::table_grow(
                             builder.context(),
+                            builder.i32_ty(),
                             elem,
                             delta,
                             table_index,
@@ -2453,6 +2454,7 @@ impl FunctionCodeGenerator {
                     builder.create(
                         dora_ir::wasm::imported_table_grow(
                             builder.context(),
+                            builder.i32_ty(),
                             elem,
                             delta,
                             table_index,
@@ -2476,6 +2478,7 @@ impl FunctionCodeGenerator {
                     builder.create(
                         dora_ir::wasm::table_size(
                             builder.context(),
+                            builder.i32_ty(),
                             table_index,
                             builder.unknown_loc(),
                         )

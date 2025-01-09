@@ -1,0 +1,69 @@
+---
+source: crates/dora-compiler/src/wasm/tests/code.rs
+expression: op
+snapshot_kind: text
+---
+module {
+  func.func @dummy(%arg0: !llvm.ptr) {
+    cf.br ^bb1
+  ^bb1:  // pred: ^bb0
+    return
+  }
+  func.func @f1(%arg0: !llvm.ptr, %arg1: !llvm.ptr) {
+    %c1_i64 = arith.constant 1 : i64
+    %0 = llvm.alloca %c1_i64 x !llvm.ptr : (i64) -> !llvm.ptr
+    llvm.store %arg1, %0 : !llvm.ptr, !llvm.ptr
+    %c1_i32 = arith.constant 1 : i32
+    %1 = llvm.load %0 : !llvm.ptr -> !llvm.ptr
+    %c0_i32 = arith.constant 0 : i32
+    "wasm.table_set"(%c0_i32, %c1_i32, %1) : (i32, i32, !llvm.ptr) -> ()
+    %c2_i32 = arith.constant 2 : i32
+    %c1_i32_0 = arith.constant 1 : i32
+    %c1_i32_1 = arith.constant 1 : i32
+    %2 = "wasm.table_get"(%c1_i32_1, %c1_i32_0) : (i32, i32) -> !llvm.ptr
+    %3 = llvm.bitcast %2 : !llvm.ptr to !llvm.ptr
+    %c1_i32_2 = arith.constant 1 : i32
+    "wasm.table_set"(%c1_i32_2, %c2_i32, %3) : (i32, i32, !llvm.ptr) -> ()
+    cf.br ^bb1
+  ^bb1:  // pred: ^bb0
+    return
+  }
+  func.func @f2(%arg0: !llvm.ptr, %arg1: i32) -> !llvm.ptr {
+    %c1_i64 = arith.constant 1 : i64
+    %0 = llvm.alloca %c1_i64 x i32 : (i64) -> !llvm.ptr
+    llvm.store %arg1, %0 : i32, !llvm.ptr
+    %1 = llvm.load %0 : !llvm.ptr -> i32
+    %c0_i32 = arith.constant 0 : i32
+    %2 = "wasm.table_get"(%c0_i32, %1) : (i32, i32) -> !llvm.ptr
+    %3 = llvm.bitcast %2 : !llvm.ptr to !llvm.ptr
+    cf.br ^bb1(%3 : !llvm.ptr)
+  ^bb1(%4: !llvm.ptr):  // pred: ^bb0
+    return %4 : !llvm.ptr
+  }
+  func.func @f3(%arg0: !llvm.ptr, %arg1: i32) -> !llvm.ptr {
+    %c1_i64 = arith.constant 1 : i64
+    %0 = llvm.alloca %c1_i64 x i32 : (i64) -> !llvm.ptr
+    llvm.store %arg1, %0 : i32, !llvm.ptr
+    %1 = llvm.load %0 : !llvm.ptr -> i32
+    %c1_i32 = arith.constant 1 : i32
+    %2 = "wasm.table_get"(%c1_i32, %1) : (i32, i32) -> !llvm.ptr
+    %3 = llvm.bitcast %2 : !llvm.ptr to !llvm.ptr
+    cf.br ^bb1(%3 : !llvm.ptr)
+  ^bb1(%4: !llvm.ptr):  // pred: ^bb0
+    return %4 : !llvm.ptr
+  }
+  func.func @f4(%arg0: !llvm.ptr, %arg1: i32) -> i32 {
+    %c1_i64 = arith.constant 1 : i64
+    %0 = llvm.alloca %c1_i64 x i32 : (i64) -> !llvm.ptr
+    llvm.store %arg1, %0 : i32, !llvm.ptr
+    %1 = llvm.load %0 : !llvm.ptr -> i32
+    %2 = call @f3(%arg0, %1) : (!llvm.ptr, i32) -> !llvm.ptr
+    %3 = llvm.load %2 : !llvm.ptr -> i32
+    %c0_i32 = arith.constant 0 : i32
+    %4 = arith.cmpi eq, %3, %c0_i32 : i32
+    %5 = arith.extui %4 : i1 to i32
+    cf.br ^bb1(%5 : i32)
+  ^bb1(%6: i32):  // pred: ^bb0
+    return %6 : i32
+  }
+}
