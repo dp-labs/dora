@@ -174,7 +174,7 @@ def Wasm_ImportedMemFillOp : WASM_Op<"imported_mem_fill"> {
 // Memory Size Operation
 def Wasm_MemSizeOp : WASM_Op<"mem_size"> {
     let arguments = (ins I32:$mem);
-    let results = (outs);
+    let results = (outs I32:$value);
 }
 
 // Memory Grow Operation

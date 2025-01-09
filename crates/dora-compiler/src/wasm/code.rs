@@ -2491,7 +2491,13 @@ impl FunctionCodeGenerator {
                     .result(0)?
                     .into();
                 let op = builder.create(
-                    dora_ir::wasm::mem_size(builder.context(), mem, builder.unknown_loc()).into(),
+                    dora_ir::wasm::mem_size(
+                        builder.context(),
+                        builder.i32_ty(),
+                        mem,
+                        builder.unknown_loc(),
+                    )
+                    .into(),
                 );
                 let size = op.result(0)?.to_ctx_value();
                 backend.state.push1(size);

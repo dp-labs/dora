@@ -6048,3 +6048,323 @@ fn r#loop() {
 "#
     );
 }
+
+#[test]
+fn memory() {
+    assert_snapshot!(
+        r#"
+(module
+  (memory 1)
+  (data (i32.const 0) "ABC\a7D") (data (i32.const 20) "WASM")
+
+  ;; Data section
+  (func (export "data") (result i32)
+    (i32.and
+      (i32.and
+        (i32.and
+          (i32.eq (i32.load8_u (i32.const 0)) (i32.const 65))
+          (i32.eq (i32.load8_u (i32.const 3)) (i32.const 167))
+        )
+        (i32.and
+          (i32.eq (i32.load8_u (i32.const 6)) (i32.const 0))
+          (i32.eq (i32.load8_u (i32.const 19)) (i32.const 0))
+        )
+      )
+      (i32.and
+        (i32.and
+          (i32.eq (i32.load8_u (i32.const 20)) (i32.const 87))
+          (i32.eq (i32.load8_u (i32.const 23)) (i32.const 77))
+        )
+        (i32.and
+          (i32.eq (i32.load8_u (i32.const 24)) (i32.const 0))
+          (i32.eq (i32.load8_u (i32.const 1023)) (i32.const 0))
+        )
+      )
+    )
+  )
+
+  ;; Memory cast
+  (func (export "cast") (result f64)
+    (i64.store (i32.const 8) (i64.const -12345))
+    (if
+      (f64.eq
+        (f64.load (i32.const 8))
+        (f64.reinterpret_i64 (i64.const -12345))
+      )
+      (then (return (f64.const 0)))
+    )
+    (i64.store align=1 (i32.const 9) (i64.const 0))
+    (i32.store16 align=1 (i32.const 15) (i32.const 16453))
+    (f64.load align=1 (i32.const 9))
+  )
+
+  ;; Sign and zero extending memory loads
+  (func (export "i32_load8_s") (param $i i32) (result i32)
+    (i32.store8 (i32.const 8) (local.get $i))
+    (i32.load8_s (i32.const 8))
+  )
+  (func (export "i32_load8_u") (param $i i32) (result i32)
+    (i32.store8 (i32.const 8) (local.get $i))
+    (i32.load8_u (i32.const 8))
+  )
+  (func (export "i32_load16_s") (param $i i32) (result i32)
+    (i32.store16 (i32.const 8) (local.get $i))
+    (i32.load16_s (i32.const 8))
+  )
+  (func (export "i32_load16_u") (param $i i32) (result i32)
+    (i32.store16 (i32.const 8) (local.get $i))
+    (i32.load16_u (i32.const 8))
+  )
+  (func (export "i64_load8_s") (param $i i64) (result i64)
+    (i64.store8 (i32.const 8) (local.get $i))
+    (i64.load8_s (i32.const 8))
+  )
+  (func (export "i64_load8_u") (param $i i64) (result i64)
+    (i64.store8 (i32.const 8) (local.get $i))
+    (i64.load8_u (i32.const 8))
+  )
+  (func (export "i64_load16_s") (param $i i64) (result i64)
+    (i64.store16 (i32.const 8) (local.get $i))
+    (i64.load16_s (i32.const 8))
+  )
+  (func (export "i64_load16_u") (param $i i64) (result i64)
+    (i64.store16 (i32.const 8) (local.get $i))
+    (i64.load16_u (i32.const 8))
+  )
+  (func (export "i64_load32_s") (param $i i64) (result i64)
+    (i64.store32 (i32.const 8) (local.get $i))
+    (i64.load32_s (i32.const 8))
+  )
+  (func (export "i64_load32_u") (param $i i64) (result i64)
+    (i64.store32 (i32.const 8) (local.get $i))
+    (i64.load32_u (i32.const 8))
+  )
+)
+"#
+    );
+}
+
+#[test]
+fn memory_copy() {
+    assert_snapshot!(
+        r#"
+(module
+  (memory (export "memory0") 1 1)
+  (data (i32.const 2) "\03\01\04\01")
+  (data (i32.const 12) "\07\05\02\03\06")
+  (func (export "test")
+    (memory.copy (i32.const 20) (i32.const 22) (i32.const 4)))
+  (func (export "load8_u") (param i32) (result i32)
+    (i32.load8_u (local.get 0)))
+)
+"#
+    );
+}
+
+#[test]
+fn memory_fill() {
+    assert_snapshot!(
+        r#"
+(module
+  (memory 1 1)
+  
+  (func (export "checkRange") (param $from i32) (param $to i32) (param $expected i32) (result i32)
+    (loop $cont
+      (if (i32.eq (local.get $from) (local.get $to))
+        (then
+          (return (i32.const -1))))
+      (if (i32.eq (i32.load8_u (local.get $from)) (local.get $expected))
+        (then
+          (local.set $from (i32.add (local.get $from) (i32.const 1)))
+          (br $cont))))
+    (return (local.get $from)))
+
+  (func (export "test")
+    (memory.fill (i32.const 0xFF00) (i32.const 0x55) (i32.const 256)))
+)
+"#
+    );
+}
+
+#[test]
+fn memory_grow() {
+    assert_snapshot!(
+        r#"
+(module
+  (memory 0)
+
+  (func (export "load_at_zero") (result i32) (i32.load (i32.const 0)))
+  (func (export "store_at_zero") (i32.store (i32.const 0) (i32.const 2)))
+
+  (func (export "load_at_page_size") (result i32) (i32.load (i32.const 0x10000)))
+  (func (export "store_at_page_size") (i32.store (i32.const 0x10000) (i32.const 3)))
+
+  (func (export "grow") (param $sz i32) (result i32) (memory.grow (local.get $sz)))
+  (func (export "size") (result i32) (memory.size))
+)
+"#
+    );
+}
+
+#[test]
+fn memory_init() {
+    assert_snapshot!(
+        r#"
+(module
+  (memory (export "memory0") 1 1)
+  (data (i32.const 2) "\03\01\04\01")
+  (data "\02\07\01\08")
+  (data (i32.const 12) "\07\05\02\03\06")
+  (data "\05\09\02\07\06")
+  (func (export "test")
+    (memory.init 3 (i32.const 15) (i32.const 1) (i32.const 3)))
+  (func (export "load8_u") (param i32) (result i32)
+    (i32.load8_u (local.get 0)))
+)
+"#
+    );
+}
+
+#[test]
+fn memory_redundancy() {
+    assert_snapshot!(
+        r#"
+(module
+  (memory 1 1)
+
+  (func (export "zero_everything")
+    (i32.store (i32.const 0) (i32.const 0))
+    (i32.store (i32.const 4) (i32.const 0))
+    (i32.store (i32.const 8) (i32.const 0))
+    (i32.store (i32.const 12) (i32.const 0))
+  )
+
+  (func (export "test_store_to_load") (result i32)
+    (i32.store (i32.const 8) (i32.const 0))
+    (f32.store (i32.const 5) (f32.const -0.0))
+    (i32.load (i32.const 8))
+  )
+
+  (func (export "test_redundant_load") (result i32)
+    (local $t i32)
+    (local $s i32)
+    (local.set $t (i32.load (i32.const 8)))
+    (i32.store (i32.const 5) (i32.const 0x80000000))
+    (local.set $s (i32.load (i32.const 8)))
+    (i32.add (local.get $t) (local.get $s))
+  )
+
+  (func (export "test_dead_store") (result f32)
+    (local $t f32)
+    (i32.store (i32.const 8) (i32.const 0x23232323))
+    (local.set $t (f32.load (i32.const 11)))
+    (i32.store (i32.const 8) (i32.const 0))
+    (local.get $t)
+  )
+
+  ;; A function named "malloc" which implementations nonetheless shouldn't
+  ;; assume behaves like C malloc.
+  (func $malloc (export "malloc")
+     (param $size i32)
+     (result i32)
+     (i32.const 16)
+  )
+
+  ;; Call malloc twice, but unlike C malloc, we don't get non-aliasing pointers.
+  (func (export "malloc_aliasing")
+     (result i32)
+     (local $x i32)
+     (local $y i32)
+     (local.set $x (call $malloc (i32.const 4)))
+     (local.set $y (call $malloc (i32.const 4)))
+     (i32.store (local.get $x) (i32.const 42))
+     (i32.store (local.get $y) (i32.const 43))
+     (i32.load (local.get $x))
+  )
+)
+"#
+    );
+}
+
+#[test]
+fn memory_size() {
+    assert_snapshot!(
+        r#"
+(module
+  (memory 1)
+  (data (i32.const 0) "abcdefgh")
+  (data (i32.const 0xfff8) "abcdefgh")
+
+  (func (export "i32.load") (param $a i32) (result i32)
+    (i32.load (local.get $a))
+  )
+  (func (export "i64.load") (param $a i32) (result i64)
+    (i64.load (local.get $a))
+  )
+  (func (export "f32.load") (param $a i32) (result f32)
+    (f32.load (local.get $a))
+  )
+  (func (export "f64.load") (param $a i32) (result f64)
+    (f64.load (local.get $a))
+  )
+  (func (export "i32.load8_s") (param $a i32) (result i32)
+    (i32.load8_s (local.get $a))
+  )
+  (func (export "i32.load8_u") (param $a i32) (result i32)
+    (i32.load8_u (local.get $a))
+  )
+  (func (export "i32.load16_s") (param $a i32) (result i32)
+    (i32.load16_s (local.get $a))
+  )
+  (func (export "i32.load16_u") (param $a i32) (result i32)
+    (i32.load16_u (local.get $a))
+  )
+  (func (export "i64.load8_s") (param $a i32) (result i64)
+    (i64.load8_s (local.get $a))
+  )
+  (func (export "i64.load8_u") (param $a i32) (result i64)
+    (i64.load8_u (local.get $a))
+  )
+  (func (export "i64.load16_s") (param $a i32) (result i64)
+    (i64.load16_s (local.get $a))
+  )
+  (func (export "i64.load16_u") (param $a i32) (result i64)
+    (i64.load16_u (local.get $a))
+  )
+  (func (export "i64.load32_s") (param $a i32) (result i64)
+    (i64.load32_s (local.get $a))
+  )
+  (func (export "i64.load32_u") (param $a i32) (result i64)
+    (i64.load32_u (local.get $a))
+  )
+  (func (export "i32.store") (param $a i32) (param $v i32)
+    (i32.store (local.get $a) (local.get $v))
+  )
+  (func (export "i64.store") (param $a i32) (param $v i64)
+    (i64.store (local.get $a) (local.get $v))
+  )
+  (func (export "f32.store") (param $a i32) (param $v f32)
+    (f32.store (local.get $a) (local.get $v))
+  )
+  (func (export "f64.store") (param $a i32) (param $v f64)
+    (f64.store (local.get $a) (local.get $v))
+  )
+  (func (export "i32.store8") (param $a i32) (param $v i32)
+    (i32.store8 (local.get $a) (local.get $v))
+  )
+  (func (export "i32.store16") (param $a i32) (param $v i32)
+    (i32.store16 (local.get $a) (local.get $v))
+  )
+  (func (export "i64.store8") (param $a i32) (param $v i64)
+    (i64.store8 (local.get $a) (local.get $v))
+  )
+  (func (export "i64.store16") (param $a i32) (param $v i64)
+    (i64.store16 (local.get $a) (local.get $v))
+  )
+  (func (export "i64.store32") (param $a i32) (param $v i64)
+    (i64.store32 (local.get $a) (local.get $v))
+  )
+)
+"#
+    );
+}

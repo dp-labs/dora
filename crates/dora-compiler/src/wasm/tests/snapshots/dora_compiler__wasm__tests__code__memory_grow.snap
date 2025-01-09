@@ -1,0 +1,83 @@
+---
+source: crates/dora-compiler/src/wasm/tests/code.rs
+expression: op
+snapshot_kind: text
+---
+module {
+  func.func @f0(%arg0: !llvm.ptr) -> i32 {
+    %c0_i32 = arith.constant 0 : i32
+    %c0_i64 = arith.constant 0 : i64
+    %0 = arith.extui %c0_i32 : i32 to i64
+    %1 = arith.addi %0, %c0_i64 : i64
+    %2 = llvm.getelementptr %arg0[16] : (!llvm.ptr) -> !llvm.ptr, i8
+    %3 = llvm.getelementptr %2[0] : (!llvm.ptr) -> !llvm.ptr, !llvm.ptr
+    %4 = llvm.load %3 : !llvm.ptr -> !llvm.ptr
+    %5 = llvm.getelementptr %4[%1] : (!llvm.ptr, i64) -> !llvm.ptr, !llvm.ptr
+    %6 = llvm.load %5 : !llvm.ptr -> i32
+    cf.br ^bb1(%6 : i32)
+  ^bb1(%7: i32):  // pred: ^bb0
+    return %7 : i32
+  }
+  func.func @f1(%arg0: !llvm.ptr) {
+    %c0_i32 = arith.constant 0 : i32
+    %c2_i32 = arith.constant 2 : i32
+    %c0_i64 = arith.constant 0 : i64
+    %0 = arith.extui %c0_i32 : i32 to i64
+    %1 = arith.addi %0, %c0_i64 : i64
+    %2 = llvm.getelementptr %arg0[16] : (!llvm.ptr) -> !llvm.ptr, i8
+    %3 = llvm.getelementptr %2[0] : (!llvm.ptr) -> !llvm.ptr, !llvm.ptr
+    %4 = llvm.load %3 : !llvm.ptr -> !llvm.ptr
+    %5 = llvm.getelementptr %4[%1] : (!llvm.ptr, i64) -> !llvm.ptr, !llvm.ptr
+    llvm.store %c2_i32, %5 : i32, !llvm.ptr
+    cf.br ^bb1
+  ^bb1:  // pred: ^bb0
+    return
+  }
+  func.func @f2(%arg0: !llvm.ptr) -> i32 {
+    %c65536_i32 = arith.constant 65536 : i32
+    %c0_i64 = arith.constant 0 : i64
+    %0 = arith.extui %c65536_i32 : i32 to i64
+    %1 = arith.addi %0, %c0_i64 : i64
+    %2 = llvm.getelementptr %arg0[16] : (!llvm.ptr) -> !llvm.ptr, i8
+    %3 = llvm.getelementptr %2[0] : (!llvm.ptr) -> !llvm.ptr, !llvm.ptr
+    %4 = llvm.load %3 : !llvm.ptr -> !llvm.ptr
+    %5 = llvm.getelementptr %4[%1] : (!llvm.ptr, i64) -> !llvm.ptr, !llvm.ptr
+    %6 = llvm.load %5 : !llvm.ptr -> i32
+    cf.br ^bb1(%6 : i32)
+  ^bb1(%7: i32):  // pred: ^bb0
+    return %7 : i32
+  }
+  func.func @f3(%arg0: !llvm.ptr) {
+    %c65536_i32 = arith.constant 65536 : i32
+    %c3_i32 = arith.constant 3 : i32
+    %c0_i64 = arith.constant 0 : i64
+    %0 = arith.extui %c65536_i32 : i32 to i64
+    %1 = arith.addi %0, %c0_i64 : i64
+    %2 = llvm.getelementptr %arg0[16] : (!llvm.ptr) -> !llvm.ptr, i8
+    %3 = llvm.getelementptr %2[0] : (!llvm.ptr) -> !llvm.ptr, !llvm.ptr
+    %4 = llvm.load %3 : !llvm.ptr -> !llvm.ptr
+    %5 = llvm.getelementptr %4[%1] : (!llvm.ptr, i64) -> !llvm.ptr, !llvm.ptr
+    llvm.store %c3_i32, %5 : i32, !llvm.ptr
+    cf.br ^bb1
+  ^bb1:  // pred: ^bb0
+    return
+  }
+  func.func @f4(%arg0: !llvm.ptr, %arg1: i32) -> i32 {
+    %c1_i64 = arith.constant 1 : i64
+    %0 = llvm.alloca %c1_i64 x i32 : (i64) -> !llvm.ptr
+    llvm.store %arg1, %0 : i32, !llvm.ptr
+    %1 = llvm.load %0 : !llvm.ptr -> i32
+    %c0_i32 = arith.constant 0 : i32
+    %2 = "wasm.mem_grow"(%1, %c0_i32) : (i32, i32) -> i32
+    cf.br ^bb1(%2 : i32)
+  ^bb1(%3: i32):  // pred: ^bb0
+    return %3 : i32
+  }
+  func.func @f5(%arg0: !llvm.ptr) -> i32 {
+    %c0_i32 = arith.constant 0 : i32
+    %0 = "wasm.mem_size"(%c0_i32) : (i32) -> i32
+    cf.br ^bb1(%0 : i32)
+  ^bb1(%1: i32):  // pred: ^bb0
+    return %1 : i32
+  }
+}
