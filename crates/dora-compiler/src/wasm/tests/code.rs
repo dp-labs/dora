@@ -3337,3 +3337,482 @@ fn fib() {
 "#
     );
 }
+
+#[test]
+fn func() {
+    assert_snapshot!(
+        r#"
+(module
+  ;; Auxiliary definition
+  (type $sig (func))
+  (func $dummy)
+
+  ;; Syntax
+
+  (func)
+  (func (export "f"))
+  (func $f)
+  (func $h (export "g"))
+
+  (func (local))
+  (func (local) (local))
+  (func (local i32))
+  (func (local $x i32))
+  (func (local i32 f64 i64))
+  (func (local i32) (local f64))
+  (func (local i32 f32) (local $x i64) (local) (local i32 f64))
+
+  (func (param))
+  (func (param) (param))
+  (func (param i32))
+  (func (param $x i32))
+  (func (param i32 f64 i64))
+  (func (param i32) (param f64))
+  (func (param i32 f32) (param $x i64) (param) (param i32 f64))
+
+  (func (result))
+  (func (result) (result))
+  (func (result i32) (unreachable))
+  (func (result i32 f64 f32) (unreachable))
+  (func (result i32) (result f64) (unreachable))
+  (func (result i32 f32) (result i64) (result) (result i32 f64) (unreachable))
+
+  (type $sig-1 (func))
+  (type $sig-2 (func (result i32)))
+  (type $sig-3 (func (param $x i32)))
+  (type $sig-4 (func (param i32 f64 i32) (result i32)))
+
+  (func (export "type-use-1") (type $sig-1))
+  (func (export "type-use-2") (type $sig-2) (i32.const 0))
+  (func (export "type-use-3") (type $sig-3))
+  (func (export "type-use-4") (type $sig-4) (i32.const 0))
+  (func (export "type-use-5") (type $sig-2) (result i32) (i32.const 0))
+  (func (export "type-use-6") (type $sig-3) (param i32))
+  (func (export "type-use-7")
+    (type $sig-4) (param i32) (param f64 i32) (result i32) (i32.const 0)
+  )
+
+  (func (type $sig))
+  (func (type $forward))  ;; forward reference
+
+  (func $complex
+    (param i32 f32) (param $x i64) (param) (param i32)
+    (result) (result i32) (result) (result i64 i32)
+    (local f32) (local $y i32) (local i64 i32) (local) (local f64 i32)
+    (unreachable) (unreachable)
+  )
+  (func $complex-sig
+    (type $sig)
+    (local f32) (local $y i32) (local i64 i32) (local) (local f64 i32)
+    (unreachable) (unreachable)
+  )
+
+  (type $forward (func))
+
+  ;; Typing of locals
+
+  (func (export "local-first-i32") (result i32) (local i32 i32) (local.get 0))
+  (func (export "local-first-i64") (result i64) (local i64 i64) (local.get 0))
+  (func (export "local-first-f32") (result f32) (local f32 f32) (local.get 0))
+  (func (export "local-first-f64") (result f64) (local f64 f64) (local.get 0))
+  (func (export "local-second-i32") (result i32) (local i32 i32) (local.get 1))
+  (func (export "local-second-i64") (result i64) (local i64 i64) (local.get 1))
+  (func (export "local-second-f32") (result f32) (local f32 f32) (local.get 1))
+  (func (export "local-second-f64") (result f64) (local f64 f64) (local.get 1))
+  (func (export "local-mixed") (result f64)
+    (local f32) (local $x i32) (local i64 i32) (local) (local f64 i32)
+    (drop (f32.neg (local.get 0)))
+    (drop (i32.eqz (local.get 1)))
+    (drop (i64.eqz (local.get 2)))
+    (drop (i32.eqz (local.get 3)))
+    (drop (f64.neg (local.get 4)))
+    (drop (i32.eqz (local.get 5)))
+    (local.get 4)
+  )
+
+  ;; Typing of parameters
+
+  (func (export "param-first-i32") (param i32 i32) (result i32) (local.get 0))
+  (func (export "param-first-i64") (param i64 i64) (result i64) (local.get 0))
+  (func (export "param-first-f32") (param f32 f32) (result f32) (local.get 0))
+  (func (export "param-first-f64") (param f64 f64) (result f64) (local.get 0))
+  (func (export "param-second-i32") (param i32 i32) (result i32) (local.get 1))
+  (func (export "param-second-i64") (param i64 i64) (result i64) (local.get 1))
+  (func (export "param-second-f32") (param f32 f32) (result f32) (local.get 1))
+  (func (export "param-second-f64") (param f64 f64) (result f64) (local.get 1))
+  (func (export "param-mixed") (param f32 i32) (param) (param $x i64) (param i32 f64 i32)
+    (result f64)
+    (drop (f32.neg (local.get 0)))
+    (drop (i32.eqz (local.get 1)))
+    (drop (i64.eqz (local.get 2)))
+    (drop (i32.eqz (local.get 3)))
+    (drop (f64.neg (local.get 4)))
+    (drop (i32.eqz (local.get 5)))
+    (local.get 4)
+  )
+
+  ;; Typing of results
+
+  (func (export "empty"))
+  (func (export "value-void") (call $dummy))
+  (func (export "value-i32") (result i32) (i32.const 77))
+  (func (export "value-i64") (result i64) (i64.const 7777))
+  (func (export "value-f32") (result f32) (f32.const 77.7))
+  (func (export "value-f64") (result f64) (f64.const 77.77))
+  (func (export "value-i32-f64") (result i32 f64) (i32.const 77) (f64.const 7))
+  (func (export "value-i32-i32-i32") (result i32 i32 i32)
+    (i32.const 1) (i32.const 2) (i32.const 3)
+  )
+  (func (export "value-block-void") (block (call $dummy) (call $dummy)))
+  (func (export "value-block-i32") (result i32)
+    (block (result i32) (call $dummy) (i32.const 77))
+  )
+  (func (export "value-block-i32-i64") (result i32 i64)
+    (block (result i32 i64) (call $dummy) (i32.const 1) (i64.const 2))
+  )
+
+  (func (export "return-empty") (return))
+  (func (export "return-i32") (result i32) (return (i32.const 78)))
+  (func (export "return-i64") (result i64) (return (i64.const 7878)))
+  (func (export "return-f32") (result f32) (return (f32.const 78.7)))
+  (func (export "return-f64") (result f64) (return (f64.const 78.78)))
+  (func (export "return-i32-f64") (result i32 f64)
+    (return (i32.const 78) (f64.const 78.78))
+  )
+  (func (export "return-i32-i32-i32") (result i32 i32 i32)
+    (return (i32.const 1) (i32.const 2) (i32.const 3))
+  )
+  (func (export "return-block-i32") (result i32)
+    (return (block (result i32) (call $dummy) (i32.const 77)))
+  )
+  (func (export "return-block-i32-i64") (result i32 i64)
+    (return (block (result i32 i64) (call $dummy) (i32.const 1) (i64.const 2)))
+  )
+
+  (func (export "break-empty") (br 0))
+  (func (export "break-i32") (result i32) (br 0 (i32.const 79)))
+  (func (export "break-i64") (result i64) (br 0 (i64.const 7979)))
+  (func (export "break-f32") (result f32) (br 0 (f32.const 79.9)))
+  (func (export "break-f64") (result f64) (br 0 (f64.const 79.79)))
+  (func (export "break-i32-f64") (result i32 f64)
+    (br 0 (i32.const 79) (f64.const 79.79))
+  )
+  (func (export "break-i32-i32-i32") (result i32 i32 i32)
+    (br 0 (i32.const 1) (i32.const 2) (i32.const 3))
+  )
+  (func (export "break-block-i32") (result i32)
+    (br 0 (block (result i32) (call $dummy) (i32.const 77)))
+  )
+  (func (export "break-block-i32-i64") (result i32 i64)
+    (br 0 (block (result i32 i64) (call $dummy) (i32.const 1) (i64.const 2)))
+  )
+
+  (func (export "break-br_if-empty") (param i32)
+    (br_if 0 (local.get 0))
+  )
+  (func (export "break-br_if-num") (param i32) (result i32)
+    (drop (br_if 0 (i32.const 50) (local.get 0))) (i32.const 51)
+  )
+  (func (export "break-br_if-num-num") (param i32) (result i32 i64)
+    (drop (drop (br_if 0 (i32.const 50) (i64.const 51) (local.get 0))))
+    (i32.const 51) (i64.const 52)
+  )
+
+  (func (export "break-br_table-empty") (param i32)
+    (br_table 0 0 0 (local.get 0))
+  )
+  (func (export "break-br_table-num") (param i32) (result i32)
+    (br_table 0 0 (i32.const 50) (local.get 0)) (i32.const 51)
+  )
+  (func (export "break-br_table-num-num") (param i32) (result i32 i64)
+    (br_table 0 0 (i32.const 50) (i64.const 51) (local.get 0))
+    (i32.const 51) (i64.const 52)
+  )
+  (func (export "break-br_table-nested-empty") (param i32)
+    (block (br_table 0 1 0 (local.get 0)))
+  )
+  (func (export "break-br_table-nested-num") (param i32) (result i32)
+    (i32.add
+      (block (result i32)
+        (br_table 0 1 0 (i32.const 50) (local.get 0)) (i32.const 51)
+      )
+      (i32.const 2)
+    )
+  )
+  (func (export "break-br_table-nested-num-num") (param i32) (result i32 i32)
+    (i32.add
+      (block (result i32 i32)
+        (br_table 0 1 0 (i32.const 50) (i32.const 51) (local.get 0))
+        (i32.const 51) (i32.const -3)
+      )
+    )
+    (i32.const 52)
+  )
+
+  ;; Large signatures
+
+  (func (export "large-sig")
+    (param i32 i64 f32 f32 i32 f64 f32 i32 i32 i32 f32 f64 f64 f64 i32 i32 f32)
+    (result f64 f32 i32 i32 i32 i64 f32 i32 i32 f32 f64 f64 i32 f32 i32 f64)
+    (local.get 5)
+    (local.get 2)
+    (local.get 0)
+    (local.get 8)
+    (local.get 7)
+    (local.get 1)
+    (local.get 3)
+    (local.get 9)
+    (local.get 4)
+    (local.get 6)
+    (local.get 13)
+    (local.get 11)
+    (local.get 15)
+    (local.get 16)
+    (local.get 14)
+    (local.get 12)
+  )
+
+  ;; Default initialization of locals
+
+  (func (export "init-local-i32") (result i32) (local i32) (local.get 0))
+  (func (export "init-local-i64") (result i64) (local i64) (local.get 0))
+  (func (export "init-local-f32") (result f32) (local f32) (local.get 0))
+  (func (export "init-local-f64") (result f64) (local f64) (local.get 0))
+)
+"#
+    );
+}
+
+#[test]
+fn func_ptr() {
+    assert_snapshot!(
+        r#"
+(module
+  (type    (func))                           ;; 0: void -> void
+  (type $S (func))                           ;; 1: void -> void
+  (type    (func (param)))                   ;; 2: void -> void
+  (type    (func (result i32)))              ;; 3: void -> i32
+  (type    (func (param) (result i32)))      ;; 4: void -> i32
+  (type $T (func (param i32) (result i32)))  ;; 5: i32 -> i32
+  (type $U (func (param i32)))               ;; 6: i32 -> void
+
+  (func $print (import "spectest" "print_i32") (type 6))
+
+  (func (type 0))
+  (func (type $S))
+
+  (func (export "one") (type 4) (i32.const 13))
+  (func (export "two") (type $T) (i32.add (local.get 0) (i32.const 1)))
+
+  ;; Both signature and parameters are allowed (and required to match)
+  ;; since this allows the naming of parameters.
+  (func (export "three") (type $T) (param $a i32) (result i32)
+    (i32.sub (local.get 0) (i32.const 2))
+  )
+
+  ;; N ot implemented: wasm imported functions
+  ;; (func (export "four") (type $U) (call $print (local.get 0)))
+)
+"#
+    );
+}
+
+#[test]
+fn global() {
+    assert_snapshot!(
+        r#"
+(module
+  (global (import "spectest" "global_i32") i32)
+  (global (import "spectest" "global_i64") i64)
+
+  (global $a i32 (i32.const -2))
+  (global (;3;) f32 (f32.const -3))
+  (global (;4;) f64 (f64.const -4))
+  (global $b i64 (i64.const -5))
+
+  (global $x (mut i32) (i32.const -12))
+  (global (;7;) (mut f32) (f32.const -13))
+  (global (;8;) (mut f64) (f64.const -14))
+  (global $y (mut i64) (i64.const -15))
+
+  (global $z1 i32 (global.get 0))
+  (global $z2 i64 (global.get 1))
+
+  (global $r externref (ref.null extern))
+  (global $mr (mut externref) (ref.null extern))
+  (global funcref (ref.null func))
+
+  (func (export "get-a") (result i32) (global.get $a))
+  (func (export "get-b") (result i64) (global.get $b))
+  (func (export "get-r") (result externref) (global.get $r))
+  (func (export "get-mr") (result externref) (global.get $mr))
+  (func (export "get-x") (result i32) (global.get $x))
+  (func (export "get-y") (result i64) (global.get $y))
+  (func (export "get-z1") (result i32) (global.get $z1))
+  (func (export "get-z2") (result i64) (global.get $z2))
+  (func (export "set-x") (param i32) (global.set $x (local.get 0)))
+  (func (export "set-y") (param i64) (global.set $y (local.get 0)))
+  (func (export "set-mr") (param externref) (global.set $mr (local.get 0)))
+
+  (func (export "get-3") (result f32) (global.get 3))
+  (func (export "get-4") (result f64) (global.get 4))
+  (func (export "get-7") (result f32) (global.get 7))
+  (func (export "get-8") (result f64) (global.get 8))
+  (func (export "set-7") (param f32) (global.set 7 (local.get 0)))
+  (func (export "set-8") (param f64) (global.set 8 (local.get 0)))
+
+  ;; As the argument of control constructs and instructions
+
+  (memory 1)
+
+  (func $dummy)
+
+  (func (export "as-select-first") (result i32)
+    (select (global.get $x) (i32.const 2) (i32.const 3))
+  )
+  (func (export "as-select-mid") (result i32)
+    (select (i32.const 2) (global.get $x) (i32.const 3))
+  )
+  (func (export "as-select-last") (result i32)
+    (select (i32.const 2) (i32.const 3) (global.get $x))
+  )
+
+  (func (export "as-loop-first") (result i32)
+    (loop (result i32)
+      (global.get $x) (call $dummy) (call $dummy)
+    )
+  )
+  (func (export "as-loop-mid") (result i32)
+    (loop (result i32)
+      (call $dummy) (global.get $x) (call $dummy)
+    )
+  )
+  (func (export "as-loop-last") (result i32)
+    (loop (result i32)
+      (call $dummy) (call $dummy) (global.get $x)
+    )
+  )
+
+  (func (export "as-if-condition") (result i32)
+    (if (result i32) (global.get $x)
+      (then (call $dummy) (i32.const 2))
+      (else (call $dummy) (i32.const 3))
+    )
+  )
+  (func (export "as-if-then") (result i32)
+    (if (result i32) (i32.const 1)
+      (then (global.get $x)) (else (i32.const 2))
+    )
+  )
+  (func (export "as-if-else") (result i32)
+    (if (result i32) (i32.const 0)
+      (then (i32.const 2)) (else (global.get $x))
+    )
+  )
+
+  (func (export "as-br_if-first") (result i32)
+    (block (result i32)
+      (br_if 0 (global.get $x) (i32.const 2))
+      (return (i32.const 3))
+    )
+  )
+  (func (export "as-br_if-last") (result i32)
+    (block (result i32)
+      (br_if 0 (i32.const 2) (global.get $x))
+      (return (i32.const 3))
+    )
+  )
+
+  (func (export "as-br_table-first") (result i32)
+    (block (result i32)
+      (global.get $x) (i32.const 2) (br_table 0 0)
+    )
+  )
+  (func (export "as-br_table-last") (result i32)
+    (block (result i32)
+      (i32.const 2) (global.get $x) (br_table 0 0)
+    )
+  )
+
+  (func $func (param i32 i32) (result i32) (local.get 0))
+  (type $check (func (param i32 i32) (result i32)))
+  (table funcref (elem $func))
+  ;; (func (export "as-call_indirect-first") (result i32)
+  ;;   (block (result i32)
+  ;;     (call_indirect (type $check)
+  ;;       (global.get $x) (i32.const 2) (i32.const 0)
+  ;;     )
+  ;;   )
+  ;; )
+  ;; (func (export "as-call_indirect-mid") (result i32)
+  ;;   (block (result i32)
+  ;;     (call_indirect (type $check)
+  ;;       (i32.const 2) (global.get $x) (i32.const 0)
+  ;;     )
+  ;;   )
+  ;; )
+  ;; (func (export "as-call_indirect-last") (result i32)
+  ;;   (block (result i32)
+  ;;     (call_indirect (type $check)
+  ;;       (i32.const 2) (i32.const 0) (global.get $x)
+  ;;     )
+  ;;   )
+  ;; )
+
+  (func (export "as-store-first")
+    (global.get $x) (i32.const 1) (i32.store)
+  )
+  (func (export "as-store-last")
+    (i32.const 0) (global.get $x) (i32.store)
+  )
+  (func (export "as-load-operand") (result i32)
+    (i32.load (global.get $x))
+  )
+  (func (export "as-memory.grow-value") (result i32)
+    (memory.grow (global.get $x))
+  )
+
+  (func $f (param i32) (result i32) (local.get 0))
+  (func (export "as-call-value") (result i32)
+    (call $f (global.get $x))
+  )
+
+  (func (export "as-return-value") (result i32)
+    (global.get $x) (return)
+  )
+  (func (export "as-drop-operand")
+    (drop (global.get $x))
+  )
+  (func (export "as-br-value") (result i32)
+    (block (result i32) (br 0 (global.get $x)))
+  )
+
+  (func (export "as-local.set-value") (param i32) (result i32)
+    (local.set 0 (global.get $x))
+    (local.get 0)
+  )
+  (func (export "as-local.tee-value") (param i32) (result i32)
+    (local.tee 0 (global.get $x))
+  )
+  (func (export "as-global.set-value") (result i32)
+    (global.set $x (global.get $x))
+    (global.get $x)
+  )
+
+  (func (export "as-unary-operand") (result i32)
+    (i32.eqz (global.get $x))
+  )
+  (func (export "as-binary-operand") (result i32)
+    (i32.mul
+      (global.get $x) (global.get $x)
+    )
+  )
+  (func (export "as-compare-operand") (result i32)
+    (i32.gt_u
+      (global.get 0) (i32.const 1)
+    )
+  )
+)
+"#
+    );
+}

@@ -782,6 +782,7 @@ impl FunctionCodeGenerator {
                 builder.create(
                     dora_ir::wasm::unreachable(builder.context(), builder.unknown_loc()).into(),
                 );
+                state.reachable = false;
             }
             Operator::Nop => {
                 // Do nothing.
