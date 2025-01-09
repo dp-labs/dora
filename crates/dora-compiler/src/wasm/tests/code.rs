@@ -6678,3 +6678,112 @@ fn nop() {
 "#
     );
 }
+
+// #[test]
+// TODO: runtime lib calls register
+fn ref_func() {
+    assert_snapshot!(
+        r#"
+(module
+  (func $f (import "M" "f") (param i32) (result i32))
+  (func $g (param $x i32) (result i32)
+    (i32.add (local.get $x) (i32.const 1))
+  )
+
+  (global funcref (ref.func $f))
+  (global funcref (ref.func $g))
+  (global $v (mut funcref) (ref.func $f))
+
+  (global funcref (ref.func $gf1))
+  (global funcref (ref.func $gf2))
+  (func (drop (ref.func $ff1)) (drop (ref.func $ff2)))
+  (elem declare func $gf1 $ff1)
+  (elem declare funcref (ref.func $gf2) (ref.func $ff2))
+  (func $gf1)
+  (func $gf2)
+  (func $ff1)
+  (func $ff2)
+
+  (func (export "is_null-f") (result i32)
+    (ref.is_null (ref.func $f))
+  )
+  (func (export "is_null-g") (result i32)
+    (ref.is_null (ref.func $g))
+  )
+  (func (export "is_null-v") (result i32)
+    (ref.is_null (global.get $v))
+  )
+
+  (func (export "set-f") (global.set $v (ref.func $f)))
+  (func (export "set-g") (global.set $v (ref.func $g)))
+
+  (table $t 1 funcref)
+  (elem declare func $f $g)
+
+  ;; (func (export "call-f") (param $x i32) (result i32)
+  ;;   (table.set $t (i32.const 0) (ref.func $f))
+  ;;   (call_indirect $t (param i32) (result i32) (local.get $x) (i32.const 0))
+  ;; )
+  ;; (func (export "call-g") (param $x i32) (result i32)
+  ;;   (table.set $t (i32.const 0) (ref.func $g))
+  ;;   (call_indirect $t (param i32) (result i32) (local.get $x) (i32.const 0))
+  ;; )
+  ;; (func (export "call-v") (param $x i32) (result i32)
+  ;;   (table.set $t (i32.const 0) (global.get $v))
+  ;;   (call_indirect $t (param i32) (result i32) (local.get $x) (i32.const 0))
+  ;; )
+)
+"#
+    );
+}
+
+#[test]
+fn ref_is_null() {
+    assert_snapshot!(
+        r#"
+(module
+  (func $f1 (export "funcref") (param $x funcref) (result i32)
+    (ref.is_null (local.get $x))
+  )
+  (func $f2 (export "externref") (param $x externref) (result i32)
+    (ref.is_null (local.get $x))
+  )
+
+  (table $t1 2 funcref)
+  (table $t2 2 externref)
+  (elem (table $t1) (i32.const 1) func $dummy)
+  (func $dummy)
+
+  (func (export "init") (param $r externref)
+    (table.set $t2 (i32.const 1) (local.get $r))
+  )
+  (func (export "deinit")
+    (table.set $t1 (i32.const 1) (ref.null func))
+    (table.set $t2 (i32.const 1) (ref.null extern))
+  )
+
+  (func (export "funcref-elem") (param $x i32) (result i32)
+    (call $f1 (table.get $t1 (local.get $x)))
+  )
+  (func (export "externref-elem") (param $x i32) (result i32)
+    (call $f2 (table.get $t2 (local.get $x)))
+  )
+)
+"#
+    );
+}
+
+#[test]
+fn ref_null() {
+    assert_snapshot!(
+        r#"
+(module
+  (func (export "externref") (result externref) (ref.null extern))
+  (func (export "funcref") (result funcref) (ref.null func))
+
+  (global externref (ref.null extern))
+  (global funcref (ref.null func))
+)
+"#
+    );
+}
