@@ -470,6 +470,40 @@ def Dora_Rotr : Dora_Op<"rotr"> {
   let assemblyFormat = "$rotate `,` $value `:` type($rotate) `->` type($result)";
 }
 
+// Count leading zeros operation
+def Dora_Clz : Dora_Op<"clz"> {
+  let summary = "Counts the leading zeros of a value.";
+  let description = [{
+    This operation takes a single operand of any integer type and returns the number of leading zero bits. 
+    If the value is zero, the result will be equal to the bit width of the type.
+  }];
+
+  let arguments = (ins
+    AnyTypeOf<[I32, I64, I<128>, I<256>]>:$value
+  );
+
+  let results = (outs AnyTypeOf<[I32, I64, I<128>, I<256>]>:$result);
+
+  let assemblyFormat = "$value `:` type($value) `->` type($result)";
+}
+
+// Count trailing zeros operation
+def Dora_Ctz : Dora_Op<"ctz"> {
+  let summary = "Counts the trailing zeros of a value.";
+  let description = [{
+    This operation takes a single operand of any integer type and returns the number of trailing zero bits. 
+    If the value is zero, the result will be equal to the bit width of the type.
+  }];
+
+  let arguments = (ins
+    AnyTypeOf<[I32, I64, I<128>, I<256>]>:$value
+  );
+
+  let results = (outs AnyTypeOf<[I32, I64, I<128>, I<256>]>:$result);
+
+  let assemblyFormat = "$value `:` type($value) `->` type($result)";
+}
+
 // Select Operation
 def Dora_SelectOp :Dora_Op<"select"> {
     let arguments = (ins

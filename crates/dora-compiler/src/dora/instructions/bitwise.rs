@@ -375,4 +375,113 @@ impl ConversionPass<'_> {
 
         Ok(())
     }
+
+    pub(crate) fn clz(context: &Context, op: &OperationRef<'_, '_>) -> Result<()> {
+        operands!(op, value);
+        rewrite_ctx!(context, op, rewriter, location);
+
+        let ty = value.r#type();
+        let bit_width = rewriter.int_ty_width(ty)? as i64;
+        let zero = rewriter.make(rewriter.iconst(ty, 0))?;
+        let max_count = rewriter.make(rewriter.iconst(ty, bit_width))?;
+
+        let is_zero = rewriter.make(arith::cmpi(
+            context,
+            CmpiPredicate::Eq,
+            value,
+            zero,
+            location,
+        ))?;
+
+        rewriter.make(scf::r#if(
+            is_zero,
+            &[],
+            {
+                let region = Region::new();
+                let block = region.append_block(Block::new(&[]));
+                let rewriter = Rewriter::new_with_block(context, block);
+                rewriter.make(arith::select(is_zero, max_count, max_count, location))?;
+                region
+            },
+            {
+                let region = Region::new();
+                let block = region.append_block(Block::new(&[]));
+                let rewriter = Rewriter::new_with_block(context, block);
+
+                let mut shifted_value = value;
+                let mut count_of_leading_zeros = 0;
+
+                while shifted_value != zero {
+                    shifted_value = rewriter.make(arith::shrui(
+                        shifted_value,
+                        rewriter.make(rewriter.iconst(ty, 1))?,
+                        location,
+                    ))?;
+                    count_of_leading_zeros += 1;
+                }
+
+                let result =
+                    rewriter.make(rewriter.iconst(ty, bit_width - count_of_leading_zeros))?;
+                rewriter.make(arith::select(is_zero, max_count, result, location))?;
+                region
+            },
+            location,
+        ))?;
+
+        Ok(())
+    }
+
+    pub(crate) fn ctz(context: &Context, op: &OperationRef<'_, '_>) -> Result<()> {
+        operands!(op, value);
+        rewrite_ctx!(context, op, rewriter, location);
+
+        let ty = value.r#type();
+        let bit_width = rewriter.int_ty_width(ty)? as i64;
+        let zero = rewriter.make(rewriter.iconst(ty, 0))?;
+        let max_count = rewriter.make(rewriter.iconst(ty, bit_width))?;
+
+        let is_zero = rewriter.make(arith::cmpi(
+            context,
+            CmpiPredicate::Eq,
+            value,
+            zero,
+            location,
+        ))?;
+
+        rewriter.make(scf::r#if(
+            is_zero,
+            &[],
+            {
+                let region = Region::new();
+                let block = region.append_block(Block::new(&[]));
+                let rewriter = Rewriter::new_with_block(context, block);
+                rewriter.make(arith::select(is_zero, max_count, max_count, location))?;
+                region
+            },
+            {
+                let region = Region::new();
+                let block = region.append_block(Block::new(&[]));
+                let rewriter = Rewriter::new_with_block(context, block);
+
+                let mut shifted_value = value;
+                let mut count_of_trailing_zeros = 0;
+
+                while shifted_value != zero {
+                    shifted_value = rewriter.make(arith::shrui(
+                        shifted_value,
+                        rewriter.make(rewriter.iconst(ty, 1))?,
+                        location,
+                    ))?;
+                    count_of_trailing_zeros += 1;
+                }
+
+                let result = rewriter.make(rewriter.iconst(ty, count_of_trailing_zeros))?;
+                rewriter.make(arith::select(is_zero, max_count, result, location))?;
+                region
+            },
+            location,
+        ))?;
+
+        Ok(())
+    }
 }

@@ -223,6 +223,50 @@ fn rotr_i64() {
 }
 
 #[test]
+fn clz_i32() {
+    assert_snapshot!(
+        r#"
+(module
+  (func (export "clz") (param $x i32) (result i32) (i32.clz (local.get $x)))
+)
+"#
+    );
+}
+
+#[test]
+fn clz_i64() {
+    assert_snapshot!(
+        r#"
+(module
+  (func (export "clz") (param $x i64) (result i64) (i64.clz (local.get $x)))
+)
+"#
+    );
+}
+
+#[test]
+fn ctz_i32() {
+    assert_snapshot!(
+        r#"
+(module
+  (func (export "ctz") (param $x i32) (result i32) (i32.ctz (local.get $x)))
+)
+"#
+    );
+}
+
+#[test]
+fn ctz_i64() {
+    assert_snapshot!(
+        r#"
+(module
+  (func (export "ctz") (param $x i64) (result i64) (i64.ctz (local.get $x)))
+)
+"#
+    );
+}
+
+#[test]
 fn select() {
     assert_snapshot!(
         r#"
