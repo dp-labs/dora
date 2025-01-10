@@ -885,6 +885,51 @@ impl<'c, 'a> OpBuilder<'c, 'a> {
             .expect("valid operation")
     }
 
+    /// Creates an operation to perform an indirect function call.
+    ///
+    /// This function generates an MLIR operation (`llvm.call`) to call a function indirectly
+    /// through a function pointer. The function type, function pointer, and arguments are
+    /// provided as inputs.
+    ///
+    /// # Parameters
+    /// - `func_ty`: The type of the function being called, including its argument and result types.
+    /// - `func_ptr`: The function pointer (of type `!llvm.ptr`) used for the indirect call.
+    /// - `args`: A slice of values representing the arguments to pass to the function.
+    ///
+    /// # Returns
+    /// An operation representing the indirect function call.
+    ///
+    /// # Errors
+    /// Returns an error if the operation cannot be built (e.g., due to invalid inputs).
+    ///
+    /// # Reference
+    /// For more details, see the MLIR documentation on `llvm.call`:
+    /// https://mlir.llvm.org/docs/Dialects/LLVM/#llvmcall-llvmcallop
+    pub fn indirect_call(
+        &self,
+        ret_ty: Type<'c>,
+        _args_types: &[Type<'c>],
+        func_ptr: Val<'c, 'a>,
+        args: &[Val<'c, 'a>],
+    ) -> Result<Op<'c, '_>> {
+        let context = self.context();
+        // Reference: https://mlir.llvm.org/docs/Dialects/LLVM/#llvmcall-llvmcallop
+        // For indirect calls, the callee is of !llvm.ptr type and is stored as the first value in callee_operands
+        let args = std::iter::once(func_ptr)
+            .chain(args.iter().copied())
+            .collect::<Vec<Value<'_, '_>>>();
+        Ok(
+            OperationBuilder::new("llvm.call", self.intrinsics.unknown_loc)
+                .add_attributes(&[(
+                    Identifier::new(context, "var_callee_type"),
+                    TypeAttribute::new(llvm::r#type::function(ret_ty, &[], true)).into(),
+                )])
+                .add_operands(&args)
+                .add_results(&[ret_ty])
+                .build()?,
+        )
+    }
+
     /// Creates a global variable with the specified name, type, and linkage.
     ///
     /// # Parameters

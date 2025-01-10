@@ -23,6 +23,7 @@ use super::backend::WASMBuilder;
 use super::intrinsics::FunctionCache;
 use super::intrinsics::GlobalCache;
 use super::intrinsics::{CtxType, WASMIntrinsics};
+use super::ty::func_type_to_mlir;
 use super::ty::{type_to_mlir, type_to_mlir_zero_attribute};
 use super::Config;
 use crate::errors::CompileError;
@@ -39,6 +40,7 @@ use melior::dialect::{arith, cf, func, llvm};
 use melior::ir::attribute::DenseI64ArrayAttribute;
 use melior::ir::attribute::FlatSymbolRefAttribute;
 use melior::ir::attribute::StringAttribute;
+use melior::ir::attribute::TypeAttribute;
 use melior::ir::attribute::{FloatAttribute, IntegerAttribute};
 use melior::ir::{Block, BlockRef, Location, Region, RegionRef, Type, Value};
 use melior::ir::{Module as MLIRModule, TypeLike, ValueLike};
@@ -53,6 +55,7 @@ use wasmer_compiler::{wpheaptype_to_type, ModuleTranslationState};
 use wasmer_types::entity::PrimaryMap;
 use wasmer_types::FunctionIndex;
 use wasmer_types::GlobalIndex;
+use wasmer_types::SignatureIndex;
 use wasmer_types::Symbol;
 use wasmer_types::TrapCode;
 use wasmer_types::WasmResult;
@@ -3144,7 +3147,93 @@ impl FunctionCodeGenerator {
             Operator::CallIndirect {
                 type_index,
                 table_index,
-            } => todo!(),
+            } => {
+                let sigindex = SignatureIndex::from_u32(type_index);
+                let func_type = &fcx.wasm_module.signatures[sigindex];
+                let expected_dynamic_sigindex =
+                    fcx.ctx.dynamic_sigindex(sigindex, backend.ctx, block)?;
+                let (table_base, table_bound) =
+                    fcx.ctx
+                        .table(TableIndex::from_u32(table_index), backend.ctx, block)?;
+                let func_index = state.pop1()?;
+
+                // TODO: check if the index is outside of the table bounds.
+                let _index_in_bounds =
+                    builder.make(builder.icmp(IntCC::UnsignedLessThan, func_index, table_bound))?;
+
+                let funcref_ptr = builder
+                    .make(builder.gep_dynamic(
+                        table_base,
+                        &[func_index],
+                        builder.ptr_ty(),
+                        builder.ptr_ty(),
+                    ))?
+                    .to_ctx_value();
+                // A funcref (pointer to `anyfunc`)
+                let anyfunc_struct_ptr = builder
+                    .make(builder.load(funcref_ptr, builder.ptr_ty()))?
+                    .to_ctx_value();
+                // TODO: Trap if we're trying to call a null funcref
+                // Load things from the anyfunc data structure.
+                let func_ptr_ptr = builder
+                    .make(builder.gep(
+                        anyfunc_struct_ptr,
+                        fcx.ctx.offsets.vmcaller_checked_anyfunc_func_ptr() as usize,
+                        builder.i8_ty(),
+                        builder.ptr_ty(),
+                    ))?
+                    .to_ctx_value();
+                let sigindex_ptr = builder.make(builder.gep(
+                    anyfunc_struct_ptr,
+                    fcx.ctx.offsets.vmcaller_checked_anyfunc_type_index() as usize,
+                    builder.i8_ty(),
+                    builder.ptr_ty(),
+                ))?;
+                let ctx_ptr_ptr = builder
+                    .make(builder.gep(
+                        anyfunc_struct_ptr,
+                        fcx.ctx.offsets.vmcaller_checked_anyfunc_vmctx() as usize,
+                        builder.i8_ty(),
+                        builder.ptr_ty(),
+                    ))?
+                    .to_ctx_value();
+                let func_ptr = builder
+                    .make(builder.load(func_ptr_ptr, builder.ptr_ty()))?
+                    .to_ctx_value();
+                let found_dynamic_sigindex =
+                    builder.make(builder.load(sigindex_ptr, builder.i32_ty()))?;
+                let ctx_ptr = builder.make(builder.load(ctx_ptr_ptr, builder.ptr_ty()))?;
+
+                // TODO: Check if the table element is initialized and if the signature id is correct.
+                let _elem_not_initialized = is_zero(&builder, func_ptr)?;
+
+                let mlir_func_type = func_type_to_mlir(backend.ctx, &backend.intrinsics, func_type);
+
+                let param_types = func_type
+                    .params()
+                    .iter()
+                    .map(|ty| type_to_mlir(&backend.intrinsics, ty))
+                    .collect::<Vec<Type>>();
+                let param_types = std::iter::once(&backend.intrinsics.ptr_ty)
+                    .chain(&param_types)
+                    .cloned()
+                    .collect::<Vec<Type>>();
+                let return_types = func_type
+                    .results()
+                    .iter()
+                    .map(|ty| type_to_mlir(&backend.intrinsics, ty))
+                    .collect::<Vec<Type>>();
+                debug_assert!(return_types.len() == 1);
+                let args = state.popn_save_extra(func_type.params().len())?;
+                let args = args.iter().map(|p| p.0).collect::<Vec<Value<'_, '_>>>();
+                let result = builder.make(builder.indirect_call(
+                    return_types[0],
+                    &param_types,
+                    func_ptr,
+                    &args,
+                )?)?;
+                state.push1(result.to_ctx_value());
+            }
             _ => {
                 return Err(
                     CompileError::Codegen(format!("Operator {:?} unimplemented", op)).into(),
