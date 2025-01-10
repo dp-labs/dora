@@ -274,7 +274,9 @@ impl<'c> EVMCompiler<'c> {
         options: &<EVMCompiler<'c> as Compiler>::Options,
     ) -> Result<(BlockRef<'c, 'c>, BlockRef<'c, 'c>)> {
         let op_infos = op_info_map(unsafe {
-            std::mem::transmute::<dora_primitives::SpecId, revmc::primitives::SpecId>(options.spec_id)
+            std::mem::transmute::<dora_primitives::SpecId, revmc::primitives::SpecId>(
+                options.spec_id,
+            )
         });
         let op_info = op_infos[op.opcode()];
 

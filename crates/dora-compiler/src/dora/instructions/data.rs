@@ -31,7 +31,7 @@ impl ConversionPass<'_> {
         // List data types needed
         let uint1 = rewriter.i1_ty();
         let uint8 = rewriter.i8_ty();
-        let uint16 = rewriter.i16_ty();
+        let uint64 = rewriter.i64_ty();
         let uint256 = rewriter.i256_ty();
         let ptr_type = rewriter.ptr_ty();
 
@@ -51,10 +51,10 @@ impl ConversionPass<'_> {
             context,
             FlatSymbolRefAttribute::new(context, symbols::DATA_SECTION_SIZE),
             &[syscall_ctx.into()],
-            &[uint16],
+            &[uint64],
             location,
         ))?;
-        // Convert `data_section_size` from u16 to u256
+        // Convert `data_section_size` from u64 to u256
         let data_section_size =
             rewriter.make(arith::extui(data_section_size, uint256, location))?;
 
@@ -135,15 +135,17 @@ impl ConversionPass<'_> {
         block_argument!(op, syscall_ctx);
         rewrite_ctx!(context, op, rewriter, location);
 
-        let uint16 = rewriter.i16_ty();
+        let uint64 = rewriter.i64_ty();
+        let uint256 = rewriter.i256_ty();
 
-        rewriter.make(func::call(
+        let data_size = rewriter.make(func::call(
             context,
             FlatSymbolRefAttribute::new(context, symbols::DATA_SECTION_SIZE),
             &[syscall_ctx.into()],
-            &[uint16],
+            &[uint64],
             location,
         ))?;
+        rewriter.make(arith::extui(data_size, uint256, location))?;
         Ok(())
     }
 

@@ -5273,22 +5273,125 @@ fn staticcall() {
     run_program_assert_num_result(env, db, SpecId::CANCUN, 1_u8.into());
 }
 
-// #[test]
-// fn returndataload() {
-//     let operations = vec![
-//         Operation::Push((2_u8, 0_u8.into())),
-//         // Note that RETURNDATALOAD is not found in the CANCUN spec.
-//         Operation::ReturndataLoad,
-//         // Return result
-//         Operation::Push0,
-//         Operation::MStore,
-//         Operation::Push((1_u8, 32_u8.into())),
-//         Operation::Push0,
-//         Operation::Return,
-//     ];
-//     let (env, db) = default_env_and_db_setup(operations, true);
-//     run_program_assert_halt(env, db, SpecId::OSAKA);
-// }
+#[test]
+fn extcall() {
+    let operations = vec![
+        Operation::Push((1_u8, 32_u32.into())),
+        Operation::Push((1_u8, 1_u32.into())),
+        Operation::Push((1_u8, 32_u32.into())),
+        Operation::Push((1_u8, 64_u32.into())),
+        Operation::ExtCall,
+        // Return result
+        Operation::Push0,
+        Operation::MStore,
+        Operation::Push((1_u8, 32_u8.into())),
+        Operation::Push0,
+        Operation::Return,
+    ];
+
+    let program = Program {
+        operations,
+        code_size: 0,
+        is_eof: true,
+    };
+
+    let eof = Eof::new(EofBody {
+        code_section: vec![Bytes::from(program.to_opcode())],
+        ..EofBody::default()
+    });
+
+    let (env, db) = default_env_and_db_setup_eof(eof);
+    run_program_assert_num_result(env, db, SpecId::OSAKA, 0_u8.into());
+}
+
+#[test]
+fn extdelegatecall() {
+    let operations = vec![
+        Operation::Push((1_u8, 1_u32.into())),
+        Operation::Push((1_u8, 32_u32.into())),
+        Operation::Push((1_u8, 64_u32.into())),
+        Operation::ExtDelegatecall,
+        // Return result
+        Operation::Push0,
+        Operation::MStore,
+        Operation::Push((1_u8, 32_u8.into())),
+        Operation::Push0,
+        Operation::Return,
+    ];
+
+    let program = Program {
+        operations,
+        code_size: 0,
+        is_eof: true,
+    };
+
+    let eof = Eof::new(EofBody {
+        code_section: vec![Bytes::from(program.to_opcode())],
+        ..EofBody::default()
+    });
+
+    let (env, db) = default_env_and_db_setup_eof(eof);
+    run_program_assert_num_result(env, db, SpecId::OSAKA, 0_u8.into());
+}
+
+#[test]
+fn extstaticcall() {
+    let operations = vec![
+        Operation::Push((1_u8, 1_u32.into())),
+        Operation::Push((1_u8, 32_u32.into())),
+        Operation::Push((1_u8, 64_u32.into())),
+        Operation::ExtStaticcall,
+        // Return result
+        Operation::Push0,
+        Operation::MStore,
+        Operation::Push((1_u8, 32_u8.into())),
+        Operation::Push0,
+        Operation::Return,
+    ];
+
+    let program = Program {
+        operations,
+        code_size: 0,
+        is_eof: true,
+    };
+
+    let eof = Eof::new(EofBody {
+        code_section: vec![Bytes::from(program.to_opcode())],
+        ..EofBody::default()
+    });
+
+    let (env, db) = default_env_and_db_setup_eof(eof);
+    run_program_assert_num_result(env, db, SpecId::OSAKA, 0_u8.into());
+}
+
+#[test]
+fn returndataload() {
+    let operations = vec![
+        Operation::Push((2_u8, 0_u8.into())),
+        // Note that RETURNDATALOAD is not found in the CANCUN spec.
+        Operation::ReturndataLoad,
+        // Return result
+        Operation::Push0,
+        Operation::MStore,
+        Operation::Push((1_u8, 32_u8.into())),
+        Operation::Push0,
+        Operation::Return,
+    ];
+
+    let program = Program {
+        operations,
+        code_size: 0,
+        is_eof: true,
+    };
+
+    let eof = Eof::new(EofBody {
+        code_section: vec![Bytes::from(program.to_opcode())],
+        ..EofBody::default()
+    });
+
+    let (env, db) = default_env_and_db_setup_eof(eof);
+    run_program_assert_bytes_result(env, db, SpecId::OSAKA, Bytes::from_static(&[0x00; 32]));
+}
 
 #[test]
 fn revert() {

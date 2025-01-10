@@ -237,12 +237,14 @@ impl ConversionPass<'_> {
         block_argument!(op, syscall_ctx);
         rewrite_ctx!(context, op, rewriter, location);
 
+        let uint64 = rewriter.i64_ty();
         let uint256 = rewriter.intrinsics.i256_ty;
+
         let calldata_size = rewriter.make(func::call(
             context,
             FlatSymbolRefAttribute::new(context, symbols::CALLDATA_SIZE),
             &[syscall_ctx.into()],
-            &[rewriter.intrinsics.i64_ty],
+            &[uint64],
             location,
         ))?;
         rewriter.make(arith::extui(calldata_size, uint256, location))?;

@@ -1728,8 +1728,8 @@ impl RuntimeContext<'_> {
         self.contract.code.eof().expect("eof").data().as_ptr() as _
     }
 
-    extern "C" fn data_section_size(&self) -> u16 {
-        self.contract.code.eof().expect("eof").header.data_size
+    extern "C" fn data_section_size(&self) -> u64 {
+        self.contract.code.eof().expect("eof").header.data_size as u64
     }
 
     extern "C" fn data_section_copy(
