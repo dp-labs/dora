@@ -5,9 +5,9 @@ use crate::{
 use melior::{
     dialect::{
         arith::{self, CmpiPredicate},
-        scf,
+        llvm, scf,
     },
-    ir::{operation::OperationRef, Block, Region, ValueLike},
+    ir::{attribute::StringAttribute, operation::OperationRef, Block, Region, ValueLike},
     Context,
 };
 use num_bigint::BigUint;
@@ -372,6 +372,43 @@ impl ConversionPass<'_> {
         let left_shift_amount = rewriter.make(arith::subi(max_shift, shift_mod, location))?;
         let left_shifted = rewriter.make(arith::shli(value, left_shift_amount, location))?;
         rewriter.make(arith::ori(right_shifted, left_shifted, location))?;
+
+        Ok(())
+    }
+
+    pub(crate) fn clz(context: &Context, op: &OperationRef<'_, '_>) -> Result<()> {
+        Self::call_cz_intrinsic(context, op, "llvm.ctlz")
+    }
+
+    pub(crate) fn ctz(context: &Context, op: &OperationRef<'_, '_>) -> Result<()> {
+        Self::call_cz_intrinsic(context, op, "llvm.cttz")
+    }
+
+    fn call_cz_intrinsic(
+        context: &Context,
+        op: &OperationRef<'_, '_>,
+        intrinsic_base: &str,
+    ) -> Result<()> {
+        operands!(op, value);
+        rewrite_ctx!(context, op, rewriter, location);
+
+        let ty = value.r#type();
+        let bit_width = rewriter.int_ty_width(ty)? as i64;
+        let is_zero_undef = rewriter.make(rewriter.iconst(rewriter.i1_ty(), 0))?;
+
+        let intrinsic_name = format!("{}.i{}", intrinsic_base, bit_width);
+        let intrinsic_attr = StringAttribute::new(context, &intrinsic_name);
+
+        let args = vec![value, is_zero_undef];
+        let result_types = vec![ty];
+
+        rewriter.make(llvm::call_intrinsic(
+            context,
+            intrinsic_attr,
+            &args,
+            &result_types,
+            location,
+        ))?;
 
         Ok(())
     }
