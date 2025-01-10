@@ -10,7 +10,7 @@ use anyhow::Result;
 use melior::dialect::llvm;
 use melior::ir::attribute::DenseI32ArrayAttribute;
 use melior::ir::r#type::Type;
-use melior::ir::{BlockRef, Value};
+use melior::ir::{BlockRef, Value, ValueLike};
 use melior::{dialect::llvm::r#type::r#struct, ir::r#type::FunctionType};
 use wasmer::{LocalFunctionIndex, Mutability};
 use wasmer_types::entity::PrimaryMap;
@@ -122,6 +122,7 @@ pub enum MemoryCache<'c, 'a> {
     Static { base_ptr: Value<'c, 'a> },
 }
 
+#[derive(Clone, Copy)]
 struct TableCache<'c, 'a> {
     ptr_to_base_ptr: Value<'c, 'a>,
     ptr_to_bounds: Value<'c, 'a>,
@@ -224,7 +225,7 @@ pub struct CtxType<'c, 'a> {
     /// A cache for memory size values, indexed by `MemoryIndex`.
     cached_memory_size: HashMap<MemoryIndex, Value<'c, 'a>>,
     /// Contains the offsets for memory and table elements within the WebAssembly execution context.
-    offsets: VMOffsets,
+    pub(crate) offsets: VMOffsets,
 }
 
 impl<'c, 'a> CtxType<'c, 'a> {
@@ -268,6 +269,131 @@ impl<'c, 'a> CtxType<'c, 'a> {
                 entry.insert(FunctionCache { func_type })
             }
         })
+    }
+
+    pub(crate) fn table_prepare(
+        &mut self,
+        table_index: TableIndex,
+        ctx: &'c Context,
+        block: BlockRef<'c, 'a>,
+    ) -> Result<(Value<'c, 'a>, Value<'c, 'a>)> {
+        let (cached_tables, wasm_module, offsets) =
+            (&mut self.cached_tables, self.wasm_module, &self.offsets);
+        let TableCache {
+            ptr_to_base_ptr,
+            ptr_to_bounds,
+        } = match cached_tables.entry(table_index) {
+            Entry::Occupied(entry) => *entry.get(),
+            Entry::Vacant(entry) => {
+                let (ptr_to_base_ptr, ptr_to_bounds) =
+                    if let Some(local_table_index) = wasm_module.local_table_index(table_index) {
+                        let builder = OpBuilder::new_with_block(&ctx.mlir_context, block);
+                        let ptr_to_base_ptr = builder.make(builder.gep(
+                            self.vm_ctx,
+                            offsets.vmctx_vmtable_definition_base(local_table_index) as usize,
+                            builder.i8_ty(),
+                            builder.ptr_ty(),
+                        ))?;
+                        let ptr_to_bounds = builder.make(builder.gep(
+                            self.vm_ctx,
+                            offsets.vmctx_vmtable_definition_current_elements(local_table_index)
+                                as usize,
+                            builder.i8_ty(),
+                            builder.ptr_ty(),
+                        ))?;
+                        (ptr_to_base_ptr.to_ctx_value(), ptr_to_bounds.to_ctx_value())
+                    } else {
+                        let builder = OpBuilder::new_with_block(&ctx.mlir_context, block);
+                        let definition_ptr_ptr = builder
+                            .make(builder.gep(
+                                self.vm_ctx,
+                                offsets.vmctx_vmtable_import_definition(table_index) as usize,
+                                builder.i8_ty(),
+                                builder.ptr_ty(),
+                            ))?
+                            .to_ctx_value();
+                        let definition_ptr =
+                            builder.make(builder.load(definition_ptr_ptr, builder.ptr_ty()))?;
+                        let ptr_to_base_ptr = builder.make(builder.gep(
+                            definition_ptr.to_ctx_value(),
+                            offsets.vmtable_definition_base() as usize,
+                            builder.i8_ty(),
+                            builder.ptr_ty(),
+                        ))?;
+                        let ptr_to_bounds = builder.make(builder.gep(
+                            definition_ptr.to_ctx_value(),
+                            offsets.vmtable_definition_current_elements() as usize,
+                            builder.i8_ty(),
+                            builder.ptr_ty(),
+                        ))?;
+                        (ptr_to_base_ptr.to_ctx_value(), ptr_to_bounds.to_ctx_value())
+                    };
+
+                let v = TableCache {
+                    ptr_to_base_ptr: ptr_to_base_ptr.to_ctx_value(),
+                    ptr_to_bounds: ptr_to_bounds.to_ctx_value(),
+                };
+
+                entry.insert(v);
+
+                v
+            }
+        };
+        unsafe {
+            Ok((
+                Value::from_raw(ptr_to_base_ptr.to_raw()),
+                Value::from_raw(ptr_to_bounds.to_raw()),
+            ))
+        }
+    }
+
+    pub(crate) fn table(
+        &mut self,
+        index: TableIndex,
+        ctx: &'c Context,
+        block: BlockRef<'c, 'a>,
+    ) -> Result<(Value<'c, 'a>, Value<'c, 'a>)> {
+        let (ptr_to_base_ptr, ptr_to_bounds) = self.table_prepare(index, ctx, block)?;
+        let builder = OpBuilder::new_with_block(&ctx.mlir_context, block);
+        let base_ptr = builder.make(builder.load(ptr_to_base_ptr, builder.ptr_ty()))?;
+        let bounds = builder.make(builder.load(ptr_to_bounds, builder.i32_ty()))?;
+        unsafe {
+            Ok((
+                Value::from_raw(base_ptr.to_raw()),
+                Value::from_raw(bounds.to_raw()),
+            ))
+        }
+    }
+
+    pub(crate) fn dynamic_sigindex(
+        &mut self,
+        index: SignatureIndex,
+        ctx: &'c Context,
+        block: BlockRef<'c, 'a>,
+    ) -> Result<Value<'c, 'a>> {
+        let (cached_sigindices, ctx_ptr_value, offsets) =
+            (&mut self.cached_sigindices, self.vm_ctx, &self.offsets);
+
+        match cached_sigindices.entry(index) {
+            Entry::Occupied(entry) => {
+                let value = *entry.get();
+                Ok(unsafe { Value::from_raw(value.to_raw()) })
+            }
+            Entry::Vacant(entry) => {
+                let builder = OpBuilder::new_with_block(&ctx.mlir_context, block);
+                let sigindex_ptr = builder
+                    .make(builder.gep(
+                        ctx_ptr_value,
+                        offsets.vmctx_vmshared_signature_id(index) as usize,
+                        builder.i8_ty(),
+                        builder.ptr_ty(),
+                    ))?
+                    .to_ctx_value();
+                let sigindex = builder.make(builder.load(sigindex_ptr, builder.i32_ty()))?;
+                entry.insert(sigindex.to_ctx_value());
+                Ok(unsafe { Value::from_raw(sigindex.to_raw()) })
+            }
+        }
     }
 
     pub(crate) fn global(

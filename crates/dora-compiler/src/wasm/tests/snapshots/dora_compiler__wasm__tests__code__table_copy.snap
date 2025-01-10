@@ -39,4 +39,60 @@ module {
   ^bb1:  // pred: ^bb0
     return
   }
+  func.func @f6(%arg0: !llvm.ptr, %arg1: i32) -> i32 {
+    %c1_i64 = arith.constant 1 : i64
+    %0 = llvm.alloca %c1_i64 x i32 : (i64) -> !llvm.ptr
+    llvm.store %arg1, %0 : i32, !llvm.ptr
+    %1 = llvm.load %0 : !llvm.ptr -> i32
+    %2 = llvm.getelementptr %arg0[0] : (!llvm.ptr) -> !llvm.ptr, i8
+    %3 = llvm.load %2 : !llvm.ptr -> i32
+    %4 = llvm.getelementptr %arg0[136] : (!llvm.ptr) -> !llvm.ptr, i8
+    %5 = llvm.getelementptr %arg0[144] : (!llvm.ptr) -> !llvm.ptr, i8
+    %6 = llvm.load %4 : !llvm.ptr -> !llvm.ptr
+    %7 = llvm.load %5 : !llvm.ptr -> i32
+    %8 = arith.cmpi ult, %1, %7 : i32
+    %9 = llvm.getelementptr %6[%1] : (!llvm.ptr, i32) -> !llvm.ptr, !llvm.ptr
+    %10 = llvm.load %9 : !llvm.ptr -> !llvm.ptr
+    %11 = llvm.getelementptr %10[0] : (!llvm.ptr) -> !llvm.ptr, i8
+    %12 = llvm.getelementptr %10[8] : (!llvm.ptr) -> !llvm.ptr, i8
+    %13 = llvm.getelementptr %10[16] : (!llvm.ptr) -> !llvm.ptr, i8
+    %14 = llvm.load %11 : !llvm.ptr -> !llvm.ptr
+    %15 = llvm.load %12 : !llvm.ptr -> i32
+    %16 = llvm.load %13 : !llvm.ptr -> !llvm.ptr
+    %17 = llvm.load %14 : !llvm.ptr -> i32
+    %c0_i32 = arith.constant 0 : i32
+    %18 = arith.cmpi eq, %17, %c0_i32 : i32
+    %19 = llvm.call %14() vararg(!llvm.func<i32 (...)>) : !llvm.ptr, () -> i32
+    cf.br ^bb1(%19 : i32)
+  ^bb1(%20: i32):  // pred: ^bb0
+    return %20 : i32
+  }
+  func.func @f7(%arg0: !llvm.ptr, %arg1: i32) -> i32 {
+    %c1_i64 = arith.constant 1 : i64
+    %0 = llvm.alloca %c1_i64 x i32 : (i64) -> !llvm.ptr
+    llvm.store %arg1, %0 : i32, !llvm.ptr
+    %1 = llvm.load %0 : !llvm.ptr -> i32
+    %2 = llvm.getelementptr %arg0[0] : (!llvm.ptr) -> !llvm.ptr, i8
+    %3 = llvm.load %2 : !llvm.ptr -> i32
+    %4 = llvm.getelementptr %arg0[152] : (!llvm.ptr) -> !llvm.ptr, i8
+    %5 = llvm.getelementptr %arg0[160] : (!llvm.ptr) -> !llvm.ptr, i8
+    %6 = llvm.load %4 : !llvm.ptr -> !llvm.ptr
+    %7 = llvm.load %5 : !llvm.ptr -> i32
+    %8 = arith.cmpi ult, %1, %7 : i32
+    %9 = llvm.getelementptr %6[%1] : (!llvm.ptr, i32) -> !llvm.ptr, !llvm.ptr
+    %10 = llvm.load %9 : !llvm.ptr -> !llvm.ptr
+    %11 = llvm.getelementptr %10[0] : (!llvm.ptr) -> !llvm.ptr, i8
+    %12 = llvm.getelementptr %10[8] : (!llvm.ptr) -> !llvm.ptr, i8
+    %13 = llvm.getelementptr %10[16] : (!llvm.ptr) -> !llvm.ptr, i8
+    %14 = llvm.load %11 : !llvm.ptr -> !llvm.ptr
+    %15 = llvm.load %12 : !llvm.ptr -> i32
+    %16 = llvm.load %13 : !llvm.ptr -> !llvm.ptr
+    %17 = llvm.load %14 : !llvm.ptr -> i32
+    %c0_i32 = arith.constant 0 : i32
+    %18 = arith.cmpi eq, %17, %c0_i32 : i32
+    %19 = llvm.call %14() vararg(!llvm.func<i32 (...)>) : !llvm.ptr, () -> i32
+    cf.br ^bb1(%19 : i32)
+  ^bb1(%20: i32):  // pred: ^bb0
+    return %20 : i32
+  }
 }
