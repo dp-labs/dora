@@ -205,19 +205,31 @@ fn push0_jumpi_stack_underflow() {
 }
 
 #[test]
+fn push1_dup1() {
+    let operations = vec![Operation::Push((1_u8, 1_u8.into())), Operation::Dup(1)];
+    let result = run_result(operations);
+    assert!(result.status.is_ok());
+    assert_eq!(result.gas_used(), 3 + 3)
+}
+
+#[test]
 fn dup1_stack_underflow() {
-    let operations = vec![Operation::Dup(1), Operation::Dup(1)];
+    let operations = vec![Operation::Dup(1)];
     let result = run_result(operations);
     assert!(result.status.is_error());
     assert_eq!(result.gas_used(), 3)
 }
 
 #[test]
-fn push0_dup2_stack_underflow() {
-    let operations = vec![Operation::Push0, Operation::Dup(2)];
+fn push1_push1_swap1() {
+    let operations = vec![
+        Operation::Push((1_u8, 1_u8.into())),
+        Operation::Push((1_u8, 1_u8.into())),
+        Operation::Swap(1),
+    ];
     let result = run_result(operations);
-    assert!(result.status.is_error());
-    assert_eq!(result.gas_used(), 2 + 3)
+    assert!(result.status.is_ok());
+    assert_eq!(result.gas_used(), 3 + 3 + 3)
 }
 
 #[test]
@@ -326,51 +338,6 @@ fn stack_push1_pop() {
     let result = run_result(operations);
     assert!(result.status.is_ok());
     assert_eq!(result.gas_used(), 3 + 2)
-}
-
-#[test]
-fn stack_push1_dup1() {
-    let operations = vec![Operation::Push((1_u8, 1_u8.into())), Operation::Dup(1)];
-    let result = run_result(operations);
-    assert!(result.status.is_ok());
-    assert_eq!(result.gas_used(), 3 + 3)
-}
-
-#[test]
-fn stack_push1_dupn() {
-    let operations = vec![
-        Operation::Push((1_u8, 1_u8.into())),
-        Operation::Dup(1),
-        Operation::Stop,
-    ];
-    let result = run_result(operations);
-    assert!(result.status.is_ok());
-    assert_eq!(result.gas_used(), 3 + 3)
-}
-
-#[test]
-fn stack_push1_push1_swap1() {
-    let operations = vec![
-        Operation::Push((1_u8, 1_u8.into())),
-        Operation::Push((1_u8, 1_u8.into())),
-        Operation::Swap(1),
-    ];
-    let result = run_result(operations);
-    assert!(result.status.is_ok());
-    assert_eq!(result.gas_used(), 3 + 3 + 3)
-}
-
-#[test]
-fn stack_push1_push1_swap2() {
-    let operations = vec![
-        Operation::Push((1_u8, 1_u8.into())),
-        Operation::Push((1_u8, 1_u8.into())),
-        Operation::Push((1_u8, 1_u8.into())),
-        Operation::Swap(1),
-    ];
-    let result = run_result(operations);
-    assert!(result.status.is_ok());
-    assert_eq!(result.gas_used(), 3 + 3 + 3 + 3)
 }
 
 #[test]
@@ -548,10 +515,10 @@ fn calldataload() {
 
 #[test]
 fn calldatasize() {
-    let operations = vec![Operation::CalldataSize, Operation::CalldataSize];
+    let operations = vec![Operation::CalldataSize];
     let result = run_result(operations);
     assert!(result.status.is_ok());
-    assert_eq!(result.gas_used(), 2 + 2)
+    assert_eq!(result.gas_used(), 2)
 }
 
 #[test]
@@ -1364,7 +1331,7 @@ fn log4_1() {
 }
 
 #[test]
-fn dataload() {
+fn push0_dataload() {
     let operations = vec![Operation::Push0, Operation::DataLoad];
 
     let program = Program {
@@ -1375,13 +1342,323 @@ fn dataload() {
 
     let eof = Eof::new(EofBody {
         code_section: vec![Bytes::from(program.to_opcode())],
-        data_section: Bytes::new(),
         ..EofBody::default()
     });
 
     let result = run_result_eof(eof);
     assert!(result.status.is_ok());
+
     assert_eq!(result.gas_used(), 2 + 4);
+}
+
+#[test]
+fn dataloadn() {
+    let operations = vec![Operation::DataLoadN(0_u16)];
+
+    let program = Program {
+        operations,
+        code_size: 0,
+        is_eof: true,
+    };
+
+    let eof = Eof::new(EofBody {
+        code_section: vec![Bytes::from(program.to_opcode())],
+        ..EofBody::default()
+    });
+
+    let result = run_result_eof(eof);
+    assert!(result.status.is_ok());
+
+    assert_eq!(result.gas_used(), 3);
+}
+
+#[test]
+fn datasize() {
+    let operations = vec![Operation::DataSize];
+
+    let program = Program {
+        operations,
+        code_size: 0,
+        is_eof: true,
+    };
+
+    let eof = Eof::new(EofBody {
+        code_section: vec![Bytes::from(program.to_opcode())],
+        ..EofBody::default()
+    });
+
+    let result = run_result_eof(eof);
+    assert!(result.status.is_ok());
+
+    assert_eq!(result.gas_used(), 2);
+}
+
+#[test]
+fn push1_push0_push0_datacopy() {
+    let operations = vec![
+        Operation::Push((1_u8, 20_u8.into())),
+        Operation::Push0,
+        Operation::Push0,
+        Operation::DataCopy,
+    ];
+
+    let program = Program {
+        operations,
+        code_size: 0,
+        is_eof: true,
+    };
+
+    let eof = Eof::new(EofBody {
+        code_section: vec![Bytes::from(program.to_opcode())],
+        data_section: Bytes::from_static(&[0xFF; 32]),
+        ..EofBody::default()
+    });
+
+    let result = run_result_eof(eof);
+    assert!(result.status.is_ok());
+
+    assert_eq!(result.gas_used(), 3 + 2 + 2 + 3 + 3 + 3);
+    assert_eq!(
+        result.memory,
+        vec![
+            0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF,
+            0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+            0x00, 0x00, 0x00, 0x00
+        ]
+    );
+}
+
+// TODO : `rjump`, `rjumpi`, `rjumpv`, `callf`, `retf` and `jumpf` unit tests
+
+#[test]
+fn push1_dupn_0() {
+    let operations = vec![Operation::Push((1_u8, 1_u8.into())), Operation::DupN(0_u8)];
+
+    let program = Program {
+        operations,
+        code_size: 0,
+        is_eof: true,
+    };
+
+    let eof = Eof::new(EofBody {
+        code_section: vec![Bytes::from(program.to_opcode())],
+        ..EofBody::default()
+    });
+
+    let result = run_result_eof(eof);
+    assert!(result.status.is_ok());
+
+    assert_eq!(result.gas_used(), 3 + 3)
+}
+
+#[test]
+fn push1_push1_swapn_0() {
+    let operations = vec![
+        Operation::Push((1_u8, 1_u8.into())),
+        Operation::Push((1_u8, 1_u8.into())),
+        Operation::SwapN(0_u8),
+    ];
+
+    let program = Program {
+        operations,
+        code_size: 0,
+        is_eof: true,
+    };
+
+    let eof = Eof::new(EofBody {
+        code_section: vec![Bytes::from(program.to_opcode())],
+        ..EofBody::default()
+    });
+
+    let result = run_result_eof(eof);
+    assert!(result.status.is_ok());
+
+    assert_eq!(result.gas_used(), 3 + 3 + 3);
+}
+
+#[test]
+fn push1_push1_push0_exchange_0() {
+    let operations = vec![
+        Operation::Push((1_u8, 1_u8.into())),
+        Operation::Push((1_u8, 1_u8.into())),
+        Operation::Push0,
+        Operation::Exchange(0_u8),
+    ];
+
+    let program = Program {
+        operations,
+        code_size: 0,
+        is_eof: true,
+    };
+
+    let eof = Eof::new(EofBody {
+        code_section: vec![Bytes::from(program.to_opcode())],
+        ..EofBody::default()
+    });
+
+    let result = run_result_eof(eof);
+    assert!(result.status.is_ok());
+
+    assert_eq!(result.gas_used(), 3 + 3 + 2 + 3);
+}
+
+// TODO : ext calls and contract creation unit tests
+
+// #[test]
+// fn push0_push1_push1_push1_eofcreate() {
+//     let operations = vec![
+//         Operation::Push0,
+//         Operation::Push((1_u8, 20_u8.into())),
+//         Operation::Push((1_u8, 0x1234_u16.into())),
+//         Operation::Push((1_u8, 10_u8.into())),
+//         Operation::EofCreate(0_u8),
+//     ];
+
+//     let program = Program {
+//         operations,
+//         code_size: 0,
+//         is_eof: true,
+//     };
+
+//     let eof = Eof::new(EofBody {
+//         code_section: vec![Bytes::from(program.to_opcode())],
+//         container_section: vec![Bytes::new()],
+//         ..EofBody::default()
+//     });
+
+//     let result = run_result_eof(eof);
+//     assert!(result.status.is_error());
+
+//     // assert_eq!(result.gas_used(), 2 + 3 + 3 + 3 + 32000);
+// }
+
+// #[test]
+// fn push0_push1_returncontract() {
+//     let operations = vec![
+//         Operation::Push0,
+//         Operation::Push((1_u8, 20_u8.into())),
+//         Operation::ReturnContract(0_u8),
+//     ];
+
+//     let program = Program {
+//         operations,
+//         code_size: 0,
+//         is_eof: true,
+//     };
+
+//     let eof = Eof::new(EofBody {
+//         code_section: vec![Bytes::from(program.to_opcode())],
+//         container_section: vec![Bytes::new()],
+//         ..EofBody::default()
+//     });
+
+//     let result = run_result_eof(eof);
+//     assert!(result.status.is_ok());
+
+//     assert_eq!(result.gas_used(), 2 + 3 + 3);
+// }
+
+// #[test]
+// fn push1_push1_push1_push1_extcall() {
+//     let operations = vec![
+//         Operation::Push((1_u8, 32_u32.into())),
+//         Operation::Push((1_u8, 1_u32.into())),
+//         Operation::Push((1_u8, 32_u32.into())),
+//         Operation::Push((1_u8, 64_u32.into())),
+//         Operation::ExtCall,
+//     ];
+
+//     let program = Program {
+//         operations,
+//         code_size: 0,
+//         is_eof: true,
+//     };
+
+//     let eof = Eof::new(EofBody {
+//         code_section: vec![Bytes::from(program.to_opcode())],
+//         ..EofBody::default()
+//     });
+
+//     let result = run_result_eof(eof);
+//     assert!(result.status.is_error());
+
+//     // assert_eq!(result.gas_used(), 100 + 9000 + 3);
+// }
+
+// #[test]
+// fn push1_push1_push1_extdelegatecall() {
+//     let operations = vec![
+//         Operation::Push((1_u8, 1_u32.into())),
+//         Operation::Push((1_u8, 32_u32.into())),
+//         Operation::Push((1_u8, 64_u32.into())),
+//         Operation::ExtDelegatecall,
+//     ];
+
+//     let program = Program {
+//         operations,
+//         code_size: 0,
+//         is_eof: true,
+//     };
+
+//     let eof = Eof::new(EofBody {
+//         code_section: vec![Bytes::from(program.to_opcode())],
+//         ..EofBody::default()
+//     });
+
+//     let result = run_result_eof(eof);
+//     assert!(result.status.is_error());
+
+//     // assert_eq!(result.gas_used(), 100 + 3);
+// }
+
+// #[test]
+// fn push1_push1_push1_extstaticcall() {
+//     let operations = vec![
+//         Operation::Push((1_u8, 1_u32.into())),
+//         Operation::Push((1_u8, 32_u32.into())),
+//         Operation::Push((1_u8, 64_u32.into())),
+//         Operation::ExtStaticcall,
+//     ];
+
+//     let program = Program {
+//         operations,
+//         code_size: 0,
+//         is_eof: true,
+//     };
+
+//     let eof = Eof::new(EofBody {
+//         code_section: vec![Bytes::from(program.to_opcode())],
+//         ..EofBody::default()
+//     });
+
+//     let result = run_result_eof(eof);
+//     assert!(result.status.is_ok());
+
+//     // assert_eq!(result.gas_used(), 100 + 3);
+// }
+
+#[test]
+fn push2_returndataload() {
+    let operations = vec![
+        Operation::Push((2_u8, 0_u8.into())),
+        Operation::ReturndataLoad,
+    ];
+
+    let program = Program {
+        operations,
+        code_size: 0,
+        is_eof: true,
+    };
+
+    let eof = Eof::new(EofBody {
+        code_section: vec![Bytes::from(program.to_opcode())],
+        ..EofBody::default()
+    });
+
+    let result = run_result_eof(eof);
+    assert!(result.status.is_ok());
+
+    assert_eq!(result.gas_used(), 3 + 3);
 }
 
 #[test]

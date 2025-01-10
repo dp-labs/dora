@@ -4898,6 +4898,8 @@ fn exchange_255() {
     run_program_assert_num_result(env, db, SpecId::OSAKA, 1_u32.into());
 }
 
+// TODO : `eofcreate` and `returncontract` unit tests
+
 // #[test]
 // fn eofcreate() {
 //     let operations = vec![
@@ -5272,6 +5274,8 @@ fn staticcall() {
     let (env, db) = default_env_and_db_setup(operations);
     run_program_assert_num_result(env, db, SpecId::CANCUN, 1_u8.into());
 }
+
+// TODO : check ext calls after eof contract creation resolved
 
 #[test]
 fn extcall() {
