@@ -5,9 +5,9 @@ use crate::{
 use melior::{
     dialect::{
         arith::{self, CmpiPredicate},
-        scf,
+        llvm, scf,
     },
-    ir::{operation::OperationRef, Block, Region, ValueLike},
+    ir::{attribute::StringAttribute, operation::OperationRef, Block, Region, ValueLike},
     Context,
 };
 use num_bigint::BigUint;
@@ -377,222 +377,36 @@ impl ConversionPass<'_> {
     }
 
     pub(crate) fn clz(context: &Context, op: &OperationRef<'_, '_>) -> Result<()> {
-        operands!(op, value);
-        rewrite_ctx!(context, op, rewriter, location);
-
-        let ty = value.r#type();
-        let bit_width = rewriter.int_ty_width(ty)? as i64;
-        let zero = rewriter.make(rewriter.iconst(ty, 0))?;
-
-        let is_zero = rewriter.make(arith::cmpi(
-            context,
-            CmpiPredicate::Eq,
-            value,
-            zero,
-            location,
-        ))?;
-
-        rewriter.make(scf::r#if(
-            is_zero,
-            &[ty],
-            {
-                let region = Region::new();
-                let block = region.append_block(Block::new(&[]));
-                let rewriter = Rewriter::new_with_block(context, block);
-
-                let result = rewriter.make(rewriter.iconst(ty, bit_width))?;
-                rewriter.create(scf::r#yield(&[result], location));
-                region
-            },
-            {
-                let region = Region::new();
-                let block = region.append_block(Block::new(&[]));
-                let rewriter = Rewriter::new_with_block(context, block);
-
-                let loop_initial_values = vec![value, zero];
-                let result_types = vec![ty, ty];
-
-                let before_region = {
-                    let region = Region::new();
-                    let block = region.append_block(Block::new(&[
-                        (ty, location), // shifted_value
-                        (ty, location), // count_of_leading_zeros
-                    ]));
-                    let rewriter = Rewriter::new_with_block(context, block);
-
-                    let shifted_value = block.argument(0).into();
-                    let condition = rewriter.make(arith::cmpi(
-                        context,
-                        CmpiPredicate::Ne,
-                        shifted_value,
-                        zero,
-                        location,
-                    ))?;
-                    rewriter.create(scf::condition(
-                        condition,
-                        &[shifted_value, block.argument(1).into()],
-                        location,
-                    ));
-                    region
-                };
-
-                // After region: loop body
-                let after_region = {
-                    let region = Region::new();
-                    let block = region.append_block(Block::new(&[
-                        (ty, location), // shifted_value
-                        (ty, location), // count_of_leading_zeros
-                    ]));
-                    let rewriter = Rewriter::new_with_block(context, block);
-
-                    let shifted_value = block.argument(0).into();
-                    let count_of_leading_zeros = block.argument(1).into();
-
-                    let new_shifted_value = rewriter.make(arith::shrui(
-                        shifted_value,
-                        rewriter.make(rewriter.iconst(ty, 1))?,
-                        location,
-                    ))?;
-                    let new_count = rewriter.make(arith::addi(
-                        count_of_leading_zeros,
-                        rewriter.make(rewriter.iconst(ty, 1))?,
-                        location,
-                    ))?;
-
-                    rewriter.create(scf::r#yield(&[new_shifted_value, new_count], location));
-                    region
-                };
-
-                let loop_result = rewriter.make(scf::r#while(
-                    &loop_initial_values,
-                    &result_types,
-                    before_region,
-                    after_region,
-                    location,
-                ))?;
-
-                let final_count = loop_result.result(1).unwrap_or_else(|| {
-                    panic!("Expected a second result from scf.while but none found")
-                });
-                let result = rewriter.make(arith::subi(
-                    rewriter.make(rewriter.iconst(ty, bit_width))?,
-                    final_count,
-                    location,
-                ))?;
-                rewriter.create(scf::r#yield(&[result], location));
-                region
-            },
-            location,
-        ))?;
-
-        Ok(())
+        Self::call_cz_intrinsic(context, op, "llvm.ctlz")
     }
 
     pub(crate) fn ctz(context: &Context, op: &OperationRef<'_, '_>) -> Result<()> {
+        Self::call_cz_intrinsic(context, op, "llvm.cttz")
+    }
+
+    fn call_cz_intrinsic(
+        context: &Context,
+        op: &OperationRef<'_, '_>,
+        intrinsic_base: &str,
+    ) -> Result<()> {
         operands!(op, value);
         rewrite_ctx!(context, op, rewriter, location);
 
         let ty = value.r#type();
         let bit_width = rewriter.int_ty_width(ty)? as i64;
-        let zero = rewriter.make(rewriter.iconst(ty, 0))?;
+        let is_zero_undef = rewriter.make(rewriter.iconst(rewriter.i1_ty(), 0))?;
 
-        let is_zero = rewriter.make(arith::cmpi(
+        let intrinsic_name = format!("{}.i{}", intrinsic_base, bit_width);
+        let intrinsic_attr = StringAttribute::new(context, &intrinsic_name);
+
+        let args = vec![value, is_zero_undef];
+        let result_types = vec![ty];
+
+        rewriter.make(llvm::call_intrinsic(
             context,
-            CmpiPredicate::Eq,
-            value,
-            zero,
-            location,
-        ))?;
-
-        rewriter.make(scf::r#if(
-            is_zero,
-            &[ty],
-            {
-                let region = Region::new();
-                let block = region.append_block(Block::new(&[]));
-                let rewriter = Rewriter::new_with_block(context, block);
-
-                let result = rewriter.make(rewriter.iconst(ty, bit_width))?;
-                rewriter.create(scf::r#yield(&[result], location));
-                region
-            },
-            {
-                let region = Region::new();
-                let block = region.append_block(Block::new(&[]));
-                let rewriter = Rewriter::new_with_block(context, block);
-
-                let loop_initial_values = vec![value, zero];
-                let result_types = vec![ty, ty];
-
-                let before_region = {
-                    let region = Region::new();
-                    let block = region.append_block(Block::new(&[
-                        (ty, location), // shifted_value
-                        (ty, location), // count_of_trailing_zeros
-                    ]));
-                    let rewriter = Rewriter::new_with_block(context, block);
-
-                    let shifted_value = block.argument(0).into();
-                    let condition = rewriter.make(arith::cmpi(
-                        context,
-                        CmpiPredicate::Ne,
-                        shifted_value,
-                        zero,
-                        location,
-                    ))?;
-                    rewriter.create(scf::condition(
-                        condition,
-                        &[shifted_value, block.argument(1).into()],
-                        location,
-                    ));
-                    region
-                };
-
-                let after_region = {
-                    let region = Region::new();
-                    let block = region.append_block(Block::new(&[
-                        (ty, location), // shifted_value
-                        (ty, location), // count_of_trailing_zeros
-                    ]));
-                    let rewriter = Rewriter::new_with_block(context, block);
-
-                    let shifted_value = block.argument(0).into();
-                    let count_of_trailing_zeros = block.argument(1).into();
-
-                    let new_shifted_value = rewriter.make(arith::shrsi(
-                        shifted_value,
-                        rewriter.make(rewriter.iconst(ty, 1))?,
-                        location,
-                    ))?;
-                    let new_count = rewriter.make(arith::addi(
-                        count_of_trailing_zeros,
-                        rewriter.make(rewriter.iconst(ty, 1))?,
-                        location,
-                    ))?;
-
-                    rewriter.create(scf::r#yield(&[new_shifted_value, new_count], location));
-                    region
-                };
-
-                let loop_result = rewriter.make(scf::r#while(
-                    &loop_initial_values,
-                    &result_types,
-                    before_region,
-                    after_region,
-                    location,
-                ))?;
-
-                let final_count = loop_result.result(1).unwrap_or_else(|| {
-                    panic!("Expected a second result from scf.while but none found")
-                });
-                let result = rewriter.make(arith::subi(
-                    rewriter.make(rewriter.iconst(ty, bit_width))?,
-                    final_count,
-                    location,
-                ))?;
-                rewriter.create(scf::r#yield(&[result], location));
-                region
-            },
+            intrinsic_attr,
+            &args,
+            &result_types,
             location,
         ))?;
 
