@@ -526,10 +526,7 @@ fn execute_test(path: &Path) -> Result<(), TestError> {
             // Constantinople was immediately extended by Petersburg.
             // There isn't any production Constantinople transaction
             // so we don't support it and skip right to Petersburg.
-            if spec_name == &SpecName::Constantinople
-                || spec_name == &SpecName::Osaka
-                || spec_name == &SpecName::Prague
-            {
+            if spec_name == &SpecName::Constantinople {
                 continue;
             }
             let spec_id = spec_name.to_spec_id();

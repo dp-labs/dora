@@ -1099,7 +1099,7 @@ def EVM_ReturndataLoad : EVM_Op<"returndataload"> {
     This operation takes one `i256` operand from the stack: the offset in the returned data, and pushes the loaded word onto the stack.
   }];
 
-  let arguments = (ins I<256>:$offset);
+  let arguments = (ins I16:$offset);
   let results = (outs I<256>:$data);
 
   let assemblyFormat = "$offset `:` type($offset) `->` type($data)";

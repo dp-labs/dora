@@ -679,7 +679,7 @@ impl ConversionPass<'_> {
 
         let uint1 = rewriter.i1_ty();
         let uint8 = rewriter.i8_ty();
-        let uint16 = rewriter.i16_ty();
+        let uint64 = rewriter.i64_ty();
         let uint256 = rewriter.i256_ty();
         let ptr_type = rewriter.ptr_ty();
 
@@ -694,11 +694,15 @@ impl ConversionPass<'_> {
             context,
             FlatSymbolRefAttribute::new(context, symbols::RETURNDATA_SIZE),
             &[syscall_ctx.into()],
-            &[uint16],
+            &[uint64],
             location,
         ))?;
+        // convert `offset` from u16 to u256
+        let offset = rewriter.make(arith::extui(offset, uint256, location))?;
+        // convert `returndata_size` from u64 to u256
+        let returndata_size = rewriter.make(arith::extui(returndata_size, uint256, location))?;
         // Define the maximum slice width (32 bytes)
-        let max_slice_width = rewriter.make(rewriter.iconst_16(32))?;
+        let max_slice_width = rewriter.make(rewriter.iconst_256_from_u64(32)?)?;
         // Compare offset with `returndata_size`
         let offset_cmpi = rewriter.make(arith::cmpi(
             context,

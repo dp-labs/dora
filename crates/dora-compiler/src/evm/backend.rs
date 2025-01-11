@@ -246,7 +246,7 @@ impl crate::backend::Builder for EVMBuilder<'_, '_> {
 
     fn stack_exchange(&mut self, n: usize, m: usize) -> Result<()> {
         let n = n + 1;
-        let m = m + 1;
+        let m = n + m;
         let builder = &self.builder;
 
         let uint256 = builder.i256_ty();

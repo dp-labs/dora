@@ -15,7 +15,6 @@ pub(crate) fn declare_symbols(context: &MLIRContext, module: &MLIRModule) {
     let location = builder.get_insert_location();
 
     let uint8 = builder.i8_ty();
-    let uint16 = builder.i16_ty();
     let uint64 = builder.i64_ty();
     let index_type = builder.index_ty();
     let ptr_type = builder.ptr_ty();
@@ -51,7 +50,7 @@ pub(crate) fn declare_symbols(context: &MLIRContext, module: &MLIRModule) {
             &[],
         ),
         (symbols::DATA_SECTION, &[ptr_type], &[ptr_type]),
-        (symbols::DATA_SECTION_SIZE, &[ptr_type], &[uint16]),
+        (symbols::DATA_SECTION_SIZE, &[ptr_type], &[uint64]),
         (
             symbols::DATA_SECTION_COPY,
             &[ptr_type, uint64, ptr_type, uint64],

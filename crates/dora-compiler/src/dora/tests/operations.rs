@@ -39,8 +39,8 @@ macro_rules! assert_snapshot {
 #[test]
 fn push_push_add() {
     assert_snapshot!(vec![
-        Operation::Push((1_u8, BigUint::from(10_u8))),
-        Operation::Push((1_u8, BigUint::from(10_u8))),
+        Operation::Push((1_u8, 10_u8.into())),
+        Operation::Push((1_u8, 10_u8.into())),
         Operation::Add,
     ]);
 }
@@ -48,8 +48,8 @@ fn push_push_add() {
 #[test]
 fn push_push_add_overflow() {
     assert_snapshot!(vec![
-        Operation::Push((32_u8, BigUint::from(u128::MAX))),
-        Operation::Push((32_u8, BigUint::from(1_u8))),
+        Operation::Push((32_u8, u128::MAX.into())),
+        Operation::Push((32_u8, 1_u8.into())),
         Operation::Add,
     ]);
 }
@@ -57,8 +57,8 @@ fn push_push_add_overflow() {
 #[test]
 fn push_push_add_overflow_1() {
     assert_snapshot!(vec![
-        Operation::Push((32_u8, BigUint::from(u64::MAX))),
-        Operation::Push((32_u8, BigUint::from(1_u64))),
+        Operation::Push((32_u8, u64::MAX.into())),
+        Operation::Push((32_u8, 1_u64.into())),
         Operation::Add,
     ]);
 }
@@ -66,8 +66,8 @@ fn push_push_add_overflow_1() {
 #[test]
 fn push_push_mul() {
     assert_snapshot!(vec![
-        Operation::Push((1_u8, BigUint::from(10_u8))),
-        Operation::Push((1_u8, BigUint::from(10_u8))),
+        Operation::Push((1_u8, 10_u8.into())),
+        Operation::Push((1_u8, 10_u8.into())),
         Operation::Mul,
     ]);
 }
@@ -75,8 +75,8 @@ fn push_push_mul() {
 #[test]
 fn push_push_mul_large() {
     assert_snapshot!(vec![
-        Operation::Push((32_u8, BigUint::from(123456789_u128))),
-        Operation::Push((32_u8, BigUint::from(987654321_u128))),
+        Operation::Push((32_u8, 123456789_u128.into())),
+        Operation::Push((32_u8, 987654321_u128.into())),
         Operation::Mul,
     ]);
 }
@@ -84,8 +84,8 @@ fn push_push_mul_large() {
 #[test]
 fn push_push_mul_overflow() {
     assert_snapshot!(vec![
-        Operation::Push((32_u8, BigUint::from(u64::MAX))),
-        Operation::Push((32_u8, BigUint::from(2_u64))),
+        Operation::Push((32_u8, u64::MAX.into())),
+        Operation::Push((32_u8, 2_u64.into())),
         Operation::Mul,
     ]);
 }
@@ -93,8 +93,8 @@ fn push_push_mul_overflow() {
 #[test]
 fn push_push_sub() {
     assert_snapshot!(vec![
-        Operation::Push((1_u8, BigUint::from(10_u8))),
-        Operation::Push((1_u8, BigUint::from(10_u8))),
+        Operation::Push((1_u8, 10_u8.into())),
+        Operation::Push((1_u8, 10_u8.into())),
         Operation::Sub,
     ]);
 }
@@ -102,8 +102,8 @@ fn push_push_sub() {
 #[test]
 fn push_push_sub_underflow() {
     assert_snapshot!(vec![
-        Operation::Push((1_u8, BigUint::from(10_u8))),
-        Operation::Push((1_u8, BigUint::from(0_u8))),
+        Operation::Push((1_u8, 10_u8.into())),
+        Operation::Push0,
         Operation::Sub,
     ]);
 }
@@ -111,8 +111,8 @@ fn push_push_sub_underflow() {
 #[test]
 fn push_push_sub_underflow_1() {
     assert_snapshot!(vec![
-        Operation::Push((32_u8, BigUint::from(1_u64))),
-        Operation::Push((32_u8, BigUint::from(0_u64))),
+        Operation::Push((32_u8, 1_u64.into())),
+        Operation::Push((32_u8, 0_u64.into())),
         Operation::Sub,
     ]);
 }
@@ -120,8 +120,8 @@ fn push_push_sub_underflow_1() {
 #[test]
 fn push_push_div() {
     assert_snapshot!(vec![
-        Operation::Push((1_u8, BigUint::from(10_u8))),
-        Operation::Push((1_u8, BigUint::from(10_u8))),
+        Operation::Push((1_u8, 10_u8.into())),
+        Operation::Push((1_u8, 10_u8.into())),
         Operation::Div,
     ]);
 }
@@ -129,8 +129,8 @@ fn push_push_div() {
 #[test]
 fn push_push_div_zero() {
     assert_snapshot!(vec![
-        Operation::Push((1_u8, BigUint::from(10_u8))),
-        Operation::Push((1_u8, BigUint::from(0_u8))),
+        Operation::Push((1_u8, 10_u8.into())),
+        Operation::Push0,
         Operation::Div,
     ]);
 }
@@ -138,8 +138,8 @@ fn push_push_div_zero() {
 #[test]
 fn push_push_mod_zero_1() {
     assert_snapshot!(vec![
-        Operation::Push((32_u8, BigUint::from(10_u64))),
-        Operation::Push((32_u8, BigUint::from(0_u64))),
+        Operation::Push((32_u8, 10_u64.into())),
+        Operation::Push((32_u8, 0_u64.into())),
         Operation::Mod,
     ]);
 }
@@ -147,8 +147,8 @@ fn push_push_mod_zero_1() {
 #[test]
 fn push_push_div_zero_0() {
     assert_snapshot!(vec![
-        Operation::Push((32_u8, BigUint::from(10_u64))),
-        Operation::Push((32_u8, BigUint::from(0_u64))),
+        Operation::Push((32_u8, 10_u64.into())),
+        Operation::Push((32_u8, 0_u64.into())),
         Operation::Div,
     ]);
 }
@@ -156,8 +156,8 @@ fn push_push_div_zero_0() {
 #[test]
 fn push_push_sdiv_0() {
     assert_snapshot!(vec![
-        Operation::Push((1_u8, BigUint::from(10_u8))),
-        Operation::Push((1_u8, BigUint::from(10_u8))),
+        Operation::Push((1_u8, 10_u8.into())),
+        Operation::Push((1_u8, 10_u8.into())),
         Operation::SDiv,
     ]);
 }
@@ -186,8 +186,8 @@ fn push_push_sdiv_1() {
 #[test]
 fn push_push_mod_0() {
     assert_snapshot!(vec![
-        Operation::Push((1_u8, BigUint::from(3_u8))),
-        Operation::Push((1_u8, BigUint::from(10_u8))),
+        Operation::Push((1_u8, 3_u8.into())),
+        Operation::Push((1_u8, 10_u8.into())),
         Operation::Mod,
     ]);
 }
@@ -195,8 +195,8 @@ fn push_push_mod_0() {
 #[test]
 fn push_push_mod_1() {
     assert_snapshot!(vec![
-        Operation::Push((1_u8, BigUint::from(5_u8))),
-        Operation::Push((1_u8, BigUint::from(17_u8))),
+        Operation::Push((1_u8, 5_u8.into())),
+        Operation::Push((1_u8, 17_u8.into())),
         Operation::Mod,
     ]);
 }
@@ -204,8 +204,8 @@ fn push_push_mod_1() {
 #[test]
 fn push_push_smod() {
     assert_snapshot!(vec![
-        Operation::Push((1_u8, BigUint::from(3_u8))),
-        Operation::Push((1_u8, BigUint::from(10_u8))),
+        Operation::Push((1_u8, 3_u8.into())),
+        Operation::Push((1_u8, 10_u8.into())),
         Operation::SMod,
     ]);
 }
@@ -227,7 +227,7 @@ fn push_push_smod_with_negative() {
 fn push_push_push_addmod() {
     let (a, b) = (BigUint::from(1_u8), 2_u32);
     assert_snapshot!(vec![
-        Operation::Push((1_u8, BigUint::from(b))),
+        Operation::Push((1_u8, b.into())),
         Operation::Push((1_u8, a.clone())),
         Operation::Push((1_u8, a.clone())),
         Operation::AddMod,
@@ -237,9 +237,9 @@ fn push_push_push_addmod() {
 #[test]
 fn push_push_push_addmod_large_mod() {
     assert_snapshot!(vec![
-        Operation::Push((32_u8, BigUint::from(u128::MAX))),
-        Operation::Push((32_u8, BigUint::from(u128::MAX))),
-        Operation::Push((32_u8, BigUint::from(100_u8))),
+        Operation::Push((32_u8, u128::MAX.into())),
+        Operation::Push((32_u8, u128::MAX.into())),
+        Operation::Push((32_u8, 100_u8.into())),
         Operation::AddMod,
     ]);
 }
@@ -247,9 +247,9 @@ fn push_push_push_addmod_large_mod() {
 #[test]
 fn push_push_push_mulmod() {
     assert_snapshot!(vec![
-        Operation::Push((1_u8, BigUint::from(8_u32))),
-        Operation::Push((1_u8, BigUint::from(10_u32))),
-        Operation::Push((1_u8, BigUint::from(10_u32))),
+        Operation::Push((1_u8, 8_u32.into())),
+        Operation::Push((1_u8, 10_u32.into())),
+        Operation::Push((1_u8, 10_u32.into())),
         Operation::MulMod,
     ]);
 }
@@ -257,9 +257,9 @@ fn push_push_push_mulmod() {
 #[test]
 fn push_push_push_mulmod_zero_mod() {
     assert_snapshot!(vec![
-        Operation::Push((32_u8, BigUint::from(2_u8))),
-        Operation::Push((32_u8, BigUint::from(2_u8))),
-        Operation::Push((32_u8, BigUint::from(0_u8))), // modulus
+        Operation::Push((32_u8, 2_u8.into())),
+        Operation::Push((32_u8, 2_u8.into())),
+        Operation::Push((32_u8, 0_u8.into())), // modulus
         Operation::MulMod,
     ]);
 }
@@ -268,7 +268,7 @@ fn push_push_push_mulmod_zero_mod() {
 fn push_push_exp() {
     let (a, b) = (BigUint::from(3_u8), 3_u32);
     assert_snapshot!(vec![
-        Operation::Push((1_u8, BigUint::from(b))),
+        Operation::Push((1_u8, b.into())),
         Operation::Push((1_u8, a.clone())),
         Operation::Exp,
     ]);
@@ -278,7 +278,7 @@ fn push_push_exp() {
 fn push_push_exp_edge_case() {
     let (a, b) = (BigUint::from(u128::MAX), 1_u32);
     assert_snapshot!(vec![
-        Operation::Push((1_u8, BigUint::from(b))),
+        Operation::Push((1_u8, b.into())),
         Operation::Push((a.bits() as u8 / 8 + 1, a.clone())),
         Operation::Exp,
     ]);
@@ -288,7 +288,7 @@ fn push_push_exp_edge_case() {
 fn push_push_exp_large_base() {
     let (a, b) = (BigUint::from(123456789_u64), 5_u32);
     assert_snapshot!(vec![
-        Operation::Push((4_u8, BigUint::from(b))),
+        Operation::Push((4_u8, b.into())),
         Operation::Push((a.bits() as u8 / 8 + 1, a.clone())),
         Operation::Exp,
     ]);
@@ -298,7 +298,7 @@ fn push_push_exp_large_base() {
 fn push_push_signextend() {
     assert_snapshot!(vec![
         Operation::Push((1_u8, BigUint::from_bytes_be(&[0xFF]))),
-        Operation::Push((1_u8, BigUint::from(0_u32))),
+        Operation::Push((1_u8, 0_u32.into())),
         Operation::SignExtend,
     ]);
 }
@@ -306,8 +306,8 @@ fn push_push_signextend() {
 #[test]
 fn push_push_lt() {
     assert_snapshot!(vec![
-        Operation::Push((1_u8, BigUint::from(10_u8))),
-        Operation::Push((1_u8, BigUint::from(9_u8))),
+        Operation::Push((1_u8, 10_u8.into())),
+        Operation::Push((1_u8, 9_u8.into())),
         Operation::Lt,
     ]);
 }
@@ -315,8 +315,8 @@ fn push_push_lt() {
 #[test]
 fn push_push_gt() {
     assert_snapshot!(vec![
-        Operation::Push((1_u8, BigUint::from(10_u8))),
-        Operation::Push((1_u8, BigUint::from(9_u8))),
+        Operation::Push((1_u8, 10_u8.into())),
+        Operation::Push((1_u8, 9_u8.into())),
         Operation::Gt,
     ]);
 }
@@ -324,8 +324,8 @@ fn push_push_gt() {
 #[test]
 fn push_push_eq_0() {
     assert_snapshot!(vec![
-        Operation::Push((1_u8, BigUint::from(10_u8))),
-        Operation::Push((1_u8, BigUint::from(10_u8))),
+        Operation::Push((1_u8, 10_u8.into())),
+        Operation::Push((1_u8, 10_u8.into())),
         Operation::Eq,
     ]);
 }
@@ -333,8 +333,8 @@ fn push_push_eq_0() {
 #[test]
 fn push_push_eq_1() {
     assert_snapshot!(vec![
-        Operation::Push((1_u8, BigUint::from(5_u8))),
-        Operation::Push((1_u8, BigUint::from(10_u8))),
+        Operation::Push((1_u8, 5_u8.into())),
+        Operation::Push((1_u8, 10_u8.into())),
         Operation::Eq,
     ]);
 }
@@ -342,17 +342,14 @@ fn push_push_eq_1() {
 #[test]
 fn push_push_iszero_0() {
     assert_snapshot!(vec![
-        Operation::Push((1_u8, BigUint::from(10_u8))),
+        Operation::Push((1_u8, 10_u8.into())),
         Operation::IsZero,
     ]);
 }
 
 #[test]
 fn push_push_iszero_1() {
-    assert_snapshot!(vec![
-        Operation::Push((1_u8, BigUint::from(0_u8))),
-        Operation::IsZero,
-    ]);
+    assert_snapshot!(vec![Operation::Push0, Operation::IsZero,]);
 }
 
 #[test]
@@ -367,7 +364,7 @@ fn push_push_and_0() {
 #[test]
 fn push_push_and_1() {
     assert_snapshot!(vec![
-        Operation::Push((1_u8, BigUint::from(0_u8))),
+        Operation::Push0,
         Operation::Push((1_u8, BigUint::from_bytes_be(&[0xFF]))),
         Operation::And,
     ]);
@@ -383,7 +380,7 @@ fn push_push_and_edge_case() {
                 0xFF, 0xFF,
             ])
         )),
-        Operation::Push((32_u8, BigUint::from(0_u32))),
+        Operation::Push((32_u8, 0_u32.into())),
         Operation::And,
     ]);
 }
@@ -400,7 +397,7 @@ fn push_push_or_0() {
 #[test]
 fn push_push_or_1() {
     assert_snapshot!(vec![
-        Operation::Push((1_u8, BigUint::from(0_u8))),
+        Operation::Push0,
         Operation::Push((1_u8, BigUint::from_bytes_be(&[0xFF]))),
         Operation::Or,
     ]);
@@ -416,7 +413,7 @@ fn push_push_or_edge_case() {
                 0xFF, 0xFF,
             ])
         )),
-        Operation::Push((32_u8, BigUint::from(0_u32))),
+        Operation::Push((32_u8, 0_u32.into())),
         Operation::Or,
     ]);
 }
@@ -433,7 +430,7 @@ fn push_push_xor_0() {
 #[test]
 fn push_push_xor_1() {
     assert_snapshot!(vec![
-        Operation::Push((1_u8, BigUint::from(0_u8))),
+        Operation::Push0,
         Operation::Push((1_u8, BigUint::from_bytes_be(&[0xFF]))),
         Operation::Xor,
     ]);
@@ -449,24 +446,21 @@ fn push_push_xor_edge_case() {
                 0xFF, 0xFF,
             ])
         )),
-        Operation::Push((32_u8, BigUint::from(0_u32))),
+        Operation::Push((32_u8, 0_u32.into())),
         Operation::Xor,
     ]);
 }
 
 #[test]
 fn push_not() {
-    assert_snapshot!(vec![
-        Operation::Push((1_u8, BigUint::from(0_u8))),
-        Operation::Not,
-    ]);
+    assert_snapshot!(vec![Operation::Push0, Operation::Not,]);
 }
 
 #[test]
 fn push_push_byte() {
     assert_snapshot!(vec![
         Operation::Push((1_u8, BigUint::from_bytes_be(&[0xFF]))),
-        Operation::Push((1_u8, BigUint::from(31_u8))),
+        Operation::Push((1_u8, 31_u8.into())),
         Operation::Byte,
     ]);
 }
@@ -474,8 +468,8 @@ fn push_push_byte() {
 #[test]
 fn push_push_shl() {
     assert_snapshot!(vec![
-        Operation::Push((1_u8, BigUint::from(1_u8))),
-        Operation::Push((1_u8, BigUint::from(1_u8))),
+        Operation::Push((1_u8, 1_u8.into())),
+        Operation::Push((1_u8, 1_u8.into())),
         Operation::Shl,
     ]);
 }
@@ -484,7 +478,7 @@ fn push_push_shl() {
 fn push_push_shr() {
     let (a, b) = (BigUint::from(3_u8), 3_u32);
     assert_snapshot!(vec![
-        Operation::Push((1_u8, BigUint::from(b))),
+        Operation::Push((1_u8, b.into())),
         Operation::Push((1_u8, a.clone())),
         Operation::Shr,
     ]);
@@ -493,8 +487,8 @@ fn push_push_shr() {
 #[test]
 fn push_push_sar() {
     assert_snapshot!(vec![
-        Operation::Push((1_u8, BigUint::from(2_u8))),
-        Operation::Push((1_u8, BigUint::from(1_u8))),
+        Operation::Push((1_u8, 2_u8.into())),
+        Operation::Push((1_u8, 1_u8.into())),
         Operation::Sar,
     ]);
 }
@@ -509,10 +503,10 @@ fn push_mstore_keccak256() {
                 0x00,
             ]),
         )),
-        Operation::Push((1_u8, BigUint::from(0_u8))),
+        Operation::Push0,
         Operation::MStore,
-        Operation::Push((1_u8, BigUint::from(4_u8))),
-        Operation::Push((1_u8, BigUint::from(0_u8))),
+        Operation::Push((1_u8, 4_u8.into())),
+        Operation::Push0,
         Operation::Keccak256,
     ]);
 }
@@ -544,31 +538,28 @@ fn callvalue() {
 
 #[test]
 fn push_calldataload() {
-    assert_snapshot!(vec![
-        Operation::Push((1_u8, BigUint::from(0_u8))),
-        Operation::CalldataLoad,
-    ]);
+    assert_snapshot!(vec![Operation::Push0, Operation::CalldataLoad,]);
 }
 
 #[test]
 fn push_calldataload_edge_case() {
     assert_snapshot!(vec![
-        Operation::Push((1_u8, BigUint::from(100_u8))),
+        Operation::Push((1_u8, 100_u8.into())),
         Operation::CalldataLoad,
     ]);
 }
 
 #[test]
-fn push_calldatasize() {
-    assert_snapshot!(vec![Operation::CalldataSize,]);
+fn calldatasize() {
+    assert_snapshot!(vec![Operation::CalldataSize]);
 }
 
 #[test]
 fn push_calldatacopy() {
     assert_snapshot!(vec![
-        Operation::Push((1_u8, BigUint::from(32_u8))),
-        Operation::Push((1_u8, BigUint::from(0_u8))),
-        Operation::Push((1_u8, BigUint::from(0_u8))),
+        Operation::Push((1_u8, 32_u8.into())),
+        Operation::Push0,
+        Operation::Push0,
         Operation::CalldataCopy,
     ]);
 }
@@ -576,9 +567,9 @@ fn push_calldatacopy() {
 #[test]
 fn push_calldatacopy_partial() {
     assert_snapshot!(vec![
-        Operation::Push((1_u8, BigUint::from(0_u8))),
-        Operation::Push((1_u8, BigUint::from(10_u8))),
-        Operation::Push((1_u8, BigUint::from(20_u8))),
+        Operation::Push0,
+        Operation::Push((1_u8, 10_u8.into())),
+        Operation::Push((1_u8, 20_u8.into())),
         Operation::CalldataCopy,
     ]);
 }
@@ -586,20 +577,16 @@ fn push_calldatacopy_partial() {
 #[test]
 fn push_calldatacopy_out_of_bounds() {
     assert_snapshot!(vec![
-        Operation::Push((1_u8, BigUint::from(0_u8))),
-        Operation::Push((1_u8, BigUint::from(100_u8))),
-        Operation::Push((1_u8, BigUint::from(10_u8))),
+        Operation::Push0,
+        Operation::Push((1_u8, 100_u8.into())),
+        Operation::Push((1_u8, 10_u8.into())),
         Operation::CalldataCopy,
     ]);
 }
 
 #[test]
 fn push_pop_codesize() {
-    assert_snapshot!(vec![
-        Operation::Push((1_u8, BigUint::from(0_u8))),
-        Operation::Pop,
-        Operation::CodeSize,
-    ]);
+    assert_snapshot!(vec![Operation::Push0, Operation::Pop, Operation::CodeSize,]);
 }
 
 #[test]
@@ -617,12 +604,12 @@ fn push_codecopy() {
                 0xFF,
             ]),
         )),
-        Operation::Push((32_u8, BigUint::from(0_u8))),
+        Operation::Push((32_u8, 0_u8.into())),
         Operation::Pop,
         Operation::Pop,
-        Operation::Push((1_u8, BigUint::from(32_u8))),
-        Operation::Push((1_u8, BigUint::from(0_u8))),
-        Operation::Push((1_u8, BigUint::from(0_u8))),
+        Operation::Push((1_u8, 32_u8.into())),
+        Operation::Push0,
+        Operation::Push0,
         Operation::CodeCopy,
     ]);
 }
@@ -630,9 +617,9 @@ fn push_codecopy() {
 #[test]
 fn push_codecopy_1() {
     assert_snapshot!(vec![
-        Operation::Push((1_u8, BigUint::from(0_u8))),
-        Operation::Push((1_u8, BigUint::from(0_u8))),
-        Operation::Push((1_u8, BigUint::from(10_u8))),
+        Operation::Push0,
+        Operation::Push0,
+        Operation::Push((1_u8, 10_u8.into())),
         Operation::CodeCopy,
     ]);
 }
@@ -640,9 +627,9 @@ fn push_codecopy_1() {
 #[test]
 fn push_codecopy_partial() {
     assert_snapshot!(vec![
-        Operation::Push((1_u8, BigUint::from(0_u8))),
-        Operation::Push((1_u8, BigUint::from(5_u8))),
-        Operation::Push((1_u8, BigUint::from(5_u8))),
+        Operation::Push0,
+        Operation::Push((1_u8, 5_u8.into())),
+        Operation::Push((1_u8, 5_u8.into())),
         Operation::CodeCopy,
     ]);
 }
@@ -650,9 +637,9 @@ fn push_codecopy_partial() {
 #[test]
 fn push_codecopy_out_of_bounds() {
     assert_snapshot!(vec![
-        Operation::Push((1_u8, BigUint::from(0_u8))),
-        Operation::Push((1_u8, BigUint::from(50_u8))),
-        Operation::Push((1_u8, BigUint::from(10_u8))),
+        Operation::Push0,
+        Operation::Push((1_u8, 50_u8.into())),
+        Operation::Push((1_u8, 10_u8.into())),
         Operation::CodeCopy,
     ]);
 }
@@ -672,7 +659,7 @@ fn push_mstore_create_extcodesize() {
                 0xFF, 0xFF,
             ]),
         )),
-        Operation::Push((1_u8, BigUint::from(0_u8))),
+        Operation::Push0,
         Operation::MStore,
         Operation::Push((
             32_u8,
@@ -681,11 +668,11 @@ fn push_mstore_create_extcodesize() {
                 0xFF, 0xFF,
             ]),
         )),
-        Operation::Push((1_u8, BigUint::from(32_u8))),
+        Operation::Push((1_u8, 32_u8.into())),
         Operation::MStore,
-        Operation::Push((1_u8, BigUint::from(41_u8))),
-        Operation::Push((1_u8, BigUint::from(0_u8))),
-        Operation::Push((1_u8, BigUint::from(0_u8))),
+        Operation::Push((1_u8, 41_u8.into())),
+        Operation::Push0,
+        Operation::Push0,
         Operation::Create,
         Operation::ExtCodeSize,
     ]);
@@ -717,7 +704,7 @@ fn test_create_extcodesize() {
                 0xFF, 0xFF,
             ]),
         )),
-        Operation::Push((1_u8, BigUint::from(0_u8))),
+        Operation::Push0,
         Operation::MStore,
         Operation::Push((
             32_u8,
@@ -726,17 +713,17 @@ fn test_create_extcodesize() {
                 0xFF, 0xFF,
             ]),
         )),
-        Operation::Push((1_u8, BigUint::from(32_u8))),
+        Operation::Push((1_u8, 32_u8.into())),
         Operation::MStore,
-        Operation::Push((1_u8, BigUint::from(41_u8))),
-        Operation::Push((1_u8, BigUint::from(0_u8))),
-        Operation::Push((1_u8, BigUint::from(0_u8))),
+        Operation::Push((1_u8, 41_u8.into())),
+        Operation::Push0,
+        Operation::Push0,
         Operation::Create,
         Operation::ExtCodeSize,
         // Return result
         Operation::Push0,
         Operation::MStore,
-        Operation::Push((1, 32_u8.into())),
+        Operation::Push((1_u8, 32_u8.into())),
         Operation::Push0,
         Operation::Return,
     ]);
@@ -752,7 +739,7 @@ fn push_mstore_create_extcodecopy() {
                 0xFF, 0xFF,
             ]),
         )),
-        Operation::Push((1_u8, BigUint::from(0_u8))),
+        Operation::Push0,
         Operation::MStore,
         Operation::Push((
             32_u8,
@@ -761,21 +748,21 @@ fn push_mstore_create_extcodecopy() {
                 0xFF, 0xFF,
             ]),
         )),
-        Operation::Push((1_u8, BigUint::from(32_u8))),
+        Operation::Push((1_u8, 32_u8.into())),
         Operation::MStore,
-        Operation::Push((1_u8, BigUint::from(41_u8))),
-        Operation::Push((1_u8, BigUint::from(0_u8))),
-        Operation::Push((1_u8, BigUint::from(0_u8))),
+        Operation::Push((1_u8, 41_u8.into())),
+        Operation::Push0,
+        Operation::Push0,
         Operation::Create,
-        Operation::Push((1_u8, BigUint::from(0_u8))),
-        Operation::Push((1_u8, BigUint::from(0_u8))),
+        Operation::Push0,
+        Operation::Push0,
         Operation::MStore,
-        Operation::Push((1_u8, BigUint::from(0_u8))),
-        Operation::Push((1_u8, BigUint::from(32_u8))),
+        Operation::Push0,
+        Operation::Push((1_u8, 32_u8.into())),
         Operation::MStore,
-        Operation::Push((1_u8, BigUint::from(32_u8))),
-        Operation::Push((1_u8, BigUint::from(0_u8))),
-        Operation::Push((1_u8, BigUint::from(0_u8))),
+        Operation::Push((1_u8, 32_u8.into())),
+        Operation::Push0,
+        Operation::Push0,
         Operation::Dup(4),
         Operation::ExtCodeCopy,
     ]);
@@ -784,10 +771,10 @@ fn push_mstore_create_extcodecopy() {
 #[test]
 fn push_extcodecopy_basic() {
     assert_snapshot!(vec![
-        Operation::Push((1_u8, BigUint::from(0_u8))),
-        Operation::Push((1_u8, BigUint::from(0_u8))),
+        Operation::Push0,
+        Operation::Push0,
         Operation::Push((20_u8, BigUint::from_bytes_be(&[0xde, 0xad, 0xbe, 0xef]))),
-        Operation::Push((1_u8, BigUint::from(10_u8))),
+        Operation::Push((1_u8, 10_u8.into())),
         Operation::ExtCodeCopy,
     ]);
 }
@@ -795,10 +782,10 @@ fn push_extcodecopy_basic() {
 #[test]
 fn push_extcodecopy_partial() {
     assert_snapshot!(vec![
-        Operation::Push((1_u8, BigUint::from(0_u8))),
-        Operation::Push((1_u8, BigUint::from(5_u8))),
+        Operation::Push0,
+        Operation::Push((1_u8, 5_u8.into())),
         Operation::Push((20_u8, BigUint::from_bytes_be(&[0xde, 0xad, 0xbe, 0xef]))),
-        Operation::Push((1_u8, BigUint::from(5_u8))),
+        Operation::Push((1_u8, 5_u8.into())),
         Operation::ExtCodeCopy,
     ]);
 }
@@ -806,10 +793,10 @@ fn push_extcodecopy_partial() {
 #[test]
 fn push_extcodecopy_out_of_bounds() {
     assert_snapshot!(vec![
-        Operation::Push((1_u8, BigUint::from(0_u8))),
-        Operation::Push((1_u8, BigUint::from(50_u8))),
+        Operation::Push0,
+        Operation::Push((1_u8, 50_u8.into())),
         Operation::Push((20_u8, BigUint::from_bytes_be(&[0xde, 0xad, 0xbe, 0xef]))),
-        Operation::Push((1_u8, BigUint::from(10_u8))),
+        Operation::Push((1_u8, 10_u8.into())),
         Operation::ExtCodeCopy,
     ]);
 }
@@ -825,7 +812,7 @@ fn push_mstore_create_returndatasize() {
                 0xFF, 0xFF, 0xFF, 0xFF
             ]),
         )),
-        Operation::Push((1_u8, BigUint::from(0_u8))),
+        Operation::Push0,
         Operation::MStore,
         Operation::Push((
             32_u8,
@@ -835,7 +822,7 @@ fn push_mstore_create_returndatasize() {
                 0x00, 0x00, 0x00, 0x00
             ]),
         )),
-        Operation::Push((1_u8, BigUint::from(32_u8))),
+        Operation::Push((1_u8, 32_u8.into())),
         Operation::MStore,
         Operation::Push((
             32_u8,
@@ -845,18 +832,18 @@ fn push_mstore_create_returndatasize() {
                 0x00, 0x00, 0x00, 0x00
             ]),
         )),
-        Operation::Push((1_u8, BigUint::from(64_u8))),
+        Operation::Push((1_u8, 64_u8.into())),
         Operation::MStore,
-        Operation::Push((1_u8, BigUint::from(77_u8))),
-        Operation::Push((1_u8, BigUint::from(0_u8))),
-        Operation::Push((1_u8, BigUint::from(0_u8))),
+        Operation::Push((1_u8, 77_u8.into())),
+        Operation::Push0,
+        Operation::Push0,
         Operation::Create,
-        Operation::Push((1_u8, BigUint::from(0_u8))),
-        Operation::Push((1_u8, BigUint::from(0_u8))),
-        Operation::Push((1_u8, BigUint::from(0_u8))),
-        Operation::Push((1_u8, BigUint::from(0_u8))),
+        Operation::Push0,
+        Operation::Push0,
+        Operation::Push0,
+        Operation::Push0,
         Operation::Dup(5),
-        Operation::Push((4_u8, BigUint::from_bytes_be(&[0xFF, 0xFF, 0xFF, 0xFF,]),)),
+        Operation::Push((4_u8, BigUint::from_bytes_be(&[0xFF, 0xFF, 0xFF, 0xFF,]))),
         Operation::Staticcall,
         Operation::ReturndataSize,
     ]);
@@ -873,7 +860,7 @@ fn push_mstore_create_returndatacopy() {
                 0xFF, 0xFF, 0xFF, 0xFF
             ]),
         )),
-        Operation::Push((1_u8, BigUint::from(0_u8))),
+        Operation::Push0,
         Operation::MStore,
         Operation::Push((
             32_u8,
@@ -883,7 +870,7 @@ fn push_mstore_create_returndatacopy() {
                 0x00, 0x00, 0x00, 0x00
             ]),
         )),
-        Operation::Push((1_u8, BigUint::from(32_u8))),
+        Operation::Push((1_u8, 32_u8.into())),
         Operation::MStore,
         Operation::Push((
             32_u8,
@@ -893,33 +880,33 @@ fn push_mstore_create_returndatacopy() {
                 0x00, 0x00, 0x00, 0x00
             ]),
         )),
-        Operation::Push((1_u8, BigUint::from(64_u8))),
+        Operation::Push((1_u8, 64_u8.into())),
         Operation::MStore,
-        Operation::Push((1_u8, BigUint::from(77_u8))),
-        Operation::Push((1_u8, BigUint::from(0_u8))),
-        Operation::Push((1_u8, BigUint::from(0_u8))),
+        Operation::Push((1_u8, 77_u8.into())),
+        Operation::Push0,
+        Operation::Push0,
         Operation::Create,
-        Operation::Push((1_u8, BigUint::from(0_u8))),
-        Operation::Push((1_u8, BigUint::from(0_u8))),
-        Operation::Push((1_u8, BigUint::from(0_u8))),
-        Operation::Push((1_u8, BigUint::from(0_u8))),
+        Operation::Push0,
+        Operation::Push0,
+        Operation::Push0,
+        Operation::Push0,
         Operation::Dup(5),
-        Operation::Push((4_u8, BigUint::from_bytes_be(&[0xFF, 0xFF, 0xFF, 0xFF,]),)),
+        Operation::Push((4_u8, BigUint::from_bytes_be(&[0xFF, 0xFF, 0xFF, 0xFF,]))),
         Operation::Staticcall,
         Operation::Pop,
         Operation::Pop,
-        Operation::Push((1_u8, BigUint::from(0_u8))),
-        Operation::Push((1_u8, BigUint::from(0_u8))),
+        Operation::Push0,
+        Operation::Push0,
         Operation::MStore,
-        Operation::Push((1_u8, BigUint::from(0_u8))),
-        Operation::Push((1_u8, BigUint::from(32_u8))),
+        Operation::Push0,
+        Operation::Push((1_u8, 32_u8.into())),
         Operation::MStore,
-        Operation::Push((1_u8, BigUint::from(0_u8))),
-        Operation::Push((1_u8, BigUint::from(64_u8))),
+        Operation::Push0,
+        Operation::Push((1_u8, 64_u8.into())),
         Operation::MStore,
-        Operation::Push((1_u8, BigUint::from(32_u8))),
-        Operation::Push((1_u8, BigUint::from(0_u8))),
-        Operation::Push((1_u8, BigUint::from(0_u8))),
+        Operation::Push((1_u8, 32_u8.into())),
+        Operation::Push0,
+        Operation::Push0,
         Operation::ReturndataCopy,
     ]);
 }
@@ -927,9 +914,9 @@ fn push_mstore_create_returndatacopy() {
 #[test]
 fn returndatacopy_basic() {
     assert_snapshot!(vec![
-        Operation::Push((1_u8, BigUint::from(0_u8))), // Destination offset in memory
-        Operation::Push((1_u8, BigUint::from(0_u8))), // Source offset in returndata
-        Operation::Push((1_u8, BigUint::from(32_u8))), // Number of bytes to copy
+        Operation::Push0,                      // Destination offset in memory
+        Operation::Push0,                      // Source offset in returndata
+        Operation::Push((1_u8, 32_u8.into())), // Number of bytes to copy
         Operation::ReturndataCopy,
     ]);
 }
@@ -937,9 +924,9 @@ fn returndatacopy_basic() {
 #[test]
 fn returndatacopy_partial() {
     assert_snapshot!(vec![
-        Operation::Push((1_u8, BigUint::from(0_u8))), // Destination offset in memory
-        Operation::Push((1_u8, BigUint::from(10_u8))), // Source offset in returndata
-        Operation::Push((1_u8, BigUint::from(20_u8))), // Number of bytes to copy
+        Operation::Push0,                      // Destination offset in memory
+        Operation::Push((1_u8, 10_u8.into())), // Source offset in returndata
+        Operation::Push((1_u8, 20_u8.into())), // Number of bytes to copy
         Operation::ReturndataCopy,
     ]);
 }
@@ -947,9 +934,9 @@ fn returndatacopy_partial() {
 #[test]
 fn returndatacopy_out_of_bounds() {
     assert_snapshot!(vec![
-        Operation::Push((1_u8, BigUint::from(0_u8))), // Destination offset in memory
-        Operation::Push((1_u8, BigUint::from(50_u8))), // Offset exceeding returndata size
-        Operation::Push((1_u8, BigUint::from(10_u8))), // Number of bytes to copy
+        Operation::Push0,                      // Destination offset in memory
+        Operation::Push((1_u8, 50_u8.into())), // Offset exceeding returndata size
+        Operation::Push((1_u8, 10_u8.into())), // Number of bytes to copy
         Operation::ReturndataCopy,
     ]);
 }
@@ -963,11 +950,11 @@ fn push_mstore_create_extcodehash() {
                 0x63, 0xFF, 0xFF, 0xFF, 0xFF, 0x60, 0x00, 0x52, 0x60, 0x04, 0x60, 0x00, 0xF3
             ]),
         )),
-        Operation::Push((1_u8, BigUint::from(0_u8))),
+        Operation::Push0,
         Operation::MStore,
-        Operation::Push((1_u8, BigUint::from(13_u8))),
-        Operation::Push((1_u8, BigUint::from(0_u8))),
-        Operation::Push((1_u8, BigUint::from(0_u8))),
+        Operation::Push((1_u8, 13_u8.into())),
+        Operation::Push0,
+        Operation::Push0,
         Operation::Create,
         Operation::ExtCodeHash,
     ]);
@@ -992,7 +979,7 @@ fn extcodehash_nonexistent() {
 #[test]
 fn blockhash() {
     assert_snapshot!(vec![
-        Operation::Push((1_u8, BigUint::from(599423545_u32))),
+        Operation::Push((1_u8, 599423545_u32.into())),
         Operation::BlockHash,
     ]);
 }
@@ -1021,7 +1008,7 @@ fn prevrandao() {
 fn push_gas_gaslimit() {
     assert_snapshot!(vec![
         Operation::Gas,
-        Operation::Push((3_u8, BigUint::from(21000u32))),
+        Operation::Push((3_u8, 21000u32.into())),
         Operation::GasLimit,
         Operation::Sub,
         Operation::Sub,
@@ -1046,7 +1033,7 @@ fn basefee() {
 #[test]
 fn blobhash() {
     assert_snapshot!(vec![
-        Operation::Push((3_u8, BigUint::from(21000u32))),
+        Operation::Push((3_u8, 21000u32.into())),
         Operation::BlobHash,
     ]);
 }
@@ -1059,7 +1046,7 @@ fn blobbasefee() {
 #[test]
 fn push_pop() {
     assert_snapshot!(vec![
-        Operation::Push((3_u8, 125985_u32.into(),)),
+        Operation::Push((3_u8, 125985_u32.into())),
         Operation::Pop,
     ]);
 }
@@ -1074,9 +1061,9 @@ fn push_mstore_mload() {
                 0xFF,
             ]),
         )),
-        Operation::Push((1_u8, BigUint::from(0_u8))),
+        Operation::Push0,
         Operation::MStore,
-        Operation::Push((1_u8, BigUint::from(0_u8))),
+        Operation::Push0,
         Operation::MLoad,
     ]);
 }
@@ -1084,8 +1071,8 @@ fn push_mstore_mload() {
 #[test]
 fn mstore_basic() {
     assert_snapshot!(vec![
-        Operation::Push((1_u8, BigUint::from(0_u8))),
-        Operation::Push((32_u8, BigUint::from(42_u64))),
+        Operation::Push0,
+        Operation::Push((32_u8, 42_u64.into())),
         Operation::MStore,
     ]);
 }
@@ -1093,11 +1080,11 @@ fn mstore_basic() {
 #[test]
 fn mstore_overwrite() {
     assert_snapshot!(vec![
-        Operation::Push((1_u8, BigUint::from(0_u8))),
-        Operation::Push((32_u8, BigUint::from(42_u64))),
+        Operation::Push0,
+        Operation::Push((32_u8, 42_u64.into())),
         Operation::MStore,
-        Operation::Push((1_u8, BigUint::from(0_u8))),
-        Operation::Push((32_u8, BigUint::from(99_u64))),
+        Operation::Push0,
+        Operation::Push((32_u8, 99_u64.into())),
         Operation::MStore,
     ]);
 }
@@ -1112,7 +1099,7 @@ fn push_mstore() {
                 0xFF,
             ]),
         )),
-        Operation::Push((1_u8, BigUint::from(0_u8))),
+        Operation::Push0,
         Operation::MStore,
     ]);
 }
@@ -1120,8 +1107,8 @@ fn push_mstore() {
 #[test]
 fn mstore_high_address() {
     assert_snapshot!(vec![
-        Operation::Push((1_u8, BigUint::from(1024_u64))),
-        Operation::Push((32_u8, BigUint::from(123_u64))),
+        Operation::Push((1_u8, 1024_u64.into())),
+        Operation::Push((32_u8, 123_u64.into())),
         Operation::MStore,
     ]);
 }
@@ -1129,29 +1116,26 @@ fn mstore_high_address() {
 #[test]
 fn mload_basic() {
     assert_snapshot!(vec![
-        Operation::Push((1_u8, BigUint::from(0_u8))),
-        Operation::Push((32_u8, BigUint::from(42_u64))),
+        Operation::Push0,
+        Operation::Push((32_u8, 42_u64.into())),
         Operation::MStore,
-        Operation::Push((1_u8, BigUint::from(0_u8))),
+        Operation::Push0,
         Operation::MLoad,
     ]);
 }
 
 #[test]
 fn mload_uninitialized() {
-    assert_snapshot!(vec![
-        Operation::Push((1_u8, BigUint::from(0_u8))),
-        Operation::MLoad,
-    ]);
+    assert_snapshot!(vec![Operation::Push0, Operation::MLoad,]);
 }
 
 #[test]
 fn mload_high_address() {
     assert_snapshot!(vec![
-        Operation::Push((1_u8, BigUint::from(1024_u64))),
-        Operation::Push((32_u8, BigUint::from(987654321_u64))),
+        Operation::Push((1_u8, 1024_u64.into())),
+        Operation::Push((32_u8, 987654321_u64.into())),
         Operation::MStore,
-        Operation::Push((1_u8, BigUint::from(1024_u64))),
+        Operation::Push((1_u8, 1024_u64.into())),
         Operation::MLoad,
     ]);
 }
@@ -1159,8 +1143,8 @@ fn mload_high_address() {
 #[test]
 fn push_mstore8() {
     assert_snapshot!(vec![
-        Operation::Push((32_u8, BigUint::from_bytes_be(&[0xFF, 0xFF,]),)),
-        Operation::Push((1_u8, BigUint::from(0_u8))),
+        Operation::Push((32_u8, BigUint::from_bytes_be(&[0xFF, 0xFF,]))),
+        Operation::Push0,
         Operation::MStore8,
     ]);
 }
@@ -1168,10 +1152,10 @@ fn push_mstore8() {
 #[test]
 fn push_push_sstore_sload() {
     assert_snapshot!(vec![
-        Operation::Push((1_u8, BigUint::from(46_u8))),
-        Operation::Push((1_u8, BigUint::from(0_u8))),
+        Operation::Push((1_u8, 46_u8.into())),
+        Operation::Push0,
         Operation::SStore,
-        Operation::Push((1_u8, BigUint::from(0_u8))),
+        Operation::Push0,
         Operation::SLoad,
     ]);
 }
@@ -1179,8 +1163,8 @@ fn push_push_sstore_sload() {
 #[test]
 fn sstore_basic() {
     assert_snapshot!(vec![
-        Operation::Push((32_u8, BigUint::from(0_u64))),
-        Operation::Push((32_u8, BigUint::from(100_u64))),
+        Operation::Push((32_u8, 0_u64.into())),
+        Operation::Push((32_u8, 100_u64.into())),
         Operation::SStore,
     ]);
 }
@@ -1188,11 +1172,11 @@ fn sstore_basic() {
 #[test]
 fn sstore_overwrite() {
     assert_snapshot!(vec![
-        Operation::Push((32_u8, BigUint::from(0_u64))),
-        Operation::Push((32_u8, BigUint::from(200_u64))),
+        Operation::Push((32_u8, 0_u64.into())),
+        Operation::Push((32_u8, 200_u64.into())),
         Operation::SStore,
-        Operation::Push((32_u8, BigUint::from(0_u64))),
-        Operation::Push((32_u8, BigUint::from(300_u64))),
+        Operation::Push((32_u8, 0_u64.into())),
+        Operation::Push((32_u8, 300_u64.into())),
         Operation::SStore,
     ]);
 }
@@ -1200,11 +1184,11 @@ fn sstore_overwrite() {
 #[test]
 fn sstore_multiple_slots() {
     assert_snapshot!(vec![
-        Operation::Push((32_u8, BigUint::from(0_u64))), // Storage slot 0
-        Operation::Push((32_u8, BigUint::from(500_u64))), // Value to store in slot 0
+        Operation::Push((32_u8, 0_u64.into())),   // Storage slot 0
+        Operation::Push((32_u8, 500_u64.into())), // Value to store in slot 0
         Operation::SStore,
-        Operation::Push((32_u8, BigUint::from(1_u64))), // Storage slot 1
-        Operation::Push((32_u8, BigUint::from(600_u64))), // Value to store in slot 1
+        Operation::Push((32_u8, 1_u64.into())), // Storage slot 1
+        Operation::Push((32_u8, 600_u64.into())), // Value to store in slot 1
         Operation::SStore,
     ]);
 }
@@ -1214,7 +1198,7 @@ fn sstore_high_slot() {
     let key = BigUint::from(2_u64).pow(256) - 1_u64;
     assert_snapshot!(vec![
         Operation::Push((32_u8, key)), // High storage slot (max slot)
-        Operation::Push((32_u8, BigUint::from(777_u64))), // Value to store
+        Operation::Push((32_u8, 777_u64.into())), // Value to store
         Operation::SStore,
     ]);
 }
@@ -1222,10 +1206,10 @@ fn sstore_high_slot() {
 #[test]
 fn sload_basic() {
     assert_snapshot!(vec![
-        Operation::Push((32_u8, BigUint::from(0_u64))), // Storage slot
-        Operation::Push((32_u8, BigUint::from(400_u64))), // Value to store
+        Operation::Push((32_u8, 0_u64.into())),   // Storage slot
+        Operation::Push((32_u8, 400_u64.into())), // Value to store
         Operation::SStore,
-        Operation::Push((32_u8, BigUint::from(0_u64))), // Same slot
+        Operation::Push((32_u8, 0_u64.into())), // Same slot
         Operation::SLoad,
     ]);
 }
@@ -1233,7 +1217,7 @@ fn sload_basic() {
 #[test]
 fn sload_uninitialized() {
     assert_snapshot!(vec![
-        Operation::Push((32_u8, BigUint::from(0_u64))), // Attempt to load from uninitialized slot
+        Operation::Push((32_u8, 0_u64.into())), // Attempt to load from uninitialized slot
         Operation::SLoad,
     ]);
 }
@@ -1243,7 +1227,7 @@ fn sload_high_slot() {
     let key = BigUint::from(2_u64).pow(256) - 1_u64;
     assert_snapshot!(vec![
         Operation::Push((32_u8, key.clone())), // High storage slot (max slot)
-        Operation::Push((32_u8, BigUint::from(123_u64))), // Value to store
+        Operation::Push((32_u8, 123_u64.into())), // Value to store
         Operation::SStore,
         Operation::Push((32_u8, key)), // Same high slot
         Operation::SLoad,
@@ -1253,15 +1237,15 @@ fn sload_high_slot() {
 #[test]
 fn sload_multiple_slots() {
     assert_snapshot!(vec![
-        Operation::Push((32_u8, BigUint::from(0_u64))),
-        Operation::Push((32_u8, BigUint::from(100_u64))),
+        Operation::Push((32_u8, 0_u64.into())),
+        Operation::Push((32_u8, 100_u64.into())),
         Operation::SStore,
-        Operation::Push((32_u8, BigUint::from(1_u64))),
-        Operation::Push((32_u8, BigUint::from(200_u64))),
+        Operation::Push((32_u8, 1_u64.into())),
+        Operation::Push((32_u8, 200_u64.into())),
         Operation::SStore,
-        Operation::Push((32_u8, BigUint::from(0_u64))),
+        Operation::Push((32_u8, 0_u64.into())),
         Operation::SLoad,
-        Operation::Push((32_u8, BigUint::from(1_u64))),
+        Operation::Push((32_u8, 1_u64.into())),
         Operation::SLoad,
     ]);
 }
@@ -1270,7 +1254,7 @@ fn sload_multiple_slots() {
 fn push_push_sstore() {
     assert_snapshot!(vec![
         Operation::Push((2_u8, BigUint::from_bytes_be(&[0xFF, 0xFF]))),
-        Operation::Push((1_u8, BigUint::from(0_u8))),
+        Operation::Push0,
         Operation::SStore,
     ]);
 }
@@ -1278,21 +1262,21 @@ fn push_push_sstore() {
 #[test]
 fn jump_basic() {
     assert_snapshot!(vec![
-        Operation::Push((1_u8, BigUint::from(6_u8))),
+        Operation::Push((1_u8, 6_u8.into())),
         Operation::Jump,
-        Operation::Push((1_u8, BigUint::from(99_u8))),
+        Operation::Push((1_u8, 99_u8.into())),
         Operation::Jumpdest { pc: 6 },
-        Operation::Push((1_u8, BigUint::from(42_u8))),
+        Operation::Push((1_u8, 42_u8.into())),
     ]);
 }
 
 #[test]
 fn jump_unconditional() {
     assert_snapshot!(vec![
-        Operation::Push((1_u8, BigUint::from(4_u8))),
-        Operation::Push((1_u8, BigUint::from(10_u8))),
+        Operation::Push((1_u8, 4_u8.into())),
+        Operation::Push((1_u8, 10_u8.into())),
         Operation::Jump,
-        Operation::Push((1_u8, BigUint::from(20_u8))),
+        Operation::Push((1_u8, 20_u8.into())),
         Operation::Jumpdest { pc: 4 },
     ]);
 }
@@ -1300,30 +1284,27 @@ fn jump_unconditional() {
 #[test]
 fn jump_with_jumpdest() {
     assert_snapshot!(vec![
-        Operation::Push((1_u8, BigUint::from(5_u8))),
+        Operation::Push((1_u8, 5_u8.into())),
         Operation::Jump,
-        Operation::Push((1_u8, BigUint::from(0_u8))),
-        Operation::Push((1_u8, BigUint::from(1_u8))),
+        Operation::Push0,
+        Operation::Push((1_u8, 1_u8.into())),
         Operation::Jumpdest { pc: 5 },
-        Operation::Push((1_u8, BigUint::from(2_u8))),
+        Operation::Push((1_u8, 2_u8.into())),
     ]);
 }
 
 #[test]
 fn jump_invalid() {
-    assert_snapshot!(vec![
-        Operation::Push((1_u8, BigUint::from(10_u8))),
-        Operation::Jump,
-    ]);
+    assert_snapshot!(vec![Operation::Push((1_u8, 10_u8.into())), Operation::Jump,]);
 }
 
 #[test]
 fn jump_with_push_pop() {
     assert_snapshot!(vec![
-        Operation::Push((1_u8, BigUint::from(6_u8))),
+        Operation::Push((1_u8, 6_u8.into())),
         Operation::Jump,
-        Operation::Push((1_u8, BigUint::from(0_u8))),
-        Operation::Push((1_u8, BigUint::from(42_u8))),
+        Operation::Push0,
+        Operation::Push((1_u8, 42_u8.into())),
         Operation::Pop,
         Operation::Jumpdest { pc: 6 },
     ]);
@@ -1332,13 +1313,13 @@ fn jump_with_push_pop() {
 #[test]
 fn jump_to_jumpdest_twice() {
     assert_snapshot!(vec![
-        Operation::Push((1_u8, BigUint::from(4_u8))),
+        Operation::Push((1_u8, 4_u8.into())),
         Operation::Jump,
-        Operation::Push((1_u8, BigUint::from(99_u8))),
+        Operation::Push((1_u8, 99_u8.into())),
         Operation::Jumpdest { pc: 4 },
-        Operation::Push((1_u8, BigUint::from(42_u8))),
+        Operation::Push((1_u8, 42_u8.into())),
         Operation::Jump,
-        Operation::Push((1_u8, BigUint::from(4_u8))),
+        Operation::Push((1_u8, 4_u8.into())),
         Operation::Jumpdest { pc: 5 },
     ]);
 }
@@ -1346,20 +1327,20 @@ fn jump_to_jumpdest_twice() {
 #[test]
 fn jump_multiple_destinations() {
     assert_snapshot!(vec![
-        Operation::Push((1_u8, BigUint::from(8_u8))),
+        Operation::Push((1_u8, 8_u8.into())),
         Operation::Jump,
-        Operation::Push((1_u8, BigUint::from(10_u8))),
-        Operation::Push((1_u8, BigUint::from(20_u8))),
+        Operation::Push((1_u8, 10_u8.into())),
+        Operation::Push((1_u8, 20_u8.into())),
         Operation::Jumpdest { pc: 8 },
-        Operation::Push((1_u8, BigUint::from(50_u8))),
+        Operation::Push((1_u8, 50_u8.into())),
     ]);
 }
 
 #[test]
 fn jump_invalid_jumpdest() {
     assert_snapshot!(vec![
-        Operation::Push((1_u8, BigUint::from(10_u8))),
-        Operation::Push((1_u8, BigUint::from(99_u8))),
+        Operation::Push((1_u8, 10_u8.into())),
+        Operation::Push((1_u8, 99_u8.into())),
         Operation::Jump,
     ]);
 }
@@ -1367,11 +1348,11 @@ fn jump_invalid_jumpdest() {
 #[test]
 fn push_pop_with_jump() {
     assert_snapshot!(vec![
-        Operation::Push((1_u8, BigUint::from(6_u8))),
+        Operation::Push((1_u8, 6_u8.into())),
         Operation::Jump,
-        Operation::Push((1_u8, BigUint::from(10_u8))),
+        Operation::Push((1_u8, 10_u8.into())),
         Operation::Jumpdest { pc: 6 },
-        Operation::Push((1_u8, BigUint::from(20_u8))),
+        Operation::Push((1_u8, 20_u8.into())),
         Operation::Pop,
     ]);
 }
@@ -1379,23 +1360,23 @@ fn push_pop_with_jump() {
 #[test]
 fn push_jump_invalid_jumpdest() {
     assert_snapshot!(vec![
-        Operation::Push((1_u8, BigUint::from(4_u8))),
+        Operation::Push((1_u8, 4_u8.into())),
         Operation::Jump,
         Operation::Invalid,
         Operation::Jumpdest { pc: (1) },
-        Operation::Push((1_u8, BigUint::from(1_u8))),
+        Operation::Push((1_u8, 1_u8.into())),
     ]);
 }
 
 #[test]
 fn push_jumpi_valid_jumpdest() {
     assert_snapshot!(vec![
-        Operation::Push((1_u8, BigUint::from(5_u8))),
-        Operation::Push((1_u8, BigUint::from(1_u8))),
+        Operation::Push((1_u8, 5_u8.into())),
+        Operation::Push((1_u8, 1_u8.into())),
         Operation::JumpI,
         Operation::Invalid,
         Operation::Jumpdest { pc: (5) },
-        Operation::Push((1_u8, BigUint::from(2_u8))),
+        Operation::Push((1_u8, 2_u8.into())),
     ]);
 }
 
@@ -1406,7 +1387,7 @@ fn pc() {
         Operation::PC { pc: 1 },
         Operation::Jumpdest { pc: 2 },
         Operation::PC { pc: 3 },
-        Operation::Push((1_u8, BigUint::from(1_u8))),
+        Operation::Push((1_u8, 1_u8.into())),
         Operation::PC { pc: 6 },
     ]);
 }
@@ -1415,11 +1396,11 @@ fn pc() {
 fn push_mload_misze() {
     assert_snapshot!(vec![
         Operation::MSize,
-        Operation::Push((1_u8, BigUint::from(0_u8))),
+        Operation::Push0,
         Operation::MLoad,
         Operation::Pop,
         Operation::MSize,
-        Operation::Push((1_u8, BigUint::from(39_u8))),
+        Operation::Push((1_u8, 39_u8.into())),
         Operation::MLoad,
         Operation::Pop,
         Operation::MSize,
@@ -1430,7 +1411,7 @@ fn push_mload_misze() {
 fn push_gas() {
     assert_snapshot!(vec![
         Operation::Gas,
-        Operation::Push((3_u8, BigUint::from(21000_u32))),
+        Operation::Push((3_u8, 21000_u32.into())),
         Operation::GasLimit,
         Operation::Sub,
         Operation::Sub,
@@ -1440,10 +1421,10 @@ fn push_gas() {
 #[test]
 fn push_tstore_tload() {
     assert_snapshot!(vec![
-        Operation::Push((1_u8, BigUint::from(46_u8))),
-        Operation::Push((1_u8, BigUint::from(0_u8))),
+        Operation::Push((1_u8, 46_u8.into())),
+        Operation::Push0,
         Operation::TStore,
-        Operation::Push((1_u8, BigUint::from(0_u8))),
+        Operation::Push0,
         Operation::TLoad,
     ]);
 }
@@ -1452,7 +1433,7 @@ fn push_tstore_tload() {
 fn push_tstore_0() {
     assert_snapshot!(vec![
         Operation::Push((2_u8, BigUint::from_bytes_be(&[0xFF, 0xFF]))),
-        Operation::Push((1_u8, BigUint::from(0_u8))),
+        Operation::Push0,
         Operation::TStore,
     ]);
 }
@@ -1461,7 +1442,7 @@ fn push_tstore_0() {
 fn push_tstore_1() {
     assert_snapshot!(vec![
         Operation::Push((2_u8, BigUint::from_bytes_be(&[0xFF, 0xFF]))),
-        Operation::Push((2_u8, BigUint::from(8965u32))),
+        Operation::Push((2_u8, 8965u32.into())),
         Operation::TStore,
     ]);
 }
@@ -1476,29 +1457,26 @@ fn push_mstore_mcopy() {
                 0xFF,
             ]),
         )),
-        Operation::Push((1_u8, BigUint::from(32_u8))),
+        Operation::Push((1_u8, 32_u8.into())),
         Operation::MStore,
-        Operation::Push((1_u8, BigUint::from(32_u8))),
-        Operation::Push((1_u8, BigUint::from(32_u8))),
-        Operation::Push((1_u8, BigUint::from(0_u8))),
+        Operation::Push((1_u8, 32_u8.into())),
+        Operation::Push((1_u8, 32_u8.into())),
+        Operation::Push0,
         Operation::MCopy,
     ]);
 }
 
 #[test]
 fn push_pop_basic() {
-    assert_snapshot!(vec![
-        Operation::Push((1_u8, BigUint::from(42_u8))),
-        Operation::Pop,
-    ]);
+    assert_snapshot!(vec![Operation::Push((1_u8, 42_u8.into())), Operation::Pop,]);
 }
 
 #[test]
 fn push_multiple_pop() {
     assert_snapshot!(vec![
-        Operation::Push((1_u8, BigUint::from(1_u8))),
-        Operation::Push((1_u8, BigUint::from(2_u8))),
-        Operation::Push((1_u8, BigUint::from(3_u8))),
+        Operation::Push((1_u8, 1_u8.into())),
+        Operation::Push((1_u8, 2_u8.into())),
+        Operation::Push((1_u8, 3_u8.into())),
         Operation::Pop,
         Operation::Pop,
         Operation::Pop,
@@ -1508,10 +1486,10 @@ fn push_multiple_pop() {
 #[test]
 fn push_stack_depth() {
     assert_snapshot!(vec![
-        Operation::Push((1_u8, BigUint::from(10_u8))),
-        Operation::Push((1_u8, BigUint::from(20_u8))),
-        Operation::Push((1_u8, BigUint::from(30_u8))),
-        Operation::Push((1_u8, BigUint::from(40_u8))),
+        Operation::Push((1_u8, 10_u8.into())),
+        Operation::Push((1_u8, 20_u8.into())),
+        Operation::Push((1_u8, 30_u8.into())),
+        Operation::Push((1_u8, 40_u8.into())),
         Operation::Pop,
         Operation::Pop,
     ]);
@@ -1526,7 +1504,7 @@ fn push_overflow() {
 #[test]
 fn push_dup1() {
     assert_snapshot!(vec![
-        Operation::Push((1_u8, BigUint::from(1_u8))),
+        Operation::Push((1_u8, 1_u8.into())),
         Operation::Dup(1),
     ]);
 }
@@ -1534,17 +1512,248 @@ fn push_dup1() {
 #[test]
 fn push_dup2() {
     assert_snapshot!(vec![
-        Operation::Push((1_u8, BigUint::from(1_u8))),
-        Operation::Push((1_u8, BigUint::from(0_u8))),
+        Operation::Push((1_u8, 1_u8.into())),
+        Operation::Push0,
         Operation::Dup(2),
+    ]);
+}
+
+#[test]
+fn push_dup3() {
+    assert_snapshot!(vec![
+        Operation::Push((1_u8, 1_u8.into())),
+        Operation::Push0,
+        Operation::Push0,
+        Operation::Dup(3),
+    ]);
+}
+
+#[test]
+fn push_dup4() {
+    assert_snapshot!(vec![
+        Operation::Push((1_u8, 1_u8.into())),
+        Operation::Push0,
+        Operation::Push0,
+        Operation::Push0,
+        Operation::Dup(4),
+    ]);
+}
+
+#[test]
+fn push_dup5() {
+    assert_snapshot!(vec![
+        Operation::Push((1_u8, 1_u8.into())),
+        Operation::Push0,
+        Operation::Push0,
+        Operation::Push0,
+        Operation::Push0,
+        Operation::Dup(5),
+    ]);
+}
+
+#[test]
+fn push_dup6() {
+    assert_snapshot!(vec![
+        Operation::Push((1_u8, 1_u8.into())),
+        Operation::Push0,
+        Operation::Push0,
+        Operation::Push0,
+        Operation::Push0,
+        Operation::Push0,
+        Operation::Dup(6),
+    ]);
+}
+
+#[test]
+fn push_dup7() {
+    assert_snapshot!(vec![
+        Operation::Push((1_u8, 1_u8.into())),
+        Operation::Push0,
+        Operation::Push0,
+        Operation::Push0,
+        Operation::Push0,
+        Operation::Push0,
+        Operation::Push0,
+        Operation::Dup(7),
+    ]);
+}
+
+#[test]
+fn push_dup8() {
+    assert_snapshot!(vec![
+        Operation::Push((1_u8, 1_u8.into())),
+        Operation::Push0,
+        Operation::Push0,
+        Operation::Push0,
+        Operation::Push0,
+        Operation::Push0,
+        Operation::Push0,
+        Operation::Push0,
+        Operation::Dup(8),
+    ]);
+}
+
+#[test]
+fn push_dup9() {
+    assert_snapshot!(vec![
+        Operation::Push((1_u8, 1_u8.into())),
+        Operation::Push0,
+        Operation::Push0,
+        Operation::Push0,
+        Operation::Push0,
+        Operation::Push0,
+        Operation::Push0,
+        Operation::Push0,
+        Operation::Push0,
+        Operation::Dup(9),
+    ]);
+}
+
+#[test]
+fn push_dup10() {
+    assert_snapshot!(vec![
+        Operation::Push((1_u8, 1_u8.into())),
+        Operation::Push0,
+        Operation::Push0,
+        Operation::Push0,
+        Operation::Push0,
+        Operation::Push0,
+        Operation::Push0,
+        Operation::Push0,
+        Operation::Push0,
+        Operation::Push0,
+        Operation::Dup(10),
+    ]);
+}
+
+#[test]
+fn push_dup11() {
+    assert_snapshot!(vec![
+        Operation::Push((1_u8, 1_u8.into())),
+        Operation::Push0,
+        Operation::Push0,
+        Operation::Push0,
+        Operation::Push0,
+        Operation::Push0,
+        Operation::Push0,
+        Operation::Push0,
+        Operation::Push0,
+        Operation::Push0,
+        Operation::Push0,
+        Operation::Dup(11),
+    ]);
+}
+
+#[test]
+fn push_dup12() {
+    assert_snapshot!(vec![
+        Operation::Push((1_u8, 1_u8.into())),
+        Operation::Push0,
+        Operation::Push0,
+        Operation::Push0,
+        Operation::Push0,
+        Operation::Push0,
+        Operation::Push0,
+        Operation::Push0,
+        Operation::Push0,
+        Operation::Push0,
+        Operation::Push0,
+        Operation::Push0,
+        Operation::Dup(12),
+    ]);
+}
+
+#[test]
+fn push_dup13() {
+    assert_snapshot!(vec![
+        Operation::Push((1_u8, 1_u8.into())),
+        Operation::Push0,
+        Operation::Push0,
+        Operation::Push0,
+        Operation::Push0,
+        Operation::Push0,
+        Operation::Push0,
+        Operation::Push0,
+        Operation::Push0,
+        Operation::Push0,
+        Operation::Push0,
+        Operation::Push0,
+        Operation::Push0,
+        Operation::Dup(13),
+    ]);
+}
+
+#[test]
+fn push_dup14() {
+    assert_snapshot!(vec![
+        Operation::Push((1_u8, 1_u8.into())),
+        Operation::Push0,
+        Operation::Push0,
+        Operation::Push0,
+        Operation::Push0,
+        Operation::Push0,
+        Operation::Push0,
+        Operation::Push0,
+        Operation::Push0,
+        Operation::Push0,
+        Operation::Push0,
+        Operation::Push0,
+        Operation::Push0,
+        Operation::Push0,
+        Operation::Dup(14),
+    ]);
+}
+
+#[test]
+fn push_dup15() {
+    assert_snapshot!(vec![
+        Operation::Push((1_u8, 1_u8.into())),
+        Operation::Push0,
+        Operation::Push0,
+        Operation::Push0,
+        Operation::Push0,
+        Operation::Push0,
+        Operation::Push0,
+        Operation::Push0,
+        Operation::Push0,
+        Operation::Push0,
+        Operation::Push0,
+        Operation::Push0,
+        Operation::Push0,
+        Operation::Push0,
+        Operation::Push0,
+        Operation::Dup(15),
+    ]);
+}
+
+#[test]
+fn push_dup16() {
+    assert_snapshot!(vec![
+        Operation::Push((1_u8, 1_u8.into())),
+        Operation::Push0,
+        Operation::Push0,
+        Operation::Push0,
+        Operation::Push0,
+        Operation::Push0,
+        Operation::Push0,
+        Operation::Push0,
+        Operation::Push0,
+        Operation::Push0,
+        Operation::Push0,
+        Operation::Push0,
+        Operation::Push0,
+        Operation::Push0,
+        Operation::Push0,
+        Operation::Push0,
+        Operation::Dup(16),
     ]);
 }
 
 #[test]
 fn push_swap1() {
     assert_snapshot!(vec![
-        Operation::Push((1_u8, BigUint::from(2_u8))),
-        Operation::Push((1_u8, BigUint::from(1_u8))),
+        Operation::Push((1_u8, 2_u8.into())),
+        Operation::Push((1_u8, 1_u8.into())),
         Operation::Swap(1),
     ]);
 }
@@ -1552,19 +1761,264 @@ fn push_swap1() {
 #[test]
 fn push_swap2() {
     assert_snapshot!(vec![
-        Operation::Push((1_u8, BigUint::from(2_u8))),
-        Operation::Push((1_u8, BigUint::from(0_u8))),
-        Operation::Push((1_u8, BigUint::from(1_u8))),
+        Operation::Push((1_u8, 2_u8.into())),
+        Operation::Push0,
+        Operation::Push((1_u8, 1_u8.into())),
         Operation::Swap(2),
+    ]);
+}
+
+#[test]
+fn push_swap3() {
+    assert_snapshot!(vec![
+        Operation::Push((1_u8, 2_u8.into())),
+        Operation::Push0,
+        Operation::Push0,
+        Operation::Push((1_u8, 1_u8.into())),
+        Operation::Swap(3),
+    ]);
+}
+
+#[test]
+fn push_swap4() {
+    assert_snapshot!(vec![
+        Operation::Push((1_u8, 2_u8.into())),
+        Operation::Push0,
+        Operation::Push0,
+        Operation::Push0,
+        Operation::Push((1_u8, 1_u8.into())),
+        Operation::Swap(4),
+    ]);
+}
+
+#[test]
+fn push_swap5() {
+    assert_snapshot!(vec![
+        Operation::Push((1_u8, 2_u8.into())),
+        Operation::Push0,
+        Operation::Push0,
+        Operation::Push0,
+        Operation::Push0,
+        Operation::Push((1_u8, 1_u8.into())),
+        Operation::Swap(5),
+    ]);
+}
+
+#[test]
+fn push_swap6() {
+    assert_snapshot!(vec![
+        Operation::Push((1_u8, 2_u8.into())),
+        Operation::Push0,
+        Operation::Push0,
+        Operation::Push0,
+        Operation::Push0,
+        Operation::Push0,
+        Operation::Push((1_u8, 1_u8.into())),
+        Operation::Swap(6),
+    ]);
+}
+
+#[test]
+fn push_swap7() {
+    assert_snapshot!(vec![
+        Operation::Push((1_u8, 2_u8.into())),
+        Operation::Push0,
+        Operation::Push0,
+        Operation::Push0,
+        Operation::Push0,
+        Operation::Push0,
+        Operation::Push0,
+        Operation::Push((1_u8, 1_u8.into())),
+        Operation::Swap(7),
+    ]);
+}
+
+#[test]
+fn push_swap8() {
+    assert_snapshot!(vec![
+        Operation::Push((1_u8, 2_u8.into())),
+        Operation::Push0,
+        Operation::Push0,
+        Operation::Push0,
+        Operation::Push0,
+        Operation::Push0,
+        Operation::Push0,
+        Operation::Push0,
+        Operation::Push((1_u8, 1_u8.into())),
+        Operation::Swap(8),
+    ]);
+}
+
+#[test]
+fn push_swap9() {
+    assert_snapshot!(vec![
+        Operation::Push((1_u8, 2_u8.into())),
+        Operation::Push0,
+        Operation::Push0,
+        Operation::Push0,
+        Operation::Push0,
+        Operation::Push0,
+        Operation::Push0,
+        Operation::Push0,
+        Operation::Push0,
+        Operation::Push((1_u8, 1_u8.into())),
+        Operation::Swap(9),
+    ]);
+}
+
+#[test]
+fn push_swap10() {
+    assert_snapshot!(vec![
+        Operation::Push((1_u8, 2_u8.into())),
+        Operation::Push0,
+        Operation::Push0,
+        Operation::Push0,
+        Operation::Push0,
+        Operation::Push0,
+        Operation::Push0,
+        Operation::Push0,
+        Operation::Push0,
+        Operation::Push0,
+        Operation::Push((1_u8, 1_u8.into())),
+        Operation::Swap(10),
+    ]);
+}
+
+#[test]
+fn push_swap11() {
+    assert_snapshot!(vec![
+        Operation::Push((1_u8, 2_u8.into())),
+        Operation::Push0,
+        Operation::Push0,
+        Operation::Push0,
+        Operation::Push0,
+        Operation::Push0,
+        Operation::Push0,
+        Operation::Push0,
+        Operation::Push0,
+        Operation::Push0,
+        Operation::Push0,
+        Operation::Push((1_u8, 1_u8.into())),
+        Operation::Swap(11),
+    ]);
+}
+
+#[test]
+fn push_swap12() {
+    assert_snapshot!(vec![
+        Operation::Push((1_u8, 2_u8.into())),
+        Operation::Push0,
+        Operation::Push0,
+        Operation::Push0,
+        Operation::Push0,
+        Operation::Push0,
+        Operation::Push0,
+        Operation::Push0,
+        Operation::Push0,
+        Operation::Push0,
+        Operation::Push0,
+        Operation::Push0,
+        Operation::Push((1_u8, 1_u8.into())),
+        Operation::Swap(12),
+    ]);
+}
+
+#[test]
+fn push_swap13() {
+    assert_snapshot!(vec![
+        Operation::Push((1_u8, 2_u8.into())),
+        Operation::Push0,
+        Operation::Push0,
+        Operation::Push0,
+        Operation::Push0,
+        Operation::Push0,
+        Operation::Push0,
+        Operation::Push0,
+        Operation::Push0,
+        Operation::Push0,
+        Operation::Push0,
+        Operation::Push0,
+        Operation::Push0,
+        Operation::Push((1_u8, 1_u8.into())),
+        Operation::Swap(13),
+    ]);
+}
+
+#[test]
+fn push_swap14() {
+    assert_snapshot!(vec![
+        Operation::Push((1_u8, 2_u8.into())),
+        Operation::Push0,
+        Operation::Push0,
+        Operation::Push0,
+        Operation::Push0,
+        Operation::Push0,
+        Operation::Push0,
+        Operation::Push0,
+        Operation::Push0,
+        Operation::Push0,
+        Operation::Push0,
+        Operation::Push0,
+        Operation::Push0,
+        Operation::Push0,
+        Operation::Push((1_u8, 1_u8.into())),
+        Operation::Swap(14),
+    ]);
+}
+
+#[test]
+fn push_swap15() {
+    assert_snapshot!(vec![
+        Operation::Push((1_u8, 2_u8.into())),
+        Operation::Push0,
+        Operation::Push0,
+        Operation::Push0,
+        Operation::Push0,
+        Operation::Push0,
+        Operation::Push0,
+        Operation::Push0,
+        Operation::Push0,
+        Operation::Push0,
+        Operation::Push0,
+        Operation::Push0,
+        Operation::Push0,
+        Operation::Push0,
+        Operation::Push0,
+        Operation::Push((1_u8, 1_u8.into())),
+        Operation::Swap(15),
+    ]);
+}
+
+#[test]
+fn push_swap16() {
+    assert_snapshot!(vec![
+        Operation::Push((1_u8, 2_u8.into())),
+        Operation::Push0,
+        Operation::Push0,
+        Operation::Push0,
+        Operation::Push0,
+        Operation::Push0,
+        Operation::Push0,
+        Operation::Push0,
+        Operation::Push0,
+        Operation::Push0,
+        Operation::Push0,
+        Operation::Push0,
+        Operation::Push0,
+        Operation::Push0,
+        Operation::Push0,
+        Operation::Push0,
+        Operation::Push((1_u8, 1_u8.into())),
+        Operation::Swap(16),
     ]);
 }
 
 #[test]
 fn push_create_0() {
     assert_snapshot!(vec![
-        Operation::Push((1_u8, BigUint::from(0_u8))),
-        Operation::Push((1_u8, BigUint::from(0_u8))),
-        Operation::Push((1_u8, BigUint::from(0_u8))),
+        Operation::Push0,
+        Operation::Push0,
+        Operation::Push0,
         Operation::Create,
     ]);
 }
@@ -1572,9 +2026,9 @@ fn push_create_0() {
 #[test]
 fn push_create_1() {
     assert_snapshot!(vec![
-        Operation::Push((1_u8, BigUint::from(0_u8))),
-        Operation::Push((1_u8, BigUint::from(0_u8))),
-        Operation::Push((1_u8, BigUint::from(9_u8))),
+        Operation::Push0,
+        Operation::Push0,
+        Operation::Push((1_u8, 9_u8.into())),
         Operation::Create,
     ]);
 }
@@ -1582,9 +2036,9 @@ fn push_create_1() {
 #[test]
 fn push_create() {
     assert_snapshot!(vec![
-        Operation::Push((1_u8, BigUint::from(10_u8))),
-        Operation::Push((1_u8, BigUint::from(0_u8))),
-        Operation::Push((1_u8, BigUint::from(20_u8))),
+        Operation::Push((1_u8, 10_u8.into())),
+        Operation::Push0,
+        Operation::Push((1_u8, 20_u8.into())),
         Operation::Create,
     ]);
 }
@@ -1592,9 +2046,9 @@ fn push_create() {
 #[test]
 fn push_create_with_value() {
     assert_snapshot!(vec![
-        Operation::Push((1_u8, BigUint::from(100_u8))),
-        Operation::Push((1_u8, BigUint::from(0_u8))),
-        Operation::Push((1_u8, BigUint::from(40_u8))),
+        Operation::Push((1_u8, 100_u8.into())),
+        Operation::Push0,
+        Operation::Push((1_u8, 40_u8.into())),
         Operation::Create,
     ]);
 }
@@ -1602,10 +2056,10 @@ fn push_create_with_value() {
 #[test]
 fn push_create2_with_salt() {
     assert_snapshot!(vec![
-        Operation::Push((1_u8, BigUint::from(0x1234_u16))),
-        Operation::Push((1_u8, BigUint::from(0_u8))),
-        Operation::Push((1_u8, BigUint::from(20_u8))),
-        Operation::Push((1_u8, BigUint::from(10_u8))),
+        Operation::Push((1_u8, 0x1234_u16.into())),
+        Operation::Push0,
+        Operation::Push((1_u8, 20_u8.into())),
+        Operation::Push((1_u8, 10_u8.into())),
         Operation::Create2,
     ]);
 }
@@ -1621,9 +2075,9 @@ fn push_create2_with_large_salt() {
                 0xFF, 0xFF, 0xFF, 0xFF
             ])
         )),
-        Operation::Push((1_u8, BigUint::from(0_u8))),
-        Operation::Push((1_u8, BigUint::from(64_u8))),
-        Operation::Push((1_u8, BigUint::from(50_u8))),
+        Operation::Push0,
+        Operation::Push((1_u8, 64_u8.into())),
+        Operation::Push((1_u8, 50_u8.into())),
         Operation::Create2,
     ]);
 }
@@ -1637,80 +2091,314 @@ fn push_create_2() {
                 0x63, 0xFF, 0xFF, 0xFF, 0x60, 0x00, 0x52, 0x60, 0x04, 0x60, 0x1C, 0xF3,
             ])
         )),
-        Operation::Push((1_u8, BigUint::from(0_u8))),
+        Operation::Push0,
         Operation::MStore,
-        Operation::Push((1_u8, BigUint::from(13_u8))),
-        Operation::Push((1_u8, BigUint::from(19_u8))),
-        Operation::Push((1_u8, BigUint::from(0_u8))),
+        Operation::Push((1_u8, 13_u8.into())),
+        Operation::Push((1_u8, 19_u8.into())),
+        Operation::Push0,
         Operation::Create,
     ]);
 }
 
 #[test]
-fn log0() {
+fn push_log0() {
     assert_snapshot!(vec![
-        Operation::Push((1_u8, BigUint::from(0x40_u8))),
-        Operation::Push((1_u8, BigUint::from(0x20_u8))),
-        Operation::Log(0),
+        Operation::Push((1_u8, 0x40_u8.into())),
+        Operation::Push((1_u8, 0x20_u8.into())),
+        Operation::Log(0_u8),
     ]);
 }
 
 #[test]
-fn log1() {
+fn push_log1() {
     assert_snapshot!(vec![
-        Operation::Push((1_u8, BigUint::from(32_u8))),
-        Operation::Push((1_u8, BigUint::from(10_u8))),
-        Operation::Push((1_u8, BigUint::from(0x01_u8))),
-        Operation::Log(1),
+        Operation::Push((1_u8, 32_u8.into())),
+        Operation::Push((1_u8, 10_u8.into())),
+        Operation::Push((1_u8, 0x01_u8.into())),
+        Operation::Log(1_u8),
     ]);
 }
 
 #[test]
-fn log2() {
+fn push_log2() {
     assert_snapshot!(vec![
-        Operation::Push((1_u8, BigUint::from(32_u8))),
-        Operation::Push((1_u8, BigUint::from(10_u8))),
-        Operation::Push((1_u8, BigUint::from(0x01_u8))),
-        Operation::Push((1_u8, BigUint::from(0x02_u8))),
-        Operation::Log(2),
+        Operation::Push((1_u8, 32_u8.into())),
+        Operation::Push((1_u8, 10_u8.into())),
+        Operation::Push((1_u8, 0x01_u8.into())),
+        Operation::Push((1_u8, 0x02_u8.into())),
+        Operation::Log(2_u8),
     ]);
 }
 
 #[test]
-fn log3() {
+fn push_log3() {
     assert_snapshot!(vec![
-        Operation::Push((1_u8, BigUint::from(32_u8))),
-        Operation::Push((1_u8, BigUint::from(10_u8))),
-        Operation::Push((1_u8, BigUint::from(0x01_u8))),
-        Operation::Push((1_u8, BigUint::from(0x02_u8))),
-        Operation::Push((1_u8, BigUint::from(0x03_u8))),
-        Operation::Log(3),
+        Operation::Push((1_u8, 32_u8.into())),
+        Operation::Push((1_u8, 10_u8.into())),
+        Operation::Push((1_u8, 0x01_u8.into())),
+        Operation::Push((1_u8, 0x02_u8.into())),
+        Operation::Push((1_u8, 0x03_u8.into())),
+        Operation::Log(3_u8),
     ]);
 }
 
 #[test]
-fn log4() {
+fn push_log4() {
     assert_snapshot!(vec![
-        Operation::Push((1_u8, BigUint::from(32_u8))),
-        Operation::Push((1_u8, BigUint::from(10_u8))),
-        Operation::Push((1_u8, BigUint::from(0x01_u8))),
-        Operation::Push((1_u8, BigUint::from(0x02_u8))),
-        Operation::Push((1_u8, BigUint::from(0x03_u8))),
-        Operation::Push((1_u8, BigUint::from(0x04_u8))),
-        Operation::Log(4),
+        Operation::Push((1_u8, 32_u8.into())),
+        Operation::Push((1_u8, 10_u8.into())),
+        Operation::Push((1_u8, 0x01_u8.into())),
+        Operation::Push((1_u8, 0x02_u8.into())),
+        Operation::Push((1_u8, 0x03_u8.into())),
+        Operation::Push((1_u8, 0x04_u8.into())),
+        Operation::Log(4_u8),
     ]);
+}
+
+#[test]
+fn push0_dataload() {
+    assert_snapshot!(vec![Operation::Push0, Operation::DataLoad], true);
+}
+
+#[test]
+fn dataloadn() {
+    assert_snapshot!(vec![Operation::DataLoadN(0_u16)], true);
+}
+
+#[test]
+fn datasize() {
+    assert_snapshot!(vec![Operation::DataSize], true);
+}
+
+#[test]
+fn push_datacopy() {
+    assert_snapshot!(
+        vec![
+            Operation::Push((1_u8, 32_u8.into())),
+            Operation::Push0,
+            Operation::Push0,
+            Operation::DataCopy,
+        ],
+        true
+    );
+}
+
+#[test]
+fn push_datacopy_partial() {
+    assert_snapshot!(
+        vec![
+            Operation::Push0,
+            Operation::Push((1_u8, 10_u8.into())),
+            Operation::Push((1_u8, 20_u8.into())),
+            Operation::DataCopy,
+        ],
+        true
+    );
+}
+
+#[test]
+fn push_datacopy_out_of_bounds() {
+    assert_snapshot!(
+        vec![
+            Operation::Push0,
+            Operation::Push((1_u8, 100_u8.into())),
+            Operation::Push((1_u8, 10_u8.into())),
+            Operation::DataCopy,
+        ],
+        true
+    );
+}
+
+// TODO : `rjump`, `rjumpi`, `rjumpv`, `callf`, `retf` and `jumpf` snapshots
+
+#[test]
+fn push_dupn_0() {
+    assert_snapshot!(
+        vec![Operation::Push((1_u8, 1_u8.into())), Operation::DupN(0_u8),],
+        true
+    );
+}
+
+#[test]
+fn push_dupn_16() {
+    assert_snapshot!(
+        vec![
+            Operation::Push((1_u8, 1_u8.into())),
+            Operation::Push0,
+            Operation::Push0,
+            Operation::Push0,
+            Operation::Push0,
+            Operation::Push0,
+            Operation::Push0,
+            Operation::Push0,
+            Operation::Push0,
+            Operation::Push0,
+            Operation::Push0,
+            Operation::Push0,
+            Operation::Push0,
+            Operation::Push0,
+            Operation::Push0,
+            Operation::Push0,
+            Operation::Push0,
+            Operation::DupN(16_u8),
+        ],
+        true
+    );
+}
+
+#[test]
+fn push_swapn_0() {
+    assert_snapshot!(
+        vec![
+            Operation::Push((1_u8, 2_u8.into())),
+            Operation::Push((1_u8, 1_u8.into())),
+            Operation::SwapN(0_u8),
+        ],
+        true
+    );
+}
+
+#[test]
+fn push_swapn_16() {
+    assert_snapshot!(
+        vec![
+            Operation::Push((1_u8, 2_u8.into())),
+            Operation::Push0,
+            Operation::Push0,
+            Operation::Push0,
+            Operation::Push0,
+            Operation::Push0,
+            Operation::Push0,
+            Operation::Push0,
+            Operation::Push0,
+            Operation::Push0,
+            Operation::Push0,
+            Operation::Push0,
+            Operation::Push0,
+            Operation::Push0,
+            Operation::Push0,
+            Operation::Push0,
+            Operation::Push0,
+            Operation::Push((1_u8, 1_u8.into())),
+            Operation::SwapN(16_u8),
+        ],
+        true
+    );
+}
+
+#[test]
+fn push_exchange_0() {
+    assert_snapshot!(
+        vec![
+            Operation::Push((1_u8, 1_u8.into())),
+            Operation::Push((1_u8, 2_u8.into())),
+            Operation::Push0,
+            Operation::Exchange(0_u8),
+        ],
+        true
+    );
+}
+
+#[test]
+fn push_exchange_255() {
+    assert_snapshot!(
+        vec![
+            Operation::Push((1_u8, 1_u8.into())),
+            Operation::Push0,
+            Operation::Push0,
+            Operation::Push0,
+            Operation::Push0,
+            Operation::Push0,
+            Operation::Push0,
+            Operation::Push0,
+            Operation::Push0,
+            Operation::Push0,
+            Operation::Push0,
+            Operation::Push0,
+            Operation::Push0,
+            Operation::Push0,
+            Operation::Push0,
+            Operation::Push0,
+            Operation::Push((1_u8, 2_u8.into())),
+            Operation::Push0,
+            Operation::Push0,
+            Operation::Push0,
+            Operation::Push0,
+            Operation::Push0,
+            Operation::Push0,
+            Operation::Push0,
+            Operation::Push0,
+            Operation::Push0,
+            Operation::Push0,
+            Operation::Push0,
+            Operation::Push0,
+            Operation::Push0,
+            Operation::Push0,
+            Operation::Push0,
+            Operation::Push0,
+            Operation::Exchange(255_u8),
+        ],
+        true
+    );
+}
+
+#[test]
+fn push_eofcreate_with_salt() {
+    assert_snapshot!(
+        vec![
+            Operation::Push0,
+            Operation::Push((1_u8, 20_u8.into())),
+            Operation::Push((1_u8, 0x1234_u16.into())),
+            Operation::Push((1_u8, 10_u8.into())),
+            Operation::EofCreate(0_u8),
+        ],
+        true
+    );
+}
+
+#[test]
+fn push_eofcreate_with_large_salt() {
+    assert_snapshot!(
+        vec![
+            Operation::Push0,
+            Operation::Push((1_u8, 64_u8.into())),
+            Operation::Push((
+                32_u8,
+                BigUint::from_bytes_be(&[
+                    0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF,
+                    0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF,
+                    0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF
+                ])
+            )),
+            Operation::Push((1_u8, 50_u8.into())),
+            Operation::EofCreate(0_u8),
+        ],
+        true
+    );
+}
+
+#[test]
+fn push_returncontract() {
+    assert_snapshot!(
+        vec![
+            Operation::Push0,
+            Operation::Push((1_u8, 20_u8.into())),
+            Operation::ReturnContract(0_u8),
+        ],
+        true
+    );
 }
 
 #[test]
 fn push_call() {
     assert_snapshot!(vec![
-        Operation::Push((1_u8, BigUint::from(10000_u32))),
-        Operation::Push((1_u8, BigUint::from(0x1000_u32))),
-        Operation::Push((1_u8, BigUint::from(1_u32))),
-        Operation::Push((1_u8, BigUint::from(32_u32))),
-        Operation::Push((1_u8, BigUint::from(32_u32))),
-        Operation::Push((1_u8, BigUint::from(64_u32))),
-        Operation::Push((1_u8, BigUint::from(64_u32))),
+        Operation::Push((1_u8, 10000_u32.into())),
+        Operation::Push((1_u8, 0x1000_u32.into())),
+        Operation::Push((1_u8, 1_u32.into())),
+        Operation::Push((1_u8, 32_u32.into())),
+        Operation::Push((1_u8, 32_u32.into())),
+        Operation::Push((1_u8, 64_u32.into())),
+        Operation::Push((1_u8, 64_u32.into())),
         Operation::Call,
     ]);
 }
@@ -1725,17 +2413,17 @@ fn push_mstore_create_call_0() {
                 0x60, 0x18, 0xF3,
             ]),
         )),
-        Operation::Push((1_u8, BigUint::from(0_u8))),
+        Operation::Push0,
         Operation::MStore,
-        Operation::Push((1_u8, BigUint::from(17_u8))),
-        Operation::Push((1_u8, BigUint::from(15_u8))),
-        Operation::Push((1_u8, BigUint::from(0_u8))),
+        Operation::Push((1_u8, 17_u8.into())),
+        Operation::Push((1_u8, 15_u8.into())),
+        Operation::Push0,
         Operation::Create,
-        Operation::Push((1_u8, BigUint::from(0_u8))),
-        Operation::Push((1_u8, BigUint::from(0_u8))),
-        Operation::Push((1_u8, BigUint::from(0_u8))),
-        Operation::Push((1_u8, BigUint::from(0_u8))),
-        Operation::Push((1_u8, BigUint::from(0_u8))),
+        Operation::Push0,
+        Operation::Push0,
+        Operation::Push0,
+        Operation::Push0,
+        Operation::Push0,
         Operation::Dup(6),
         Operation::Push((2_u8, BigUint::from_bytes_be(&[0xFF, 0xFF]))),
         Operation::Call,
@@ -1752,25 +2440,25 @@ fn push_mstore_create_call_1() {
                 0x60, 0x18, 0xF3,
             ]),
         )),
-        Operation::Push((1_u8, BigUint::from(0_u8))),
+        Operation::Push0,
         Operation::MStore,
-        Operation::Push((1_u8, BigUint::from(17_u8))),
-        Operation::Push((1_u8, BigUint::from(15_u8))),
-        Operation::Push((1_u8, BigUint::from(0_u8))),
+        Operation::Push((1_u8, 17_u8.into())),
+        Operation::Push((1_u8, 15_u8.into())),
+        Operation::Push0,
         Operation::Create,
-        Operation::Push((1_u8, BigUint::from(0_u8))),
-        Operation::Push((1_u8, BigUint::from(0_u8))),
-        Operation::Push((1_u8, BigUint::from(0_u8))),
-        Operation::Push((1_u8, BigUint::from(0_u8))),
-        Operation::Push((1_u8, BigUint::from(0_u8))),
+        Operation::Push0,
+        Operation::Push0,
+        Operation::Push0,
+        Operation::Push0,
+        Operation::Push0,
         Operation::Dup(6),
         Operation::Push((2_u8, BigUint::from_bytes_be(&[0xFF, 0xFF]))),
         Operation::Call,
-        Operation::Push((1_u8, BigUint::from(0_u8))),
-        Operation::Push((1_u8, BigUint::from(0_u8))),
-        Operation::Push((1_u8, BigUint::from(32_u8))),
-        Operation::Push((1_u8, BigUint::from(0_u8))),
-        Operation::Push((1_u8, BigUint::from(0_u8))),
+        Operation::Push0,
+        Operation::Push0,
+        Operation::Push((1_u8, 32_u8.into())),
+        Operation::Push0,
+        Operation::Push0,
         Operation::Dup(7),
         Operation::Push((2_u8, BigUint::from_bytes_be(&[0xFF, 0xFF]))),
         Operation::Call,
@@ -1780,13 +2468,13 @@ fn push_mstore_create_call_1() {
 #[test]
 fn push_callcode() {
     assert_snapshot!(vec![
-        Operation::Push((1_u8, BigUint::from(5000_u32))),
-        Operation::Push((1_u8, BigUint::from(0x2000_u32))),
-        Operation::Push((1_u8, BigUint::from(0_u32))),
-        Operation::Push((1_u8, BigUint::from(32_u32))),
-        Operation::Push((1_u8, BigUint::from(32_u32))),
-        Operation::Push((1_u8, BigUint::from(64_u32))),
-        Operation::Push((1_u8, BigUint::from(64_u32))),
+        Operation::Push((1_u8, 5000_u32.into())),
+        Operation::Push((1_u8, 0x2000_u32.into())),
+        Operation::Push((1_u8, 0_u32.into())),
+        Operation::Push((1_u8, 32_u32.into())),
+        Operation::Push((1_u8, 32_u32.into())),
+        Operation::Push((1_u8, 64_u32.into())),
+        Operation::Push((1_u8, 64_u32.into())),
         Operation::Callcode,
     ]);
 }
@@ -1801,28 +2489,28 @@ fn push_mstore_create_callcode() {
                 0x60, 0x18, 0xF3,
             ]),
         )),
-        Operation::Push((1_u8, BigUint::from(0_u8))),
+        Operation::Push0,
         Operation::MStore,
-        Operation::Push((1_u8, BigUint::from(17_u8))),
-        Operation::Push((1_u8, BigUint::from(15_u8))),
-        Operation::Push((1_u8, BigUint::from(0_u8))),
+        Operation::Push((1_u8, 17_u8.into())),
+        Operation::Push((1_u8, 15_u8.into())),
+        Operation::Push0,
         Operation::Create,
-        Operation::Push((1_u8, BigUint::from(0_u8))),
-        Operation::Push((1_u8, BigUint::from(0_u8))),
-        Operation::Push((1_u8, BigUint::from(0_u8))),
-        Operation::Push((1_u8, BigUint::from(0_u8))),
-        Operation::Push((1_u8, BigUint::from(0_u8))),
+        Operation::Push0,
+        Operation::Push0,
+        Operation::Push0,
+        Operation::Push0,
+        Operation::Push0,
         Operation::Dup(6),
         Operation::Push((2_u8, BigUint::from_bytes_be(&[0xFF, 0xFF]))),
         Operation::Callcode,
-        Operation::Push((1_u8, BigUint::from(1_u8))),
-        Operation::Push((1_u8, BigUint::from(0_u8))),
+        Operation::Push((1_u8, 1_u8.into())),
+        Operation::Push0,
         Operation::SStore,
-        Operation::Push((1_u8, BigUint::from(0_u8))),
-        Operation::Push((1_u8, BigUint::from(0_u8))),
-        Operation::Push((1_u8, BigUint::from(32_u8))),
-        Operation::Push((1_u8, BigUint::from(0_u8))),
-        Operation::Push((1_u8, BigUint::from(0_u8))),
+        Operation::Push0,
+        Operation::Push0,
+        Operation::Push((1_u8, 32_u8.into())),
+        Operation::Push0,
+        Operation::Push0,
         Operation::Dup(7),
         Operation::Push((2_u8, BigUint::from_bytes_be(&[0xFF, 0xFF]))),
         Operation::Callcode,
@@ -1832,8 +2520,8 @@ fn push_mstore_create_callcode() {
 #[test]
 fn push_return() {
     assert_snapshot!(vec![
-        Operation::Push((1_u8, BigUint::from(32_u8))),
-        Operation::Push((1_u8, BigUint::from(0_u8))),
+        Operation::Push((1_u8, 32_u8.into())),
+        Operation::Push0,
         Operation::Return,
     ]);
 }
@@ -1841,8 +2529,8 @@ fn push_return() {
 #[test]
 fn push_return_large_data() {
     assert_snapshot!(vec![
-        Operation::Push((1_u8, BigUint::from(64_u8))),
-        Operation::Push((1_u8, BigUint::from(0_u8))),
+        Operation::Push((1_u8, 64_u8.into())),
+        Operation::Push0,
         Operation::Return,
     ]);
 }
@@ -1857,10 +2545,10 @@ fn push_store_return() {
                 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
             ]),
         )),
-        Operation::Push((1_u8, BigUint::from(0_u8))),
+        Operation::Push0,
         Operation::MStore,
-        Operation::Push((1_u8, BigUint::from(2_u8))),
-        Operation::Push((1_u8, BigUint::from(0_u8))),
+        Operation::Push((1_u8, 2_u8.into())),
+        Operation::Push0,
         Operation::Return,
     ]);
 }
@@ -1868,12 +2556,12 @@ fn push_store_return() {
 #[test]
 fn push_delegatecall() {
     assert_snapshot!(vec![
-        Operation::Push((1_u8, BigUint::from(7000_u32))),
-        Operation::Push((1_u8, BigUint::from(0x3000_u32))),
-        Operation::Push((1_u8, BigUint::from(32_u32))),
-        Operation::Push((1_u8, BigUint::from(32_u32))),
-        Operation::Push((1_u8, BigUint::from(64_u32))),
-        Operation::Push((1_u8, BigUint::from(64_u32))),
+        Operation::Push((1_u8, 7000_u32.into())),
+        Operation::Push((1_u8, 0x3000_u32.into())),
+        Operation::Push((1_u8, 32_u32.into())),
+        Operation::Push((1_u8, 32_u32.into())),
+        Operation::Push((1_u8, 64_u32.into())),
+        Operation::Push((1_u8, 64_u32.into())),
         Operation::Delegatecall,
     ]);
 }
@@ -1888,27 +2576,27 @@ fn push_mstore_create_delegatecall() {
                 0x60, 0x18, 0xF3,
             ]),
         )),
-        Operation::Push((1_u8, BigUint::from(0_u8))),
+        Operation::Push0,
         Operation::MStore,
-        Operation::Push((1_u8, BigUint::from(17_u8))),
-        Operation::Push((1_u8, BigUint::from(15_u8))),
-        Operation::Push((1_u8, BigUint::from(0_u8))),
+        Operation::Push((1_u8, 17_u8.into())),
+        Operation::Push((1_u8, 15_u8.into())),
+        Operation::Push0,
         Operation::Create,
-        Operation::Push((1_u8, BigUint::from(0_u8))),
-        Operation::Push((1_u8, BigUint::from(0_u8))),
-        Operation::Push((1_u8, BigUint::from(0_u8))),
-        Operation::Push((1_u8, BigUint::from(0_u8))),
-        Operation::Push((1_u8, BigUint::from(0_u8))),
+        Operation::Push0,
+        Operation::Push0,
+        Operation::Push0,
+        Operation::Push0,
+        Operation::Push0,
         Operation::Dup(5),
         Operation::Push((2_u8, BigUint::from_bytes_be(&[0xFF, 0xFF]))),
         Operation::Delegatecall,
-        Operation::Push((1_u8, BigUint::from(1_u8))),
-        Operation::Push((1_u8, BigUint::from(0_u8))),
+        Operation::Push((1_u8, 1_u8.into())),
+        Operation::Push0,
         Operation::SStore,
-        Operation::Push((1_u8, BigUint::from(0_u8))),
-        Operation::Push((1_u8, BigUint::from(0_u8))),
-        Operation::Push((1_u8, BigUint::from(32_u8))),
-        Operation::Push((1_u8, BigUint::from(0_u8))),
+        Operation::Push0,
+        Operation::Push0,
+        Operation::Push((1_u8, 32_u8.into())),
+        Operation::Push0,
         Operation::Dup(6),
         Operation::Push((2_u8, BigUint::from_bytes_be(&[0xFF, 0xFF]))),
         Operation::Delegatecall,
@@ -1918,21 +2606,72 @@ fn push_mstore_create_delegatecall() {
 #[test]
 fn push_staticcall() {
     assert_snapshot!(vec![
-        Operation::Push((1_u8, BigUint::from(8000_u32))),
-        Operation::Push((1_u8, BigUint::from(0x4000_u32))),
-        Operation::Push((1_u8, BigUint::from(32_u32))),
-        Operation::Push((1_u8, BigUint::from(32_u32))),
-        Operation::Push((1_u8, BigUint::from(64_u32))),
-        Operation::Push((1_u8, BigUint::from(64_u32))),
+        Operation::Push((1_u8, 8000_u32.into())),
+        Operation::Push((1_u8, 0x4000_u32.into())),
+        Operation::Push((1_u8, 32_u32.into())),
+        Operation::Push((1_u8, 32_u32.into())),
+        Operation::Push((1_u8, 64_u32.into())),
+        Operation::Push((1_u8, 64_u32.into())),
         Operation::Staticcall,
     ]);
 }
 
 #[test]
+fn push_extcall() {
+    assert_snapshot!(
+        vec![
+            Operation::Push((1_u8, 32_u32.into())),
+            Operation::Push((1_u8, 1_u32.into())),
+            Operation::Push((1_u8, 32_u32.into())),
+            Operation::Push((1_u8, 64_u32.into())),
+            Operation::ExtCall,
+        ],
+        true
+    );
+}
+
+#[test]
+fn push_extdelegatecall() {
+    assert_snapshot!(
+        vec![
+            Operation::Push((1_u8, 1_u32.into())),
+            Operation::Push((1_u8, 32_u32.into())),
+            Operation::Push((1_u8, 64_u32.into())),
+            Operation::ExtDelegatecall,
+        ],
+        true
+    );
+}
+
+#[test]
+fn push_extstaticcall() {
+    assert_snapshot!(
+        vec![
+            Operation::Push((1_u8, 1_u32.into())),
+            Operation::Push((1_u8, 32_u32.into())),
+            Operation::Push((1_u8, 64_u32.into())),
+            Operation::ExtStaticcall,
+        ],
+        true
+    );
+}
+
+#[test]
+fn returndataload() {
+    assert_snapshot!(
+        vec![
+            Operation::Push((2_u8, 0_u8.into())),
+            Operation::ReturndataLoad,
+        ],
+        true
+    );
+}
+
+#[test]
 fn push_revert() {
     assert_snapshot!(vec![
-        Operation::Push((1_u8, BigUint::from(32_u8))),
-        Operation::Push((1_u8, BigUint::from(0_u8))),
+        Operation::Push((1_u8, 32_u8.into())),
+        Operation::Push0,
         Operation::Revert,
     ]);
 }
@@ -1940,8 +2679,8 @@ fn push_revert() {
 #[test]
 fn push_revert_large_data() {
     assert_snapshot!(vec![
-        Operation::Push((1_u8, BigUint::from(64_u8))),
-        Operation::Push((1_u8, BigUint::from(0_u8))),
+        Operation::Push((1_u8, 64_u8.into())),
+        Operation::Push0,
         Operation::Revert,
     ]);
 }
@@ -1956,10 +2695,10 @@ fn push_mstore_revert() {
                 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
             ]),
         )),
-        Operation::Push((32_u8, BigUint::from(0_u8))),
+        Operation::Push((32_u8, 0_u8.into())),
         Operation::MStore,
-        Operation::Push((1_u8, BigUint::from(2_u8))),
-        Operation::Push((1_u8, BigUint::from(0_u8))),
+        Operation::Push((1_u8, 2_u8.into())),
+        Operation::Push0,
         Operation::Revert,
     ]);
 }
@@ -1991,7 +2730,7 @@ fn push_selfdestruct() {
 #[test]
 fn push_selfdestruct_zero_address() {
     assert_snapshot!(vec![
-        Operation::Push((1_u8, BigUint::from(0_u32))),
+        Operation::Push((1_u8, 0_u32.into())),
         Operation::Selfdestruct,
     ]);
 }
