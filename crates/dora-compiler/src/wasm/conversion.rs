@@ -1,4 +1,4 @@
-use crate::conversion::rewriter::replace_op;
+use crate::conversion::rewriter::{replace_op, Rewriter};
 use crate::conversion::walker::walk_operation;
 use crate::errors::Result;
 use crate::value::IntoContextOperation;
@@ -232,8 +232,10 @@ impl ConversionPass<'_> {
                 || name == dora_ir::wasm::I64Extend16SOperation::name()
                 || name == dora_ir::wasm::I64Extend32SOperation::name()
             {
-                let byte = op.operand(0)?;
-                let value = op.operand(1)?;
+                let value = op.operand(0)?;
+                let rewriter = Rewriter::new_with_block(self.ctx, op.block().unwrap());
+                let byte = rewriter
+                    .make(rewriter.iconst_64(rewriter.int_ty_width(value.r#type())? as i64 - 1))?;
                 replace_op(
                     op,
                     dora_ir::dora::signextend(self.ctx, value.r#type(), byte, value, op.location())
