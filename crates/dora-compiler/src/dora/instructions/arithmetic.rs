@@ -238,7 +238,13 @@ impl ConversionPass<'_> {
         let bit_width = rewriter.int_ty_width(ty)? as i64;
 
         // Constant Definitions
-        let max_byte_size = rewriter.make(arith_constant!(rewriter, context, ty, 31, location))?;
+        let max_byte_size = rewriter.make(arith_constant!(
+            rewriter,
+            context,
+            ty,
+            bit_width / 8 - 1,
+            location
+        ))?;
         let bits_per_byte = rewriter.make(arith_constant!(rewriter, context, ty, 8, location))?;
         let sign_bit_position_on_byte =
             rewriter.make(arith_constant!(rewriter, context, ty, 7, location))?;
