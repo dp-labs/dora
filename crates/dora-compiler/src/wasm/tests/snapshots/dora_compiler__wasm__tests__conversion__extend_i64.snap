@@ -1,0 +1,67 @@
+---
+source: crates/dora-compiler/src/wasm/tests/conversion.rs
+expression: op
+snapshot_kind: text
+---
+module {
+  func.func @f0(%arg0: !llvm.ptr, %arg1: i64) -> i64 {
+    %c1_i64 = arith.constant 1 : i64
+    %0 = llvm.alloca %c1_i64 x i64 : (i64) -> !llvm.ptr
+    llvm.store %arg1, %0 : i64, !llvm.ptr
+    %1 = llvm.load %0 : !llvm.ptr -> i64
+    %c63_i64 = arith.constant 63 : i64
+    %c7_i64 = arith.constant 7 : i64
+    %c8_i64 = arith.constant 8 : i64
+    %c7_i64_0 = arith.constant 7 : i64
+    %c63_i64_1 = arith.constant 63 : i64
+    %2 = arith.minui %c63_i64, %c7_i64 : i64
+    %3 = arith.muli %2, %c8_i64 : i64
+    %4 = arith.addi %3, %c7_i64_0 : i64
+    %5 = arith.subi %c63_i64_1, %4 : i64
+    %6 = llvm.shl %1, %5 : i64
+    %7 = llvm.ashr %6, %5  : i64
+    cf.br ^bb1(%7 : i64)
+  ^bb1(%8: i64):  // pred: ^bb0
+    return %8 : i64
+  }
+  func.func @f1(%arg0: !llvm.ptr, %arg1: i64) -> i64 {
+    %c1_i64 = arith.constant 1 : i64
+    %0 = llvm.alloca %c1_i64 x i64 : (i64) -> !llvm.ptr
+    llvm.store %arg1, %0 : i64, !llvm.ptr
+    %1 = llvm.load %0 : !llvm.ptr -> i64
+    %c63_i64 = arith.constant 63 : i64
+    %c7_i64 = arith.constant 7 : i64
+    %c8_i64 = arith.constant 8 : i64
+    %c7_i64_0 = arith.constant 7 : i64
+    %c63_i64_1 = arith.constant 63 : i64
+    %2 = arith.minui %c63_i64, %c7_i64 : i64
+    %3 = arith.muli %2, %c8_i64 : i64
+    %4 = arith.addi %3, %c7_i64_0 : i64
+    %5 = arith.subi %c63_i64_1, %4 : i64
+    %6 = llvm.shl %1, %5 : i64
+    %7 = llvm.ashr %6, %5  : i64
+    cf.br ^bb1(%7 : i64)
+  ^bb1(%8: i64):  // pred: ^bb0
+    return %8 : i64
+  }
+  func.func @f2(%arg0: !llvm.ptr, %arg1: i64) -> i64 {
+    %c1_i64 = arith.constant 1 : i64
+    %0 = llvm.alloca %c1_i64 x i64 : (i64) -> !llvm.ptr
+    llvm.store %arg1, %0 : i64, !llvm.ptr
+    %1 = llvm.load %0 : !llvm.ptr -> i64
+    %c63_i64 = arith.constant 63 : i64
+    %c7_i64 = arith.constant 7 : i64
+    %c8_i64 = arith.constant 8 : i64
+    %c7_i64_0 = arith.constant 7 : i64
+    %c63_i64_1 = arith.constant 63 : i64
+    %2 = arith.minui %c63_i64, %c7_i64 : i64
+    %3 = arith.muli %2, %c8_i64 : i64
+    %4 = arith.addi %3, %c7_i64_0 : i64
+    %5 = arith.subi %c63_i64_1, %4 : i64
+    %6 = llvm.shl %1, %5 : i64
+    %7 = llvm.ashr %6, %5  : i64
+    cf.br ^bb1(%7 : i64)
+  ^bb1(%8: i64):  // pred: ^bb0
+    return %8 : i64
+  }
+}

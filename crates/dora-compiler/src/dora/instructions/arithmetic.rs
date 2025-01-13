@@ -16,7 +16,7 @@ use melior::{
     dialect::{arith, func, ods::llvm, scf},
     ir::{
         attribute::FlatSymbolRefAttribute, operation::OperationRef, r#type::IntegerType, Block,
-        Region,
+        Region, ValueLike,
     },
     Context,
 };
@@ -234,16 +234,27 @@ impl ConversionPass<'_> {
         operands!(op, byte_size, value_to_extend);
         rewrite_ctx!(context, op, rewriter, location);
 
-        let uint256 = rewriter.i256_ty();
+        let ty = value_to_extend.r#type();
+        let bit_width = rewriter.int_ty_width(ty)? as i64;
 
         // Constant Definitions
-        let max_byte_size =
-            rewriter.make(arith_constant!(rewriter, context, uint256, 31, location))?;
-        let bits_per_byte =
-            rewriter.make(arith_constant!(rewriter, context, uint256, 8, location))?;
+        let max_byte_size = rewriter.make(arith_constant!(
+            rewriter,
+            context,
+            ty,
+            bit_width / 8 - 1,
+            location
+        ))?;
+        let bits_per_byte = rewriter.make(arith_constant!(rewriter, context, ty, 8, location))?;
         let sign_bit_position_on_byte =
-            rewriter.make(arith_constant!(rewriter, context, uint256, 7, location))?;
-        let max_bits = rewriter.make(arith_constant!(rewriter, context, uint256, 255, location))?;
+            rewriter.make(arith_constant!(rewriter, context, ty, 7, location))?;
+        let max_bits = rewriter.make(arith_constant!(
+            rewriter,
+            context,
+            ty,
+            bit_width - 1,
+            location
+        ))?;
 
         // byte_size = min(max_byte_size, byte_size)
         let byte_size = rewriter.make(arith::minui(byte_size, max_byte_size, location))?;
