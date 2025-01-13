@@ -226,6 +226,19 @@ impl ConversionPass<'_> {
                     op,
                     dora_ir::dora::popcnt(self.ctx, value.r#type(), value, op.location()).into(),
                 );
+            } else if name == dora_ir::wasm::I32Extend8SOperation::name()
+                || name == dora_ir::wasm::I32Extend16SOperation::name()
+                || name == dora_ir::wasm::I64Extend8SOperation::name()
+                || name == dora_ir::wasm::I64Extend16SOperation::name()
+                || name == dora_ir::wasm::I64Extend32SOperation::name()
+            {
+                let byte = op.operand(0)?;
+                let value = op.operand(1)?;
+                replace_op(
+                    op,
+                    dora_ir::dora::signextend(self.ctx, value.r#type(), byte, value, op.location())
+                        .into(),
+                );
             } else if name == dora_ir::wasm::SelectOperation::name() {
                 let lhs = op.operand(0)?;
                 let rhs = op.operand(1)?;

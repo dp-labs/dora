@@ -289,6 +289,31 @@ fn popcnt_i64() {
 }
 
 #[test]
+fn extend_i32() {
+    assert_snapshot!(
+        r#"
+(module
+  (func (export "extend8_s") (param $x i32) (result i32) (i32.extend8_s (local.get $x)))
+  (func (export "extend16_s") (param $x i32) (result i32) (i32.extend16_s (local.get $x)))
+)
+"#
+    );
+}
+
+#[test]
+fn extend_i64() {
+    assert_snapshot!(
+        r#"
+(module
+  (func (export "extend8_s") (param $x i64) (result i64) (i64.extend8_s (local.get $x)))
+  (func (export "extend16_s") (param $x i64) (result i64) (i64.extend16_s (local.get $x)))
+  (func (export "extend32_s") (param $x i64) (result i64) (i64.extend32_s (local.get $x)))
+)
+"#
+    );
+}
+
+#[test]
 fn select() {
     assert_snapshot!(
         r#"
