@@ -135,6 +135,8 @@ impl ConversionPass<'_> {
                 Self::clz(context, op)?
             } else if name == "dora.ctz" {
                 Self::ctz(context, op)?
+            } else if name == "dora.popcnt" {
+                Self::popcnt(context, op)?
             } else if name == "dora.keccak256" {
                 Self::keccak256(context, op)?
             } else if name == "dora.address" {

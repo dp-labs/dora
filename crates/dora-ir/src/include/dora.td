@@ -504,6 +504,22 @@ def Dora_Ctz : Dora_Op<"ctz"> {
   let assemblyFormat = "$value `:` type($value) `->` type($result)";
 }
 
+def Dora_Popcnt : Dora_Op<"popcnt"> {
+  let summary = "Counts the number of 1-bits in the binary representation of a value.";
+  let description = [{
+    This operation takes a single operand of any integer type and returns the count of bits set to 1 in the operand.
+    The result will be of the same bit width as the input type.
+  }];
+
+  let arguments = (ins
+    AnyTypeOf<[I32, I64, I<128>, I<256>]>:$value
+  );
+
+  let results = (outs AnyTypeOf<[I32, I64, I<128>, I<256>]>:$result);
+
+  let assemblyFormat = "$value `:` type($value) `->` type($result)";
+}
+
 // Select Operation
 def Dora_SelectOp :Dora_Op<"select"> {
     let arguments = (ins

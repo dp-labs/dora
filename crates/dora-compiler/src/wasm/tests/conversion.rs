@@ -267,6 +267,28 @@ fn ctz_i64() {
 }
 
 #[test]
+fn popcnt_i32() {
+    assert_snapshot!(
+        r#"
+(module
+  (func (export "popcnt") (param $x i32) (result i32) (i32.popcnt (local.get $x)))
+)
+"#
+    );
+}
+
+#[test]
+fn popcnt_i64() {
+    assert_snapshot!(
+        r#"
+(module
+  (func (export "popcnt") (param $x i64) (result i64) (i64.popcnt (local.get $x)))
+)
+"#
+    );
+}
+
+#[test]
 fn select() {
     assert_snapshot!(
         r#"
