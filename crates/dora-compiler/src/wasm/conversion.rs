@@ -220,6 +220,12 @@ impl ConversionPass<'_> {
                     op,
                     dora_ir::dora::ctz(self.ctx, value.r#type(), value, op.location()).into(),
                 );
+            } else if name == dora_ir::wasm::PopcntOperation::name() {
+                let value = op.operand(0)?;
+                replace_op(
+                    op,
+                    dora_ir::dora::popcnt(self.ctx, value.r#type(), value, op.location()).into(),
+                );
             } else if name == dora_ir::wasm::SelectOperation::name() {
                 let lhs = op.operand(0)?;
                 let rhs = op.operand(1)?;

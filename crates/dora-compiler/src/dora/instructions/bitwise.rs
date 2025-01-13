@@ -377,14 +377,18 @@ impl ConversionPass<'_> {
     }
 
     pub(crate) fn clz(context: &Context, op: &OperationRef<'_, '_>) -> Result<()> {
-        Self::call_cz_intrinsic(context, op, "llvm.ctlz")
+        Self::call_llvm_intrinsic(context, op, "llvm.ctlz")
     }
 
     pub(crate) fn ctz(context: &Context, op: &OperationRef<'_, '_>) -> Result<()> {
-        Self::call_cz_intrinsic(context, op, "llvm.cttz")
+        Self::call_llvm_intrinsic(context, op, "llvm.cttz")
     }
 
-    fn call_cz_intrinsic(
+    pub(crate) fn popcnt(context: &Context, op: &OperationRef<'_, '_>) -> Result<()> {
+        Self::call_llvm_intrinsic(context, op, "llvm.ctpop")
+    }
+
+    fn call_llvm_intrinsic(
         context: &Context,
         op: &OperationRef<'_, '_>,
         intrinsic_base: &str,
