@@ -184,12 +184,13 @@ impl<'c> EVMCompiler<'c> {
     ) -> Result<FxHashMap<usize, melior::ir::Operation<'c>>> {
         let location = intrinsics.unknown_loc;
         let mut op_funcs: FxHashMap<usize, melior::ir::Operation> = FxHashMap::default();
-        for op in &program.operations {
+        for (i, op) in program.operations.iter().enumerate() {
             if matches!(
                 op,
                 Operation::Jump
                     | Operation::JumpI
                     | Operation::JumpF(_)
+                    | Operation::CallF(_)
                     | Operation::Push(_)
                     | Operation::PC { .. }
             ) {
@@ -231,11 +232,11 @@ impl<'c> EVMCompiler<'c> {
                 let setup_block = op_func_region.append_block(Block::new(&[]));
                 let mut ctx =
                     CtxType::new_op_func_ctx(context, &op_func_region, &setup_block, program)?;
-                let (block_start, block_end) =
-                    EVMCompiler::generate_code_for_op(&mut ctx, &op_func_region, op, options)?;
-                setup_block.append_operation(cf::br(&block_start, &[], location));
+                let (start_block, end_block) =
+                    EVMCompiler::generate_code_for_op(&mut ctx, &op_func_region, i, op, options)?;
+                setup_block.append_operation(cf::br(&start_block, &[], location));
                 let return_block = op_func_region.append_block(Block::new(&[]));
-                block_end.append_operation(cf::br(&return_block, &[], location));
+                end_block.append_operation(cf::br(&return_block, &[], location));
                 let reason = return_block
                     .append_operation(arith::constant(
                         &context.mlir_context,
@@ -270,6 +271,7 @@ impl<'c> EVMCompiler<'c> {
     pub fn generate_code_for_op(
         ctx: &mut CtxType<'c>,
         region: &'c Region<'c>,
+        index: usize,
         op: &Operation,
         options: &<EVMCompiler<'c> as Compiler>::Options,
     ) -> Result<(BlockRef<'c, 'c>, BlockRef<'c, 'c>)> {
@@ -279,143 +281,159 @@ impl<'c> EVMCompiler<'c> {
             )
         });
         let op_info = op_infos[op.opcode()];
+        // Single operation function does not contains multiple operation blocks
+        let start_block = if ctx.operation_blocks.is_empty() {
+            region.append_block(Block::new(&[]))
+        } else {
+            ctx.operation_blocks[index]
+        };
 
         // Note: make opcode not found as the runtime halt error,
         // because normal opcodes still consumes GAS during runtime.
         if op_info.is_unknown() || op_info.is_disabled() {
-            return Self::invalid_with_error_code(ctx, region, ExitStatusCode::OpcodeNotFound);
+            return Self::invalid_with_error_code(
+                ctx,
+                region,
+                start_block,
+                ExitStatusCode::OpcodeNotFound,
+            );
         }
 
-        let (mut block_start, block_end) = match &op {
-            // Arithmetic instructions
-            Operation::Add => EVMCompiler::add(ctx, region),
-            Operation::Mul => EVMCompiler::mul(ctx, region),
-            Operation::Sub => EVMCompiler::sub(ctx, region),
-            Operation::Div => EVMCompiler::udiv(ctx, region),
-            Operation::SDiv => EVMCompiler::sdiv(ctx, region),
-            Operation::Mod => EVMCompiler::umod(ctx, region),
-            Operation::SMod => EVMCompiler::smod(ctx, region),
-            Operation::AddMod => EVMCompiler::addmod(ctx, region),
-            Operation::MulMod => EVMCompiler::mulmod(ctx, region),
-            Operation::Exp => EVMCompiler::exp(ctx, region),
-            Operation::SignExtend => EVMCompiler::signextend(ctx, region),
-            // Bitwise instructions
-            Operation::Lt => EVMCompiler::lt(ctx, region),
-            Operation::Gt => EVMCompiler::gt(ctx, region),
-            Operation::Slt => EVMCompiler::slt(ctx, region),
-            Operation::Sgt => EVMCompiler::sgt(ctx, region),
-            Operation::Eq => EVMCompiler::eq(ctx, region),
-            Operation::IsZero => EVMCompiler::iszero(ctx, region),
-            Operation::And => EVMCompiler::and(ctx, region),
-            Operation::Or => EVMCompiler::or(ctx, region),
-            Operation::Xor => EVMCompiler::xor(ctx, region),
-            Operation::Not => EVMCompiler::not(ctx, region),
-            Operation::Byte => EVMCompiler::byte(ctx, region),
-            Operation::Shl => EVMCompiler::shl(ctx, region),
-            Operation::Shr => EVMCompiler::shr(ctx, region),
-            Operation::Sar => EVMCompiler::sar(ctx, region),
-            // System instructions
-            Operation::Keccak256 => EVMCompiler::keccak256(ctx, region),
-            Operation::Address => EVMCompiler::address(ctx, region),
-            Operation::Caller => EVMCompiler::caller(ctx, region),
-            Operation::CallValue => EVMCompiler::callvalue(ctx, region),
-            Operation::CalldataLoad => EVMCompiler::calldataload(ctx, region),
-            Operation::CalldataSize => EVMCompiler::calldatasize(ctx, region),
-            Operation::CalldataCopy => EVMCompiler::calldatacopy(ctx, region),
-            Operation::DataLoad => EVMCompiler::dataload(ctx, region),
-            Operation::DataLoadN(x) => EVMCompiler::dataloadn(ctx, region, *x),
-            Operation::DataSize => EVMCompiler::datasize(ctx, region),
-            Operation::DataCopy => EVMCompiler::datacopy(ctx, region),
-            Operation::CodeSize => EVMCompiler::codesize(ctx, region),
-            Operation::CodeCopy => EVMCompiler::codecopy(ctx, region),
-            Operation::ExtCodeCopy => EVMCompiler::extcodecopy(ctx, region),
-            Operation::ReturndataLoad => EVMCompiler::returndataload(ctx, region),
-            Operation::ReturndataSize => EVMCompiler::returndatasize(ctx, region),
-            Operation::ReturndataCopy => EVMCompiler::returndatacopy(ctx, region),
-            Operation::Gas => EVMCompiler::gas(ctx, region),
-            // Host env instructions
-            Operation::GasPrice => EVMCompiler::gasprice(ctx, region),
-            Operation::Coinbase => EVMCompiler::coinbase(ctx, region),
-            Operation::Origin => EVMCompiler::origin(ctx, region),
-            Operation::Timestamp => EVMCompiler::timestamp(ctx, region),
-            Operation::Number => EVMCompiler::number(ctx, region),
-            Operation::Prevrandao => EVMCompiler::prevrandao(ctx, region),
-            Operation::GasLimit => EVMCompiler::gaslimit(ctx, region),
-            Operation::Chainid => EVMCompiler::chainid(ctx, region),
-            Operation::BaseFee => EVMCompiler::basefee(ctx, region),
-            Operation::BlobBaseFee => EVMCompiler::blobbasefee(ctx, region),
-            Operation::BlobHash => EVMCompiler::blobhash(ctx, region),
-            // Host instructions
-            Operation::Balance => EVMCompiler::balance(ctx, region),
-            Operation::SelfBalance => EVMCompiler::selfbalance(ctx, region),
-            Operation::ExtCodeSize => EVMCompiler::extcodesize(ctx, region),
-            Operation::ExtCodeHash => EVMCompiler::extcodehash(ctx, region),
-            Operation::BlockHash => EVMCompiler::blockhash(ctx, region),
-            Operation::SLoad => EVMCompiler::sload(ctx, region),
-            Operation::SStore => EVMCompiler::sstore(ctx, region),
-            Operation::TLoad => EVMCompiler::tload(ctx, region),
-            Operation::TStore => EVMCompiler::tstore(ctx, region),
-            Operation::Log(x) => EVMCompiler::log(ctx, region, *x),
-            Operation::Selfdestruct => EVMCompiler::selfdestruct(ctx, region),
-            // Stack instructions
-            Operation::Push0 => EVMCompiler::push(ctx, region, BigUint::ZERO),
-            Operation::Push((_, x)) => EVMCompiler::push(ctx, region, (*x).clone()),
-            Operation::Pop => EVMCompiler::pop(ctx, region),
-            Operation::Dup(n) => EVMCompiler::dup(ctx, region, (*n).into()),
-            Operation::DupN(x) => EVMCompiler::dupn(ctx, region, *x),
-            Operation::Swap(n) => EVMCompiler::swap(ctx, region, (*n).into()),
-            Operation::SwapN(x) => EVMCompiler::swapn(ctx, region, *x),
-            Operation::Exchange(x) => EVMCompiler::exchange(ctx, region, *x),
-            // Control instructions
-            Operation::Jump => EVMCompiler::jump(ctx, region),
-            Operation::JumpI => EVMCompiler::jumpi(ctx, region),
-            Operation::RJump(x) => EVMCompiler::rjump(ctx, region, *x),
-            Operation::RJumpI(x) => EVMCompiler::rjumpi(ctx, region, *x),
-            Operation::RJumpV((x1, x2)) => EVMCompiler::rjumpv(ctx, region, *x1, (*x2).clone()),
-            Operation::CallF(x) => EVMCompiler::callf(ctx, region, *x),
-            Operation::RetF => EVMCompiler::retf(ctx, region),
-            Operation::JumpF(x) => EVMCompiler::jumpf(ctx, region, *x),
-            Operation::PC { pc } => EVMCompiler::pc(ctx, region, *pc),
-            Operation::Jumpdest { pc } => EVMCompiler::jumpdest(ctx, region, *pc),
-            Operation::Revert => EVMCompiler::revert(ctx, region),
-            Operation::Stop => EVMCompiler::stop(ctx, region),
-            Operation::Invalid => EVMCompiler::invalid(ctx, region),
-            // Memory instructions
-            Operation::MLoad => EVMCompiler::mload(ctx, region),
-            Operation::MStore => EVMCompiler::mstore(ctx, region),
-            Operation::MStore8 => EVMCompiler::mstore8(ctx, region),
-            Operation::MSize => EVMCompiler::msize(ctx, region),
-            Operation::MCopy => EVMCompiler::mcopy(ctx, region),
-            // Contract instructions
-            Operation::Create => EVMCompiler::create(ctx, region),
-            Operation::Create2 => EVMCompiler::create2(ctx, region),
-            Operation::EofCreate(x) => EVMCompiler::eofcreate(ctx, region, *x),
-            Operation::ReturnContract(x) => EVMCompiler::returncontract(ctx, region, *x),
-            Operation::Call => EVMCompiler::call(ctx, region),
-            Operation::Callcode => EVMCompiler::callcode(ctx, region),
-            Operation::Delegatecall => EVMCompiler::delegatecall(ctx, region),
-            Operation::Staticcall => EVMCompiler::staticcall(ctx, region),
-            Operation::Return => EVMCompiler::creturn(ctx, region),
-            Operation::ExtCall => EVMCompiler::extcall(ctx, region),
-            Operation::ExtDelegatecall => EVMCompiler::extdelegatecall(ctx, region),
-            Operation::ExtStaticcall => EVMCompiler::extstaticcall(ctx, region),
-        }?;
+        let mut op_start_block = start_block;
 
-        // Stack overflow/underflow check.
-        if !ctx.program.is_eof && options.stack_bound_checks {
-            block_start = Self::stack_bound_checks_block(ctx, region, block_start, op)?;
-        }
         // Static gas metering needs to be done before stack checking.
         if options.gas_metering {
-            block_start = Self::gas_metering_block(ctx, region, block_start, op, &op_info)?;
+            op_start_block = Self::gas_metering_block(ctx, region, op_start_block, op, &op_info)?;
         }
-        Ok((block_start, block_end))
+
+        // Stack overflow/underflow check.
+        if !ctx.program.is_eof() && options.stack_bound_checks {
+            op_start_block = Self::stack_bound_checks_block(ctx, region, op_start_block, op)?;
+        }
+
+        let (_op_start_block, op_end_block) = match &op {
+            // Arithmetic instructions
+            Operation::Add => EVMCompiler::add(ctx, op_start_block),
+            Operation::Mul => EVMCompiler::mul(ctx, op_start_block),
+            Operation::Sub => EVMCompiler::sub(ctx, op_start_block),
+            Operation::Div => EVMCompiler::udiv(ctx, op_start_block),
+            Operation::SDiv => EVMCompiler::sdiv(ctx, op_start_block),
+            Operation::Mod => EVMCompiler::umod(ctx, op_start_block),
+            Operation::SMod => EVMCompiler::smod(ctx, op_start_block),
+            Operation::AddMod => EVMCompiler::addmod(ctx, op_start_block),
+            Operation::MulMod => EVMCompiler::mulmod(ctx, op_start_block),
+            Operation::Exp => EVMCompiler::exp(ctx, op_start_block),
+            Operation::SignExtend => EVMCompiler::signextend(ctx, op_start_block),
+            // Bitwise instructions
+            Operation::Lt => EVMCompiler::lt(ctx, op_start_block),
+            Operation::Gt => EVMCompiler::gt(ctx, op_start_block),
+            Operation::Slt => EVMCompiler::slt(ctx, op_start_block),
+            Operation::Sgt => EVMCompiler::sgt(ctx, op_start_block),
+            Operation::Eq => EVMCompiler::eq(ctx, op_start_block),
+            Operation::IsZero => EVMCompiler::iszero(ctx, op_start_block),
+            Operation::And => EVMCompiler::and(ctx, op_start_block),
+            Operation::Or => EVMCompiler::or(ctx, op_start_block),
+            Operation::Xor => EVMCompiler::xor(ctx, op_start_block),
+            Operation::Not => EVMCompiler::not(ctx, op_start_block),
+            Operation::Byte => EVMCompiler::byte(ctx, op_start_block),
+            Operation::Shl => EVMCompiler::shl(ctx, op_start_block),
+            Operation::Shr => EVMCompiler::shr(ctx, op_start_block),
+            Operation::Sar => EVMCompiler::sar(ctx, op_start_block),
+            // System instructions
+            Operation::Keccak256 => EVMCompiler::keccak256(ctx, op_start_block),
+            Operation::Address => EVMCompiler::address(ctx, op_start_block),
+            Operation::Caller => EVMCompiler::caller(ctx, op_start_block),
+            Operation::CallValue => EVMCompiler::callvalue(ctx, op_start_block),
+            Operation::CalldataLoad => EVMCompiler::calldataload(ctx, op_start_block),
+            Operation::CalldataSize => EVMCompiler::calldatasize(ctx, op_start_block),
+            Operation::CalldataCopy => EVMCompiler::calldatacopy(ctx, op_start_block),
+            Operation::DataLoad => EVMCompiler::dataload(ctx, op_start_block),
+            Operation::DataLoadN(x) => EVMCompiler::dataloadn(ctx, op_start_block, *x),
+            Operation::DataSize => EVMCompiler::datasize(ctx, op_start_block),
+            Operation::DataCopy => EVMCompiler::datacopy(ctx, op_start_block),
+            Operation::CodeSize => EVMCompiler::codesize(ctx, op_start_block),
+            Operation::CodeCopy => EVMCompiler::codecopy(ctx, op_start_block),
+            Operation::ExtCodeCopy => EVMCompiler::extcodecopy(ctx, op_start_block),
+            Operation::ReturndataLoad => EVMCompiler::returndataload(ctx, op_start_block),
+            Operation::ReturndataSize => EVMCompiler::returndatasize(ctx, op_start_block),
+            Operation::ReturndataCopy => EVMCompiler::returndatacopy(ctx, op_start_block),
+            Operation::Gas => EVMCompiler::gas(ctx, op_start_block),
+            // Host env instructions
+            Operation::GasPrice => EVMCompiler::gasprice(ctx, op_start_block),
+            Operation::Coinbase => EVMCompiler::coinbase(ctx, op_start_block),
+            Operation::Origin => EVMCompiler::origin(ctx, op_start_block),
+            Operation::Timestamp => EVMCompiler::timestamp(ctx, op_start_block),
+            Operation::Number => EVMCompiler::number(ctx, op_start_block),
+            Operation::Prevrandao => EVMCompiler::prevrandao(ctx, op_start_block),
+            Operation::GasLimit => EVMCompiler::gaslimit(ctx, op_start_block),
+            Operation::Chainid => EVMCompiler::chainid(ctx, op_start_block),
+            Operation::BaseFee => EVMCompiler::basefee(ctx, op_start_block),
+            Operation::BlobBaseFee => EVMCompiler::blobbasefee(ctx, op_start_block),
+            Operation::BlobHash => EVMCompiler::blobhash(ctx, op_start_block),
+            // Host instructions
+            Operation::Balance => EVMCompiler::balance(ctx, op_start_block),
+            Operation::SelfBalance => EVMCompiler::selfbalance(ctx, op_start_block),
+            Operation::ExtCodeSize => EVMCompiler::extcodesize(ctx, op_start_block),
+            Operation::ExtCodeHash => EVMCompiler::extcodehash(ctx, op_start_block),
+            Operation::BlockHash => EVMCompiler::blockhash(ctx, op_start_block),
+            Operation::SLoad => EVMCompiler::sload(ctx, op_start_block),
+            Operation::SStore => EVMCompiler::sstore(ctx, op_start_block),
+            Operation::TLoad => EVMCompiler::tload(ctx, op_start_block),
+            Operation::TStore => EVMCompiler::tstore(ctx, op_start_block),
+            Operation::Log(x) => EVMCompiler::log(ctx, op_start_block, *x),
+            Operation::Selfdestruct => EVMCompiler::selfdestruct(ctx, region, op_start_block),
+            // Stack instructions
+            Operation::Push0 => EVMCompiler::push(ctx, op_start_block, BigUint::ZERO),
+            Operation::Push((_, x)) => EVMCompiler::push(ctx, op_start_block, (*x).clone()),
+            Operation::Pop => EVMCompiler::pop(ctx, op_start_block),
+            Operation::Dup(n) => EVMCompiler::dup(ctx, op_start_block, (*n).into()),
+            Operation::DupN(x) => EVMCompiler::dupn(ctx, op_start_block, *x),
+            Operation::Swap(n) => EVMCompiler::swap(ctx, op_start_block, (*n).into()),
+            Operation::SwapN(x) => EVMCompiler::swapn(ctx, op_start_block, *x),
+            Operation::Exchange(x) => EVMCompiler::exchange(ctx, op_start_block, *x),
+            // Control instructions
+            Operation::Jump => EVMCompiler::jump(ctx, region, op_start_block),
+            Operation::JumpI => EVMCompiler::jumpi(ctx, region, op_start_block),
+            Operation::RJump(x) => EVMCompiler::rjump(ctx, region, op_start_block, *x),
+            Operation::RJumpI(x) => EVMCompiler::rjumpi(ctx, region, op_start_block, *x),
+            Operation::RJumpV((x1, x2)) => {
+                EVMCompiler::rjumpv(ctx, region, op_start_block, *x1, (*x2).clone())
+            }
+            Operation::CallF(x) => EVMCompiler::callf(ctx, region, op_start_block, *x),
+            Operation::RetF => EVMCompiler::retf(ctx, op_start_block),
+            Operation::JumpF(x) => EVMCompiler::jumpf(ctx, region, op_start_block, *x),
+            Operation::PC { pc } => EVMCompiler::pc(ctx, op_start_block, *pc),
+            Operation::Jumpdest { pc } => EVMCompiler::jumpdest(ctx, op_start_block, *pc),
+            Operation::Revert => EVMCompiler::revert(ctx, region, op_start_block),
+            Operation::Stop => EVMCompiler::stop(ctx, region, op_start_block),
+            Operation::Invalid => EVMCompiler::invalid(ctx, region, op_start_block),
+            // Memory instructions
+            Operation::MLoad => EVMCompiler::mload(ctx, op_start_block),
+            Operation::MStore => EVMCompiler::mstore(ctx, op_start_block),
+            Operation::MStore8 => EVMCompiler::mstore8(ctx, op_start_block),
+            Operation::MSize => EVMCompiler::msize(ctx, op_start_block),
+            Operation::MCopy => EVMCompiler::mcopy(ctx, op_start_block),
+            // Contract instructions
+            Operation::Create => EVMCompiler::create(ctx, op_start_block),
+            Operation::Create2 => EVMCompiler::create2(ctx, op_start_block),
+            Operation::EofCreate(x) => EVMCompiler::eofcreate(ctx, op_start_block, *x),
+            Operation::ReturnContract(x) => EVMCompiler::returncontract(ctx, op_start_block, *x),
+            Operation::Call => EVMCompiler::call(ctx, op_start_block),
+            Operation::Callcode => EVMCompiler::callcode(ctx, op_start_block),
+            Operation::Delegatecall => EVMCompiler::delegatecall(ctx, op_start_block),
+            Operation::Staticcall => EVMCompiler::staticcall(ctx, op_start_block),
+            Operation::Return => EVMCompiler::creturn(ctx, region, op_start_block),
+            Operation::ExtCall => EVMCompiler::extcall(ctx, op_start_block),
+            Operation::ExtDelegatecall => EVMCompiler::extdelegatecall(ctx, op_start_block),
+            Operation::ExtStaticcall => EVMCompiler::extstaticcall(ctx, op_start_block),
+        }?;
+        Ok((start_block, op_end_block))
     }
 
     fn stack_bound_checks_block<'r>(
         ctx: &mut CtxType<'c>,
         region: &'r Region<'c>,
-        block_start: BlockRef<'r, 'c>,
+        stack_check_block: BlockRef<'r, 'c>,
         op: &Operation,
     ) -> Result<BlockRef<'r, 'c>> {
         let (i, o) = stack_io(op);
@@ -423,7 +441,7 @@ impl<'c> EVMCompiler<'c> {
         let diff = o as i64 - i as i64;
         let may_underflow = section_input > 0;
         let may_overflow = diff > 0;
-        let stack_check_block = region.append_block(Block::new(&[]));
+        let end_block = region.append_block(Block::new(&[]));
         let builder = OpBuilder::new_with_block(ctx.context, stack_check_block);
         let uint64 = builder.i64_ty();
         let location = builder.get_insert_location();
@@ -452,7 +470,7 @@ impl<'c> EVMCompiler<'c> {
                 ctx.context,
                 revert,
                 &ctx.revert_block,
-                &block_start,
+                &end_block,
                 &[code],
                 &[],
                 location,
@@ -471,7 +489,7 @@ impl<'c> EVMCompiler<'c> {
                 ctx.context,
                 revert,
                 &ctx.revert_block,
-                &block_start,
+                &end_block,
                 &[code],
                 &[],
                 location,
@@ -488,7 +506,7 @@ impl<'c> EVMCompiler<'c> {
                 ctx.context,
                 revert,
                 &ctx.revert_block,
-                &block_start,
+                &end_block,
                 &[code],
                 &[],
                 location,
@@ -496,20 +514,20 @@ impl<'c> EVMCompiler<'c> {
         } else {
             // Update the stack length for this operation.
             builder.create(builder.store(size_after, ctx.values.stack_size_ptr));
-            builder.create(cf::br(&block_start, &[], location));
+            builder.create(cf::br(&end_block, &[], location));
         }
-        Ok(stack_check_block)
+        Ok(end_block)
     }
 
     fn gas_metering_block<'r>(
         ctx: &mut CtxType<'c>,
         region: &'r Region<'c>,
-        block_start: BlockRef<'r, 'c>,
+        gas_check_block: BlockRef<'r, 'c>,
         op: &Operation,
         op_info: &OpcodeInfo,
     ) -> Result<BlockRef<'r, 'c>> {
         let base_gas = op_info.base_gas();
-        let gas_check_block = region.append_block(Block::new(&[]));
+        let end_block = region.append_block(Block::new(&[]));
         let update_gas_remaining_block = region.append_block(Block::new(&[]));
         let builder = OpBuilder::new_with_block(ctx.context, gas_check_block);
         let uint8 = builder.i8_ty();
@@ -571,8 +589,8 @@ impl<'c> EVMCompiler<'c> {
             location,
             LoadStoreOptions::default(),
         ));
-        builder.create(cf::br(&block_start, &[], location));
-        Ok(gas_check_block)
+        builder.create(cf::br(&end_block, &[], location));
+        Ok(end_block)
     }
 
     fn compile_module(
@@ -626,15 +644,15 @@ impl<'c> EVMCompiler<'c> {
         // Generate all opcode with the inline mode.
         if options.inline {
             // Generate code for the program
-            for op in &ctx.program.operations {
-                let (block_start, block_end) =
-                    EVMCompiler::generate_code_for_op(&mut ctx, &main_region, op, options)?;
+            for (i, op) in ctx.program.operations.iter().enumerate() {
+                let (start_block, end_block) =
+                    EVMCompiler::generate_code_for_op(&mut ctx, &main_region, i, op, options)?;
                 // Register the jump dest block.
                 if let Operation::Jumpdest { pc } = op {
-                    ctx.register_jump_destination(*pc, block_start);
+                    ctx.register_jump_destination(*pc, start_block);
                 }
-                last_block.append_operation(cf::br(&block_start, &[], location));
-                last_block = block_end;
+                last_block.append_operation(cf::br(&start_block, &[], location));
+                last_block = end_block;
             }
             let return_block = main_region.append_block(Block::new(&[]));
             EVMCompiler::return_empty_result(&ctx, return_block, ExitStatusCode::Stop)?;
@@ -661,18 +679,19 @@ impl<'c> EVMCompiler<'c> {
                 .into();
             let continue_code = continue_code.to_ctx_value();
             // Generate code for the program
-            for op in &ctx.program.operations {
+            for (i, op) in ctx.program.operations.iter().enumerate() {
                 let op_symbol = format!("op{}", op.opcode());
                 if matches!(
                     op,
                     Operation::Jump
                         | Operation::JumpI
                         | Operation::JumpF(_)
+                        | Operation::CallF(_)
                         | Operation::Push(_)
                         | Operation::PC { .. }
                 ) {
-                    let (block_start, block_end) =
-                        EVMCompiler::generate_code_for_op(&mut ctx, &main_region, op, options)?;
+                    let (start_block, end_block) =
+                        EVMCompiler::generate_code_for_op(&mut ctx, &main_region, i, op, options)?;
                     let is_stop = last_block
                         .append_operation(arith::cmpi(
                             context,
@@ -687,19 +706,19 @@ impl<'c> EVMCompiler<'c> {
                         context,
                         is_stop,
                         &ctx.revert_block,
-                        &block_start,
+                        &start_block,
                         &[result],
                         &[],
                         location,
                     ));
-                    let builder = OpBuilder::new_with_block(context, block_end);
+                    let builder = OpBuilder::new_with_block(context, end_block);
                     result = builder
                         .make(builder.iconst_8(ExitStatusCode::Continue.to_u8() as i8))?
                         .to_ctx_value();
-                    last_block = block_end;
+                    last_block = end_block;
                 } else {
-                    let block_start = main_region.append_block(Block::new(&[]));
-                    let builder = OpBuilder::new_with_block(context, block_start);
+                    let start_block = ctx.operation_blocks[i];
+                    let builder = OpBuilder::new_with_block(context, start_block);
                     let is_stop = last_block
                         .append_operation(arith::cmpi(
                             context,
@@ -714,7 +733,7 @@ impl<'c> EVMCompiler<'c> {
                         context,
                         is_stop,
                         &ctx.stop_block,
-                        &block_start,
+                        &start_block,
                         &[result],
                         &[],
                         location,
@@ -734,10 +753,10 @@ impl<'c> EVMCompiler<'c> {
                             location,
                         ))?
                         .to_ctx_value();
-                    last_block = block_start;
+                    last_block = start_block;
                     // Register the jump dest block.
                     if let Operation::Jumpdest { pc } = op {
-                        ctx.register_jump_destination(*pc, block_start);
+                        ctx.register_jump_destination(*pc, start_block);
                     }
                 }
             }
@@ -926,6 +945,8 @@ pub struct CtxType<'c> {
     pub jumptable_block: BlockRef<'c, 'c>,
     /// A map from jump destination indices in EVM to their corresponding blocks in MLIR.
     pub jumpdest_blocks: BTreeMap<usize, BlockRef<'c, 'c>>,
+    /// A vector that holds all basic start block of operations.
+    pub operation_blocks: Vec<BlockRef<'c, 'c>>,
 }
 
 impl<'c> CtxType<'c> {
@@ -989,6 +1010,10 @@ impl<'c> CtxType<'c> {
         )?);
         let jumptable_block = region.append_block(Block::new(&[(uint256, location)]));
         let return_block = region.append_block(return_block(&context.mlir_context)?);
+        let mut operation_blocks = vec![];
+        for _ in 0..program.operations.len() {
+            operation_blocks.push(region.append_block(Block::new(&[])));
+        }
         Ok(CtxType {
             context: &context.mlir_context,
             program,
@@ -1003,6 +1028,7 @@ impl<'c> CtxType<'c> {
             stop_block: return_block,
             jumptable_block,
             jumpdest_blocks: Default::default(),
+            operation_blocks,
         })
     }
 
@@ -1042,6 +1068,7 @@ impl<'c> CtxType<'c> {
             // the op function itself, so this is an impossible situation.
             jumptable_block: revert_block,
             jumpdest_blocks: Default::default(),
+            operation_blocks: Default::default(),
         })
     }
 

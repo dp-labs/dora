@@ -9,9 +9,8 @@ use crate::evm::{CtxType, EVMCompiler};
 impl<'c> EVMCompiler<'c> {
     pub(crate) fn balance<'r>(
         ctx: &mut CtxType<'c>,
-        region: &'r Region<'c>,
+        start_block: BlockRef<'r, 'c>,
     ) -> Result<(BlockRef<'r, 'c>, BlockRef<'r, 'c>)> {
-        let start_block = region.append_block(Block::new(&[]));
         let mut builder = Self::make_builder(ctx, start_block);
         let account = builder.stack_pop()?;
         let value = builder.balance(account)?;
@@ -21,9 +20,8 @@ impl<'c> EVMCompiler<'c> {
 
     pub(crate) fn selfbalance<'r>(
         ctx: &mut CtxType<'c>,
-        region: &'r Region<'c>,
+        start_block: BlockRef<'r, 'c>,
     ) -> Result<(BlockRef<'r, 'c>, BlockRef<'r, 'c>)> {
-        let start_block = region.append_block(Block::new(&[]));
         let mut builder = Self::make_builder(ctx, start_block);
         let value = builder.selfbalance()?;
         builder.stack_push(value)?;
@@ -32,9 +30,8 @@ impl<'c> EVMCompiler<'c> {
 
     pub(crate) fn extcodesize<'r>(
         ctx: &mut CtxType<'c>,
-        region: &'r Region<'c>,
+        start_block: BlockRef<'r, 'c>,
     ) -> Result<(BlockRef<'r, 'c>, BlockRef<'r, 'c>)> {
-        let start_block = region.append_block(Block::new(&[]));
         let mut builder = Self::make_builder(ctx, start_block);
         let account = builder.stack_pop()?;
         let value = builder.extcodesize(account)?;
@@ -44,9 +41,8 @@ impl<'c> EVMCompiler<'c> {
 
     pub(crate) fn extcodehash<'r>(
         ctx: &mut CtxType<'c>,
-        region: &'r Region<'c>,
+        start_block: BlockRef<'r, 'c>,
     ) -> Result<(BlockRef<'r, 'c>, BlockRef<'r, 'c>)> {
-        let start_block = region.append_block(Block::new(&[]));
         let mut builder = Self::make_builder(ctx, start_block);
         let account = builder.stack_pop()?;
         let value = builder.extcodehash(account)?;
@@ -56,9 +52,8 @@ impl<'c> EVMCompiler<'c> {
 
     pub(crate) fn extcodecopy<'r>(
         ctx: &mut CtxType<'c>,
-        region: &'r Region<'c>,
+        start_block: BlockRef<'r, 'c>,
     ) -> Result<(BlockRef<'r, 'c>, BlockRef<'r, 'c>)> {
-        let start_block = region.append_block(Block::new(&[]));
         let mut builder = Self::make_builder(ctx, start_block);
         let account = builder.stack_pop()?;
         let dest_offset = builder.stack_pop()?;
@@ -70,9 +65,8 @@ impl<'c> EVMCompiler<'c> {
 
     pub(crate) fn blockhash<'r>(
         ctx: &mut CtxType<'c>,
-        region: &'r Region<'c>,
+        start_block: BlockRef<'r, 'c>,
     ) -> Result<(BlockRef<'r, 'c>, BlockRef<'r, 'c>)> {
-        let start_block = region.append_block(Block::new(&[]));
         let mut builder = Self::make_builder(ctx, start_block);
         let block_number = builder.stack_pop()?;
         let block_hash = builder.blockhash(block_number)?;
@@ -82,9 +76,8 @@ impl<'c> EVMCompiler<'c> {
 
     pub(crate) fn sload<'r>(
         ctx: &mut CtxType<'c>,
-        region: &'r Region<'c>,
+        start_block: BlockRef<'r, 'c>,
     ) -> Result<(BlockRef<'r, 'c>, BlockRef<'r, 'c>)> {
-        let start_block = region.append_block(Block::new(&[]));
         let mut builder = Self::make_builder(ctx, start_block);
         let key = builder.stack_pop()?;
         let value = builder.sload(key)?;
@@ -94,9 +87,8 @@ impl<'c> EVMCompiler<'c> {
 
     pub(crate) fn sstore<'r>(
         ctx: &mut CtxType<'c>,
-        region: &'r Region<'c>,
+        start_block: BlockRef<'r, 'c>,
     ) -> Result<(BlockRef<'r, 'c>, BlockRef<'r, 'c>)> {
-        let start_block = region.append_block(Block::new(&[]));
         let mut builder = Self::make_builder(ctx, start_block);
         let key = builder.stack_pop()?;
         let value = builder.stack_pop()?;
@@ -106,9 +98,8 @@ impl<'c> EVMCompiler<'c> {
 
     pub(crate) fn tload<'r>(
         ctx: &mut CtxType<'c>,
-        region: &'r Region<'c>,
+        start_block: BlockRef<'r, 'c>,
     ) -> Result<(BlockRef<'r, 'c>, BlockRef<'r, 'c>)> {
-        let start_block = region.append_block(Block::new(&[]));
         let mut builder = Self::make_builder(ctx, start_block);
         let key = builder.stack_pop()?;
         let value = builder.tload(key)?;
@@ -118,9 +109,8 @@ impl<'c> EVMCompiler<'c> {
 
     pub(crate) fn tstore<'r>(
         ctx: &mut CtxType<'c>,
-        region: &'r Region<'c>,
+        start_block: BlockRef<'r, 'c>,
     ) -> Result<(BlockRef<'r, 'c>, BlockRef<'r, 'c>)> {
-        let start_block = region.append_block(Block::new(&[]));
         let mut builder = Self::make_builder(ctx, start_block);
         let key = builder.stack_pop()?;
         let value = builder.stack_pop()?;
@@ -130,11 +120,10 @@ impl<'c> EVMCompiler<'c> {
 
     pub(crate) fn log<'r>(
         ctx: &mut CtxType<'c>,
-        region: &'r Region<'c>,
+        start_block: BlockRef<'r, 'c>,
         nth: u8,
     ) -> Result<(BlockRef<'r, 'c>, BlockRef<'r, 'c>)> {
         debug_assert!(nth <= 4);
-        let start_block = region.append_block(Block::new(&[]));
         let mut builder = Self::make_builder(ctx, start_block);
         let offset = builder.stack_pop()?;
         let length = builder.stack_pop()?;
@@ -172,8 +161,8 @@ impl<'c> EVMCompiler<'c> {
     pub(crate) fn selfdestruct<'r>(
         ctx: &mut CtxType<'c>,
         region: &'r Region<'c>,
+        start_block: BlockRef<'r, 'c>,
     ) -> Result<(BlockRef<'r, 'c>, BlockRef<'r, 'c>)> {
-        let start_block = region.append_block(Block::new(&[]));
         let mut builder = Self::make_builder(ctx, start_block);
         let recipient = builder.stack_pop()?;
         builder.selfdestruct(recipient);

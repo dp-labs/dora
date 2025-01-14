@@ -1,4 +1,4 @@
-use melior::ir::{Block, BlockRef, Region};
+use melior::ir::BlockRef;
 
 use crate::backend::{Builder, EVMBuilder};
 use crate::errors::Result;
@@ -8,9 +8,8 @@ use crate::evm::{CtxType, EVMCompiler};
 impl<'c> EVMCompiler<'c> {
     pub(crate) fn mload<'r>(
         ctx: &mut CtxType<'c>,
-        region: &'r Region<'c>,
+        start_block: BlockRef<'r, 'c>,
     ) -> Result<(BlockRef<'r, 'c>, BlockRef<'r, 'c>)> {
-        let start_block = region.append_block(Block::new(&[]));
         let mut builder = Self::make_builder(ctx, start_block);
         let offset = builder.stack_pop()?;
         let value = builder.mload(offset)?;
@@ -20,9 +19,8 @@ impl<'c> EVMCompiler<'c> {
 
     pub(crate) fn mstore<'r>(
         ctx: &mut CtxType<'c>,
-        region: &'r Region<'c>,
+        start_block: BlockRef<'r, 'c>,
     ) -> Result<(BlockRef<'r, 'c>, BlockRef<'r, 'c>)> {
-        let start_block = region.append_block(Block::new(&[]));
         let mut builder = Self::make_builder(ctx, start_block);
         let offset = builder.stack_pop()?;
         let data = builder.stack_pop()?;
@@ -32,9 +30,8 @@ impl<'c> EVMCompiler<'c> {
 
     pub(crate) fn mstore8<'r>(
         ctx: &mut CtxType<'c>,
-        region: &'r Region<'c>,
+        start_block: BlockRef<'r, 'c>,
     ) -> Result<(BlockRef<'r, 'c>, BlockRef<'r, 'c>)> {
-        let start_block = region.append_block(Block::new(&[]));
         let mut builder = Self::make_builder(ctx, start_block);
         let offset = builder.stack_pop()?;
         let data = builder.stack_pop()?;
@@ -44,9 +41,8 @@ impl<'c> EVMCompiler<'c> {
 
     pub(crate) fn msize<'r>(
         ctx: &mut CtxType<'c>,
-        region: &'r Region<'c>,
+        start_block: BlockRef<'r, 'c>,
     ) -> Result<(BlockRef<'r, 'c>, BlockRef<'r, 'c>)> {
-        let start_block = region.append_block(Block::new(&[]));
         let mut builder = Self::make_builder(ctx, start_block);
         let value = builder.msize()?;
         builder.stack_push(value)?;
@@ -55,9 +51,8 @@ impl<'c> EVMCompiler<'c> {
 
     pub(crate) fn mcopy<'r>(
         ctx: &mut CtxType<'c>,
-        region: &'r Region<'c>,
+        start_block: BlockRef<'r, 'c>,
     ) -> Result<(BlockRef<'r, 'c>, BlockRef<'r, 'c>)> {
-        let start_block = region.append_block(Block::new(&[]));
         let mut builder = Self::make_builder(ctx, start_block);
         let dest_offset = builder.stack_pop()?;
         let src_offset = builder.stack_pop()?;

@@ -10,10 +10,11 @@ macro_rules! assert_snapshot {
         assert_snapshot!($operations, false)
     };
     ($operations:expr, $is_eof:expr) => {
-        let program = Program {
-            operations: $operations,
-            code_size: 0,
-            is_eof: $is_eof,
+        let opcodes = Program::operations_to_opcode(&$operations);
+        let program = if $is_eof {
+            Program::eof(&opcodes)
+        } else {
+            Program::raw(&opcodes)
         };
         let context = Context::new();
         let compiler = EVMCompiler::new(&context);

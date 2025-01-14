@@ -193,7 +193,7 @@ impl FuncTranslator {
                     while backend.state.has_control_frames() {
                         let pos = reader.current_position() as u32;
                         let op = reader.read_operator()?;
-                        let block_end = FunctionCodeGenerator::translate_op(
+                        let end_block = FunctionCodeGenerator::translate_op(
                             op,
                             &mut fcx,
                             &mut backend,
@@ -201,7 +201,7 @@ impl FuncTranslator {
                             last_block,
                             pos,
                         )?;
-                        last_block = block_end;
+                        last_block = end_block;
                     }
                     FunctionCodeGenerator::finalize(
                         &mut backend,

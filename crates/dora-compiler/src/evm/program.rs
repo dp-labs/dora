@@ -1,7 +1,9 @@
-use dora_primitives::Bytecode;
+use dora_primitives::{Bytecode, Bytes, Eof, EofBody};
 use num_bigint::BigUint;
 pub use revmc::{op_info_map, OpcodeInfo};
+use rustc_hash::FxHashMap;
 use std::fmt;
+use std::sync::Arc;
 use thiserror::Error;
 
 /// EOF magic number in array form.
@@ -590,7 +592,6 @@ macro_rules! operations {
                         Operation::Callcode
                     }
                     Opcode::DELEGATECALL => {
-                        // TODO : https://eips.ethereum.org/EIPS/eip-3540#eof1-contracts-can-only-delegatecall-eof1-contracts
                         if is_eof {
                             return Err(OpcodeParseError::BannedOpcodeInEofContextError(opcode));
                         }
@@ -960,12 +961,14 @@ pub struct Program {
     /// The total size of the bytecode (in bytes).
     pub code_size: u32,
     /// Whether eof bytecode
-    pub is_eof: bool,
+    pub eof: Option<Arc<Eof>>,
+    /// Mapping from program counter to instruction.
+    pc_to_index_mapping: FxHashMap<usize, usize>,
 }
 
 impl From<Bytecode> for Program {
     fn from(bytecode: Bytecode) -> Self {
-        Self::from_opcodes(bytecode.bytecode(), bytecode.is_eof())
+        Self::from_opcodes(bytecode.bytecode(), bytecode.eof().cloned())
     }
 }
 
@@ -980,14 +983,44 @@ impl Program {
     ///
     /// # Returns
     /// A `Program` instance constructed from the parsed operations.
-    pub fn from_opcodes(opcodes: &[u8], is_eof: bool) -> Self {
-        let (operations, _) = Self::parse_operations(opcodes, is_eof);
+    pub fn from_opcodes(opcodes: &[u8], eof: Option<Arc<Eof>>) -> Self {
+        let (operations, pc_to_index_mapping, _) = Self::parse_operations(opcodes, eof.is_some());
         let code_size = Self::calculate_code_size(&operations);
 
         Self {
             operations,
             code_size,
-            is_eof,
+            eof,
+            pc_to_index_mapping,
+        }
+    }
+
+    /// Constructs a `Program` from a slice of operations without error checking.
+    pub fn from_operations(operations: Vec<Operation>, is_eof: bool) -> Self {
+        if is_eof {
+            Self::eof(&Self::operations_to_opcode(&operations))
+        } else {
+            Self::raw(&Self::operations_to_opcode(&operations))
+        }
+    }
+
+    /// Constructs a `Program` from a slice of raw opcodes without error checking.
+    pub fn raw(opcodes: &[u8]) -> Self {
+        Self::from_opcodes(opcodes, None)
+    }
+
+    /// Constructs a `Program` from a slice of eof opcodes without error checking.
+    /// Note: the opcode bytes do not start with the EOF magic header
+    pub fn eof(opcodes: &[u8]) -> Self {
+        let eof = Self::eof_body(&[opcodes], vec![]).into_eof();
+        Self::from_opcodes(opcodes, Some(Arc::new(eof)))
+    }
+
+    fn eof_body(code: &[&[u8]], containers: Vec<Bytes>) -> EofBody {
+        EofBody {
+            code_section: code.iter().copied().map(Bytes::copy_from_slice).collect(),
+            container_section: containers,
+            ..Default::default()
         }
     }
 
@@ -998,8 +1031,15 @@ impl Program {
     ///
     /// # Returns
     /// A vector of bytes representing the opcodes of the program.
+    #[inline]
     pub fn to_opcode(&self) -> Vec<u8> {
-        self.operations
+        Self::operations_to_opcode(&self.operations)
+    }
+
+    /// Converts the list of operatiobs into a vector of opcodes.
+    #[inline]
+    pub fn operations_to_opcode(operations: &[Operation]) -> Vec<u8> {
+        operations
             .iter()
             .flat_map(Operation::to)
             .collect::<Vec<u8>>()
@@ -1007,7 +1047,7 @@ impl Program {
 
     /// Mark `PUSH<N>` followed by `JUMP[I]` as `STATIC_JUMP` and resolve the target.
     pub fn has_dynamic_jumps(&mut self) -> bool {
-        debug_assert!(!self.is_eof);
+        debug_assert!(!self.is_eof());
         for i in 0..self.operations.len() {
             let op = &self.operations[i];
             let is_jump = matches!(op, Operation::Jump | Operation::JumpI);
@@ -1023,16 +1063,49 @@ impl Program {
         false
     }
 
-    fn parse_operations(opcodes: &[u8], is_eof: bool) -> (Vec<Operation>, Vec<OpcodeParseError>) {
+    /// Whether eof bytecode
+    #[inline]
+    pub fn is_eof(&self) -> bool {
+        self.eof.is_some()
+    }
+
+    /// Returns the program counter of the given EOF section index.
+    pub fn eof_section_pc(&self, section: usize) -> usize {
+        let code = &self.eof.as_ref().unwrap().body.code_section;
+        let first = code.first().unwrap().as_ptr();
+        let section_ptr = code[section].as_ptr();
+        section_ptr as usize - first as usize
+    }
+
+    /// Returns the operation index of the given EOF section index.
+    pub fn eof_section_index(&self, section: usize) -> usize {
+        self.pc_to_index_mapping[&self.eof_section_pc(section)]
+    }
+
+    fn parse_operations(
+        opcodes: &[u8],
+        is_eof: bool,
+    ) -> (
+        Vec<Operation>,
+        FxHashMap<usize, usize>,
+        Vec<OpcodeParseError>,
+    ) {
         let mut operations = vec![];
+        let mut pc_to_index_mapping =
+            FxHashMap::with_capacity_and_hasher(opcodes.len(), Default::default());
         let mut failed_opcodes = vec![];
         let mut pc = 0;
+        let mut index = 0;
+
+        pc_to_index_mapping.insert(pc, index);
 
         while pc < opcodes.len() {
             match Self::parse_operation(opcodes, pc, is_eof) {
                 Ok((op, new_pc)) => {
                     operations.push(op);
                     pc = new_pc;
+                    index += 1;
+                    pc_to_index_mapping.insert(pc, index);
                 }
                 Err(e) => {
                     operations.push(Operation::Invalid);
@@ -1042,7 +1115,7 @@ impl Program {
             }
         }
 
-        (operations, failed_opcodes)
+        (operations, pc_to_index_mapping, failed_opcodes)
     }
 
     fn parse_operation(

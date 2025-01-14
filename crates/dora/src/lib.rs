@@ -117,7 +117,7 @@ pub fn build_artifact<DB: Database>(
     spec_id: SpecId,
 ) -> anyhow::Result<DB::Artifact> {
     // Compile the contract code
-    let program = Program::from_opcodes(code.bytecode(), code.is_eof());
+    let program = Program::from_opcodes(code.bytecode(), code.eof().cloned());
     let context = Context::new();
     let compiler = EVMCompiler::new(&context);
     let mut module = compiler.compile(
