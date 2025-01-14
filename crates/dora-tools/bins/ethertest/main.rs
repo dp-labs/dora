@@ -90,7 +90,7 @@ pub struct Test {
     #[serde(default, rename = "_info")]
     pub info: Option<serde_json::Value>,
     env: TestEnv,
-    transaction: Transaction,
+    transaction: TestTransaction,
     pre: HashMap<Address, TestAccountInfo>,
     post: BTreeMap<SpecName, Vec<PostStateTest>>,
     #[serde(default)]
@@ -118,7 +118,7 @@ struct TestEnv {
 
 #[derive(Debug, Default, PartialEq, Eq, Deserialize)]
 #[serde(rename_all = "camelCase")]
-struct Transaction {
+struct TestTransaction {
     pub data: Vec<DeserializeBytes>,
     pub gas_limit: Vec<U256>,
     pub gas_price: Option<U256>,
@@ -132,14 +132,14 @@ struct Transaction {
     pub max_fee_per_gas: Option<U256>,
     pub max_priority_fee_per_gas: Option<U256>,
     #[serde(default)]
-    pub access_lists: Vec<Option<AccessList>>,
+    pub access_lists: Vec<Option<TestAccessList>>,
     pub authorization_list: Option<Vec<TestAuthorization>>,
     #[serde(default)]
     pub blob_versioned_hashes: Vec<B256>,
     pub max_fee_per_blob_gas: Option<U256>,
 }
 
-impl Transaction {
+impl TestTransaction {
     pub fn tx_type(&self, access_list_index: usize) -> Option<TransactionType> {
         let mut tx_type = TransactionType::Legacy;
 
@@ -175,12 +175,12 @@ impl Transaction {
 
 #[derive(Debug, PartialEq, Eq, Serialize, Deserialize, Clone)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
-pub struct AccessListItem {
+pub struct TestAccessListItem {
     pub address: Address,
     pub storage_keys: Vec<B256>,
 }
 
-pub type AccessList = Vec<AccessListItem>;
+pub type TestAccessList = Vec<TestAccessListItem>;
 
 #[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
@@ -485,11 +485,6 @@ fn should_skip(path: &Path) -> bool {
         | "create_collision_storage.json"
     ) ||// Temporarily skip EOF test suites: https://github.com/dp-labs/dora/issues/5
         path_str.contains("stEOF")
-        // Temporarily skip stack overflow error test suites: https://github.com/dp-labs/dora/issues/139
-        || path_str.contains("Pyspecs/cancun/eip1153_tstore/run_until_out_of_gas.json")
-        || path_str.contains("stSystemOperationsTest/ABAcalls1.json")
-        || path_str.contains("stSystemOperationsTest/ABAcalls2.json")
-        || path_str.contains("stSystemOperationsTest/CallRecursiveBomb0_OOG_atMaxCallDepth.json")
 }
 
 fn execute_test(path: &Path) -> Result<(), TestError> {
