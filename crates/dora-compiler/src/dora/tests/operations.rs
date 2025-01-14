@@ -10,11 +10,7 @@ macro_rules! assert_snapshot {
         assert_snapshot!($operations, false)
     };
     ($operations:expr, $is_eof:expr) => {
-        let program = Program {
-            operations: $operations,
-            code_size: 0,
-            is_eof: $is_eof,
-        };
+        let program = Program::from_operations($operations, $is_eof);
         let context = Context::new();
         let compiler = EVMCompiler::new(&context);
         let mut module = compiler
@@ -217,8 +213,8 @@ fn push_push_smod_with_negative() {
         biguint_256_from_bigint(BigInt::from(-3_i64)),
     );
     assert_snapshot!(vec![
-        Operation::Push((1_u8, b.clone())),
-        Operation::Push((1_u8, a.clone())),
+        Operation::Push((32, b.clone())),
+        Operation::Push((32, a.clone())),
         Operation::SMod,
     ]);
 }
@@ -979,7 +975,7 @@ fn extcodehash_nonexistent() {
 #[test]
 fn blockhash() {
     assert_snapshot!(vec![
-        Operation::Push((1_u8, 599423545_u32.into())),
+        Operation::Push((4, 599423545_u32.into())),
         Operation::BlockHash,
     ]);
 }

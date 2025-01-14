@@ -13,11 +13,7 @@ macro_rules! assert_snapshot {
         assert_snapshot!($operations, false)
     };
     ($operations:expr, $is_eof:expr) => {
-        let program = Program {
-            operations: $operations,
-            code_size: 0,
-            is_eof: $is_eof,
-        };
+        let program = Program::from_operations($operations, $is_eof);
         let context = Context::new();
         let compiler = EVMCompiler::new(&context);
         let mut module = compiler

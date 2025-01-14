@@ -961,7 +961,6 @@ pub struct InnerContext {
     /// Whether the context is static.
     pub is_static: bool,
     /// Whether the context is EOF init.
-    // TODO : We need this in case we does any check through runtime.
     pub is_eof_init: bool,
     /// VM spec id
     pub spec_id: SpecId,

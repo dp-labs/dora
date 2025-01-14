@@ -60,35 +60,35 @@ module {
   func.func private @dora_fn_tload(!llvm.ptr, !llvm.ptr, !llvm.ptr)
   func.func private @dora_fn_tstore(!llvm.ptr, !llvm.ptr, !llvm.ptr)
   func.func private @op91(%arg0: !llvm.ptr, %arg1: !llvm.ptr, %arg2: !llvm.ptr, %arg3: !llvm.ptr, %arg4: !llvm.ptr) -> i8 {
-    cf.br ^bb5
-  ^bb1(%0: i8):  // pred: ^bb5
+    cf.br ^bb3
+  ^bb1(%0: i8):  // pred: ^bb3
     %c0_i64 = arith.constant 0 : i64
     %1 = llvm.load %arg1 : !llvm.ptr -> i64
     call @dora_fn_write_result(%arg0, %c0_i64, %c0_i64, %1, %0) : (!llvm.ptr, i64, i64, i64, i8) -> ()
     return %0 : i8
   ^bb2(%2: i8):  // no predecessors
     return %2 : i8
-  ^bb3:  // pred: ^bb4
-    cf.br ^bb7
-  ^bb4:  // pred: ^bb6
-    %c1024_i64 = arith.constant 1024 : i64
-    %3 = llvm.load %arg3 : !llvm.ptr -> i64
-    %c0_i64_0 = arith.constant 0 : i64
-    %4 = arith.addi %3, %c0_i64_0 : i64
-    llvm.store %4, %arg3 : i64, !llvm.ptr
-    cf.br ^bb3
-  ^bb5:  // pred: ^bb0
-    %5 = llvm.load %arg1 : !llvm.ptr -> i64
+  ^bb3:  // pred: ^bb0
+    %3 = llvm.load %arg1 : !llvm.ptr -> i64
     %c1_i64 = arith.constant 1 : i64
     call @dora_fn_nop() : () -> ()
-    %6 = arith.cmpi uge, %5, %c1_i64 : i64
+    %4 = arith.cmpi uge, %3, %c1_i64 : i64
     %c80_i8 = arith.constant 80 : i8
-    cf.cond_br %6, ^bb6, ^bb1(%c80_i8 : i8)
-  ^bb6:  // pred: ^bb5
-    %7 = arith.subi %5, %c1_i64 : i64
+    cf.cond_br %4, ^bb5, ^bb1(%c80_i8 : i8)
+  ^bb4:  // pred: ^bb5
+    %c1024_i64 = arith.constant 1024 : i64
+    %5 = llvm.load %arg3 : !llvm.ptr -> i64
+    %c0_i64_0 = arith.constant 0 : i64
+    %6 = arith.addi %5, %c0_i64_0 : i64
+    llvm.store %6, %arg3 : i64, !llvm.ptr
+    cf.br ^bb6
+  ^bb5:  // pred: ^bb3
+    %7 = arith.subi %3, %c1_i64 : i64
     llvm.store %7, %arg1 : i64, !llvm.ptr
     cf.br ^bb4
-  ^bb7:  // pred: ^bb3
+  ^bb6:  // pred: ^bb4
+    cf.br ^bb7
+  ^bb7:  // pred: ^bb6
     %c0_i8 = arith.constant 0 : i8
     return %c0_i8 : i8
   }
@@ -99,208 +99,208 @@ module {
     %c0_i8 = arith.constant 0 : i8
     %c0_i8_0 = arith.constant 0 : i8
     %1 = arith.cmpi ne, %c0_i8, %c0_i8_0 : i8
-    cf.cond_br %1, ^bb1(%c0_i8 : i8), ^bb6
-  ^bb1(%2: i8):  // 19 preds: ^bb0, ^bb2, ^bb4, ^bb5, ^bb6, ^bb9, ^bb10, ^bb11, ^bb14, ^bb15, ^bb17, ^bb18, ^bb19, ^bb20, ^bb23, ^bb24, ^bb25, ^bb28, ^bb29
+    cf.cond_br %1, ^bb1(%c0_i8 : i8), ^bb4
+  ^bb1(%2: i8):  // 19 preds: ^bb0, ^bb2, ^bb4, ^bb5, ^bb6, ^bb7, ^bb8, ^bb9, ^bb10, ^bb12, ^bb14, ^bb15, ^bb18, ^bb19, ^bb22, ^bb24, ^bb25, ^bb28, ^bb29
     %c0_i64_1 = arith.constant 0 : i64
     %3 = llvm.load %arg1 : !llvm.ptr -> i64
     call @dora_fn_write_result(%arg0, %c0_i64_1, %c0_i64_1, %3, %2) : (!llvm.ptr, i64, i64, i64, i8) -> ()
     return %2 : i8
-  ^bb2(%4: i256):  // 2 preds: ^bb8, ^bb22
+  ^bb2(%4: i256):  // 2 preds: ^bb17, ^bb27
     %c89_i8 = arith.constant 89 : i8
     cf.switch %4 : i256, [
       default: ^bb1(%c89_i8 : i8),
-      4: ^bb17,
-      5: ^bb31
+      5: ^bb7,
+      11: ^bb11
     ]
-  ^bb3(%5: i8):  // 3 preds: ^bb13, ^bb27, ^bb31
+  ^bb3(%5: i8):  // 3 preds: ^bb11, ^bb21, ^bb31
     return %5 : i8
-  ^bb4:  // pred: ^bb5
-    %c4_i256 = arith.constant 4 : i256
-    %6 = llvm.load %0 : !llvm.ptr -> !llvm.ptr
-    llvm.store %c4_i256, %6 : i256, !llvm.ptr
-    %7 = llvm.getelementptr %6[1] : (!llvm.ptr) -> !llvm.ptr, i256
-    llvm.store %7, %0 : !llvm.ptr, !llvm.ptr
-    %c0_i8_2 = arith.constant 0 : i8
-    %8 = arith.cmpi ne, %c0_i8_2, %c0_i8_0 : i8
-    cf.cond_br %8, ^bb1(%c0_i8_2 : i8), ^bb11
-  ^bb5:  // pred: ^bb7
-    %c1024_i64 = arith.constant 1024 : i64
-    %9 = llvm.load %arg3 : !llvm.ptr -> i64
-    %c1_i64 = arith.constant 1 : i64
-    %10 = arith.addi %9, %c1_i64 : i64
-    llvm.store %10, %arg3 : i64, !llvm.ptr
-    %11 = arith.cmpi ult, %c1024_i64, %10 : i64
-    %c92_i8 = arith.constant 92 : i8
-    cf.cond_br %11, ^bb1(%c92_i8 : i8), ^bb4
-  ^bb6:  // pred: ^bb0
-    %12 = llvm.load %arg1 : !llvm.ptr -> i64
+  ^bb4:  // pred: ^bb0
+    %6 = llvm.load %arg1 : !llvm.ptr -> i64
     %c3_i64 = arith.constant 3 : i64
     call @dora_fn_nop() : () -> ()
-    %13 = arith.cmpi uge, %12, %c3_i64 : i64
+    %7 = arith.cmpi uge, %6, %c3_i64 : i64
     %c80_i8 = arith.constant 80 : i8
-    cf.cond_br %13, ^bb7, ^bb1(%c80_i8 : i8)
-  ^bb7:  // pred: ^bb6
-    %14 = arith.subi %12, %c3_i64 : i64
-    llvm.store %14, %arg1 : i64, !llvm.ptr
-    cf.br ^bb5
-  ^bb8:  // pred: ^bb10
-    %15 = llvm.load %0 : !llvm.ptr -> !llvm.ptr
-    %16 = llvm.getelementptr %15[-1] : (!llvm.ptr) -> !llvm.ptr, i256
-    %17 = llvm.load %16 : !llvm.ptr -> i256
-    llvm.store %16, %0 : !llvm.ptr, !llvm.ptr
-    cf.br ^bb2(%17 : i256)
-  ^bb9:  // no predecessors
-    %c0_i8_3 = arith.constant 0 : i8
-    %18 = arith.cmpi ne, %c0_i8_3, %c0_i8_0 : i8
-    cf.cond_br %18, ^bb1(%c0_i8_3 : i8), ^bb15
-  ^bb10:  // pred: ^bb12
-    %c1024_i64_4 = arith.constant 1024 : i64
-    %19 = llvm.load %arg3 : !llvm.ptr -> i64
-    %c-1_i64 = arith.constant -1 : i64
-    %20 = arith.addi %19, %c-1_i64 : i64
-    llvm.store %20, %arg3 : i64, !llvm.ptr
-    %c1_i64_5 = arith.constant 1 : i64
-    %21 = arith.cmpi ult, %19, %c1_i64_5 : i64
-    %c91_i8 = arith.constant 91 : i8
-    cf.cond_br %21, ^bb1(%c91_i8 : i8), ^bb8
-  ^bb11:  // pred: ^bb4
-    %22 = llvm.load %arg1 : !llvm.ptr -> i64
+    cf.cond_br %7, ^bb13, ^bb1(%c80_i8 : i8)
+  ^bb5:  // pred: ^bb14
+    %8 = llvm.load %arg1 : !llvm.ptr -> i64
     %c8_i64 = arith.constant 8 : i64
     call @dora_fn_nop() : () -> ()
-    %23 = arith.cmpi uge, %22, %c8_i64 : i64
+    %9 = arith.cmpi uge, %8, %c8_i64 : i64
+    %c80_i8_2 = arith.constant 80 : i8
+    cf.cond_br %9, ^bb16, ^bb1(%c80_i8_2 : i8)
+  ^bb6:  // pred: ^bb18
+    %10 = llvm.load %arg1 : !llvm.ptr -> i64
+    %c3_i64_3 = arith.constant 3 : i64
+    call @dora_fn_nop() : () -> ()
+    %11 = arith.cmpi uge, %10, %c3_i64_3 : i64
+    %c80_i8_4 = arith.constant 80 : i8
+    cf.cond_br %11, ^bb20, ^bb1(%c80_i8_4 : i8)
+  ^bb7:  // 2 preds: ^bb2, ^bb21
+    %12 = call @op91(%arg0, %arg1, %arg2, %arg3, %0) : (!llvm.ptr, !llvm.ptr, !llvm.ptr, !llvm.ptr, !llvm.ptr) -> i8
+    %13 = arith.cmpi ne, %12, %c0_i8_0 : i8
+    cf.cond_br %13, ^bb1(%12 : i8), ^bb8
+  ^bb8:  // pred: ^bb7
+    %14 = llvm.load %arg1 : !llvm.ptr -> i64
+    %c3_i64_5 = arith.constant 3 : i64
+    call @dora_fn_nop() : () -> ()
+    %15 = arith.cmpi uge, %14, %c3_i64_5 : i64
     %c80_i8_6 = arith.constant 80 : i8
-    cf.cond_br %23, ^bb12, ^bb1(%c80_i8_6 : i8)
-  ^bb12:  // pred: ^bb11
-    %24 = arith.subi %22, %c8_i64 : i64
-    llvm.store %24, %arg1 : i64, !llvm.ptr
-    cf.br ^bb10
-  ^bb13:  // pred: ^bb14
-    %c99_i256 = arith.constant 99 : i256
-    %25 = llvm.load %0 : !llvm.ptr -> !llvm.ptr
-    llvm.store %c99_i256, %25 : i256, !llvm.ptr
-    %26 = llvm.getelementptr %25[1] : (!llvm.ptr) -> !llvm.ptr, i256
-    llvm.store %26, %0 : !llvm.ptr, !llvm.ptr
-    %c0_i8_7 = arith.constant 0 : i8
-    %27 = arith.cmpi ne, %c0_i8_7, %c0_i8_0 : i8
-    cf.cond_br %27, ^bb3(%c0_i8_7 : i8), ^bb17
-  ^bb14:  // pred: ^bb16
-    %c1024_i64_8 = arith.constant 1024 : i64
-    %28 = llvm.load %arg3 : !llvm.ptr -> i64
-    %c1_i64_9 = arith.constant 1 : i64
-    %29 = arith.addi %28, %c1_i64_9 : i64
-    llvm.store %29, %arg3 : i64, !llvm.ptr
-    %30 = arith.cmpi ult, %c1024_i64_8, %29 : i64
-    %c92_i8_10 = arith.constant 92 : i8
-    cf.cond_br %30, ^bb1(%c92_i8_10 : i8), ^bb13
-  ^bb15:  // pred: ^bb9
-    %31 = llvm.load %arg1 : !llvm.ptr -> i64
-    %c3_i64_11 = arith.constant 3 : i64
+    cf.cond_br %15, ^bb23, ^bb1(%c80_i8_6 : i8)
+  ^bb9:  // pred: ^bb24
+    %16 = llvm.load %arg1 : !llvm.ptr -> i64
+    %c8_i64_7 = arith.constant 8 : i64
     call @dora_fn_nop() : () -> ()
-    %32 = arith.cmpi uge, %31, %c3_i64_11 : i64
-    %c80_i8_12 = arith.constant 80 : i8
-    cf.cond_br %32, ^bb16, ^bb1(%c80_i8_12 : i8)
-  ^bb16:  // pred: ^bb15
-    %33 = arith.subi %31, %c3_i64_11 : i64
-    llvm.store %33, %arg1 : i64, !llvm.ptr
-    cf.br ^bb14
-  ^bb17:  // 2 preds: ^bb2, ^bb13
-    %34 = call @op91(%arg0, %arg1, %arg2, %arg3, %0) : (!llvm.ptr, !llvm.ptr, !llvm.ptr, !llvm.ptr, !llvm.ptr) -> i8
-    %35 = arith.cmpi ne, %34, %c0_i8_0 : i8
-    cf.cond_br %35, ^bb1(%34 : i8), ^bb20
-  ^bb18:  // pred: ^bb19
-    %c42_i256 = arith.constant 42 : i256
-    %36 = llvm.load %0 : !llvm.ptr -> !llvm.ptr
-    llvm.store %c42_i256, %36 : i256, !llvm.ptr
-    %37 = llvm.getelementptr %36[1] : (!llvm.ptr) -> !llvm.ptr, i256
-    llvm.store %37, %0 : !llvm.ptr, !llvm.ptr
-    %c0_i8_13 = arith.constant 0 : i8
-    %38 = arith.cmpi ne, %c0_i8_13, %c0_i8_0 : i8
-    cf.cond_br %38, ^bb1(%c0_i8_13 : i8), ^bb25
-  ^bb19:  // pred: ^bb21
-    %c1024_i64_14 = arith.constant 1024 : i64
-    %39 = llvm.load %arg3 : !llvm.ptr -> i64
-    %c1_i64_15 = arith.constant 1 : i64
-    %40 = arith.addi %39, %c1_i64_15 : i64
-    llvm.store %40, %arg3 : i64, !llvm.ptr
-    %41 = arith.cmpi ult, %c1024_i64_14, %40 : i64
-    %c92_i8_16 = arith.constant 92 : i8
-    cf.cond_br %41, ^bb1(%c92_i8_16 : i8), ^bb18
-  ^bb20:  // pred: ^bb17
-    %42 = llvm.load %arg1 : !llvm.ptr -> i64
-    %c3_i64_17 = arith.constant 3 : i64
+    %17 = arith.cmpi uge, %16, %c8_i64_7 : i64
+    %c80_i8_8 = arith.constant 80 : i8
+    cf.cond_br %17, ^bb26, ^bb1(%c80_i8_8 : i8)
+  ^bb10:  // pred: ^bb28
+    %18 = llvm.load %arg1 : !llvm.ptr -> i64
+    %c3_i64_9 = arith.constant 3 : i64
     call @dora_fn_nop() : () -> ()
-    %43 = arith.cmpi uge, %42, %c3_i64_17 : i64
-    %c80_i8_18 = arith.constant 80 : i8
-    cf.cond_br %43, ^bb21, ^bb1(%c80_i8_18 : i8)
-  ^bb21:  // pred: ^bb20
-    %44 = arith.subi %42, %c3_i64_17 : i64
-    llvm.store %44, %arg1 : i64, !llvm.ptr
+    %19 = arith.cmpi uge, %18, %c3_i64_9 : i64
+    %c80_i8_10 = arith.constant 80 : i8
+    cf.cond_br %19, ^bb30, ^bb1(%c80_i8_10 : i8)
+  ^bb11:  // 2 preds: ^bb2, ^bb31
+    %20 = call @op91(%arg0, %arg1, %arg2, %arg3, %0) : (!llvm.ptr, !llvm.ptr, !llvm.ptr, !llvm.ptr, !llvm.ptr) -> i8
+    %21 = arith.cmpi ne, %20, %c0_i8_0 : i8
+    cf.cond_br %21, ^bb3(%20 : i8), ^bb32
+  ^bb12:  // pred: ^bb13
+    %c1024_i64 = arith.constant 1024 : i64
+    %22 = llvm.load %arg3 : !llvm.ptr -> i64
+    %c1_i64 = arith.constant 1 : i64
+    %23 = arith.addi %22, %c1_i64 : i64
+    llvm.store %23, %arg3 : i64, !llvm.ptr
+    %24 = arith.cmpi ult, %c1024_i64, %23 : i64
+    %c92_i8 = arith.constant 92 : i8
+    cf.cond_br %24, ^bb1(%c92_i8 : i8), ^bb14
+  ^bb13:  // pred: ^bb4
+    %25 = arith.subi %6, %c3_i64 : i64
+    llvm.store %25, %arg1 : i64, !llvm.ptr
+    cf.br ^bb12
+  ^bb14:  // pred: ^bb12
+    %c4_i256 = arith.constant 4 : i256
+    %26 = llvm.load %0 : !llvm.ptr -> !llvm.ptr
+    llvm.store %c4_i256, %26 : i256, !llvm.ptr
+    %27 = llvm.getelementptr %26[1] : (!llvm.ptr) -> !llvm.ptr, i256
+    llvm.store %27, %0 : !llvm.ptr, !llvm.ptr
+    %c0_i8_11 = arith.constant 0 : i8
+    %28 = arith.cmpi ne, %c0_i8_11, %c0_i8_0 : i8
+    cf.cond_br %28, ^bb1(%c0_i8_11 : i8), ^bb5
+  ^bb15:  // pred: ^bb16
+    %c1024_i64_12 = arith.constant 1024 : i64
+    %29 = llvm.load %arg3 : !llvm.ptr -> i64
+    %c-1_i64 = arith.constant -1 : i64
+    %30 = arith.addi %29, %c-1_i64 : i64
+    llvm.store %30, %arg3 : i64, !llvm.ptr
+    %c1_i64_13 = arith.constant 1 : i64
+    %31 = arith.cmpi ult, %29, %c1_i64_13 : i64
+    %c91_i8 = arith.constant 91 : i8
+    cf.cond_br %31, ^bb1(%c91_i8 : i8), ^bb17
+  ^bb16:  // pred: ^bb5
+    %32 = arith.subi %8, %c8_i64 : i64
+    llvm.store %32, %arg1 : i64, !llvm.ptr
+    cf.br ^bb15
+  ^bb17:  // pred: ^bb15
+    %33 = llvm.load %0 : !llvm.ptr -> !llvm.ptr
+    %34 = llvm.getelementptr %33[-1] : (!llvm.ptr) -> !llvm.ptr, i256
+    %35 = llvm.load %34 : !llvm.ptr -> i256
+    llvm.store %34, %0 : !llvm.ptr, !llvm.ptr
+    cf.br ^bb2(%35 : i256)
+  ^bb18:  // no predecessors
+    %c0_i8_14 = arith.constant 0 : i8
+    %36 = arith.cmpi ne, %c0_i8_14, %c0_i8_0 : i8
+    cf.cond_br %36, ^bb1(%c0_i8_14 : i8), ^bb6
+  ^bb19:  // pred: ^bb20
+    %c1024_i64_15 = arith.constant 1024 : i64
+    %37 = llvm.load %arg3 : !llvm.ptr -> i64
+    %c1_i64_16 = arith.constant 1 : i64
+    %38 = arith.addi %37, %c1_i64_16 : i64
+    llvm.store %38, %arg3 : i64, !llvm.ptr
+    %39 = arith.cmpi ult, %c1024_i64_15, %38 : i64
+    %c92_i8_17 = arith.constant 92 : i8
+    cf.cond_br %39, ^bb1(%c92_i8_17 : i8), ^bb21
+  ^bb20:  // pred: ^bb6
+    %40 = arith.subi %10, %c3_i64_3 : i64
+    llvm.store %40, %arg1 : i64, !llvm.ptr
     cf.br ^bb19
-  ^bb22:  // pred: ^bb24
-    %45 = llvm.load %0 : !llvm.ptr -> !llvm.ptr
-    %46 = llvm.getelementptr %45[-1] : (!llvm.ptr) -> !llvm.ptr, i256
-    %47 = llvm.load %46 : !llvm.ptr -> i256
-    llvm.store %46, %0 : !llvm.ptr, !llvm.ptr
-    cf.br ^bb2(%47 : i256)
-  ^bb23:  // no predecessors
-    %c0_i8_19 = arith.constant 0 : i8
-    %48 = arith.cmpi ne, %c0_i8_19, %c0_i8_0 : i8
-    cf.cond_br %48, ^bb1(%c0_i8_19 : i8), ^bb29
-  ^bb24:  // pred: ^bb26
-    %c1024_i64_20 = arith.constant 1024 : i64
-    %49 = llvm.load %arg3 : !llvm.ptr -> i64
-    %c-1_i64_21 = arith.constant -1 : i64
-    %50 = arith.addi %49, %c-1_i64_21 : i64
-    llvm.store %50, %arg3 : i64, !llvm.ptr
-    %c1_i64_22 = arith.constant 1 : i64
-    %51 = arith.cmpi ult, %49, %c1_i64_22 : i64
-    %c91_i8_23 = arith.constant 91 : i8
-    cf.cond_br %51, ^bb1(%c91_i8_23 : i8), ^bb22
-  ^bb25:  // pred: ^bb18
-    %52 = llvm.load %arg1 : !llvm.ptr -> i64
-    %c8_i64_24 = arith.constant 8 : i64
-    call @dora_fn_nop() : () -> ()
-    %53 = arith.cmpi uge, %52, %c8_i64_24 : i64
-    %c80_i8_25 = arith.constant 80 : i8
-    cf.cond_br %53, ^bb26, ^bb1(%c80_i8_25 : i8)
-  ^bb26:  // pred: ^bb25
-    %54 = arith.subi %52, %c8_i64_24 : i64
+  ^bb21:  // pred: ^bb19
+    %c99_i256 = arith.constant 99 : i256
+    %41 = llvm.load %0 : !llvm.ptr -> !llvm.ptr
+    llvm.store %c99_i256, %41 : i256, !llvm.ptr
+    %42 = llvm.getelementptr %41[1] : (!llvm.ptr) -> !llvm.ptr, i256
+    llvm.store %42, %0 : !llvm.ptr, !llvm.ptr
+    %c0_i8_18 = arith.constant 0 : i8
+    %43 = arith.cmpi ne, %c0_i8_18, %c0_i8_0 : i8
+    cf.cond_br %43, ^bb3(%c0_i8_18 : i8), ^bb7
+  ^bb22:  // pred: ^bb23
+    %c1024_i64_19 = arith.constant 1024 : i64
+    %44 = llvm.load %arg3 : !llvm.ptr -> i64
+    %c1_i64_20 = arith.constant 1 : i64
+    %45 = arith.addi %44, %c1_i64_20 : i64
+    llvm.store %45, %arg3 : i64, !llvm.ptr
+    %46 = arith.cmpi ult, %c1024_i64_19, %45 : i64
+    %c92_i8_21 = arith.constant 92 : i8
+    cf.cond_br %46, ^bb1(%c92_i8_21 : i8), ^bb24
+  ^bb23:  // pred: ^bb8
+    %47 = arith.subi %14, %c3_i64_5 : i64
+    llvm.store %47, %arg1 : i64, !llvm.ptr
+    cf.br ^bb22
+  ^bb24:  // pred: ^bb22
+    %c42_i256 = arith.constant 42 : i256
+    %48 = llvm.load %0 : !llvm.ptr -> !llvm.ptr
+    llvm.store %c42_i256, %48 : i256, !llvm.ptr
+    %49 = llvm.getelementptr %48[1] : (!llvm.ptr) -> !llvm.ptr, i256
+    llvm.store %49, %0 : !llvm.ptr, !llvm.ptr
+    %c0_i8_22 = arith.constant 0 : i8
+    %50 = arith.cmpi ne, %c0_i8_22, %c0_i8_0 : i8
+    cf.cond_br %50, ^bb1(%c0_i8_22 : i8), ^bb9
+  ^bb25:  // pred: ^bb26
+    %c1024_i64_23 = arith.constant 1024 : i64
+    %51 = llvm.load %arg3 : !llvm.ptr -> i64
+    %c-1_i64_24 = arith.constant -1 : i64
+    %52 = arith.addi %51, %c-1_i64_24 : i64
+    llvm.store %52, %arg3 : i64, !llvm.ptr
+    %c1_i64_25 = arith.constant 1 : i64
+    %53 = arith.cmpi ult, %51, %c1_i64_25 : i64
+    %c91_i8_26 = arith.constant 91 : i8
+    cf.cond_br %53, ^bb1(%c91_i8_26 : i8), ^bb27
+  ^bb26:  // pred: ^bb9
+    %54 = arith.subi %16, %c8_i64_7 : i64
     llvm.store %54, %arg1 : i64, !llvm.ptr
-    cf.br ^bb24
-  ^bb27:  // pred: ^bb28
-    %c4_i256_26 = arith.constant 4 : i256
+    cf.br ^bb25
+  ^bb27:  // pred: ^bb25
     %55 = llvm.load %0 : !llvm.ptr -> !llvm.ptr
-    llvm.store %c4_i256_26, %55 : i256, !llvm.ptr
-    %56 = llvm.getelementptr %55[1] : (!llvm.ptr) -> !llvm.ptr, i256
+    %56 = llvm.getelementptr %55[-1] : (!llvm.ptr) -> !llvm.ptr, i256
+    %57 = llvm.load %56 : !llvm.ptr -> i256
     llvm.store %56, %0 : !llvm.ptr, !llvm.ptr
+    cf.br ^bb2(%57 : i256)
+  ^bb28:  // no predecessors
     %c0_i8_27 = arith.constant 0 : i8
-    %57 = arith.cmpi ne, %c0_i8_27, %c0_i8_0 : i8
-    cf.cond_br %57, ^bb3(%c0_i8_27 : i8), ^bb31
-  ^bb28:  // pred: ^bb30
+    %58 = arith.cmpi ne, %c0_i8_27, %c0_i8_0 : i8
+    cf.cond_br %58, ^bb1(%c0_i8_27 : i8), ^bb10
+  ^bb29:  // pred: ^bb30
     %c1024_i64_28 = arith.constant 1024 : i64
-    %58 = llvm.load %arg3 : !llvm.ptr -> i64
+    %59 = llvm.load %arg3 : !llvm.ptr -> i64
     %c1_i64_29 = arith.constant 1 : i64
-    %59 = arith.addi %58, %c1_i64_29 : i64
-    llvm.store %59, %arg3 : i64, !llvm.ptr
-    %60 = arith.cmpi ult, %c1024_i64_28, %59 : i64
+    %60 = arith.addi %59, %c1_i64_29 : i64
+    llvm.store %60, %arg3 : i64, !llvm.ptr
+    %61 = arith.cmpi ult, %c1024_i64_28, %60 : i64
     %c92_i8_30 = arith.constant 92 : i8
-    cf.cond_br %60, ^bb1(%c92_i8_30 : i8), ^bb27
-  ^bb29:  // pred: ^bb23
-    %61 = llvm.load %arg1 : !llvm.ptr -> i64
-    %c3_i64_31 = arith.constant 3 : i64
-    call @dora_fn_nop() : () -> ()
-    %62 = arith.cmpi uge, %61, %c3_i64_31 : i64
-    %c80_i8_32 = arith.constant 80 : i8
-    cf.cond_br %62, ^bb30, ^bb1(%c80_i8_32 : i8)
-  ^bb30:  // pred: ^bb29
-    %63 = arith.subi %61, %c3_i64_31 : i64
-    llvm.store %63, %arg1 : i64, !llvm.ptr
-    cf.br ^bb28
-  ^bb31:  // 2 preds: ^bb2, ^bb27
-    %64 = call @op91(%arg0, %arg1, %arg2, %arg3, %0) : (!llvm.ptr, !llvm.ptr, !llvm.ptr, !llvm.ptr, !llvm.ptr) -> i8
-    %65 = arith.cmpi ne, %64, %c0_i8_0 : i8
-    cf.cond_br %65, ^bb3(%64 : i8), ^bb32
-  ^bb32:  // pred: ^bb31
+    cf.cond_br %61, ^bb1(%c92_i8_30 : i8), ^bb31
+  ^bb30:  // pred: ^bb10
+    %62 = arith.subi %18, %c3_i64_9 : i64
+    llvm.store %62, %arg1 : i64, !llvm.ptr
+    cf.br ^bb29
+  ^bb31:  // pred: ^bb29
+    %c4_i256_31 = arith.constant 4 : i256
+    %63 = llvm.load %0 : !llvm.ptr -> !llvm.ptr
+    llvm.store %c4_i256_31, %63 : i256, !llvm.ptr
+    %64 = llvm.getelementptr %63[1] : (!llvm.ptr) -> !llvm.ptr, i256
+    llvm.store %64, %0 : !llvm.ptr, !llvm.ptr
+    %c0_i8_32 = arith.constant 0 : i8
+    %65 = arith.cmpi ne, %c0_i8_32, %c0_i8_0 : i8
+    cf.cond_br %65, ^bb3(%c0_i8_32 : i8), ^bb11
+  ^bb32:  // pred: ^bb11
     %c0_i64_33 = arith.constant 0 : i64
     %c2_i8 = arith.constant 2 : i8
     %66 = llvm.load %arg1 : !llvm.ptr -> i64

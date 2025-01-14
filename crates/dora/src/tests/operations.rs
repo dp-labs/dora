@@ -1863,13 +1863,9 @@ fn returndatacopy() {
     let contract = Contract::new_with_env(
         &env,
         Bytecode::new_raw(
-            Program {
-                operations,
-                code_size: 0,
-                is_eof: false,
-            }
-            .to_opcode()
-            .into(),
+            Program::from_operations(operations, false)
+                .to_opcode()
+                .into(),
         ),
         None,
     );
@@ -1940,13 +1936,9 @@ fn returndatacopy_out_of_bounds() {
     let contract = Contract::new_with_env(
         &env,
         Bytecode::new_raw(
-            Program {
-                operations,
-                code_size: 0,
-                is_eof: false,
-            }
-            .to_opcode()
-            .into(),
+            Program::from_operations(operations, false)
+                .to_opcode()
+                .into(),
         ),
         None,
     );
@@ -4037,11 +4029,7 @@ fn dataload() {
         Operation::Return,
     ];
 
-    let program = Program {
-        operations,
-        code_size: 0,
-        is_eof: true,
-    };
+    let program = Program::from_operations(operations, true);
 
     let eof = Eof::new(EofBody {
         code_section: vec![Bytes::from(program.to_opcode())],
@@ -4075,11 +4063,7 @@ fn dataload_zero_offset() {
         Operation::Return,
     ];
 
-    let program = Program {
-        operations,
-        code_size: 0,
-        is_eof: true,
-    };
+    let program = Program::from_operations(operations, true);
 
     let eof = Eof::new(EofBody {
         code_section: vec![Bytes::from(program.to_opcode())],
@@ -4104,11 +4088,7 @@ fn dataload_zero_offset_empty_data_section() {
         Operation::Return,
     ];
 
-    let program = Program {
-        operations,
-        code_size: 0,
-        is_eof: true,
-    };
+    let program = Program::from_operations(operations, true);
 
     let eof = Eof::new(EofBody {
         code_section: vec![Bytes::from(program.to_opcode())],
@@ -4133,11 +4113,7 @@ fn dataload_out_of_range() {
         Operation::Return,
     ];
 
-    let program = Program {
-        operations,
-        code_size: 0,
-        is_eof: true,
-    };
+    let program = Program::from_operations(operations, true);
 
     let eof = Eof::new(EofBody {
         code_section: vec![Bytes::from(program.to_opcode())],
@@ -4171,11 +4147,7 @@ fn dataload_out_of_bounds() {
         Operation::Return,
     ];
 
-    let program = Program {
-        operations,
-        code_size: 0,
-        is_eof: true,
-    };
+    let program = Program::from_operations(operations, true);
 
     let eof = Eof::new(EofBody {
         code_section: vec![Bytes::from(program.to_opcode())],
@@ -4200,11 +4172,7 @@ fn dataload_out_of_bounds_empty_data_section() {
         Operation::Return,
     ];
 
-    let program = Program {
-        operations,
-        code_size: 0,
-        is_eof: true,
-    };
+    let program = Program::from_operations(operations, true);
 
     let eof = Eof::new(EofBody {
         code_section: vec![Bytes::from(program.to_opcode())],
@@ -4228,11 +4196,7 @@ fn dataloadn() {
         Operation::Return,
     ];
 
-    let program = Program {
-        operations,
-        code_size: 0,
-        is_eof: true,
-    };
+    let program = Program::from_operations(operations, true);
 
     let eof = Eof::new(EofBody {
         code_section: vec![Bytes::from(program.to_opcode())],
@@ -4265,11 +4229,7 @@ fn dataloadn_zero_offset() {
         Operation::Return,
     ];
 
-    let program = Program {
-        operations,
-        code_size: 0,
-        is_eof: true,
-    };
+    let program = Program::from_operations(operations, true);
 
     let eof = Eof::new(EofBody {
         code_section: vec![Bytes::from(program.to_opcode())],
@@ -4293,11 +4253,7 @@ fn dataloadn_zero_offset_empty_data_section() {
         Operation::Return,
     ];
 
-    let program = Program {
-        operations,
-        code_size: 0,
-        is_eof: true,
-    };
+    let program = Program::from_operations(operations, true);
 
     let eof = Eof::new(EofBody {
         code_section: vec![Bytes::from(program.to_opcode())],
@@ -4321,11 +4277,7 @@ fn dataloadn_out_of_range() {
         Operation::Return,
     ];
 
-    let program = Program {
-        operations,
-        code_size: 0,
-        is_eof: true,
-    };
+    let program = Program::from_operations(operations, true);
 
     let eof = Eof::new(EofBody {
         code_section: vec![Bytes::from(program.to_opcode())],
@@ -4358,11 +4310,7 @@ fn dataloadn_out_of_bounds() {
         Operation::Return,
     ];
 
-    let program = Program {
-        operations,
-        code_size: 0,
-        is_eof: true,
-    };
+    let program = Program::from_operations(operations, true);
 
     let eof = Eof::new(EofBody {
         code_section: vec![Bytes::from(program.to_opcode())],
@@ -4386,11 +4334,7 @@ fn dataloadn_out_of_bounds_empty_data_section() {
         Operation::Return,
     ];
 
-    let program = Program {
-        operations,
-        code_size: 0,
-        is_eof: true,
-    };
+    let program = Program::from_operations(operations, true);
 
     let eof = Eof::new(EofBody {
         code_section: vec![Bytes::from(program.to_opcode())],
@@ -4414,11 +4358,7 @@ fn datasize() {
         Operation::Return,
     ];
 
-    let program = Program {
-        operations,
-        code_size: 0,
-        is_eof: true,
-    };
+    let program = Program::from_operations(operations, true);
 
     let eof = Eof::new(EofBody {
         code_section: vec![Bytes::from(program.to_opcode())],
@@ -4442,11 +4382,7 @@ fn datasize_empty_data_section() {
         Operation::Return,
     ];
 
-    let program = Program {
-        operations,
-        code_size: 0,
-        is_eof: true,
-    };
+    let program = Program::from_operations(operations, true);
 
     let eof = Eof::new(EofBody {
         code_section: vec![Bytes::from(program.to_opcode())],
@@ -4471,11 +4407,7 @@ fn datacopy_small_range() {
         Operation::Return,
     ];
 
-    let program = Program {
-        operations,
-        code_size: 0,
-        is_eof: true,
-    };
+    let program = Program::from_operations(operations, true);
 
     let eof = Eof::new(EofBody {
         code_section: vec![Bytes::from(program.to_opcode())],
@@ -4500,11 +4432,7 @@ fn datacopy_large_range() {
         Operation::Return,
     ];
 
-    let program = Program {
-        operations,
-        code_size: 0,
-        is_eof: true,
-    };
+    let program = Program::from_operations(operations, true);
 
     let eof = Eof::new(EofBody {
         code_section: vec![Bytes::from(program.to_opcode())],
@@ -4529,11 +4457,7 @@ fn datacopy_empty_data_section() {
         Operation::Return,
     ];
 
-    let program = Program {
-        operations,
-        code_size: 0,
-        is_eof: true,
-    };
+    let program = Program::from_operations(operations, true);
 
     let eof = Eof::new(EofBody {
         code_section: vec![Bytes::from(program.to_opcode())],
@@ -4558,11 +4482,7 @@ fn datacopy_out_of_range() {
         Operation::Return,
     ];
 
-    let program = Program {
-        operations,
-        code_size: 0,
-        is_eof: true,
-    };
+    let program = Program::from_operations(operations, true);
 
     let eof = Eof::new(EofBody {
         code_section: vec![Bytes::from(program.to_opcode())],
@@ -4592,11 +4512,7 @@ fn datacopy_out_of_bounds() {
         Operation::Return,
     ];
 
-    let program = Program {
-        operations,
-        code_size: 0,
-        is_eof: true,
-    };
+    let program = Program::from_operations(operations, true);
 
     let eof = Eof::new(EofBody {
         code_section: vec![Bytes::from(program.to_opcode())],
@@ -4621,11 +4537,7 @@ fn datacopy_out_of_bounds_empty_data_section() {
         Operation::Return,
     ];
 
-    let program = Program {
-        operations,
-        code_size: 0,
-        is_eof: true,
-    };
+    let program = Program::from_operations(operations, true);
 
     let eof = Eof::new(EofBody {
         code_section: vec![Bytes::from(program.to_opcode())],
@@ -4652,11 +4564,7 @@ fn dupn_0() {
         Operation::Return,
     ];
 
-    let program = Program {
-        operations,
-        code_size: 0,
-        is_eof: true,
-    };
+    let program = Program::from_operations(operations, true);
 
     let eof = Eof::new(EofBody {
         code_section: vec![Bytes::from(program.to_opcode())],
@@ -4697,11 +4605,7 @@ fn dupn_16() {
         Operation::Return,
     ];
 
-    let program = Program {
-        operations,
-        code_size: 0,
-        is_eof: true,
-    };
+    let program = Program::from_operations(operations, true);
 
     let eof = Eof::new(EofBody {
         code_section: vec![Bytes::from(program.to_opcode())],
@@ -4727,11 +4631,7 @@ fn swapn_0() {
         Operation::Return,
     ];
 
-    let program = Program {
-        operations,
-        code_size: 0,
-        is_eof: true,
-    };
+    let program = Program::from_operations(operations, true);
 
     let eof = Eof::new(EofBody {
         code_section: vec![Bytes::from(program.to_opcode())],
@@ -4773,11 +4673,7 @@ fn swapn_16() {
         Operation::Return,
     ];
 
-    let program = Program {
-        operations,
-        code_size: 0,
-        is_eof: true,
-    };
+    let program = Program::from_operations(operations, true);
 
     let eof = Eof::new(EofBody {
         code_section: vec![Bytes::from(program.to_opcode())],
@@ -4805,11 +4701,7 @@ fn exchange_0() {
         Operation::Return,
     ];
 
-    let program = Program {
-        operations,
-        code_size: 0,
-        is_eof: true,
-    };
+    let program = Program::from_operations(operations, true);
 
     let eof = Eof::new(EofBody {
         code_section: vec![Bytes::from(program.to_opcode())],
@@ -4882,11 +4774,7 @@ fn exchange_255() {
         Operation::Return,
     ];
 
-    let program = Program {
-        operations,
-        code_size: 0,
-        is_eof: true,
-    };
+    let program = Program::from_operations(operations, true);
 
     let eof = Eof::new(EofBody {
         code_section: vec![Bytes::from(program.to_opcode())],
@@ -5293,11 +5181,7 @@ fn extcall() {
         Operation::Return,
     ];
 
-    let program = Program {
-        operations,
-        code_size: 0,
-        is_eof: true,
-    };
+    let program = Program::from_operations(operations, true);
 
     let eof = Eof::new(EofBody {
         code_section: vec![Bytes::from(program.to_opcode())],
@@ -5323,11 +5207,7 @@ fn extdelegatecall() {
         Operation::Return,
     ];
 
-    let program = Program {
-        operations,
-        code_size: 0,
-        is_eof: true,
-    };
+    let program = Program::from_operations(operations, true);
 
     let eof = Eof::new(EofBody {
         code_section: vec![Bytes::from(program.to_opcode())],
@@ -5353,11 +5233,7 @@ fn extstaticcall() {
         Operation::Return,
     ];
 
-    let program = Program {
-        operations,
-        code_size: 0,
-        is_eof: true,
-    };
+    let program = Program::from_operations(operations, true);
 
     let eof = Eof::new(EofBody {
         code_section: vec![Bytes::from(program.to_opcode())],
@@ -5382,11 +5258,7 @@ fn returndataload() {
         Operation::Return,
     ];
 
-    let program = Program {
-        operations,
-        code_size: 0,
-        is_eof: true,
-    };
+    let program = Program::from_operations(operations, true);
 
     let eof = Eof::new(EofBody {
         code_section: vec![Bytes::from(program.to_opcode())],

@@ -39,7 +39,7 @@ fn run_bench(c: &mut Criterion, bench: &Bench) {
     let spec_id = SpecId::CANCUN;
     let context = Context::new();
     let compiler = EVMCompiler::new(&context);
-    let program = Program::from_opcodes(bytecode, false);
+    let program = Program::from_opcodes(bytecode, None);
     let mut module = compiler
         .compile(
             &program,

@@ -1334,11 +1334,7 @@ fn log4_1() {
 fn push0_dataload() {
     let operations = vec![Operation::Push0, Operation::DataLoad];
 
-    let program = Program {
-        operations,
-        code_size: 0,
-        is_eof: true,
-    };
+    let program = Program::from_operations(operations, true);
 
     let eof = Eof::new(EofBody {
         code_section: vec![Bytes::from(program.to_opcode())],
@@ -1355,11 +1351,7 @@ fn push0_dataload() {
 fn dataloadn() {
     let operations = vec![Operation::DataLoadN(0_u16)];
 
-    let program = Program {
-        operations,
-        code_size: 0,
-        is_eof: true,
-    };
+    let program = Program::from_operations(operations, true);
 
     let eof = Eof::new(EofBody {
         code_section: vec![Bytes::from(program.to_opcode())],
@@ -1376,11 +1368,7 @@ fn dataloadn() {
 fn datasize() {
     let operations = vec![Operation::DataSize];
 
-    let program = Program {
-        operations,
-        code_size: 0,
-        is_eof: true,
-    };
+    let program = Program::from_operations(operations, true);
 
     let eof = Eof::new(EofBody {
         code_section: vec![Bytes::from(program.to_opcode())],
@@ -1402,11 +1390,7 @@ fn push1_push0_push0_datacopy() {
         Operation::DataCopy,
     ];
 
-    let program = Program {
-        operations,
-        code_size: 0,
-        is_eof: true,
-    };
+    let program = Program::from_operations(operations, true);
 
     let eof = Eof::new(EofBody {
         code_section: vec![Bytes::from(program.to_opcode())],
@@ -1434,11 +1418,7 @@ fn push1_push0_push0_datacopy() {
 fn push1_dupn_0() {
     let operations = vec![Operation::Push((1_u8, 1_u8.into())), Operation::DupN(0_u8)];
 
-    let program = Program {
-        operations,
-        code_size: 0,
-        is_eof: true,
-    };
+    let program = Program::from_operations(operations, true);
 
     let eof = Eof::new(EofBody {
         code_section: vec![Bytes::from(program.to_opcode())],
@@ -1459,11 +1439,7 @@ fn push1_push1_swapn_0() {
         Operation::SwapN(0_u8),
     ];
 
-    let program = Program {
-        operations,
-        code_size: 0,
-        is_eof: true,
-    };
+    let program = Program::from_operations(operations, true);
 
     let eof = Eof::new(EofBody {
         code_section: vec![Bytes::from(program.to_opcode())],
@@ -1485,11 +1461,7 @@ fn push1_push1_push0_exchange_0() {
         Operation::Exchange(0_u8),
     ];
 
-    let program = Program {
-        operations,
-        code_size: 0,
-        is_eof: true,
-    };
+    let program = Program::from_operations(operations, true);
 
     let eof = Eof::new(EofBody {
         code_section: vec![Bytes::from(program.to_opcode())],
@@ -1644,11 +1616,7 @@ fn push2_returndataload() {
         Operation::ReturndataLoad,
     ];
 
-    let program = Program {
-        operations,
-        code_size: 0,
-        is_eof: true,
-    };
+    let program = Program::eof(&Program::operations_to_opcode(&operations));
 
     let eof = Eof::new(EofBody {
         code_section: vec![Bytes::from(program.to_opcode())],

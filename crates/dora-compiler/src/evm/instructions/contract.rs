@@ -8,9 +8,8 @@ use crate::evm::{CtxType, EVMCompiler};
 impl<'c> EVMCompiler<'c> {
     pub(crate) fn create<'r>(
         ctx: &mut CtxType<'c>,
-        region: &'r Region<'c>,
+        start_block: BlockRef<'r, 'c>,
     ) -> Result<(BlockRef<'r, 'c>, BlockRef<'r, 'c>)> {
-        let start_block = region.append_block(Block::new(&[]));
         let mut builder = Self::make_builder(ctx, start_block);
         let value = builder.stack_pop()?;
         let offset = builder.stack_pop()?;
@@ -22,9 +21,8 @@ impl<'c> EVMCompiler<'c> {
 
     pub(crate) fn create2<'r>(
         ctx: &mut CtxType<'c>,
-        region: &'r Region<'c>,
+        start_block: BlockRef<'r, 'c>,
     ) -> Result<(BlockRef<'r, 'c>, BlockRef<'r, 'c>)> {
-        let start_block = region.append_block(Block::new(&[]));
         let mut builder = Self::make_builder(ctx, start_block);
         let value = builder.stack_pop()?;
         let offset = builder.stack_pop()?;
@@ -37,10 +35,9 @@ impl<'c> EVMCompiler<'c> {
 
     pub(crate) fn eofcreate<'r>(
         ctx: &mut CtxType<'c>,
-        region: &'r Region<'c>,
+        start_block: BlockRef<'r, 'c>,
         initcontainer_index: u8,
     ) -> Result<(BlockRef<'r, 'c>, BlockRef<'r, 'c>)> {
-        let start_block = region.append_block(Block::new(&[]));
         let mut builder = Self::make_builder(ctx, start_block);
         let initcontainer_index = builder.iconst_8(initcontainer_index as i8)?;
         let value = builder.stack_pop()?;
@@ -55,10 +52,9 @@ impl<'c> EVMCompiler<'c> {
 
     pub(crate) fn returncontract<'r>(
         ctx: &mut CtxType<'c>,
-        region: &'r Region<'c>,
+        start_block: BlockRef<'r, 'c>,
         deploy_container_index: u8,
     ) -> Result<(BlockRef<'r, 'c>, BlockRef<'r, 'c>)> {
-        let start_block = region.append_block(Block::new(&[]));
         let mut builder = Self::make_builder(ctx, start_block);
         let deploy_container_index = builder.iconst_8(deploy_container_index as i8)?;
         let aux_data_offset = builder.stack_pop()?;
@@ -69,9 +65,8 @@ impl<'c> EVMCompiler<'c> {
 
     pub(crate) fn call<'r>(
         ctx: &mut CtxType<'c>,
-        region: &'r Region<'c>,
+        start_block: BlockRef<'r, 'c>,
     ) -> Result<(BlockRef<'r, 'c>, BlockRef<'r, 'c>)> {
-        let start_block = region.append_block(Block::new(&[]));
         let mut builder = Self::make_builder(ctx, start_block);
         let gas = builder.stack_pop()?;
         let address = builder.stack_pop()?;
@@ -95,9 +90,8 @@ impl<'c> EVMCompiler<'c> {
 
     pub(crate) fn callcode<'r>(
         ctx: &mut CtxType<'c>,
-        region: &'r Region<'c>,
+        start_block: BlockRef<'r, 'c>,
     ) -> Result<(BlockRef<'r, 'c>, BlockRef<'r, 'c>)> {
-        let start_block = region.append_block(Block::new(&[]));
         let mut builder = Self::make_builder(ctx, start_block);
         let gas = builder.stack_pop()?;
         let address = builder.stack_pop()?;
@@ -121,9 +115,8 @@ impl<'c> EVMCompiler<'c> {
 
     pub(crate) fn delegatecall<'r>(
         ctx: &mut CtxType<'c>,
-        region: &'r Region<'c>,
+        start_block: BlockRef<'r, 'c>,
     ) -> Result<(BlockRef<'r, 'c>, BlockRef<'r, 'c>)> {
-        let start_block = region.append_block(Block::new(&[]));
         let mut builder = Self::make_builder(ctx, start_block);
         let gas = builder.stack_pop()?;
         let address = builder.stack_pop()?;
@@ -145,9 +138,8 @@ impl<'c> EVMCompiler<'c> {
 
     pub(crate) fn staticcall<'r>(
         ctx: &mut CtxType<'c>,
-        region: &'r Region<'c>,
+        start_block: BlockRef<'r, 'c>,
     ) -> Result<(BlockRef<'r, 'c>, BlockRef<'r, 'c>)> {
-        let start_block = region.append_block(Block::new(&[]));
         let mut builder = Self::make_builder(ctx, start_block);
         let gas = builder.stack_pop()?;
         let address = builder.stack_pop()?;
@@ -169,9 +161,8 @@ impl<'c> EVMCompiler<'c> {
 
     pub(crate) fn extcall<'r>(
         ctx: &mut CtxType<'c>,
-        region: &'r Region<'c>,
+        start_block: BlockRef<'r, 'c>,
     ) -> Result<(BlockRef<'r, 'c>, BlockRef<'r, 'c>)> {
-        let start_block = region.append_block(Block::new(&[]));
         let mut builder = Self::make_builder(ctx, start_block);
         let target_address = builder.stack_pop()?;
         let input_offset = builder.stack_pop()?;
@@ -184,9 +175,8 @@ impl<'c> EVMCompiler<'c> {
 
     pub(crate) fn extdelegatecall<'r>(
         ctx: &mut CtxType<'c>,
-        region: &'r Region<'c>,
+        start_block: BlockRef<'r, 'c>,
     ) -> Result<(BlockRef<'r, 'c>, BlockRef<'r, 'c>)> {
-        let start_block = region.append_block(Block::new(&[]));
         let mut builder = Self::make_builder(ctx, start_block);
         let target_address = builder.stack_pop()?;
         let input_offset = builder.stack_pop()?;
@@ -198,9 +188,8 @@ impl<'c> EVMCompiler<'c> {
 
     pub(crate) fn extstaticcall<'r>(
         ctx: &mut CtxType<'c>,
-        region: &'r Region<'c>,
+        start_block: BlockRef<'r, 'c>,
     ) -> Result<(BlockRef<'r, 'c>, BlockRef<'r, 'c>)> {
-        let start_block = region.append_block(Block::new(&[]));
         let mut builder = Self::make_builder(ctx, start_block);
         let target_address = builder.stack_pop()?;
         let input_offset = builder.stack_pop()?;
@@ -213,8 +202,8 @@ impl<'c> EVMCompiler<'c> {
     pub(crate) fn creturn<'r>(
         ctx: &mut CtxType<'c>,
         region: &'r Region<'c>,
+        start_block: BlockRef<'r, 'c>,
     ) -> Result<(BlockRef<'r, 'c>, BlockRef<'r, 'c>)> {
-        let start_block = region.append_block(Block::new(&[]));
         let mut builder = Self::make_builder(ctx, start_block);
         let offset = builder.stack_pop()?;
         let length = builder.stack_pop()?;

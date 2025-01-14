@@ -1,6 +1,6 @@
 pub use revm_primitives::{
     address, alloy_primitives, b256, calc_blob_gasprice, calc_excess_blob_gas, eip7702,
-    eof::{Eof, EofBody},
+    eof::{Eof, EofBody, TypesSection},
     fixed_bytes,
     hex::{FromHex, ToHexExt},
     keccak256, uint, Address, Authorization, AuthorizationList, Bytecode, Bytes, EvmStorageSlot,
