@@ -1055,11 +1055,7 @@ impl FunctionCodeGenerator {
                 let mut case_destinations = Vec::new();
                 for (case_index, depth) in targets.targets().enumerate() {
                     let depth = depth.map_err(from_binaryreadererror_wasmerror)?;
-                    let frame_result = state.frame_at_depth(depth);
-                    let frame = match frame_result {
-                        Ok(v) => v,
-                        Err(e) => return Err(e),
-                    };
+                    let frame = state.frame_at_depth(depth)?;
                     let case_index_literal = builder.make(builder.iconst_64(case_index as i64))?;
                     let phis = if frame.is_loop() {
                         frame.loop_body_phis()

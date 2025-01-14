@@ -453,8 +453,8 @@ impl<'c> EVMCompiler<'c> {
                 revert,
                 &ctx.revert_block,
                 &block_start,
-                &[],
                 &[code],
+                &[],
                 location,
             ));
         } else if may_underflow {
@@ -472,8 +472,8 @@ impl<'c> EVMCompiler<'c> {
                 revert,
                 &ctx.revert_block,
                 &block_start,
-                &[],
                 &[code],
+                &[],
                 location,
             ));
         } else if may_overflow {
@@ -489,8 +489,8 @@ impl<'c> EVMCompiler<'c> {
                 revert,
                 &ctx.revert_block,
                 &block_start,
-                &[],
                 &[code],
+                &[],
                 location,
             ));
         } else {
