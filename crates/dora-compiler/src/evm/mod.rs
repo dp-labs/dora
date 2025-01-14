@@ -184,7 +184,7 @@ impl<'c> EVMCompiler<'c> {
     ) -> Result<FxHashMap<usize, melior::ir::Operation<'c>>> {
         let location = intrinsics.unknown_loc;
         let mut op_funcs: FxHashMap<usize, melior::ir::Operation> = FxHashMap::default();
-        for (i, op) in program.operations.iter().enumerate() {
+        for (i, op) in program.operations().iter().enumerate() {
             if matches!(
                 op,
                 Operation::Jump
@@ -644,7 +644,7 @@ impl<'c> EVMCompiler<'c> {
         // Generate all opcode with the inline mode.
         if options.inline {
             // Generate code for the program
-            for (i, op) in ctx.program.operations.iter().enumerate() {
+            for (i, op) in ctx.program.operations().iter().enumerate() {
                 let (start_block, end_block) =
                     EVMCompiler::generate_code_for_op(&mut ctx, &main_region, i, op, options)?;
                 // Register the jump dest block.
@@ -679,7 +679,7 @@ impl<'c> EVMCompiler<'c> {
                 .into();
             let continue_code = continue_code.to_ctx_value();
             // Generate code for the program
-            for (i, op) in ctx.program.operations.iter().enumerate() {
+            for (i, op) in ctx.program.operations().iter().enumerate() {
                 let op_symbol = format!("op{}", op.opcode());
                 if matches!(
                     op,
@@ -1011,7 +1011,7 @@ impl<'c> CtxType<'c> {
         let jumptable_block = region.append_block(Block::new(&[(uint256, location)]));
         let return_block = region.append_block(return_block(&context.mlir_context)?);
         let mut operation_blocks = vec![];
-        for _ in 0..program.operations.len() {
+        for _ in 0..program.operations().len() {
             operation_blocks.push(region.append_block(Block::new(&[])));
         }
         Ok(CtxType {
@@ -1090,7 +1090,7 @@ impl<'c> CtxType<'c> {
         let uint8 = IntegerType::new(context, 8);
 
         let jumpdest_pcs: Vec<i64> = program
-            .operations
+            .operations()
             .iter()
             .filter_map(|op| match op {
                 Operation::Jumpdest { pc } => Some(*pc as i64),

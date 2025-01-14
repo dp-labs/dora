@@ -185,7 +185,7 @@ impl<'c> EVMCompiler<'c> {
     ) -> Result<(BlockRef<'r, 'c>, BlockRef<'r, 'c>)> {
         let empty_block = region.append_block(Block::new(&[]));
         let builder = OpBuilder::new_with_block(ctx.context, start_block);
-        let eof = ctx.program.eof.as_ref().ok_or(anyhow::anyhow!(
+        let eof = ctx.program.eof().ok_or(anyhow::anyhow!(
             "internal error: encountered EOF operators but the EOF container is empty"
         ))?;
         let types = eof
