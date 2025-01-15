@@ -5,183 +5,223 @@ snapshot_kind: text
 ---
 module {
   func.func @f0(%arg0: !llvm.ptr) {
+    %0 = llvm.getelementptr %arg0[8] : (!llvm.ptr) -> !llvm.ptr, i8
+    %1 = llvm.getelementptr %0[0] : (!llvm.ptr) -> !llvm.ptr, !llvm.ptr
+    %2 = llvm.load %1 : !llvm.ptr -> !llvm.ptr
+    cf.br ^bb1
+  ^bb1:  // pred: ^bb0
     %c0_i32 = arith.constant 0 : i32
     %c1_i32 = arith.constant 1 : i32
     %c0_i64 = arith.constant 0 : i64
-    %0 = arith.extui %c0_i32 : i32 to i64
-    %1 = arith.addi %0, %c0_i64 : i64
-    %2 = llvm.getelementptr %arg0[8] : (!llvm.ptr) -> !llvm.ptr, i8
-    %3 = llvm.getelementptr %2[0] : (!llvm.ptr) -> !llvm.ptr, !llvm.ptr
-    %4 = llvm.load %3 : !llvm.ptr -> !llvm.ptr
-    %5 = llvm.getelementptr %4[%1] : (!llvm.ptr, i64) -> !llvm.ptr, !llvm.ptr
+    %3 = arith.extui %c0_i32 : i32 to i64
+    %4 = arith.addi %3, %c0_i64 : i64
+    %5 = llvm.getelementptr %2[%4] : (!llvm.ptr, i64) -> !llvm.ptr, !llvm.ptr
     llvm.store %c1_i32, %5 : i32, !llvm.ptr
-    cf.br ^bb2
-  ^bb1:  // pred: ^bb2
+    cf.br ^bb3
+  ^bb2:  // pred: ^bb3
     return
-  ^bb2:  // pred: ^bb0
-    cf.br ^bb1
+  ^bb3:  // pred: ^bb1
+    cf.br ^bb2
   }
   func.func @f1(%arg0: !llvm.ptr) {
-    cf.br ^bb3
-  ^bb1:  // pred: ^bb2
-    return
-  ^bb2:  // pred: ^bb3
+    %0 = llvm.getelementptr %arg0[8] : (!llvm.ptr) -> !llvm.ptr, i8
+    %1 = llvm.getelementptr %0[0] : (!llvm.ptr) -> !llvm.ptr, !llvm.ptr
+    %2 = llvm.load %1 : !llvm.ptr -> !llvm.ptr
     cf.br ^bb1
-  ^bb3:  // pred: ^bb0
+  ^bb1:  // pred: ^bb0
+    cf.br ^bb4
+  ^bb2:  // pred: ^bb3
+    return
+  ^bb3:  // pred: ^bb4
+    cf.br ^bb2
+  ^bb4:  // pred: ^bb1
     %c0_i32 = arith.constant 0 : i32
     %c1_i32 = arith.constant 1 : i32
     %c0_i64 = arith.constant 0 : i64
-    %0 = arith.extui %c0_i32 : i32 to i64
-    %1 = arith.addi %0, %c0_i64 : i64
-    %2 = llvm.getelementptr %arg0[8] : (!llvm.ptr) -> !llvm.ptr, i8
-    %3 = llvm.getelementptr %2[0] : (!llvm.ptr) -> !llvm.ptr, !llvm.ptr
-    %4 = llvm.load %3 : !llvm.ptr -> !llvm.ptr
-    %5 = llvm.getelementptr %4[%1] : (!llvm.ptr, i64) -> !llvm.ptr, !llvm.ptr
+    %3 = arith.extui %c0_i32 : i32 to i64
+    %4 = arith.addi %3, %c0_i64 : i64
+    %5 = llvm.getelementptr %2[%4] : (!llvm.ptr, i64) -> !llvm.ptr, !llvm.ptr
     llvm.store %c1_i32, %5 : i32, !llvm.ptr
-    cf.br ^bb2
+    cf.br ^bb3
   }
   func.func @f2(%arg0: !llvm.ptr) {
+    %0 = llvm.getelementptr %arg0[8] : (!llvm.ptr) -> !llvm.ptr, i8
+    %1 = llvm.getelementptr %0[0] : (!llvm.ptr) -> !llvm.ptr, !llvm.ptr
+    %2 = llvm.load %1 : !llvm.ptr -> !llvm.ptr
+    cf.br ^bb1
+  ^bb1:  // pred: ^bb0
     %c0_i32 = arith.constant 0 : i32
     %c1_i32 = arith.constant 1 : i32
     %c0_i64 = arith.constant 0 : i64
-    %0 = arith.extui %c0_i32 : i32 to i64
-    %1 = arith.addi %0, %c0_i64 : i64
-    %2 = llvm.getelementptr %arg0[8] : (!llvm.ptr) -> !llvm.ptr, i8
-    %3 = llvm.getelementptr %2[0] : (!llvm.ptr) -> !llvm.ptr, !llvm.ptr
-    %4 = llvm.load %3 : !llvm.ptr -> !llvm.ptr
-    %5 = llvm.getelementptr %4[%1] : (!llvm.ptr, i64) -> !llvm.ptr, !llvm.ptr
+    %3 = arith.extui %c0_i32 : i32 to i64
+    %4 = arith.addi %3, %c0_i64 : i64
+    %5 = llvm.getelementptr %2[%4] : (!llvm.ptr, i64) -> !llvm.ptr, !llvm.ptr
     llvm.store %c1_i32, %5 : i32, !llvm.ptr
-    cf.br ^bb2
-  ^bb1:  // pred: ^bb2
+    cf.br ^bb3
+  ^bb2:  // pred: ^bb3
     return
-  ^bb2:  // pred: ^bb0
-    cf.br ^bb1
+  ^bb3:  // pred: ^bb1
+    cf.br ^bb2
   }
   func.func @f3(%arg0: !llvm.ptr) {
+    %0 = llvm.getelementptr %arg0[8] : (!llvm.ptr) -> !llvm.ptr, i8
+    %1 = llvm.getelementptr %0[0] : (!llvm.ptr) -> !llvm.ptr, !llvm.ptr
+    %2 = llvm.load %1 : !llvm.ptr -> !llvm.ptr
+    cf.br ^bb1
+  ^bb1:  // pred: ^bb0
     %c0_i32 = arith.constant 0 : i32
     %c1_i32 = arith.constant 1 : i32
     %c0_i64 = arith.constant 0 : i64
-    %0 = arith.extui %c0_i32 : i32 to i64
-    %1 = arith.addi %0, %c0_i64 : i64
-    %2 = llvm.getelementptr %arg0[8] : (!llvm.ptr) -> !llvm.ptr, i8
-    %3 = llvm.getelementptr %2[0] : (!llvm.ptr) -> !llvm.ptr, !llvm.ptr
-    %4 = llvm.load %3 : !llvm.ptr -> !llvm.ptr
-    %5 = llvm.getelementptr %4[%1] : (!llvm.ptr, i64) -> !llvm.ptr, !llvm.ptr
+    %3 = arith.extui %c0_i32 : i32 to i64
+    %4 = arith.addi %3, %c0_i64 : i64
+    %5 = llvm.getelementptr %2[%4] : (!llvm.ptr, i64) -> !llvm.ptr, !llvm.ptr
     llvm.store %c1_i32, %5 : i32, !llvm.ptr
     %c1_i32_0 = arith.constant 1 : i32
     %c0_i32_1 = arith.constant 0 : i32
     %6 = arith.cmpi ne, %c1_i32_0, %c0_i32_1 : i32
-    cf.cond_br %6, ^bb2, ^bb3
-  ^bb1:  // pred: ^bb2
+    cf.cond_br %6, ^bb3, ^bb4
+  ^bb2:  // pred: ^bb3
     return
-  ^bb2:  // 2 preds: ^bb0, ^bb3
-    cf.br ^bb1
-  ^bb3:  // pred: ^bb0
+  ^bb3:  // 2 preds: ^bb1, ^bb4
     cf.br ^bb2
+  ^bb4:  // pred: ^bb1
+    cf.br ^bb3
   }
   func.func @f4(%arg0: !llvm.ptr) {
+    %0 = llvm.getelementptr %arg0[8] : (!llvm.ptr) -> !llvm.ptr, i8
+    %1 = llvm.getelementptr %0[0] : (!llvm.ptr) -> !llvm.ptr, !llvm.ptr
+    %2 = llvm.load %1 : !llvm.ptr -> !llvm.ptr
+    cf.br ^bb1
+  ^bb1:  // pred: ^bb0
     %c6_i32 = arith.constant 6 : i32
     %c0_i32 = arith.constant 0 : i32
     %c1_i32 = arith.constant 1 : i32
     %c0_i64 = arith.constant 0 : i64
-    %0 = arith.extui %c0_i32 : i32 to i64
-    %1 = arith.addi %0, %c0_i64 : i64
-    %2 = llvm.getelementptr %arg0[8] : (!llvm.ptr) -> !llvm.ptr, i8
-    %3 = llvm.getelementptr %2[0] : (!llvm.ptr) -> !llvm.ptr, !llvm.ptr
-    %4 = llvm.load %3 : !llvm.ptr -> !llvm.ptr
-    %5 = llvm.getelementptr %4[%1] : (!llvm.ptr, i64) -> !llvm.ptr, !llvm.ptr
+    %3 = arith.extui %c0_i32 : i32 to i64
+    %4 = arith.addi %3, %c0_i64 : i64
+    %5 = llvm.getelementptr %2[%4] : (!llvm.ptr, i64) -> !llvm.ptr, !llvm.ptr
     llvm.store %c1_i32, %5 : i32, !llvm.ptr
     %c0_i32_0 = arith.constant 0 : i32
     %6 = arith.cmpi ne, %c6_i32, %c0_i32_0 : i32
-    cf.cond_br %6, ^bb2, ^bb3
-  ^bb1:  // pred: ^bb2
+    cf.cond_br %6, ^bb3, ^bb4
+  ^bb2:  // pred: ^bb3
     return
-  ^bb2:  // 2 preds: ^bb0, ^bb3
-    cf.br ^bb1
-  ^bb3:  // pred: ^bb0
+  ^bb3:  // 2 preds: ^bb1, ^bb4
     cf.br ^bb2
+  ^bb4:  // pred: ^bb1
+    cf.br ^bb3
   }
   func.func @f5(%arg0: !llvm.ptr) {
+    %0 = llvm.getelementptr %arg0[8] : (!llvm.ptr) -> !llvm.ptr, i8
+    %1 = llvm.getelementptr %0[0] : (!llvm.ptr) -> !llvm.ptr, !llvm.ptr
+    %2 = llvm.load %1 : !llvm.ptr -> !llvm.ptr
+    cf.br ^bb1
+  ^bb1:  // pred: ^bb0
     %c0_i32 = arith.constant 0 : i32
     %c1_i32 = arith.constant 1 : i32
     %c0_i64 = arith.constant 0 : i64
-    %0 = arith.extui %c0_i32 : i32 to i64
-    %1 = arith.addi %0, %c0_i64 : i64
-    %2 = llvm.getelementptr %arg0[8] : (!llvm.ptr) -> !llvm.ptr, i8
-    %3 = llvm.getelementptr %2[0] : (!llvm.ptr) -> !llvm.ptr, !llvm.ptr
-    %4 = llvm.load %3 : !llvm.ptr -> !llvm.ptr
-    %5 = llvm.getelementptr %4[%1] : (!llvm.ptr, i64) -> !llvm.ptr, !llvm.ptr
+    %3 = arith.extui %c0_i32 : i32 to i64
+    %4 = arith.addi %3, %c0_i64 : i64
+    %5 = llvm.getelementptr %2[%4] : (!llvm.ptr, i64) -> !llvm.ptr, !llvm.ptr
     llvm.store %c1_i32, %5 : i32, !llvm.ptr
     %c1_i32_0 = arith.constant 1 : i32
     cf.switch %c1_i32_0 : i32, [
-      default: ^bb2
+      default: ^bb3
     ]
-  ^bb1:  // pred: ^bb2
+  ^bb2:  // pred: ^bb3
     return
-  ^bb2:  // pred: ^bb0
-    cf.br ^bb1
+  ^bb3:  // pred: ^bb1
+    cf.br ^bb2
   }
   func.func @f6(%arg0: !llvm.ptr) {
+    %0 = llvm.getelementptr %arg0[8] : (!llvm.ptr) -> !llvm.ptr, i8
+    %1 = llvm.getelementptr %0[0] : (!llvm.ptr) -> !llvm.ptr, !llvm.ptr
+    %2 = llvm.load %1 : !llvm.ptr -> !llvm.ptr
+    cf.br ^bb1
+  ^bb1:  // pred: ^bb0
     %c0_i32 = arith.constant 0 : i32
     %c1_i32 = arith.constant 1 : i32
     %c0_i64 = arith.constant 0 : i64
-    %0 = arith.extui %c0_i32 : i32 to i64
-    %1 = arith.addi %0, %c0_i64 : i64
-    %2 = llvm.getelementptr %arg0[8] : (!llvm.ptr) -> !llvm.ptr, i8
-    %3 = llvm.getelementptr %2[0] : (!llvm.ptr) -> !llvm.ptr, !llvm.ptr
-    %4 = llvm.load %3 : !llvm.ptr -> !llvm.ptr
-    %5 = llvm.getelementptr %4[%1] : (!llvm.ptr, i64) -> !llvm.ptr, !llvm.ptr
+    %3 = arith.extui %c0_i32 : i32 to i64
+    %4 = arith.addi %3, %c0_i64 : i64
+    %5 = llvm.getelementptr %2[%4] : (!llvm.ptr, i64) -> !llvm.ptr, !llvm.ptr
     llvm.store %c1_i32, %5 : i32, !llvm.ptr
-    cf.br ^bb1
-  ^bb1:  // pred: ^bb0
+    cf.br ^bb2
+  ^bb2:  // pred: ^bb1
     return
   }
   func.func @f7(%arg0: !llvm.ptr) {
+    %0 = llvm.getelementptr %arg0[8] : (!llvm.ptr) -> !llvm.ptr, i8
+    %1 = llvm.getelementptr %0[0] : (!llvm.ptr) -> !llvm.ptr, !llvm.ptr
+    %2 = llvm.load %1 : !llvm.ptr -> !llvm.ptr
+    cf.br ^bb1
+  ^bb1:  // pred: ^bb0
     %c1_i32 = arith.constant 1 : i32
     %c0_i32 = arith.constant 0 : i32
-    %0 = arith.cmpi ne, %c1_i32, %c0_i32 : i32
-    cf.cond_br %0, ^bb2, ^bb3
-  ^bb1:  // pred: ^bb4
+    %3 = arith.cmpi ne, %c1_i32, %c0_i32 : i32
+    cf.cond_br %3, ^bb3, ^bb4
+  ^bb2:  // pred: ^bb5
     return
-  ^bb2:  // pred: ^bb0
+  ^bb3:  // pred: ^bb1
     %c0_i32_0 = arith.constant 0 : i32
     %c1_i32_1 = arith.constant 1 : i32
     %c0_i64 = arith.constant 0 : i64
-    %1 = arith.extui %c0_i32_0 : i32 to i64
-    %2 = arith.addi %1, %c0_i64 : i64
-    %3 = llvm.getelementptr %arg0[8] : (!llvm.ptr) -> !llvm.ptr, i8
-    %4 = llvm.getelementptr %3[0] : (!llvm.ptr) -> !llvm.ptr, !llvm.ptr
-    %5 = llvm.load %4 : !llvm.ptr -> !llvm.ptr
-    %6 = llvm.getelementptr %5[%2] : (!llvm.ptr, i64) -> !llvm.ptr, !llvm.ptr
+    %4 = arith.extui %c0_i32_0 : i32 to i64
+    %5 = arith.addi %4, %c0_i64 : i64
+    %6 = llvm.getelementptr %2[%5] : (!llvm.ptr, i64) -> !llvm.ptr, !llvm.ptr
     llvm.store %c1_i32_1, %6 : i32, !llvm.ptr
-    cf.br ^bb4
-  ^bb3:  // pred: ^bb0
-    cf.br ^bb4
-  ^bb4:  // 2 preds: ^bb2, ^bb3
-    cf.br ^bb1
+    cf.br ^bb5
+  ^bb4:  // pred: ^bb1
+    cf.br ^bb5
+  ^bb5:  // 2 preds: ^bb3, ^bb4
+    cf.br ^bb2
   }
   func.func @f8(%arg0: !llvm.ptr) {
+    %0 = llvm.getelementptr %arg0[8] : (!llvm.ptr) -> !llvm.ptr, i8
+    %1 = llvm.getelementptr %0[0] : (!llvm.ptr) -> !llvm.ptr, !llvm.ptr
+    %2 = llvm.load %1 : !llvm.ptr -> !llvm.ptr
+    cf.br ^bb1
+  ^bb1:  // pred: ^bb0
     %c0_i32 = arith.constant 0 : i32
     %c0_i32_0 = arith.constant 0 : i32
-    %0 = arith.cmpi ne, %c0_i32, %c0_i32_0 : i32
-    cf.cond_br %0, ^bb2, ^bb3
-  ^bb1:  // pred: ^bb4
+    %3 = arith.cmpi ne, %c0_i32, %c0_i32_0 : i32
+    cf.cond_br %3, ^bb3, ^bb4
+  ^bb2:  // pred: ^bb5
     return
-  ^bb2:  // pred: ^bb0
-    cf.br ^bb4
-  ^bb3:  // pred: ^bb0
+  ^bb3:  // pred: ^bb1
+    cf.br ^bb5
+  ^bb4:  // pred: ^bb1
     %c0_i32_1 = arith.constant 0 : i32
     %c1_i32 = arith.constant 1 : i32
     %c0_i64 = arith.constant 0 : i64
-    %1 = arith.extui %c0_i32_1 : i32 to i64
-    %2 = arith.addi %1, %c0_i64 : i64
-    %3 = llvm.getelementptr %arg0[8] : (!llvm.ptr) -> !llvm.ptr, i8
-    %4 = llvm.getelementptr %3[0] : (!llvm.ptr) -> !llvm.ptr, !llvm.ptr
-    %5 = llvm.load %4 : !llvm.ptr -> !llvm.ptr
-    %6 = llvm.getelementptr %5[%2] : (!llvm.ptr, i64) -> !llvm.ptr, !llvm.ptr
+    %4 = arith.extui %c0_i32_1 : i32 to i64
+    %5 = arith.addi %4, %c0_i64 : i64
+    %6 = llvm.getelementptr %2[%5] : (!llvm.ptr, i64) -> !llvm.ptr, !llvm.ptr
     llvm.store %c1_i32, %6 : i32, !llvm.ptr
-    cf.br ^bb4
-  ^bb4:  // 2 preds: ^bb2, ^bb3
-    cf.br ^bb1
+    cf.br ^bb5
+  ^bb5:  // 2 preds: ^bb3, ^bb4
+    cf.br ^bb2
   }
+  func.func private @dora_fn_wasm_table_init(!llvm.ptr, i32, i32, i32, i32, i32)
+  func.func private @dora_fn_wasm_table_fill(!llvm.ptr, i32, i32, !llvm.ptr, i32)
+  func.func private @dora_fn_wasm_table_size(!llvm.ptr, i32) -> i32
+  func.func private @dora_fn_wasm_table_get(!llvm.ptr, i32, i32) -> !llvm.ptr
+  func.func private @dora_fn_wasm_table_set(!llvm.ptr, i32, i32, !llvm.ptr)
+  func.func private @dora_fn_wasm_imported_table_size(!llvm.ptr, i32) -> i32
+  func.func private @dora_fn_wasm_imported_table_get(!llvm.ptr, i32, i32) -> !llvm.ptr
+  func.func private @dora_fn_wasm_imported_table_grow(!llvm.ptr, !llvm.ptr, i32, i32) -> i32
+  func.func private @dora_fn_wasm_memory_init(!llvm.ptr, i32, i32, i32, i32, i32)
+  func.func private @dora_fn_wasm_memory_fill(!llvm.ptr, i32, i32, i32, i32)
+  func.func private @dora_fn_wasm_memory_notify(!llvm.ptr, i32, i32, i32) -> i32
+  func.func private @dora_fn_wasm_memory_wait32(!llvm.ptr, i32, i32, i32, i64) -> i32
+  func.func private @dora_fn_wasm_memory_wait64(!llvm.ptr, i32, i32, i64, i64) -> i32
+  func.func private @dora_fn_wasm_imported_memory_copy(!llvm.ptr, i32, i32, i32, i32)
+  func.func private @dora_fn_wasm_imported_memory_fill(!llvm.ptr, i32, i32, i32, i32)
+  func.func private @dora_fn_wasm_imported_memory_notify(!llvm.ptr, i32, i32, i32) -> i32
+  func.func private @dora_fn_wasm_imported_memory_wait32(!llvm.ptr, i32, i32, i32, i64) -> i32
+  func.func private @dora_fn_wasm_imported_memory_wait64(!llvm.ptr, i32, i32, i64, i64) -> i32
+  func.func private @dora_fn_wasm_func_ref(!llvm.ptr, i32) -> !llvm.ptr
+  func.func private @dora_fn_wasm_data_drop(!llvm.ptr, i32)
+  func.func private @dora_fn_wasm_elem_drop(!llvm.ptr, i32)
+  func.func private @dora_fn_wasm_raise_trap(!llvm.ptr, i32)
 }

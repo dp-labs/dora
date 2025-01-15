@@ -8,40 +8,70 @@ module {
     %0 = llvm.getelementptr %arg0[16] : (!llvm.ptr) -> !llvm.ptr, i8
     %1 = llvm.load %0 : !llvm.ptr -> !llvm.ptr
     %2 = llvm.load %1 : !llvm.ptr -> i32
-    cf.br ^bb1(%2 : i32)
-  ^bb1(%3: i32):  // pred: ^bb0
+    cf.br ^bb1
+  ^bb1:  // pred: ^bb0
+    cf.br ^bb2(%2 : i32)
+  ^bb2(%3: i32):  // pred: ^bb1
     return %3 : i32
   }
   func.func @f1(%arg0: !llvm.ptr) -> i64 {
     %0 = llvm.getelementptr %arg0[24] : (!llvm.ptr) -> !llvm.ptr, i8
     %1 = llvm.load %0 : !llvm.ptr -> !llvm.ptr
     %2 = llvm.load %1 : !llvm.ptr -> i64
-    cf.br ^bb1(%2 : i64)
-  ^bb1(%3: i64):  // pred: ^bb0
+    cf.br ^bb1
+  ^bb1:  // pred: ^bb0
+    cf.br ^bb2(%2 : i64)
+  ^bb2(%3: i64):  // pred: ^bb1
     return %3 : i64
   }
   func.func @f2(%arg0: !llvm.ptr, %arg1: i32) {
     %c1_i64 = arith.constant 1 : i64
     %0 = llvm.alloca %c1_i64 x i32 : (i64) -> !llvm.ptr
     llvm.store %arg1, %0 : i32, !llvm.ptr
-    %1 = llvm.load %0 : !llvm.ptr -> i32
-    %2 = llvm.getelementptr %arg0[32] : (!llvm.ptr) -> !llvm.ptr, i8
-    %3 = llvm.load %2 : !llvm.ptr -> !llvm.ptr
-    llvm.store %1, %3 : i32, !llvm.ptr
+    %1 = llvm.getelementptr %arg0[32] : (!llvm.ptr) -> !llvm.ptr, i8
+    %2 = llvm.load %1 : !llvm.ptr -> !llvm.ptr
     cf.br ^bb1
   ^bb1:  // pred: ^bb0
+    %3 = llvm.load %0 : !llvm.ptr -> i32
+    llvm.store %3, %2 : i32, !llvm.ptr
+    cf.br ^bb2
+  ^bb2:  // pred: ^bb1
     return
   }
   func.func @f3(%arg0: !llvm.ptr, %arg1: i64) {
     %c1_i64 = arith.constant 1 : i64
     %0 = llvm.alloca %c1_i64 x i64 : (i64) -> !llvm.ptr
     llvm.store %arg1, %0 : i64, !llvm.ptr
-    %1 = llvm.load %0 : !llvm.ptr -> i64
-    %2 = llvm.getelementptr %arg0[40] : (!llvm.ptr) -> !llvm.ptr, i8
-    %3 = llvm.load %2 : !llvm.ptr -> !llvm.ptr
-    llvm.store %1, %3 : i64, !llvm.ptr
+    %1 = llvm.getelementptr %arg0[40] : (!llvm.ptr) -> !llvm.ptr, i8
+    %2 = llvm.load %1 : !llvm.ptr -> !llvm.ptr
     cf.br ^bb1
   ^bb1:  // pred: ^bb0
+    %3 = llvm.load %0 : !llvm.ptr -> i64
+    llvm.store %3, %2 : i64, !llvm.ptr
+    cf.br ^bb2
+  ^bb2:  // pred: ^bb1
     return
   }
+  func.func private @dora_fn_wasm_table_init(!llvm.ptr, i32, i32, i32, i32, i32)
+  func.func private @dora_fn_wasm_table_fill(!llvm.ptr, i32, i32, !llvm.ptr, i32)
+  func.func private @dora_fn_wasm_table_size(!llvm.ptr, i32) -> i32
+  func.func private @dora_fn_wasm_table_get(!llvm.ptr, i32, i32) -> !llvm.ptr
+  func.func private @dora_fn_wasm_table_set(!llvm.ptr, i32, i32, !llvm.ptr)
+  func.func private @dora_fn_wasm_imported_table_size(!llvm.ptr, i32) -> i32
+  func.func private @dora_fn_wasm_imported_table_get(!llvm.ptr, i32, i32) -> !llvm.ptr
+  func.func private @dora_fn_wasm_imported_table_grow(!llvm.ptr, !llvm.ptr, i32, i32) -> i32
+  func.func private @dora_fn_wasm_memory_init(!llvm.ptr, i32, i32, i32, i32, i32)
+  func.func private @dora_fn_wasm_memory_fill(!llvm.ptr, i32, i32, i32, i32)
+  func.func private @dora_fn_wasm_memory_notify(!llvm.ptr, i32, i32, i32) -> i32
+  func.func private @dora_fn_wasm_memory_wait32(!llvm.ptr, i32, i32, i32, i64) -> i32
+  func.func private @dora_fn_wasm_memory_wait64(!llvm.ptr, i32, i32, i64, i64) -> i32
+  func.func private @dora_fn_wasm_imported_memory_copy(!llvm.ptr, i32, i32, i32, i32)
+  func.func private @dora_fn_wasm_imported_memory_fill(!llvm.ptr, i32, i32, i32, i32)
+  func.func private @dora_fn_wasm_imported_memory_notify(!llvm.ptr, i32, i32, i32) -> i32
+  func.func private @dora_fn_wasm_imported_memory_wait32(!llvm.ptr, i32, i32, i32, i64) -> i32
+  func.func private @dora_fn_wasm_imported_memory_wait64(!llvm.ptr, i32, i32, i64, i64) -> i32
+  func.func private @dora_fn_wasm_func_ref(!llvm.ptr, i32) -> !llvm.ptr
+  func.func private @dora_fn_wasm_data_drop(!llvm.ptr, i32)
+  func.func private @dora_fn_wasm_elem_drop(!llvm.ptr, i32)
+  func.func private @dora_fn_wasm_raise_trap(!llvm.ptr, i32)
 }

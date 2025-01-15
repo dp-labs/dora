@@ -1,25 +1,27 @@
 //! Reference: https://github.com/wasmerio/wasmer/tree/main/lib/compiler-llvm
-#![allow(dead_code)]
 
-mod backend;
-mod code;
-mod conversion;
-mod errors;
-mod func;
-mod intrinsics;
-mod pass;
-mod state;
-mod ty;
+pub mod backend;
+pub(crate) mod code;
+pub(crate) mod conversion;
+pub mod errors;
+pub(crate) mod func;
+pub mod intrinsics;
+pub mod pass;
+pub mod state;
+pub(crate) mod symbols;
+pub mod ty;
+
+pub use conversion::ConversionPass;
 
 #[cfg(test)]
 mod tests;
 
-use dora_primitives::config::OptimizationLevel;
 use func::FuncTranslator;
 use melior::ir::operation::OperationBuilder;
 use melior::ir::{Block, Region};
 use melior::ir::{Location, Module as MLIRModule};
 use std::sync::Arc;
+use symbols::declare_symbols;
 use wasmer::Target;
 use wasmer_compiler::{
     FunctionBodyData, ModuleEnvironment, ModuleMiddleware, ModuleTranslationState,
@@ -94,7 +96,7 @@ impl<'c> WASMCompiler<'c> {
     /// let compiler_config = wasm_compiler.config();
     /// ```
     #[inline]
-    fn config(&self) -> &Config {
+    pub fn config(&self) -> &Config {
         &self.config
     }
 
@@ -171,9 +173,9 @@ impl<'c> WASMCompiler<'c> {
         let op = OperationBuilder::new("builtin.module", Location::unknown(&self.ctx.mlir_context))
             .add_regions([module_region])
             .build()?;
-        Ok(Module::new(
-            MLIRModule::from_operation(op).expect("module failed to create"),
-        ))
+        let mlir_module = MLIRModule::from_operation(op).expect("module failed to create");
+        declare_symbols(&self.ctx.mlir_context, &mlir_module);
+        Ok(Module::new(mlir_module))
     }
 }
 
@@ -242,12 +244,6 @@ impl SymbolRegistry for ShortNames {
 ///   compilation process by adjusting these fields based on the requirements of your WebAssembly module.
 #[derive(Debug, Clone, Default)]
 pub struct Config {
-    /// A flag to enable NaN canonicalization during floating-point operations.
-    pub(crate) enable_nan_canonicalization: bool,
-    /// A flag to enable or disable the verifier during compilation.
-    pub(crate) enable_verifier: bool,
-    /// The optimization level for the compilation process.
-    pub(crate) opt_level: OptimizationLevel,
     /// A collection of middleware components that modify the behavior of the compiler.
     pub(crate) middlewares: Vec<Arc<dyn ModuleMiddleware>>,
 }

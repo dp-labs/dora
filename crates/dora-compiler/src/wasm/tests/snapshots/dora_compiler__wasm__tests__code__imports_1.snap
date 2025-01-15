@@ -1,0 +1,187 @@
+---
+source: crates/dora-compiler/src/wasm/tests/code.rs
+expression: op
+snapshot_kind: text
+---
+module {
+  func.func @f0(%arg0: !llvm.ptr, %arg1: i32) {
+    %c1_i64 = arith.constant 1 : i64
+    %0 = llvm.alloca %c1_i64 x i32 : (i64) -> !llvm.ptr
+    llvm.store %arg1, %0 : i32, !llvm.ptr
+    %cst = arith.constant 0.000000e+00 : f32
+    %c1_i64_0 = arith.constant 1 : i64
+    %1 = llvm.alloca %c1_i64_0 x f32 : (i64) -> !llvm.ptr
+    llvm.store %cst, %1 : f32, !llvm.ptr
+    %2 = llvm.getelementptr %arg0[32] : (!llvm.ptr) -> !llvm.ptr, i8
+    %3 = llvm.getelementptr %2[0] : (!llvm.ptr) -> !llvm.ptr, i8
+    %4 = llvm.load %3 : !llvm.ptr -> !llvm.ptr
+    %5 = llvm.getelementptr %2[8] : (!llvm.ptr) -> !llvm.ptr, i8
+    %6 = llvm.load %5 : !llvm.ptr -> !llvm.ptr
+    %7 = llvm.getelementptr %arg0[176] : (!llvm.ptr) -> !llvm.ptr, i8
+    %8 = llvm.getelementptr %7[0] : (!llvm.ptr) -> !llvm.ptr, i8
+    %9 = llvm.load %8 : !llvm.ptr -> !llvm.ptr
+    %10 = llvm.getelementptr %7[8] : (!llvm.ptr) -> !llvm.ptr, i8
+    %11 = llvm.load %10 : !llvm.ptr -> !llvm.ptr
+    %12 = llvm.getelementptr %arg0[80] : (!llvm.ptr) -> !llvm.ptr, i8
+    %13 = llvm.getelementptr %12[0] : (!llvm.ptr) -> !llvm.ptr, i8
+    %14 = llvm.load %13 : !llvm.ptr -> !llvm.ptr
+    %15 = llvm.getelementptr %12[8] : (!llvm.ptr) -> !llvm.ptr, i8
+    %16 = llvm.load %15 : !llvm.ptr -> !llvm.ptr
+    %17 = llvm.getelementptr %arg0[224] : (!llvm.ptr) -> !llvm.ptr, i8
+    %18 = llvm.getelementptr %17[0] : (!llvm.ptr) -> !llvm.ptr, i8
+    %19 = llvm.load %18 : !llvm.ptr -> !llvm.ptr
+    %20 = llvm.getelementptr %17[8] : (!llvm.ptr) -> !llvm.ptr, i8
+    %21 = llvm.load %20 : !llvm.ptr -> !llvm.ptr
+    %22 = llvm.getelementptr %arg0[128] : (!llvm.ptr) -> !llvm.ptr, i8
+    %23 = llvm.getelementptr %22[0] : (!llvm.ptr) -> !llvm.ptr, i8
+    %24 = llvm.load %23 : !llvm.ptr -> !llvm.ptr
+    %25 = llvm.getelementptr %22[8] : (!llvm.ptr) -> !llvm.ptr, i8
+    %26 = llvm.load %25 : !llvm.ptr -> !llvm.ptr
+    %27 = llvm.getelementptr %arg0[0] : (!llvm.ptr) -> !llvm.ptr, i8
+    %28 = llvm.load %27 : !llvm.ptr -> i32
+    %29 = llvm.getelementptr %arg0[464] : (!llvm.ptr) -> !llvm.ptr, i8
+    %30 = llvm.getelementptr %arg0[472] : (!llvm.ptr) -> !llvm.ptr, i8
+    %31 = llvm.load %29 : !llvm.ptr -> !llvm.ptr
+    %32 = llvm.load %30 : !llvm.ptr -> i32
+    cf.br ^bb1
+  ^bb1:  // pred: ^bb0
+    %33 = llvm.load %0 : !llvm.ptr -> i32
+    %34 = "wasm.f32_convert_i32s"(%33) : (i32) -> f32
+    llvm.store %34, %1 : f32, !llvm.ptr
+    %35 = llvm.load %0 : !llvm.ptr -> i32
+    %36 = llvm.call %4(%6, %35) vararg(!llvm.func<void (...)>) : !llvm.ptr, (!llvm.ptr, i32) -> !llvm.void
+    %37 = llvm.load %0 : !llvm.ptr -> i32
+    %c1_i32 = arith.constant 1 : i32
+    %38 = "wasm.add"(%37, %c1_i32) : (i32, i32) -> i32
+    %cst_1 = arith.constant 1.1099177E+9 : f32
+    %39 = llvm.call %9(%11, %38, %cst_1) vararg(!llvm.func<void (...)>) : !llvm.ptr, (!llvm.ptr, i32, f32) -> !llvm.void
+    %40 = llvm.load %0 : !llvm.ptr -> i32
+    %41 = llvm.call %14(%16, %40) vararg(!llvm.func<void (...)>) : !llvm.ptr, (!llvm.ptr, i32) -> !llvm.void
+    %42 = llvm.load %0 : !llvm.ptr -> i32
+    %43 = llvm.call %19(%21, %42) vararg(!llvm.func<void (...)>) : !llvm.ptr, (!llvm.ptr, i32) -> !llvm.void
+    %44 = llvm.load %1 : !llvm.ptr -> f32
+    %45 = llvm.call %24(%26, %44) vararg(!llvm.func<void (...)>) : !llvm.ptr, (!llvm.ptr, f32) -> !llvm.void
+    %46 = llvm.load %0 : !llvm.ptr -> i32
+    %c0_i32 = arith.constant 0 : i32
+    %47 = arith.cmpi ult, %c0_i32, %32 : i32
+    %48 = llvm.getelementptr %31[%c0_i32] : (!llvm.ptr, i32) -> !llvm.ptr, !llvm.ptr
+    %49 = llvm.load %48 : !llvm.ptr -> !llvm.ptr
+    %50 = llvm.getelementptr %49[0] : (!llvm.ptr) -> !llvm.ptr, i8
+    %51 = llvm.getelementptr %49[8] : (!llvm.ptr) -> !llvm.ptr, i8
+    %52 = llvm.getelementptr %49[16] : (!llvm.ptr) -> !llvm.ptr, i8
+    %53 = llvm.load %50 : !llvm.ptr -> !llvm.ptr
+    %54 = llvm.load %51 : !llvm.ptr -> i32
+    %55 = llvm.load %52 : !llvm.ptr -> !llvm.ptr
+    %56 = llvm.load %53 : !llvm.ptr -> i32
+    %c0_i32_2 = arith.constant 0 : i32
+    %57 = arith.cmpi eq, %56, %c0_i32_2 : i32
+    %58 = llvm.call %53(%46) vararg(!llvm.func<void (...)>) : !llvm.ptr, (i32) -> !llvm.void
+    cf.br ^bb2
+  ^bb2:  // pred: ^bb1
+    return
+  }
+  func.func @f1(%arg0: !llvm.ptr, %arg1: i64) {
+    %c1_i64 = arith.constant 1 : i64
+    %0 = llvm.alloca %c1_i64 x i64 : (i64) -> !llvm.ptr
+    llvm.store %arg1, %0 : i64, !llvm.ptr
+    %cst = arith.constant 0.000000e+00 : f64
+    %c1_i64_0 = arith.constant 1 : i64
+    %1 = llvm.alloca %c1_i64_0 x f64 : (i64) -> !llvm.ptr
+    llvm.store %cst, %1 : f64, !llvm.ptr
+    %2 = llvm.getelementptr %arg0[272] : (!llvm.ptr) -> !llvm.ptr, i8
+    %3 = llvm.getelementptr %2[0] : (!llvm.ptr) -> !llvm.ptr, i8
+    %4 = llvm.load %3 : !llvm.ptr -> !llvm.ptr
+    %5 = llvm.getelementptr %2[8] : (!llvm.ptr) -> !llvm.ptr, i8
+    %6 = llvm.load %5 : !llvm.ptr -> !llvm.ptr
+    %7 = llvm.getelementptr %arg0[56] : (!llvm.ptr) -> !llvm.ptr, i8
+    %8 = llvm.getelementptr %7[0] : (!llvm.ptr) -> !llvm.ptr, i8
+    %9 = llvm.load %8 : !llvm.ptr -> !llvm.ptr
+    %10 = llvm.getelementptr %7[8] : (!llvm.ptr) -> !llvm.ptr, i8
+    %11 = llvm.load %10 : !llvm.ptr -> !llvm.ptr
+    %12 = llvm.getelementptr %arg0[200] : (!llvm.ptr) -> !llvm.ptr, i8
+    %13 = llvm.getelementptr %12[0] : (!llvm.ptr) -> !llvm.ptr, i8
+    %14 = llvm.load %13 : !llvm.ptr -> !llvm.ptr
+    %15 = llvm.getelementptr %12[8] : (!llvm.ptr) -> !llvm.ptr, i8
+    %16 = llvm.load %15 : !llvm.ptr -> !llvm.ptr
+    %17 = llvm.getelementptr %arg0[104] : (!llvm.ptr) -> !llvm.ptr, i8
+    %18 = llvm.getelementptr %17[0] : (!llvm.ptr) -> !llvm.ptr, i8
+    %19 = llvm.load %18 : !llvm.ptr -> !llvm.ptr
+    %20 = llvm.getelementptr %17[8] : (!llvm.ptr) -> !llvm.ptr, i8
+    %21 = llvm.load %20 : !llvm.ptr -> !llvm.ptr
+    %22 = llvm.getelementptr %arg0[152] : (!llvm.ptr) -> !llvm.ptr, i8
+    %23 = llvm.getelementptr %22[0] : (!llvm.ptr) -> !llvm.ptr, i8
+    %24 = llvm.load %23 : !llvm.ptr -> !llvm.ptr
+    %25 = llvm.getelementptr %22[8] : (!llvm.ptr) -> !llvm.ptr, i8
+    %26 = llvm.load %25 : !llvm.ptr -> !llvm.ptr
+    %27 = llvm.getelementptr %arg0[248] : (!llvm.ptr) -> !llvm.ptr, i8
+    %28 = llvm.getelementptr %27[0] : (!llvm.ptr) -> !llvm.ptr, i8
+    %29 = llvm.load %28 : !llvm.ptr -> !llvm.ptr
+    %30 = llvm.getelementptr %27[8] : (!llvm.ptr) -> !llvm.ptr, i8
+    %31 = llvm.load %30 : !llvm.ptr -> !llvm.ptr
+    %32 = llvm.getelementptr %arg0[12] : (!llvm.ptr) -> !llvm.ptr, i8
+    %33 = llvm.load %32 : !llvm.ptr -> i32
+    %34 = llvm.getelementptr %arg0[464] : (!llvm.ptr) -> !llvm.ptr, i8
+    %35 = llvm.getelementptr %arg0[472] : (!llvm.ptr) -> !llvm.ptr, i8
+    %36 = llvm.load %34 : !llvm.ptr -> !llvm.ptr
+    %37 = llvm.load %35 : !llvm.ptr -> i32
+    cf.br ^bb1
+  ^bb1:  // pred: ^bb0
+    %38 = llvm.load %0 : !llvm.ptr -> i64
+    %39 = llvm.call %4(%6, %38) vararg(!llvm.func<i64 (...)>) : !llvm.ptr, (!llvm.ptr, i64) -> i64
+    %40 = "wasm.f64_convert_i64s"(%39) : (i64) -> f64
+    llvm.store %40, %1 : f64, !llvm.ptr
+    %41 = llvm.load %0 : !llvm.ptr -> i64
+    %42 = llvm.call %9(%11, %41) vararg(!llvm.func<void (...)>) : !llvm.ptr, (!llvm.ptr, i64) -> !llvm.void
+    %43 = llvm.load %1 : !llvm.ptr -> f64
+    %cst_1 = arith.constant 4.6071824188000174E+18 : f64
+    %44 = "wasm.add"(%43, %cst_1) : (f64, f64) -> f64
+    %cst_2 = arith.constant 4.6326559041923318E+18 : f64
+    %45 = llvm.call %14(%16, %44, %cst_2) vararg(!llvm.func<void (...)>) : !llvm.ptr, (!llvm.ptr, f64, f64) -> !llvm.void
+    %46 = llvm.load %0 : !llvm.ptr -> i64
+    %47 = llvm.call %19(%21, %46) vararg(!llvm.func<void (...)>) : !llvm.ptr, (!llvm.ptr, i64) -> !llvm.void
+    %48 = llvm.load %1 : !llvm.ptr -> f64
+    %49 = llvm.call %24(%26, %48) vararg(!llvm.func<void (...)>) : !llvm.ptr, (!llvm.ptr, f64) -> !llvm.void
+    %50 = llvm.load %1 : !llvm.ptr -> f64
+    %51 = llvm.call %29(%31, %50) vararg(!llvm.func<void (...)>) : !llvm.ptr, (!llvm.ptr, f64) -> !llvm.void
+    %52 = llvm.load %1 : !llvm.ptr -> f64
+    %c1_i32 = arith.constant 1 : i32
+    %53 = arith.cmpi ult, %c1_i32, %37 : i32
+    %54 = llvm.getelementptr %36[%c1_i32] : (!llvm.ptr, i32) -> !llvm.ptr, !llvm.ptr
+    %55 = llvm.load %54 : !llvm.ptr -> !llvm.ptr
+    %56 = llvm.getelementptr %55[0] : (!llvm.ptr) -> !llvm.ptr, i8
+    %57 = llvm.getelementptr %55[8] : (!llvm.ptr) -> !llvm.ptr, i8
+    %58 = llvm.getelementptr %55[16] : (!llvm.ptr) -> !llvm.ptr, i8
+    %59 = llvm.load %56 : !llvm.ptr -> !llvm.ptr
+    %60 = llvm.load %57 : !llvm.ptr -> i32
+    %61 = llvm.load %58 : !llvm.ptr -> !llvm.ptr
+    %62 = llvm.load %59 : !llvm.ptr -> i32
+    %c0_i32 = arith.constant 0 : i32
+    %63 = arith.cmpi eq, %62, %c0_i32 : i32
+    %64 = llvm.call %59(%52) vararg(!llvm.func<void (...)>) : !llvm.ptr, (f64) -> !llvm.void
+    cf.br ^bb2
+  ^bb2:  // pred: ^bb1
+    return
+  }
+  func.func private @dora_fn_wasm_table_init(!llvm.ptr, i32, i32, i32, i32, i32)
+  func.func private @dora_fn_wasm_table_fill(!llvm.ptr, i32, i32, !llvm.ptr, i32)
+  func.func private @dora_fn_wasm_table_size(!llvm.ptr, i32) -> i32
+  func.func private @dora_fn_wasm_table_get(!llvm.ptr, i32, i32) -> !llvm.ptr
+  func.func private @dora_fn_wasm_table_set(!llvm.ptr, i32, i32, !llvm.ptr)
+  func.func private @dora_fn_wasm_imported_table_size(!llvm.ptr, i32) -> i32
+  func.func private @dora_fn_wasm_imported_table_get(!llvm.ptr, i32, i32) -> !llvm.ptr
+  func.func private @dora_fn_wasm_imported_table_grow(!llvm.ptr, !llvm.ptr, i32, i32) -> i32
+  func.func private @dora_fn_wasm_memory_init(!llvm.ptr, i32, i32, i32, i32, i32)
+  func.func private @dora_fn_wasm_memory_fill(!llvm.ptr, i32, i32, i32, i32)
+  func.func private @dora_fn_wasm_memory_notify(!llvm.ptr, i32, i32, i32) -> i32
+  func.func private @dora_fn_wasm_memory_wait32(!llvm.ptr, i32, i32, i32, i64) -> i32
+  func.func private @dora_fn_wasm_memory_wait64(!llvm.ptr, i32, i32, i64, i64) -> i32
+  func.func private @dora_fn_wasm_imported_memory_copy(!llvm.ptr, i32, i32, i32, i32)
+  func.func private @dora_fn_wasm_imported_memory_fill(!llvm.ptr, i32, i32, i32, i32)
+  func.func private @dora_fn_wasm_imported_memory_notify(!llvm.ptr, i32, i32, i32) -> i32
+  func.func private @dora_fn_wasm_imported_memory_wait32(!llvm.ptr, i32, i32, i32, i64) -> i32
+  func.func private @dora_fn_wasm_imported_memory_wait64(!llvm.ptr, i32, i32, i64, i64) -> i32
+  func.func private @dora_fn_wasm_func_ref(!llvm.ptr, i32) -> !llvm.ptr
+  func.func private @dora_fn_wasm_data_drop(!llvm.ptr, i32)
+  func.func private @dora_fn_wasm_elem_drop(!llvm.ptr, i32)
+  func.func private @dora_fn_wasm_raise_trap(!llvm.ptr, i32)
+}

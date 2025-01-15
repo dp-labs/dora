@@ -10,30 +10,6 @@ use melior::{
 };
 use wasmer_types::{FunctionType, Type};
 
-/// Returns the MLIR pointer type for a given WebAssembly type.
-///
-/// This function takes a WebAssembly type (`_ty`) and returns a corresponding
-/// MLIR pointer type using the provided `WASMIntrinsics`.
-///
-/// # Parameters
-///
-/// - `intrinsics`: The WebAssembly intrinsics that provide predefined MLIR types.
-/// - `_ty`: The WebAssembly type to be mapped to an MLIR pointer type.
-///
-/// # Returns
-///
-/// - `melior::ir::Type<'c>`: The corresponding MLIR pointer type for the given WebAssembly type.
-///
-/// # Example
-///
-/// ```no_check
-/// let ptr_type = type_to_mlir_ptr(&wasm_intrinsics, Type::I32);
-/// ```
-#[inline]
-pub fn type_to_mlir_ptr<'c>(intrinsics: &WASMIntrinsics<'c>, _ty: Type) -> melior::ir::Type<'c> {
-    intrinsics.ptr_ty
-}
-
 /// Converts a WebAssembly function signature to an MLIR function type.
 ///
 /// This function maps a WebAssembly function signature (`sig`) to its corresponding

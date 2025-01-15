@@ -4,53 +4,37 @@ expression: op
 snapshot_kind: text
 ---
 module {
-  func.func @f0(%arg0: !llvm.ptr) {
+  func.func @func1(%arg0: !llvm.ptr) {
+    %0 = llvm.getelementptr %arg0[32] : (!llvm.ptr) -> !llvm.ptr, i8
+    %1 = llvm.load %0 : !llvm.ptr -> !llvm.ptr
+    %2 = llvm.getelementptr %arg0[8] : (!llvm.ptr) -> !llvm.ptr, i8
+    %3 = llvm.getelementptr %2[0] : (!llvm.ptr) -> !llvm.ptr, !llvm.ptr
+    %4 = llvm.load %3 : !llvm.ptr -> !llvm.ptr
     cf.br ^bb1
   ^bb1:  // pred: ^bb0
-    cf.br ^bb2
-  ^bb2:  // pred: ^bb1
+    %c0_i32 = arith.constant 0 : i32
+    %c0_i32_0 = arith.constant 0 : i32
+    %5 = "wasm.eq"(%c0_i32, %c0_i32_0) : (i32, i32) -> i32
+    %c0_i32_1 = arith.constant 0 : i32
+    %6 = arith.cmpi ne, %5, %c0_i32_1 : i32
+    cf.cond_br %6, ^bb3, ^bb4
+  ^bb2:  // 2 preds: ^bb3, ^bb5
     return
-  }
-  func.func @f1(%arg0: !llvm.ptr) {
-    cf.br ^bb1
-  ^bb1:  // pred: ^bb0
+  ^bb3:  // pred: ^bb1
+    %7 = llvm.load %1 : !llvm.ptr -> i32
+    %c0_i32_2 = arith.constant 0 : i32
+    %c0_i64 = arith.constant 0 : i64
+    %8 = arith.extui %7 : i32 to i64
+    %9 = arith.addi %8, %c0_i64 : i64
+    %10 = llvm.getelementptr %4[%9] : (!llvm.ptr, i64) -> !llvm.ptr, !llvm.ptr
+    %11 = arith.trunci %c0_i32_2 : i32 to i8
+    llvm.store %11, %10 : i8, !llvm.ptr
     cf.br ^bb2
-  ^bb2:  // pred: ^bb1
-    return
-  }
-  func.func @f2(%arg0: !llvm.ptr) -> i32 {
-    cf.br ^bb1
-  ^bb1:  // pred: ^bb0
-    %c13_i32 = arith.constant 13 : i32
-    cf.br ^bb2(%c13_i32 : i32)
-  ^bb2(%0: i32):  // pred: ^bb1
-    return %0 : i32
-  }
-  func.func @f3(%arg0: !llvm.ptr, %arg1: i32) -> i32 {
-    %c1_i64 = arith.constant 1 : i64
-    %0 = llvm.alloca %c1_i64 x i32 : (i64) -> !llvm.ptr
-    llvm.store %arg1, %0 : i32, !llvm.ptr
-    cf.br ^bb1
-  ^bb1:  // pred: ^bb0
-    %1 = llvm.load %0 : !llvm.ptr -> i32
-    %c1_i32 = arith.constant 1 : i32
-    %2 = "wasm.add"(%1, %c1_i32) : (i32, i32) -> i32
-    cf.br ^bb2(%2 : i32)
-  ^bb2(%3: i32):  // pred: ^bb1
-    return %3 : i32
-  }
-  func.func @f4(%arg0: !llvm.ptr, %arg1: i32) -> i32 {
-    %c1_i64 = arith.constant 1 : i64
-    %0 = llvm.alloca %c1_i64 x i32 : (i64) -> !llvm.ptr
-    llvm.store %arg1, %0 : i32, !llvm.ptr
-    cf.br ^bb1
-  ^bb1:  // pred: ^bb0
-    %1 = llvm.load %0 : !llvm.ptr -> i32
-    %c2_i32 = arith.constant 2 : i32
-    %2 = "wasm.sub"(%1, %c2_i32) : (i32, i32) -> i32
-    cf.br ^bb2(%2 : i32)
-  ^bb2(%3: i32):  // pred: ^bb1
-    return %3 : i32
+  ^bb4:  // pred: ^bb1
+    cf.br ^bb5
+  ^bb5:  // pred: ^bb4
+    %12 = llvm.load %1 : !llvm.ptr -> i32
+    cf.br ^bb2
   }
   func.func private @dora_fn_wasm_table_init(!llvm.ptr, i32, i32, i32, i32, i32)
   func.func private @dora_fn_wasm_table_fill(!llvm.ptr, i32, i32, !llvm.ptr, i32)
