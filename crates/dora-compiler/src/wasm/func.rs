@@ -8,7 +8,7 @@ use crate::context::Context;
 use crate::conversion::builder::OpBuilder;
 use crate::errors::Result;
 use crate::state::PhiValue;
-use melior::dialect::{arith, func};
+use melior::dialect::{arith, cf, func};
 use melior::ir::attribute::{StringAttribute, TypeAttribute};
 use melior::ir::{Block, Location, Operation, Region};
 use smallvec::SmallVec;
@@ -21,8 +21,6 @@ use wasmer_types::{
     LocalFunctionIndex, MemoryIndex, MemoryStyle, ModuleInfo, Symbol, SymbolRegistry, TableIndex,
     TableStyle,
 };
-
-const FUNCTION_SECTION: &str = "__TEXT,wasmer_function";
 
 /// Responsible for translating WebAssembly functions into the target intermediate representation
 /// (IR). The `FuncTranslator` struct holds the necessary context and configuration to guide
@@ -54,22 +52,9 @@ const FUNCTION_SECTION: &str = "__TEXT,wasmer_function";
 ///   construct the IR during the translation phase.
 /// - The `config` field allows users to customize the translation process, enabling or disabling
 ///   features like optimization passes and code validation.
-pub struct FuncTranslator;
+pub(crate) struct FuncTranslator;
 
 impl FuncTranslator {
-    /// Creates a new instance of the `FuncTranslator` with the default configuration.
-    ///
-    /// This constructor initializes the `FuncTranslator` with a new context and
-    /// the default configuration. It is intended for use when translating WebAssembly functions
-    /// into an MLIR-based representation.
-    ///
-    /// # Returns
-    /// A new instance of `FuncTranslator`.
-    #[inline]
-    pub fn new() -> Self {
-        Self {}
-    }
-
     /// Translates a WebAssembly function to an MLIR module.
     ///
     /// This method performs the core translation of the WebAssembly function body into
@@ -175,12 +160,22 @@ impl FuncTranslator {
                             )
                         })
                         .collect();
+                    let code_start_lock = region.append_block(Block::new(&[]));
+                    let br_op = builder.create(cf::br(
+                        &code_start_lock,
+                        &[],
+                        builder.get_insert_location(),
+                    ));
                     let return_block = region.append_block(Block::new(&phis));
                     backend.state.push_block(return_block, phis);
                     let vm_ctx = setup_block.argument(0)?;
                     let mut fcx = FunctionCodeCtx {
                         locals: params_locals,
-                        ctx: CtxType::new(vm_ctx.into(), wasm_module),
+                        ctx: CtxType::new(
+                            vm_ctx.into(),
+                            wasm_module,
+                            OpBuilder::new_with_op(&context.mlir_context, br_op),
+                        ),
                         unreachable_depth: 0,
                         memory_styles,
                         _table_styles: table_styles,
@@ -189,7 +184,7 @@ impl FuncTranslator {
                         symbol_registry,
                         config,
                     };
-                    let mut last_block = setup_block;
+                    let mut last_block = code_start_lock;
                     while backend.state.has_control_frames() {
                         let pos = reader.current_position() as u32;
                         let op = reader.read_operator()?;

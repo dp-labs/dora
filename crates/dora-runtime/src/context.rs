@@ -2445,7 +2445,7 @@ type SymbolSignature = (&'static str, *const fn() -> ());
 
 impl RuntimeContext<'_> {
     /// Registers all the syscalls as symbols in the execution engine.
-    pub fn register_symbols(engine: &ExecutionEngine) {
+    pub fn register_evm_symbols(engine: &ExecutionEngine) {
         unsafe {
             // Global variables and syscalls with corresponding function signatures
             let symbols_and_signatures: &[SymbolSignature] = &[

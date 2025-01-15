@@ -3,7 +3,7 @@ use dora_runtime::constants::env::DORA_TRACING;
 use dora_runtime::ExitStatusCode;
 use dora_runtime::{
     constants::{MAIN_ENTRYPOINT, MAX_STACK_SIZE},
-    symbols,
+    symbols as runtime_symbols,
 };
 use melior::dialect::llvm::AllocaOptions;
 use melior::{
@@ -33,7 +33,6 @@ use crate::errors::{Error as CompileError, Result};
 use crate::evm::program::Operation;
 use crate::intrinsics::Intrinsics;
 use crate::module::Module as MLIRModule;
-use crate::symbols as symbols_ctx;
 use crate::value::ToContextValue;
 use crate::Compiler;
 pub mod backend;
@@ -41,6 +40,7 @@ pub(crate) mod conversion;
 pub(crate) mod instructions;
 pub mod pass;
 pub mod program;
+pub(crate) mod symbols;
 pub use conversion::ConversionPass;
 pub use program::Program;
 
@@ -543,7 +543,7 @@ impl<'c> EVMCompiler<'c> {
                 .into();
             builder.create(func::call(
                 builder.context(),
-                FlatSymbolRefAttribute::new(builder.context(), symbols::TRACING),
+                FlatSymbolRefAttribute::new(builder.context(), runtime_symbols::TRACING),
                 &[
                     ctx.values.syscall_ctx,
                     opcode,
@@ -558,7 +558,7 @@ impl<'c> EVMCompiler<'c> {
             // FIXME : Insert an empty FFI interface to prevent inline optimization of gas registers
             builder.create(func::call(
                 builder.context(),
-                FlatSymbolRefAttribute::new(builder.context(), symbols::NOP),
+                FlatSymbolRefAttribute::new(builder.context(), runtime_symbols::NOP),
                 &[],
                 &[],
                 builder.get_insert_location(),
@@ -809,7 +809,7 @@ impl<'c> EVMCompiler<'c> {
 
         builder.create(func::call(
             builder.context(),
-            FlatSymbolRefAttribute::new(builder.context(), symbols::WRITE_RESULT),
+            FlatSymbolRefAttribute::new(builder.context(), runtime_symbols::WRITE_RESULT),
             &[ctx.values.syscall_ctx, zero, zero, gas_counter, reason],
             &[],
             builder.get_insert_location(),
@@ -1212,7 +1212,7 @@ pub fn revert_block<'c>(
 
     block.append_operation(func::call(
         context,
-        FlatSymbolRefAttribute::new(context, symbols::WRITE_RESULT),
+        FlatSymbolRefAttribute::new(context, runtime_symbols::WRITE_RESULT),
         &[syscall_ctx, zero, zero, gas_counter, reason],
         &[],
         location,
@@ -1295,7 +1295,7 @@ impl<'c> SetupBuilder<'c> {
     /// Returns an error if symbol declaration fails.
     #[inline]
     pub fn declare_symbols(&self) -> Result<&Self> {
-        symbols_ctx::declare_symbols(self.context, self.module);
+        symbols::declare_symbols(self.context, self.module);
         Ok(self)
     }
 }

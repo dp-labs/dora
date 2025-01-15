@@ -1102,43 +1102,70 @@ impl FunctionCodeGenerator {
                 let sigindex = fcx.wasm_module.functions[func_index];
                 let wasm_func_type = &fcx.wasm_module.signatures[sigindex];
                 let vm_ctx = fcx.ctx.vm_ctx;
-                let (FunctionCache { func_type }, func_name) =
-                    if let Some(local_func_index) = fcx.wasm_module.local_func_index(func_index) {
-                        let func_name = match fcx.wasm_module.function_names.get(&func_index) {
-                            Some(name) => name.to_string(),
-                            None => fcx
-                                .symbol_registry
-                                .symbol_to_name(Symbol::LocalFunction(local_func_index)),
-                        };
-                        (
-                            fcx.ctx.local_func(
-                                local_func_index,
-                                func_index,
-                                wasm_func_type,
-                                backend.ctx,
-                                &backend.intrinsics,
-                            )?,
-                            func_name,
-                        )
-                    } else {
-                        unimplemented!("wasm imported functions");
+                let import_key = fcx.ctx.get_import_function_info(function_index);
+                let (
+                    FunctionCache {
+                        func_type,
+                        func_with_vmctx,
+                    },
+                    func_name,
+                ) = if let Some(local_func_index) = fcx.wasm_module.local_func_index(func_index) {
+                    let func_name = match fcx.wasm_module.function_names.get(&func_index) {
+                        Some(name) => name.to_string(),
+                        None => fcx
+                            .symbol_registry
+                            .symbol_to_name(Symbol::LocalFunction(local_func_index)),
                     };
+                    (
+                        fcx.ctx.local_func(
+                            local_func_index,
+                            func_index,
+                            wasm_func_type,
+                            backend.ctx,
+                            &backend.intrinsics,
+                        )?,
+                        func_name,
+                    )
+                } else {
+                    (
+                        fcx.ctx.func(
+                            func_index,
+                            wasm_func_type,
+                            backend.ctx,
+                            &backend.intrinsics,
+                        )?,
+                        "".to_string(),
+                    )
+                };
                 let args = state.popn_save_extra(wasm_func_type.params().len())?;
                 let args = args.iter().map(|p| p.0).collect::<Vec<Value<'_, '_>>>();
-                let args = std::iter::once(vm_ctx)
-                    .chain(args.iter().copied())
-                    .collect::<Vec<Value<'_, '_>>>();
                 let result_count = func_type.result_count();
-                let result_types = (0..result_count)
+                let return_types = (0..result_count)
                     .map(|i| func_type.result(i).unwrap())
                     .collect::<Vec<_>>();
-                let op = builder.create(func::call(
-                    &backend.ctx.mlir_context,
-                    FlatSymbolRefAttribute::new(&backend.ctx.mlir_context, &func_name),
-                    &args,
-                    &result_types,
-                    builder.get_insert_location(),
-                ));
+                let op = if let Some((func_ptr, vm_ctx)) = func_with_vmctx {
+                    debug_assert!(return_types.len() <= 1);
+                    let args = std::iter::once(*vm_ctx)
+                        .chain(args.iter().copied())
+                        .collect::<Vec<Value<'_, '_>>>();
+                    let ret_ty = if !return_types.is_empty() {
+                        return_types[0]
+                    } else {
+                        builder.intrinsics.void_ty
+                    };
+                    builder.create(builder.indirect_call(ret_ty, *func_ptr, &args)?)
+                } else {
+                    let args = std::iter::once(vm_ctx)
+                        .chain(args.iter().copied())
+                        .collect::<Vec<Value<'_, '_>>>();
+                    builder.create(func::call(
+                        &backend.ctx.mlir_context,
+                        FlatSymbolRefAttribute::new(&backend.ctx.mlir_context, &func_name),
+                        &args,
+                        &return_types,
+                        builder.get_insert_location(),
+                    ))
+                };
                 for i in (0..result_count) {
                     let value = op.result(i)?.to_ctx_value();
                     state.push1(value);
@@ -1204,10 +1231,7 @@ impl FunctionCodeGenerator {
             }
             Operator::GlobalGet { global_index } => {
                 let global_index = GlobalIndex::from_u32(global_index);
-                match fcx
-                    .ctx
-                    .global(global_index, backend.ctx, &backend.intrinsics, block)?
-                {
+                match fcx.ctx.global(global_index, &backend.intrinsics)? {
                     GlobalCache::Const { value } => {
                         state.push1(value.to_ctx_value());
                     }
@@ -1223,10 +1247,7 @@ impl FunctionCodeGenerator {
             }
             Operator::GlobalSet { global_index } => {
                 let global_index = GlobalIndex::from_u32(global_index);
-                match fcx
-                    .ctx
-                    .global(global_index, backend.ctx, &backend.intrinsics, block)?
-                {
+                match fcx.ctx.global(global_index, &backend.intrinsics)? {
                     GlobalCache::Const { value: _ } => {
                         return Err(CompileError::Codegen(format!(
                             "global.set on immutable global index {}",
@@ -2558,13 +2579,15 @@ impl FunctionCodeGenerator {
                 let memory_index = MemoryIndex::from_u32(memarg.memory);
                 let (dst, val) = state.pop2()?;
                 let memory = builder.make(builder.iconst_32(memarg.memory as i32))?;
+                let symbol = if fcx.wasm_module.local_memory_index(memory_index).is_some() {
+                    symbols::wasm::MEMORY_WAIT32
+                } else {
+                    symbols::wasm::IMPORTED_MEMORY_WAIT32
+                };
                 let value = builder
                     .make(func::call(
                         &backend.ctx.mlir_context,
-                        FlatSymbolRefAttribute::new(
-                            &backend.ctx.mlir_context,
-                            symbols::wasm::MEMORY_WAIT32,
-                        ),
+                        FlatSymbolRefAttribute::new(&backend.ctx.mlir_context, symbol),
                         &[fcx.ctx.vm_ctx, memory, dst, val],
                         &[builder.ptr_ty()],
                         builder.get_insert_location(),
@@ -2576,13 +2599,15 @@ impl FunctionCodeGenerator {
                 let memory_index = MemoryIndex::from_u32(memarg.memory);
                 let (dst, val) = state.pop2()?;
                 let memory = builder.make(builder.iconst_32(memarg.memory as i32))?;
+                let symbol = if fcx.wasm_module.local_memory_index(memory_index).is_some() {
+                    symbols::wasm::MEMORY_WAIT64
+                } else {
+                    symbols::wasm::IMPORTED_MEMORY_WAIT64
+                };
                 let value = builder
                     .make(func::call(
                         &backend.ctx.mlir_context,
-                        FlatSymbolRefAttribute::new(
-                            &backend.ctx.mlir_context,
-                            symbols::wasm::MEMORY_WAIT64,
-                        ),
+                        FlatSymbolRefAttribute::new(&backend.ctx.mlir_context, symbol),
                         &[fcx.ctx.vm_ctx, memory, dst, val],
                         &[builder.ptr_ty()],
                         builder.get_insert_location(),
@@ -3146,11 +3171,8 @@ impl FunctionCodeGenerator {
             } => {
                 let sigindex = SignatureIndex::from_u32(type_index);
                 let func_type = &fcx.wasm_module.signatures[sigindex];
-                let expected_dynamic_sigindex =
-                    fcx.ctx.dynamic_sigindex(sigindex, backend.ctx, block)?;
-                let (table_base, table_bound) =
-                    fcx.ctx
-                        .table(TableIndex::from_u32(table_index), backend.ctx, block)?;
+                let expected_dynamic_sigindex = fcx.ctx.dynamic_sigindex(sigindex)?;
+                let (table_base, table_bound) = fcx.ctx.table(TableIndex::from_u32(table_index))?;
                 let func_index = state.pop1()?;
 
                 // TODO: check if the index is outside of the table bounds.
@@ -3205,29 +3227,20 @@ impl FunctionCodeGenerator {
 
                 let mlir_func_type = func_type_to_mlir(backend.ctx, &backend.intrinsics, func_type);
 
-                let param_types = func_type
-                    .params()
-                    .iter()
-                    .map(|ty| type_to_mlir(&backend.intrinsics, ty))
-                    .collect::<Vec<Type>>();
-                let param_types = std::iter::once(&backend.intrinsics.ptr_ty)
-                    .chain(&param_types)
-                    .cloned()
-                    .collect::<Vec<Type>>();
                 let return_types = func_type
                     .results()
                     .iter()
                     .map(|ty| type_to_mlir(&backend.intrinsics, ty))
                     .collect::<Vec<Type>>();
-                debug_assert!(return_types.len() == 1);
+                debug_assert!(return_types.len() <= 1);
+                let ret_ty = if !return_types.is_empty() {
+                    return_types[0]
+                } else {
+                    builder.intrinsics.void_ty
+                };
                 let args = state.popn_save_extra(func_type.params().len())?;
                 let args = args.iter().map(|p| p.0).collect::<Vec<Value<'_, '_>>>();
-                let result = builder.make(builder.indirect_call(
-                    return_types[0],
-                    &param_types,
-                    func_ptr,
-                    &args,
-                )?)?;
+                let result = builder.make(builder.indirect_call(ret_ty, func_ptr, &args)?)?;
                 state.push1(result.to_ctx_value());
             }
             _ => {
@@ -3295,10 +3308,7 @@ impl FunctionCodeGenerator {
         };
         let offset = builder.make(arith::addi(var_offset, imm_offset, location))?;
         // Look up the memory base (as pointer) and bounds (as unsigned integer).
-        let base_ptr = match fcx
-            .ctx
-            .memory(memory_index, fcx.memory_styles, ctx, block)?
-        {
+        let base_ptr = match fcx.ctx.memory(memory_index, fcx.memory_styles)? {
             MemoryCache::Dynamic {
                 ptr_to_base_ptr,
                 ptr_to_current_length,

@@ -908,7 +908,6 @@ impl<'c, 'a> OpBuilder<'c, 'a> {
     pub fn indirect_call(
         &self,
         ret_ty: Type<'c>,
-        _args_types: &[Type<'c>],
         func_ptr: Val<'c, 'a>,
         args: &[Val<'c, 'a>],
     ) -> Result<Op<'c, '_>> {

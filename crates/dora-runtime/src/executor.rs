@@ -55,7 +55,7 @@ impl Executor {
     /// ```
     pub fn new(module: &Module, opt_level: OptimizationLevel) -> Self {
         let engine = ExecutionEngine::new(module, opt_level as usize, &[], false);
-        RuntimeContext::register_symbols(&engine);
+        RuntimeContext::register_evm_symbols(&engine);
         Self { engine }
     }
 
