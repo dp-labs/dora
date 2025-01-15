@@ -1026,8 +1026,8 @@ impl Program {
 
     /// Gets `operations` field.
     #[inline]
-    pub fn operations(&self) -> Vec<Operation> {
-        self.operations.clone()
+    pub fn operations(&self) -> &[Operation] {
+        self.operations.as_ref()
     }
 
     /// Gets `code_size` field.
@@ -1094,6 +1094,7 @@ impl Program {
         let section_ptr = code[section].as_ptr();
         section_ptr as usize - first as usize
     }
+
 
     /// Returns the operation index of the given EOF section index.
     pub fn eof_section_index(&self, section: usize) -> usize {

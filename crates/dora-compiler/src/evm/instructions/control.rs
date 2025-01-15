@@ -176,6 +176,7 @@ impl<'c> EVMCompiler<'c> {
         Ok((start_block, empty_block))
     }
 
+    /// Deals `CALLF` and `JUMPF` instruction.
     pub(crate) fn callf_common<'r>(
         ctx: &mut CtxType<'c>,
         region: &'r Region<'c>,
@@ -221,13 +222,13 @@ impl<'c> EVMCompiler<'c> {
             &[],
             builder.get_insert_location(),
         ));
-        // TODO: runtime function stack
+        // TODO : runtime function stack
         if is_jumpf {
             // function stack push
         } else {
             // call function stack push
         }
-        // TODO: direct jump to the op block.
+        // TODO : direct jump to the op block
         let op_index = ctx.program.eof_section_index(target_section_index as usize);
         let op_block = ctx.operation_blocks[op_index];
         builder.create(cf::br(&op_block, &[], builder.get_insert_location()));
