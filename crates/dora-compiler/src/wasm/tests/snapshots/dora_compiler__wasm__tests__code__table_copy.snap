@@ -65,21 +65,27 @@ module {
   ^bb1:  // pred: ^bb0
     %7 = llvm.load %0 : !llvm.ptr -> i32
     %8 = arith.cmpi ult, %7, %6 : i32
-    %9 = llvm.getelementptr %5[%7] : (!llvm.ptr, i32) -> !llvm.ptr, !llvm.ptr
-    %10 = llvm.load %9 : !llvm.ptr -> !llvm.ptr
-    %11 = llvm.getelementptr %10[0] : (!llvm.ptr) -> !llvm.ptr, i8
-    %12 = llvm.getelementptr %10[8] : (!llvm.ptr) -> !llvm.ptr, i8
-    %13 = llvm.getelementptr %10[16] : (!llvm.ptr) -> !llvm.ptr, i8
-    %14 = llvm.load %11 : !llvm.ptr -> !llvm.ptr
-    %15 = llvm.load %12 : !llvm.ptr -> i32
-    %16 = llvm.load %13 : !llvm.ptr -> !llvm.ptr
-    %17 = llvm.load %14 : !llvm.ptr -> i32
+    cf.cond_br %8, ^bb3, ^bb4
+  ^bb2(%9: i32):  // pred: ^bb3
+    return %9 : i32
+  ^bb3:  // 2 preds: ^bb1, ^bb4
+    %10 = llvm.getelementptr %5[%7] : (!llvm.ptr, i32) -> !llvm.ptr, !llvm.ptr
+    %11 = llvm.load %10 : !llvm.ptr -> !llvm.ptr
+    %12 = llvm.getelementptr %11[0] : (!llvm.ptr) -> !llvm.ptr, i8
+    %13 = llvm.getelementptr %11[8] : (!llvm.ptr) -> !llvm.ptr, i8
+    %14 = llvm.getelementptr %11[16] : (!llvm.ptr) -> !llvm.ptr, i8
+    %15 = llvm.load %12 : !llvm.ptr -> !llvm.ptr
+    %16 = llvm.load %13 : !llvm.ptr -> i32
+    %17 = llvm.load %14 : !llvm.ptr -> !llvm.ptr
+    %18 = llvm.load %15 : !llvm.ptr -> i32
     %c0_i32 = arith.constant 0 : i32
-    %18 = arith.cmpi eq, %17, %c0_i32 : i32
-    %19 = llvm.call %14() vararg(!llvm.func<i32 (...)>) : !llvm.ptr, () -> i32
-    cf.br ^bb2(%19 : i32)
-  ^bb2(%20: i32):  // pred: ^bb1
-    return %20 : i32
+    %19 = arith.cmpi eq, %18, %c0_i32 : i32
+    %20 = llvm.call %15() vararg(!llvm.func<i32 (...)>) : !llvm.ptr, () -> i32
+    cf.br ^bb2(%20 : i32)
+  ^bb4:  // pred: ^bb1
+    %c3_i32 = arith.constant 3 : i32
+    call @dora_fn_wasm_raise_trap(%c3_i32) : (i32) -> ()
+    cf.br ^bb3
   }
   func.func @f7(%arg0: !llvm.ptr, %arg1: i32) -> i32 {
     %c1_i64 = arith.constant 1 : i64
@@ -95,21 +101,27 @@ module {
   ^bb1:  // pred: ^bb0
     %7 = llvm.load %0 : !llvm.ptr -> i32
     %8 = arith.cmpi ult, %7, %6 : i32
-    %9 = llvm.getelementptr %5[%7] : (!llvm.ptr, i32) -> !llvm.ptr, !llvm.ptr
-    %10 = llvm.load %9 : !llvm.ptr -> !llvm.ptr
-    %11 = llvm.getelementptr %10[0] : (!llvm.ptr) -> !llvm.ptr, i8
-    %12 = llvm.getelementptr %10[8] : (!llvm.ptr) -> !llvm.ptr, i8
-    %13 = llvm.getelementptr %10[16] : (!llvm.ptr) -> !llvm.ptr, i8
-    %14 = llvm.load %11 : !llvm.ptr -> !llvm.ptr
-    %15 = llvm.load %12 : !llvm.ptr -> i32
-    %16 = llvm.load %13 : !llvm.ptr -> !llvm.ptr
-    %17 = llvm.load %14 : !llvm.ptr -> i32
+    cf.cond_br %8, ^bb3, ^bb4
+  ^bb2(%9: i32):  // pred: ^bb3
+    return %9 : i32
+  ^bb3:  // 2 preds: ^bb1, ^bb4
+    %10 = llvm.getelementptr %5[%7] : (!llvm.ptr, i32) -> !llvm.ptr, !llvm.ptr
+    %11 = llvm.load %10 : !llvm.ptr -> !llvm.ptr
+    %12 = llvm.getelementptr %11[0] : (!llvm.ptr) -> !llvm.ptr, i8
+    %13 = llvm.getelementptr %11[8] : (!llvm.ptr) -> !llvm.ptr, i8
+    %14 = llvm.getelementptr %11[16] : (!llvm.ptr) -> !llvm.ptr, i8
+    %15 = llvm.load %12 : !llvm.ptr -> !llvm.ptr
+    %16 = llvm.load %13 : !llvm.ptr -> i32
+    %17 = llvm.load %14 : !llvm.ptr -> !llvm.ptr
+    %18 = llvm.load %15 : !llvm.ptr -> i32
     %c0_i32 = arith.constant 0 : i32
-    %18 = arith.cmpi eq, %17, %c0_i32 : i32
-    %19 = llvm.call %14() vararg(!llvm.func<i32 (...)>) : !llvm.ptr, () -> i32
-    cf.br ^bb2(%19 : i32)
-  ^bb2(%20: i32):  // pred: ^bb1
-    return %20 : i32
+    %19 = arith.cmpi eq, %18, %c0_i32 : i32
+    %20 = llvm.call %15() vararg(!llvm.func<i32 (...)>) : !llvm.ptr, () -> i32
+    cf.br ^bb2(%20 : i32)
+  ^bb4:  // pred: ^bb1
+    %c3_i32 = arith.constant 3 : i32
+    call @dora_fn_wasm_raise_trap(%c3_i32) : (i32) -> ()
+    cf.br ^bb3
   }
   func.func private @dora_fn_wasm_table_init(!llvm.ptr, i32, i32, i32, i32, i32)
   func.func private @dora_fn_wasm_table_fill(!llvm.ptr, i32, i32, !llvm.ptr, i32)
@@ -132,5 +144,5 @@ module {
   func.func private @dora_fn_wasm_func_ref(!llvm.ptr, i32) -> !llvm.ptr
   func.func private @dora_fn_wasm_data_drop(!llvm.ptr, i32)
   func.func private @dora_fn_wasm_elem_drop(!llvm.ptr, i32)
-  func.func private @dora_fn_wasm_raise_trap(!llvm.ptr, i32)
+  func.func private @dora_fn_wasm_raise_trap(i32)
 }
