@@ -1,6 +1,6 @@
 use crate::{
-    context::{MainFunc, RuntimeContext, Stack},
-    executor::Executor,
+    context::{EVMMainFunc, RuntimeContext, Stack, WASMMainFunc},
+    executor::{ExecuteKind, Executor},
 };
 use std::fmt::Debug;
 
@@ -54,7 +54,7 @@ pub struct SymbolArtifact {
     /// An instance of the Executor that produced this artifact.
     /// This field ensures that the Executor is kept alive as long as the SymbolArtifact exists,
     /// preventing the compiled code from being deallocated prematurely from the memory.
-    _executor: Executor,
+    executor: Executor,
 }
 
 impl Artifact for SymbolArtifact {
@@ -71,7 +71,7 @@ impl Artifact for SymbolArtifact {
     fn new(executor: Executor) -> Self {
         Self {
             entry_ptr: executor.get_main_entrypoint_ptr() as usize,
-            _executor: executor,
+            executor,
         }
     }
 
@@ -99,8 +99,18 @@ impl Artifact for SymbolArtifact {
         stack: &mut Stack,
         stack_size: &mut u64,
     ) -> u8 {
-        let ptr = self.entry_ptr as *mut ();
-        let func: MainFunc = unsafe { std::mem::transmute(ptr) };
-        func(runtime_context, initial_gas, stack, stack_size)
+        match self.executor.kind {
+            ExecuteKind::EVM => {
+                let ptr = self.entry_ptr as *mut ();
+                let func: EVMMainFunc = unsafe { std::mem::transmute(ptr) };
+                func(runtime_context, initial_gas, stack, stack_size)
+            }
+            ExecuteKind::WASM(vm_ctx) => {
+                let ptr = self.entry_ptr as *mut ();
+                let func: WASMMainFunc = unsafe { std::mem::transmute(ptr) };
+                func(vm_ctx);
+                0
+            }
+        }
     }
 }

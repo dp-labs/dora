@@ -9,9 +9,10 @@ use crate::conversion::builder::OpBuilder;
 use crate::errors::Result;
 use crate::state::PhiValue;
 use melior::dialect::{arith, cf, func};
-use melior::ir::attribute::{StringAttribute, TypeAttribute};
-use melior::ir::{Block, Location, Operation, Region};
+use melior::ir::attribute::{Attribute, StringAttribute, TypeAttribute};
+use melior::ir::{Block, Identifier, Location, Operation, Region};
 use smallvec::SmallVec;
+use wasmer::ExportIndex;
 use wasmer_compiler::{
     wptype_to_type, FunctionBinaryReader, FunctionBodyData, MiddlewareBinaryReader,
     ModuleMiddlewareChain, ModuleTranslationState,
@@ -86,9 +87,27 @@ impl FuncTranslator {
         symbol_registry: &'c dyn SymbolRegistry,
     ) -> Result<Operation<'c>> {
         let func_index = wasm_module.func_index(*local_func_index);
+        let mut is_export_function = false;
         let function_name = match wasm_module.function_names.get(&func_index) {
             Some(name) => name.to_string(),
-            None => symbol_registry.symbol_to_name(Symbol::LocalFunction(*local_func_index)),
+            None => {
+                // Find name in export functions
+                let mut ret_name = String::new();
+                for (name, export_index) in &wasm_module.exports {
+                    if let ExportIndex::Function(index) = export_index {
+                        if *index == func_index {
+                            ret_name = name.clone();
+                            is_export_function = true;
+                            break;
+                        }
+                    }
+                }
+                if !ret_name.is_empty() {
+                    ret_name
+                } else {
+                    symbol_registry.symbol_to_name(Symbol::LocalFunction(*local_func_index))
+                }
+            }
         };
         let wasm_fn_type = wasm_module
             .signatures
@@ -202,7 +221,20 @@ impl FuncTranslator {
                 }
                 region
             },
-            &[],
+            &if is_export_function {
+                vec![
+                    (
+                        Identifier::new(&context.mlir_context, "sym_visibility"),
+                        StringAttribute::new(&context.mlir_context, "public").into(),
+                    ),
+                    (
+                        Identifier::new(&context.mlir_context, "llvm.emit_c_interface"),
+                        Attribute::unit(&context.mlir_context),
+                    ),
+                ]
+            } else {
+                vec![]
+            },
             intrinsics.unknown_loc,
         );
         Ok(func)

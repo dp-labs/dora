@@ -41,7 +41,7 @@ module {
   ^bb2:  // pred: ^bb1
     return
   }
-  func.func @f3(%arg0: !llvm.ptr, %arg1: !llvm.ptr) {
+  func.func public @init(%arg0: !llvm.ptr, %arg1: !llvm.ptr) attributes {llvm.emit_c_interface} {
     %c1_i64 = arith.constant 1 : i64
     %0 = llvm.alloca %c1_i64 x !llvm.ptr : (i64) -> !llvm.ptr
     llvm.store %arg1, %0 : !llvm.ptr, !llvm.ptr
@@ -55,7 +55,7 @@ module {
   ^bb2:  // pred: ^bb1
     return
   }
-  func.func @f4(%arg0: !llvm.ptr) {
+  func.func public @deinit(%arg0: !llvm.ptr) attributes {llvm.emit_c_interface} {
     cf.br ^bb1
   ^bb1:  // pred: ^bb0
     %c1_i32 = arith.constant 1 : i32
@@ -70,7 +70,7 @@ module {
   ^bb2:  // pred: ^bb1
     return
   }
-  func.func @f5(%arg0: !llvm.ptr, %arg1: i32) -> i32 {
+  func.func public @"funcref-elem"(%arg0: !llvm.ptr, %arg1: i32) -> i32 attributes {llvm.emit_c_interface} {
     %c1_i64 = arith.constant 1 : i64
     %0 = llvm.alloca %c1_i64 x i32 : (i64) -> !llvm.ptr
     llvm.store %arg1, %0 : i32, !llvm.ptr
@@ -85,7 +85,7 @@ module {
   ^bb2(%5: i32):  // pred: ^bb1
     return %5 : i32
   }
-  func.func @f6(%arg0: !llvm.ptr, %arg1: i32) -> i32 {
+  func.func public @"externref-elem"(%arg0: !llvm.ptr, %arg1: i32) -> i32 attributes {llvm.emit_c_interface} {
     %c1_i64 = arith.constant 1 : i64
     %0 = llvm.alloca %c1_i64 x i32 : (i64) -> !llvm.ptr
     llvm.store %arg1, %0 : i32, !llvm.ptr

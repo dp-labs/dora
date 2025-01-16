@@ -32,7 +32,7 @@ module {
   ^bb2(%8: i32):  // pred: ^bb1
     return %8 : i32
   }
-  func.func @f2(%arg0: !llvm.ptr) -> i32 {
+  func.func public @"as-func-first"(%arg0: !llvm.ptr) -> i32 attributes {llvm.emit_c_interface} {
     cf.br ^bb1
   ^bb1:  // pred: ^bb0
     %c1_i32 = arith.constant 1 : i32
@@ -40,7 +40,7 @@ module {
   ^bb2(%0: i32):  // pred: ^bb1
     return %0 : i32
   }
-  func.func @f3(%arg0: !llvm.ptr) -> i32 {
+  func.func public @"as-func-mid"(%arg0: !llvm.ptr) -> i32 attributes {llvm.emit_c_interface} {
     cf.br ^bb1
   ^bb1:  // pred: ^bb0
     call @dummy(%arg0) : (!llvm.ptr) -> ()
@@ -49,7 +49,7 @@ module {
   ^bb2(%0: i32):  // pred: ^bb1
     return %0 : i32
   }
-  func.func @f4(%arg0: !llvm.ptr) -> i32 {
+  func.func public @"as-func-last"(%arg0: !llvm.ptr) -> i32 attributes {llvm.emit_c_interface} {
     cf.br ^bb1
   ^bb1:  // pred: ^bb0
     call @dummy(%arg0) : (!llvm.ptr) -> ()
@@ -58,7 +58,7 @@ module {
   ^bb2(%0: i32):  // pred: ^bb1
     return %0 : i32
   }
-  func.func @f5(%arg0: !llvm.ptr) -> i32 {
+  func.func public @"as-func-everywhere"(%arg0: !llvm.ptr) -> i32 attributes {llvm.emit_c_interface} {
     cf.br ^bb1
   ^bb1:  // pred: ^bb0
     call @dummy(%arg0) : (!llvm.ptr) -> ()
@@ -67,7 +67,7 @@ module {
   ^bb2(%0: i32):  // pred: ^bb1
     return %0 : i32
   }
-  func.func @f6(%arg0: !llvm.ptr, %arg1: i32) {
+  func.func public @"as-drop-first"(%arg0: !llvm.ptr, %arg1: i32) attributes {llvm.emit_c_interface} {
     %c1_i64 = arith.constant 1 : i64
     %0 = llvm.alloca %c1_i64 x i32 : (i64) -> !llvm.ptr
     llvm.store %arg1, %0 : i32, !llvm.ptr
@@ -78,7 +78,7 @@ module {
   ^bb2:  // pred: ^bb1
     return
   }
-  func.func @f7(%arg0: !llvm.ptr, %arg1: i32) {
+  func.func public @"as-drop-last"(%arg0: !llvm.ptr, %arg1: i32) attributes {llvm.emit_c_interface} {
     %c1_i64 = arith.constant 1 : i64
     %0 = llvm.alloca %c1_i64 x i32 : (i64) -> !llvm.ptr
     llvm.store %arg1, %0 : i32, !llvm.ptr
@@ -89,7 +89,7 @@ module {
   ^bb2:  // pred: ^bb1
     return
   }
-  func.func @f8(%arg0: !llvm.ptr, %arg1: i32) {
+  func.func public @"as-drop-everywhere"(%arg0: !llvm.ptr, %arg1: i32) attributes {llvm.emit_c_interface} {
     %c1_i64 = arith.constant 1 : i64
     %0 = llvm.alloca %c1_i64 x i32 : (i64) -> !llvm.ptr
     llvm.store %arg1, %0 : i32, !llvm.ptr
@@ -100,7 +100,7 @@ module {
   ^bb2:  // pred: ^bb1
     return
   }
-  func.func @f9(%arg0: !llvm.ptr, %arg1: i32) -> i32 {
+  func.func public @"as-select-first"(%arg0: !llvm.ptr, %arg1: i32) -> i32 attributes {llvm.emit_c_interface} {
     %c1_i64 = arith.constant 1 : i64
     %0 = llvm.alloca %c1_i64 x i32 : (i64) -> !llvm.ptr
     llvm.store %arg1, %0 : i32, !llvm.ptr
@@ -114,7 +114,7 @@ module {
   ^bb2(%5: i32):  // pred: ^bb1
     return %5 : i32
   }
-  func.func @f10(%arg0: !llvm.ptr, %arg1: i32) -> i32 {
+  func.func public @"as-select-mid1"(%arg0: !llvm.ptr, %arg1: i32) -> i32 attributes {llvm.emit_c_interface} {
     %c1_i64 = arith.constant 1 : i64
     %0 = llvm.alloca %c1_i64 x i32 : (i64) -> !llvm.ptr
     llvm.store %arg1, %0 : i32, !llvm.ptr
@@ -128,7 +128,7 @@ module {
   ^bb2(%5: i32):  // pred: ^bb1
     return %5 : i32
   }
-  func.func @f11(%arg0: !llvm.ptr, %arg1: i32) -> i32 {
+  func.func public @"as-select-mid2"(%arg0: !llvm.ptr, %arg1: i32) -> i32 attributes {llvm.emit_c_interface} {
     %c1_i64 = arith.constant 1 : i64
     %0 = llvm.alloca %c1_i64 x i32 : (i64) -> !llvm.ptr
     llvm.store %arg1, %0 : i32, !llvm.ptr
@@ -142,7 +142,7 @@ module {
   ^bb2(%5: i32):  // pred: ^bb1
     return %5 : i32
   }
-  func.func @f12(%arg0: !llvm.ptr, %arg1: i32) -> i32 {
+  func.func public @"as-select-last"(%arg0: !llvm.ptr, %arg1: i32) -> i32 attributes {llvm.emit_c_interface} {
     %c1_i64 = arith.constant 1 : i64
     %0 = llvm.alloca %c1_i64 x i32 : (i64) -> !llvm.ptr
     llvm.store %arg1, %0 : i32, !llvm.ptr
@@ -156,7 +156,7 @@ module {
   ^bb2(%5: i32):  // pred: ^bb1
     return %5 : i32
   }
-  func.func @f13(%arg0: !llvm.ptr, %arg1: i32) -> i32 {
+  func.func public @"as-select-everywhere"(%arg0: !llvm.ptr, %arg1: i32) -> i32 attributes {llvm.emit_c_interface} {
     %c1_i64 = arith.constant 1 : i64
     %0 = llvm.alloca %c1_i64 x i32 : (i64) -> !llvm.ptr
     llvm.store %arg1, %0 : i32, !llvm.ptr
@@ -170,7 +170,7 @@ module {
   ^bb2(%5: i32):  // pred: ^bb1
     return %5 : i32
   }
-  func.func @f14(%arg0: !llvm.ptr) -> i32 {
+  func.func public @"as-block-first"(%arg0: !llvm.ptr) -> i32 attributes {llvm.emit_c_interface} {
     cf.br ^bb1
   ^bb1:  // pred: ^bb0
     %c2_i32 = arith.constant 2 : i32
@@ -180,7 +180,7 @@ module {
   ^bb3(%1: i32):  // pred: ^bb1
     cf.br ^bb2(%1 : i32)
   }
-  func.func @f15(%arg0: !llvm.ptr) -> i32 {
+  func.func public @"as-block-mid"(%arg0: !llvm.ptr) -> i32 attributes {llvm.emit_c_interface} {
     cf.br ^bb1
   ^bb1:  // pred: ^bb0
     call @dummy(%arg0) : (!llvm.ptr) -> ()
@@ -191,7 +191,7 @@ module {
   ^bb3(%1: i32):  // pred: ^bb1
     cf.br ^bb2(%1 : i32)
   }
-  func.func @f16(%arg0: !llvm.ptr) -> i32 {
+  func.func public @"as-block-last"(%arg0: !llvm.ptr) -> i32 attributes {llvm.emit_c_interface} {
     cf.br ^bb1
   ^bb1:  // pred: ^bb0
     call @dummy(%arg0) : (!llvm.ptr) -> ()
@@ -202,7 +202,7 @@ module {
   ^bb3(%1: i32):  // pred: ^bb1
     cf.br ^bb2(%1 : i32)
   }
-  func.func @f17(%arg0: !llvm.ptr) -> i32 {
+  func.func public @"as-block-everywhere"(%arg0: !llvm.ptr) -> i32 attributes {llvm.emit_c_interface} {
     cf.br ^bb1
   ^bb1:  // pred: ^bb0
     call @dummy(%arg0) : (!llvm.ptr) -> ()
@@ -213,7 +213,7 @@ module {
   ^bb3(%1: i32):  // pred: ^bb1
     cf.br ^bb2(%1 : i32)
   }
-  func.func @f18(%arg0: !llvm.ptr) -> i32 {
+  func.func public @"as-loop-first"(%arg0: !llvm.ptr) -> i32 attributes {llvm.emit_c_interface} {
     cf.br ^bb1
   ^bb1:  // pred: ^bb0
     cf.br ^bb4
@@ -225,7 +225,7 @@ module {
     %c2_i32 = arith.constant 2 : i32
     cf.br ^bb3(%c2_i32 : i32)
   }
-  func.func @f19(%arg0: !llvm.ptr) -> i32 {
+  func.func public @"as-loop-mid"(%arg0: !llvm.ptr) -> i32 attributes {llvm.emit_c_interface} {
     cf.br ^bb1
   ^bb1:  // pred: ^bb0
     cf.br ^bb4
@@ -238,7 +238,7 @@ module {
     %c2_i32 = arith.constant 2 : i32
     cf.br ^bb3(%c2_i32 : i32)
   }
-  func.func @f20(%arg0: !llvm.ptr) -> i32 {
+  func.func public @"as-loop-last"(%arg0: !llvm.ptr) -> i32 attributes {llvm.emit_c_interface} {
     cf.br ^bb1
   ^bb1:  // pred: ^bb0
     cf.br ^bb4
@@ -251,7 +251,7 @@ module {
     %c3_i32 = arith.constant 3 : i32
     cf.br ^bb3(%c3_i32 : i32)
   }
-  func.func @f21(%arg0: !llvm.ptr) -> i32 {
+  func.func public @"as-loop-everywhere"(%arg0: !llvm.ptr) -> i32 attributes {llvm.emit_c_interface} {
     cf.br ^bb1
   ^bb1:  // pred: ^bb0
     cf.br ^bb4
@@ -264,7 +264,7 @@ module {
     %c4_i32 = arith.constant 4 : i32
     cf.br ^bb3(%c4_i32 : i32)
   }
-  func.func @f22(%arg0: !llvm.ptr, %arg1: i32) {
+  func.func public @"as-if-condition"(%arg0: !llvm.ptr, %arg1: i32) attributes {llvm.emit_c_interface} {
     %c1_i64 = arith.constant 1 : i64
     %0 = llvm.alloca %c1_i64 x i32 : (i64) -> !llvm.ptr
     llvm.store %arg1, %0 : i32, !llvm.ptr
@@ -284,7 +284,7 @@ module {
   ^bb5:  // 2 preds: ^bb3, ^bb4
     cf.br ^bb2
   }
-  func.func @f23(%arg0: !llvm.ptr, %arg1: i32) {
+  func.func public @"as-if-then"(%arg0: !llvm.ptr, %arg1: i32) attributes {llvm.emit_c_interface} {
     %c1_i64 = arith.constant 1 : i64
     %0 = llvm.alloca %c1_i64 x i32 : (i64) -> !llvm.ptr
     llvm.store %arg1, %0 : i32, !llvm.ptr
@@ -304,7 +304,7 @@ module {
   ^bb5:  // 2 preds: ^bb3, ^bb4
     cf.br ^bb2
   }
-  func.func @f24(%arg0: !llvm.ptr, %arg1: i32) {
+  func.func public @"as-if-else"(%arg0: !llvm.ptr, %arg1: i32) attributes {llvm.emit_c_interface} {
     %c1_i64 = arith.constant 1 : i64
     %0 = llvm.alloca %c1_i64 x i32 : (i64) -> !llvm.ptr
     llvm.store %arg1, %0 : i32, !llvm.ptr
@@ -324,7 +324,7 @@ module {
   ^bb5:  // 2 preds: ^bb3, ^bb4
     cf.br ^bb2
   }
-  func.func @f25(%arg0: !llvm.ptr, %arg1: i32) -> i32 {
+  func.func public @"as-br-first"(%arg0: !llvm.ptr, %arg1: i32) -> i32 attributes {llvm.emit_c_interface} {
     %c1_i64 = arith.constant 1 : i64
     %0 = llvm.alloca %c1_i64 x i32 : (i64) -> !llvm.ptr
     llvm.store %arg1, %0 : i32, !llvm.ptr
@@ -337,7 +337,7 @@ module {
   ^bb3(%3: i32):  // pred: ^bb1
     cf.br ^bb2(%3 : i32)
   }
-  func.func @f26(%arg0: !llvm.ptr, %arg1: i32) -> i32 {
+  func.func public @"as-br-last"(%arg0: !llvm.ptr, %arg1: i32) -> i32 attributes {llvm.emit_c_interface} {
     %c1_i64 = arith.constant 1 : i64
     %0 = llvm.alloca %c1_i64 x i32 : (i64) -> !llvm.ptr
     llvm.store %arg1, %0 : i32, !llvm.ptr
@@ -350,7 +350,7 @@ module {
   ^bb3(%3: i32):  // pred: ^bb1
     cf.br ^bb2(%3 : i32)
   }
-  func.func @f27(%arg0: !llvm.ptr, %arg1: i32) -> i32 {
+  func.func public @"as-br-everywhere"(%arg0: !llvm.ptr, %arg1: i32) -> i32 attributes {llvm.emit_c_interface} {
     %c1_i64 = arith.constant 1 : i64
     %0 = llvm.alloca %c1_i64 x i32 : (i64) -> !llvm.ptr
     llvm.store %arg1, %0 : i32, !llvm.ptr
@@ -363,7 +363,7 @@ module {
   ^bb3(%3: i32):  // pred: ^bb1
     cf.br ^bb2(%3 : i32)
   }
-  func.func @f28(%arg0: !llvm.ptr, %arg1: i32) -> i32 {
+  func.func public @"as-br_if-first"(%arg0: !llvm.ptr, %arg1: i32) -> i32 attributes {llvm.emit_c_interface} {
     %c1_i64 = arith.constant 1 : i64
     %0 = llvm.alloca %c1_i64 x i32 : (i64) -> !llvm.ptr
     llvm.store %arg1, %0 : i32, !llvm.ptr
@@ -381,7 +381,7 @@ module {
   ^bb4(%6: i32):  // pred: ^bb1
     cf.br ^bb3(%1 : i32)
   }
-  func.func @f29(%arg0: !llvm.ptr, %arg1: i32) -> i32 {
+  func.func public @"as-br_if-mid"(%arg0: !llvm.ptr, %arg1: i32) -> i32 attributes {llvm.emit_c_interface} {
     %c1_i64 = arith.constant 1 : i64
     %0 = llvm.alloca %c1_i64 x i32 : (i64) -> !llvm.ptr
     llvm.store %arg1, %0 : i32, !llvm.ptr
@@ -399,7 +399,7 @@ module {
   ^bb4(%6: i32):  // pred: ^bb1
     cf.br ^bb3(%1 : i32)
   }
-  func.func @f30(%arg0: !llvm.ptr, %arg1: i32) -> i32 {
+  func.func public @"as-br_if-last"(%arg0: !llvm.ptr, %arg1: i32) -> i32 attributes {llvm.emit_c_interface} {
     %c1_i64 = arith.constant 1 : i64
     %0 = llvm.alloca %c1_i64 x i32 : (i64) -> !llvm.ptr
     llvm.store %arg1, %0 : i32, !llvm.ptr
@@ -417,7 +417,7 @@ module {
   ^bb4(%6: i32):  // pred: ^bb1
     cf.br ^bb3(%1 : i32)
   }
-  func.func @f31(%arg0: !llvm.ptr, %arg1: i32) -> i32 {
+  func.func public @"as-br_if-everywhere"(%arg0: !llvm.ptr, %arg1: i32) -> i32 attributes {llvm.emit_c_interface} {
     %c1_i64 = arith.constant 1 : i64
     %0 = llvm.alloca %c1_i64 x i32 : (i64) -> !llvm.ptr
     llvm.store %arg1, %0 : i32, !llvm.ptr
@@ -435,7 +435,7 @@ module {
   ^bb4(%6: i32):  // pred: ^bb1
     cf.br ^bb3(%1 : i32)
   }
-  func.func @f32(%arg0: !llvm.ptr, %arg1: i32) -> i32 {
+  func.func public @"as-br_table-first"(%arg0: !llvm.ptr, %arg1: i32) -> i32 attributes {llvm.emit_c_interface} {
     %c1_i64 = arith.constant 1 : i64
     %0 = llvm.alloca %c1_i64 x i32 : (i64) -> !llvm.ptr
     llvm.store %arg1, %0 : i32, !llvm.ptr
@@ -452,7 +452,7 @@ module {
   ^bb3(%4: i32):  // 2 preds: ^bb1, ^bb1
     cf.br ^bb2(%4 : i32)
   }
-  func.func @f33(%arg0: !llvm.ptr, %arg1: i32) -> i32 {
+  func.func public @"as-br_table-mid"(%arg0: !llvm.ptr, %arg1: i32) -> i32 attributes {llvm.emit_c_interface} {
     %c1_i64 = arith.constant 1 : i64
     %0 = llvm.alloca %c1_i64 x i32 : (i64) -> !llvm.ptr
     llvm.store %arg1, %0 : i32, !llvm.ptr
@@ -469,7 +469,7 @@ module {
   ^bb3(%4: i32):  // 2 preds: ^bb1, ^bb1
     cf.br ^bb2(%4 : i32)
   }
-  func.func @f34(%arg0: !llvm.ptr, %arg1: i32) -> i32 {
+  func.func public @"as-br_table-last"(%arg0: !llvm.ptr, %arg1: i32) -> i32 attributes {llvm.emit_c_interface} {
     %c1_i64 = arith.constant 1 : i64
     %0 = llvm.alloca %c1_i64 x i32 : (i64) -> !llvm.ptr
     llvm.store %arg1, %0 : i32, !llvm.ptr
@@ -486,7 +486,7 @@ module {
   ^bb3(%4: i32):  // 2 preds: ^bb1, ^bb1
     cf.br ^bb2(%4 : i32)
   }
-  func.func @f35(%arg0: !llvm.ptr, %arg1: i32) -> i32 {
+  func.func public @"as-br_table-everywhere"(%arg0: !llvm.ptr, %arg1: i32) -> i32 attributes {llvm.emit_c_interface} {
     %c1_i64 = arith.constant 1 : i64
     %0 = llvm.alloca %c1_i64 x i32 : (i64) -> !llvm.ptr
     llvm.store %arg1, %0 : i32, !llvm.ptr
@@ -503,7 +503,7 @@ module {
   ^bb3(%4: i32):  // 2 preds: ^bb1, ^bb1
     cf.br ^bb2(%4 : i32)
   }
-  func.func @f36(%arg0: !llvm.ptr, %arg1: i32) -> i32 {
+  func.func public @"as-return-first"(%arg0: !llvm.ptr, %arg1: i32) -> i32 attributes {llvm.emit_c_interface} {
     %c1_i64 = arith.constant 1 : i64
     %0 = llvm.alloca %c1_i64 x i32 : (i64) -> !llvm.ptr
     llvm.store %arg1, %0 : i32, !llvm.ptr
@@ -514,7 +514,7 @@ module {
   ^bb2(%2: i32):  // pred: ^bb1
     return %2 : i32
   }
-  func.func @f37(%arg0: !llvm.ptr, %arg1: i32) -> i32 {
+  func.func public @"as-return-last"(%arg0: !llvm.ptr, %arg1: i32) -> i32 attributes {llvm.emit_c_interface} {
     %c1_i64 = arith.constant 1 : i64
     %0 = llvm.alloca %c1_i64 x i32 : (i64) -> !llvm.ptr
     llvm.store %arg1, %0 : i32, !llvm.ptr
@@ -525,7 +525,7 @@ module {
   ^bb2(%2: i32):  // pred: ^bb1
     return %2 : i32
   }
-  func.func @f38(%arg0: !llvm.ptr, %arg1: i32) -> i32 {
+  func.func public @"as-return-everywhere"(%arg0: !llvm.ptr, %arg1: i32) -> i32 attributes {llvm.emit_c_interface} {
     %c1_i64 = arith.constant 1 : i64
     %0 = llvm.alloca %c1_i64 x i32 : (i64) -> !llvm.ptr
     llvm.store %arg1, %0 : i32, !llvm.ptr
@@ -536,7 +536,7 @@ module {
   ^bb2(%2: i32):  // pred: ^bb1
     return %2 : i32
   }
-  func.func @f39(%arg0: !llvm.ptr, %arg1: i32, %arg2: i32, %arg3: i32) -> i32 {
+  func.func public @"as-call-first"(%arg0: !llvm.ptr, %arg1: i32, %arg2: i32, %arg3: i32) -> i32 attributes {llvm.emit_c_interface} {
     %c1_i64 = arith.constant 1 : i64
     %0 = llvm.alloca %c1_i64 x i32 : (i64) -> !llvm.ptr
     llvm.store %arg1, %0 : i32, !llvm.ptr
@@ -556,7 +556,7 @@ module {
   ^bb2(%7: i32):  // pred: ^bb1
     return %7 : i32
   }
-  func.func @f40(%arg0: !llvm.ptr, %arg1: i32, %arg2: i32, %arg3: i32) -> i32 {
+  func.func public @"as-call-mid1"(%arg0: !llvm.ptr, %arg1: i32, %arg2: i32, %arg3: i32) -> i32 attributes {llvm.emit_c_interface} {
     %c1_i64 = arith.constant 1 : i64
     %0 = llvm.alloca %c1_i64 x i32 : (i64) -> !llvm.ptr
     llvm.store %arg1, %0 : i32, !llvm.ptr
@@ -576,7 +576,7 @@ module {
   ^bb2(%7: i32):  // pred: ^bb1
     return %7 : i32
   }
-  func.func @f41(%arg0: !llvm.ptr, %arg1: i32, %arg2: i32, %arg3: i32) -> i32 {
+  func.func public @"as-call-mid2"(%arg0: !llvm.ptr, %arg1: i32, %arg2: i32, %arg3: i32) -> i32 attributes {llvm.emit_c_interface} {
     %c1_i64 = arith.constant 1 : i64
     %0 = llvm.alloca %c1_i64 x i32 : (i64) -> !llvm.ptr
     llvm.store %arg1, %0 : i32, !llvm.ptr
@@ -596,7 +596,7 @@ module {
   ^bb2(%7: i32):  // pred: ^bb1
     return %7 : i32
   }
-  func.func @f42(%arg0: !llvm.ptr, %arg1: i32, %arg2: i32, %arg3: i32) -> i32 {
+  func.func public @"as-call-last"(%arg0: !llvm.ptr, %arg1: i32, %arg2: i32, %arg3: i32) -> i32 attributes {llvm.emit_c_interface} {
     %c1_i64 = arith.constant 1 : i64
     %0 = llvm.alloca %c1_i64 x i32 : (i64) -> !llvm.ptr
     llvm.store %arg1, %0 : i32, !llvm.ptr
@@ -616,7 +616,7 @@ module {
   ^bb2(%7: i32):  // pred: ^bb1
     return %7 : i32
   }
-  func.func @f43(%arg0: !llvm.ptr, %arg1: i32, %arg2: i32, %arg3: i32) -> i32 {
+  func.func public @"as-call-everywhere"(%arg0: !llvm.ptr, %arg1: i32, %arg2: i32, %arg3: i32) -> i32 attributes {llvm.emit_c_interface} {
     %c1_i64 = arith.constant 1 : i64
     %0 = llvm.alloca %c1_i64 x i32 : (i64) -> !llvm.ptr
     llvm.store %arg1, %0 : i32, !llvm.ptr
@@ -636,7 +636,7 @@ module {
   ^bb2(%7: i32):  // pred: ^bb1
     return %7 : i32
   }
-  func.func @f44(%arg0: !llvm.ptr, %arg1: i32) -> i32 {
+  func.func public @"as-unary-first"(%arg0: !llvm.ptr, %arg1: i32) -> i32 attributes {llvm.emit_c_interface} {
     %c1_i64 = arith.constant 1 : i64
     %0 = llvm.alloca %c1_i64 x i32 : (i64) -> !llvm.ptr
     llvm.store %arg1, %0 : i32, !llvm.ptr
@@ -648,7 +648,7 @@ module {
   ^bb2(%3: i32):  // pred: ^bb1
     return %3 : i32
   }
-  func.func @f45(%arg0: !llvm.ptr, %arg1: i32) -> i32 {
+  func.func public @"as-unary-last"(%arg0: !llvm.ptr, %arg1: i32) -> i32 attributes {llvm.emit_c_interface} {
     %c1_i64 = arith.constant 1 : i64
     %0 = llvm.alloca %c1_i64 x i32 : (i64) -> !llvm.ptr
     llvm.store %arg1, %0 : i32, !llvm.ptr
@@ -660,7 +660,7 @@ module {
   ^bb2(%3: i32):  // pred: ^bb1
     return %3 : i32
   }
-  func.func @f46(%arg0: !llvm.ptr, %arg1: i32) -> i32 {
+  func.func public @"as-unary-everywhere"(%arg0: !llvm.ptr, %arg1: i32) -> i32 attributes {llvm.emit_c_interface} {
     %c1_i64 = arith.constant 1 : i64
     %0 = llvm.alloca %c1_i64 x i32 : (i64) -> !llvm.ptr
     llvm.store %arg1, %0 : i32, !llvm.ptr
@@ -672,7 +672,7 @@ module {
   ^bb2(%3: i32):  // pred: ^bb1
     return %3 : i32
   }
-  func.func @f47(%arg0: !llvm.ptr, %arg1: i32) -> i32 {
+  func.func public @"as-binary-first"(%arg0: !llvm.ptr, %arg1: i32) -> i32 attributes {llvm.emit_c_interface} {
     %c1_i64 = arith.constant 1 : i64
     %0 = llvm.alloca %c1_i64 x i32 : (i64) -> !llvm.ptr
     llvm.store %arg1, %0 : i32, !llvm.ptr
@@ -685,7 +685,7 @@ module {
   ^bb2(%4: i32):  // pred: ^bb1
     return %4 : i32
   }
-  func.func @f48(%arg0: !llvm.ptr, %arg1: i32) -> i32 {
+  func.func public @"as-binary-mid"(%arg0: !llvm.ptr, %arg1: i32) -> i32 attributes {llvm.emit_c_interface} {
     %c1_i64 = arith.constant 1 : i64
     %0 = llvm.alloca %c1_i64 x i32 : (i64) -> !llvm.ptr
     llvm.store %arg1, %0 : i32, !llvm.ptr
@@ -698,7 +698,7 @@ module {
   ^bb2(%4: i32):  // pred: ^bb1
     return %4 : i32
   }
-  func.func @f49(%arg0: !llvm.ptr, %arg1: i32) -> i32 {
+  func.func public @"as-binary-last"(%arg0: !llvm.ptr, %arg1: i32) -> i32 attributes {llvm.emit_c_interface} {
     %c1_i64 = arith.constant 1 : i64
     %0 = llvm.alloca %c1_i64 x i32 : (i64) -> !llvm.ptr
     llvm.store %arg1, %0 : i32, !llvm.ptr
@@ -711,7 +711,7 @@ module {
   ^bb2(%4: i32):  // pred: ^bb1
     return %4 : i32
   }
-  func.func @f50(%arg0: !llvm.ptr, %arg1: i32) -> i32 {
+  func.func public @"as-binary-everywhere"(%arg0: !llvm.ptr, %arg1: i32) -> i32 attributes {llvm.emit_c_interface} {
     %c1_i64 = arith.constant 1 : i64
     %0 = llvm.alloca %c1_i64 x i32 : (i64) -> !llvm.ptr
     llvm.store %arg1, %0 : i32, !llvm.ptr
@@ -724,7 +724,7 @@ module {
   ^bb2(%4: i32):  // pred: ^bb1
     return %4 : i32
   }
-  func.func @f51(%arg0: !llvm.ptr, %arg1: i32) -> i32 {
+  func.func public @"as-test-first"(%arg0: !llvm.ptr, %arg1: i32) -> i32 attributes {llvm.emit_c_interface} {
     %c1_i64 = arith.constant 1 : i64
     %0 = llvm.alloca %c1_i64 x i32 : (i64) -> !llvm.ptr
     llvm.store %arg1, %0 : i32, !llvm.ptr
@@ -736,7 +736,7 @@ module {
   ^bb2(%3: i32):  // pred: ^bb1
     return %3 : i32
   }
-  func.func @f52(%arg0: !llvm.ptr, %arg1: i32) -> i32 {
+  func.func public @"as-test-last"(%arg0: !llvm.ptr, %arg1: i32) -> i32 attributes {llvm.emit_c_interface} {
     %c1_i64 = arith.constant 1 : i64
     %0 = llvm.alloca %c1_i64 x i32 : (i64) -> !llvm.ptr
     llvm.store %arg1, %0 : i32, !llvm.ptr
@@ -748,7 +748,7 @@ module {
   ^bb2(%3: i32):  // pred: ^bb1
     return %3 : i32
   }
-  func.func @f53(%arg0: !llvm.ptr, %arg1: i32) -> i32 {
+  func.func public @"as-test-everywhere"(%arg0: !llvm.ptr, %arg1: i32) -> i32 attributes {llvm.emit_c_interface} {
     %c1_i64 = arith.constant 1 : i64
     %0 = llvm.alloca %c1_i64 x i32 : (i64) -> !llvm.ptr
     llvm.store %arg1, %0 : i32, !llvm.ptr
@@ -760,7 +760,7 @@ module {
   ^bb2(%3: i32):  // pred: ^bb1
     return %3 : i32
   }
-  func.func @f54(%arg0: !llvm.ptr, %arg1: i32) -> i32 {
+  func.func public @"as-compare-first"(%arg0: !llvm.ptr, %arg1: i32) -> i32 attributes {llvm.emit_c_interface} {
     %c1_i64 = arith.constant 1 : i64
     %0 = llvm.alloca %c1_i64 x i32 : (i64) -> !llvm.ptr
     llvm.store %arg1, %0 : i32, !llvm.ptr
@@ -773,7 +773,7 @@ module {
   ^bb2(%4: i32):  // pred: ^bb1
     return %4 : i32
   }
-  func.func @f55(%arg0: !llvm.ptr, %arg1: i32) -> i32 {
+  func.func public @"as-compare-mid"(%arg0: !llvm.ptr, %arg1: i32) -> i32 attributes {llvm.emit_c_interface} {
     %c1_i64 = arith.constant 1 : i64
     %0 = llvm.alloca %c1_i64 x i32 : (i64) -> !llvm.ptr
     llvm.store %arg1, %0 : i32, !llvm.ptr
@@ -786,7 +786,7 @@ module {
   ^bb2(%4: i32):  // pred: ^bb1
     return %4 : i32
   }
-  func.func @f56(%arg0: !llvm.ptr, %arg1: i32) -> i32 {
+  func.func public @"as-compare-last"(%arg0: !llvm.ptr, %arg1: i32) -> i32 attributes {llvm.emit_c_interface} {
     %c1_i64 = arith.constant 1 : i64
     %0 = llvm.alloca %c1_i64 x i32 : (i64) -> !llvm.ptr
     llvm.store %arg1, %0 : i32, !llvm.ptr
@@ -799,7 +799,7 @@ module {
   ^bb2(%4: i32):  // pred: ^bb1
     return %4 : i32
   }
-  func.func @f57(%arg0: !llvm.ptr, %arg1: i32) -> i32 {
+  func.func public @"as-compare-everywhere"(%arg0: !llvm.ptr, %arg1: i32) -> i32 attributes {llvm.emit_c_interface} {
     %c1_i64 = arith.constant 1 : i64
     %0 = llvm.alloca %c1_i64 x i32 : (i64) -> !llvm.ptr
     llvm.store %arg1, %0 : i32, !llvm.ptr
@@ -812,7 +812,7 @@ module {
   ^bb2(%4: i32):  // pred: ^bb1
     return %4 : i32
   }
-  func.func @f58(%arg0: !llvm.ptr, %arg1: i32) -> i32 {
+  func.func public @"as-memory.grow-first"(%arg0: !llvm.ptr, %arg1: i32) -> i32 attributes {llvm.emit_c_interface} {
     %c1_i64 = arith.constant 1 : i64
     %0 = llvm.alloca %c1_i64 x i32 : (i64) -> !llvm.ptr
     llvm.store %arg1, %0 : i32, !llvm.ptr
@@ -825,7 +825,7 @@ module {
   ^bb2(%3: i32):  // pred: ^bb1
     return %3 : i32
   }
-  func.func @f59(%arg0: !llvm.ptr, %arg1: i32) -> i32 {
+  func.func public @"as-memory.grow-last"(%arg0: !llvm.ptr, %arg1: i32) -> i32 attributes {llvm.emit_c_interface} {
     %c1_i64 = arith.constant 1 : i64
     %0 = llvm.alloca %c1_i64 x i32 : (i64) -> !llvm.ptr
     llvm.store %arg1, %0 : i32, !llvm.ptr
@@ -838,7 +838,7 @@ module {
   ^bb2(%3: i32):  // pred: ^bb1
     return %3 : i32
   }
-  func.func @f60(%arg0: !llvm.ptr, %arg1: i32) -> i32 {
+  func.func public @"as-memory.grow-everywhere"(%arg0: !llvm.ptr, %arg1: i32) -> i32 attributes {llvm.emit_c_interface} {
     %c1_i64 = arith.constant 1 : i64
     %0 = llvm.alloca %c1_i64 x i32 : (i64) -> !llvm.ptr
     llvm.store %arg1, %0 : i32, !llvm.ptr
@@ -865,7 +865,7 @@ module {
   ^bb2(%3: i32):  // pred: ^bb1
     return %3 : i32
   }
-  func.func @f62(%arg0: !llvm.ptr) -> i32 {
+  func.func public @"as-call_indirect-first"(%arg0: !llvm.ptr) -> i32 attributes {llvm.emit_c_interface} {
     %0 = llvm.getelementptr %arg0[0] : (!llvm.ptr) -> !llvm.ptr, i8
     %1 = llvm.load %0 : !llvm.ptr -> i32
     %2 = llvm.getelementptr %arg0[32] : (!llvm.ptr) -> !llvm.ptr, i8
@@ -919,7 +919,7 @@ module {
     call @dora_fn_wasm_raise_trap(%c5_i32) : (i32) -> ()
     cf.br ^bb6
   }
-  func.func @f63(%arg0: !llvm.ptr) -> i32 {
+  func.func public @"as-call_indirect-mid1"(%arg0: !llvm.ptr) -> i32 attributes {llvm.emit_c_interface} {
     %0 = llvm.getelementptr %arg0[0] : (!llvm.ptr) -> !llvm.ptr, i8
     %1 = llvm.load %0 : !llvm.ptr -> i32
     %2 = llvm.getelementptr %arg0[32] : (!llvm.ptr) -> !llvm.ptr, i8
@@ -973,7 +973,7 @@ module {
     call @dora_fn_wasm_raise_trap(%c5_i32) : (i32) -> ()
     cf.br ^bb6
   }
-  func.func @f64(%arg0: !llvm.ptr) -> i32 {
+  func.func public @"as-call_indirect-mid2"(%arg0: !llvm.ptr) -> i32 attributes {llvm.emit_c_interface} {
     %0 = llvm.getelementptr %arg0[0] : (!llvm.ptr) -> !llvm.ptr, i8
     %1 = llvm.load %0 : !llvm.ptr -> i32
     %2 = llvm.getelementptr %arg0[32] : (!llvm.ptr) -> !llvm.ptr, i8
@@ -1027,7 +1027,7 @@ module {
     call @dora_fn_wasm_raise_trap(%c5_i32) : (i32) -> ()
     cf.br ^bb6
   }
-  func.func @f65(%arg0: !llvm.ptr) -> i32 {
+  func.func public @"as-call_indirect-last"(%arg0: !llvm.ptr) -> i32 attributes {llvm.emit_c_interface} {
     %0 = llvm.getelementptr %arg0[0] : (!llvm.ptr) -> !llvm.ptr, i8
     %1 = llvm.load %0 : !llvm.ptr -> i32
     %2 = llvm.getelementptr %arg0[32] : (!llvm.ptr) -> !llvm.ptr, i8
@@ -1081,7 +1081,7 @@ module {
     call @dora_fn_wasm_raise_trap(%c5_i32) : (i32) -> ()
     cf.br ^bb6
   }
-  func.func @f66(%arg0: !llvm.ptr) -> i32 {
+  func.func public @"as-call_indirect-everywhere"(%arg0: !llvm.ptr) -> i32 attributes {llvm.emit_c_interface} {
     %0 = llvm.getelementptr %arg0[0] : (!llvm.ptr) -> !llvm.ptr, i8
     %1 = llvm.load %0 : !llvm.ptr -> i32
     %2 = llvm.getelementptr %arg0[32] : (!llvm.ptr) -> !llvm.ptr, i8
@@ -1135,7 +1135,7 @@ module {
     call @dora_fn_wasm_raise_trap(%c5_i32) : (i32) -> ()
     cf.br ^bb6
   }
-  func.func @f67(%arg0: !llvm.ptr, %arg1: i32) -> i32 {
+  func.func public @"as-local.set-first"(%arg0: !llvm.ptr, %arg1: i32) -> i32 attributes {llvm.emit_c_interface} {
     %c1_i64 = arith.constant 1 : i64
     %0 = llvm.alloca %c1_i64 x i32 : (i64) -> !llvm.ptr
     llvm.store %arg1, %0 : i32, !llvm.ptr
@@ -1148,7 +1148,7 @@ module {
   ^bb2(%2: i32):  // pred: ^bb1
     return %2 : i32
   }
-  func.func @f68(%arg0: !llvm.ptr, %arg1: i32) -> i32 {
+  func.func public @"as-local.set-last"(%arg0: !llvm.ptr, %arg1: i32) -> i32 attributes {llvm.emit_c_interface} {
     %c1_i64 = arith.constant 1 : i64
     %0 = llvm.alloca %c1_i64 x i32 : (i64) -> !llvm.ptr
     llvm.store %arg1, %0 : i32, !llvm.ptr
@@ -1161,7 +1161,7 @@ module {
   ^bb2(%2: i32):  // pred: ^bb1
     return %2 : i32
   }
-  func.func @f69(%arg0: !llvm.ptr, %arg1: i32) -> i32 {
+  func.func public @"as-local.set-everywhere"(%arg0: !llvm.ptr, %arg1: i32) -> i32 attributes {llvm.emit_c_interface} {
     %c1_i64 = arith.constant 1 : i64
     %0 = llvm.alloca %c1_i64 x i32 : (i64) -> !llvm.ptr
     llvm.store %arg1, %0 : i32, !llvm.ptr
@@ -1174,7 +1174,7 @@ module {
   ^bb2(%2: i32):  // pred: ^bb1
     return %2 : i32
   }
-  func.func @f70(%arg0: !llvm.ptr, %arg1: i32) -> i32 {
+  func.func public @"as-local.tee-first"(%arg0: !llvm.ptr, %arg1: i32) -> i32 attributes {llvm.emit_c_interface} {
     %c1_i64 = arith.constant 1 : i64
     %0 = llvm.alloca %c1_i64 x i32 : (i64) -> !llvm.ptr
     llvm.store %arg1, %0 : i32, !llvm.ptr
@@ -1186,7 +1186,7 @@ module {
   ^bb2(%1: i32):  // pred: ^bb1
     return %1 : i32
   }
-  func.func @f71(%arg0: !llvm.ptr, %arg1: i32) -> i32 {
+  func.func public @"as-local.tee-last"(%arg0: !llvm.ptr, %arg1: i32) -> i32 attributes {llvm.emit_c_interface} {
     %c1_i64 = arith.constant 1 : i64
     %0 = llvm.alloca %c1_i64 x i32 : (i64) -> !llvm.ptr
     llvm.store %arg1, %0 : i32, !llvm.ptr
@@ -1198,7 +1198,7 @@ module {
   ^bb2(%1: i32):  // pred: ^bb1
     return %1 : i32
   }
-  func.func @f72(%arg0: !llvm.ptr, %arg1: i32) -> i32 {
+  func.func public @"as-local.tee-everywhere"(%arg0: !llvm.ptr, %arg1: i32) -> i32 attributes {llvm.emit_c_interface} {
     %c1_i64 = arith.constant 1 : i64
     %0 = llvm.alloca %c1_i64 x i32 : (i64) -> !llvm.ptr
     llvm.store %arg1, %0 : i32, !llvm.ptr
@@ -1210,7 +1210,7 @@ module {
   ^bb2(%1: i32):  // pred: ^bb1
     return %1 : i32
   }
-  func.func @f73(%arg0: !llvm.ptr) -> i32 {
+  func.func public @"as-global.set-first"(%arg0: !llvm.ptr) -> i32 attributes {llvm.emit_c_interface} {
     %0 = llvm.getelementptr %arg0[64] : (!llvm.ptr) -> !llvm.ptr, i8
     %1 = llvm.load %0 : !llvm.ptr -> !llvm.ptr
     cf.br ^bb1
@@ -1222,7 +1222,7 @@ module {
   ^bb2(%3: i32):  // pred: ^bb1
     return %3 : i32
   }
-  func.func @f74(%arg0: !llvm.ptr) -> i32 {
+  func.func public @"as-global.set-last"(%arg0: !llvm.ptr) -> i32 attributes {llvm.emit_c_interface} {
     %0 = llvm.getelementptr %arg0[64] : (!llvm.ptr) -> !llvm.ptr, i8
     %1 = llvm.load %0 : !llvm.ptr -> !llvm.ptr
     cf.br ^bb1
@@ -1234,7 +1234,7 @@ module {
   ^bb2(%3: i32):  // pred: ^bb1
     return %3 : i32
   }
-  func.func @f75(%arg0: !llvm.ptr) -> i32 {
+  func.func public @"as-global.set-everywhere"(%arg0: !llvm.ptr) -> i32 attributes {llvm.emit_c_interface} {
     %0 = llvm.getelementptr %arg0[64] : (!llvm.ptr) -> !llvm.ptr, i8
     %1 = llvm.load %0 : !llvm.ptr -> !llvm.ptr
     cf.br ^bb1
@@ -1246,7 +1246,7 @@ module {
   ^bb2(%3: i32):  // pred: ^bb1
     return %3 : i32
   }
-  func.func @f76(%arg0: !llvm.ptr, %arg1: i32) -> i32 {
+  func.func public @"as-load-first"(%arg0: !llvm.ptr, %arg1: i32) -> i32 attributes {llvm.emit_c_interface} {
     %c1_i64 = arith.constant 1 : i64
     %0 = llvm.alloca %c1_i64 x i32 : (i64) -> !llvm.ptr
     llvm.store %arg1, %0 : i32, !llvm.ptr
@@ -1265,7 +1265,7 @@ module {
   ^bb2(%9: i32):  // pred: ^bb1
     return %9 : i32
   }
-  func.func @f77(%arg0: !llvm.ptr, %arg1: i32) -> i32 {
+  func.func public @"as-load-last"(%arg0: !llvm.ptr, %arg1: i32) -> i32 attributes {llvm.emit_c_interface} {
     %c1_i64 = arith.constant 1 : i64
     %0 = llvm.alloca %c1_i64 x i32 : (i64) -> !llvm.ptr
     llvm.store %arg1, %0 : i32, !llvm.ptr
@@ -1284,7 +1284,7 @@ module {
   ^bb2(%9: i32):  // pred: ^bb1
     return %9 : i32
   }
-  func.func @f78(%arg0: !llvm.ptr, %arg1: i32) -> i32 {
+  func.func public @"as-load-everywhere"(%arg0: !llvm.ptr, %arg1: i32) -> i32 attributes {llvm.emit_c_interface} {
     %c1_i64 = arith.constant 1 : i64
     %0 = llvm.alloca %c1_i64 x i32 : (i64) -> !llvm.ptr
     llvm.store %arg1, %0 : i32, !llvm.ptr
@@ -1303,7 +1303,7 @@ module {
   ^bb2(%9: i32):  // pred: ^bb1
     return %9 : i32
   }
-  func.func @f79(%arg0: !llvm.ptr, %arg1: i32, %arg2: i32) {
+  func.func public @"as-store-first"(%arg0: !llvm.ptr, %arg1: i32, %arg2: i32) attributes {llvm.emit_c_interface} {
     %c1_i64 = arith.constant 1 : i64
     %0 = llvm.alloca %c1_i64 x i32 : (i64) -> !llvm.ptr
     llvm.store %arg1, %0 : i32, !llvm.ptr
@@ -1326,7 +1326,7 @@ module {
   ^bb2:  // pred: ^bb1
     return
   }
-  func.func @f80(%arg0: !llvm.ptr, %arg1: i32, %arg2: i32) {
+  func.func public @"as-store-mid"(%arg0: !llvm.ptr, %arg1: i32, %arg2: i32) attributes {llvm.emit_c_interface} {
     %c1_i64 = arith.constant 1 : i64
     %0 = llvm.alloca %c1_i64 x i32 : (i64) -> !llvm.ptr
     llvm.store %arg1, %0 : i32, !llvm.ptr
@@ -1349,7 +1349,7 @@ module {
   ^bb2:  // pred: ^bb1
     return
   }
-  func.func @f81(%arg0: !llvm.ptr, %arg1: i32, %arg2: i32) {
+  func.func public @"as-store-last"(%arg0: !llvm.ptr, %arg1: i32, %arg2: i32) attributes {llvm.emit_c_interface} {
     %c1_i64 = arith.constant 1 : i64
     %0 = llvm.alloca %c1_i64 x i32 : (i64) -> !llvm.ptr
     llvm.store %arg1, %0 : i32, !llvm.ptr
@@ -1372,7 +1372,7 @@ module {
   ^bb2:  // pred: ^bb1
     return
   }
-  func.func @f82(%arg0: !llvm.ptr, %arg1: i32, %arg2: i32) {
+  func.func public @"as-store-everywhere"(%arg0: !llvm.ptr, %arg1: i32, %arg2: i32) attributes {llvm.emit_c_interface} {
     %c1_i64 = arith.constant 1 : i64
     %0 = llvm.alloca %c1_i64 x i32 : (i64) -> !llvm.ptr
     llvm.store %arg1, %0 : i32, !llvm.ptr

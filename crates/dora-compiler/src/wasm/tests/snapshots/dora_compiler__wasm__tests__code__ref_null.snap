@@ -4,7 +4,7 @@ expression: op
 snapshot_kind: text
 ---
 module {
-  func.func @f0(%arg0: !llvm.ptr) -> !llvm.ptr {
+  func.func public @externref(%arg0: !llvm.ptr) -> !llvm.ptr attributes {llvm.emit_c_interface} {
     cf.br ^bb1
   ^bb1:  // pred: ^bb0
     %0 = llvm.mlir.zero : !llvm.ptr
@@ -12,7 +12,7 @@ module {
   ^bb2(%1: !llvm.ptr):  // pred: ^bb1
     return %1 : !llvm.ptr
   }
-  func.func @f1(%arg0: !llvm.ptr) -> !llvm.ptr {
+  func.func public @funcref(%arg0: !llvm.ptr) -> !llvm.ptr attributes {llvm.emit_c_interface} {
     cf.br ^bb1
   ^bb1:  // pred: ^bb0
     %0 = llvm.mlir.zero : !llvm.ptr

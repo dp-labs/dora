@@ -22,7 +22,11 @@ use melior::ir::{Block, Region};
 use melior::ir::{Location, Module as MLIRModule};
 use std::sync::Arc;
 use symbols::declare_symbols;
-use wasmer::Target;
+use wasmer::{
+    imports, AsStoreMut, AsStoreRef, Extern, Imports, Module as WasmModule, NativeEngineExt, Store,
+    Target, VMConfig,
+};
+use wasmer_compiler::Engine;
 use wasmer_compiler::{
     FunctionBodyData, ModuleEnvironment, ModuleMiddleware, ModuleTranslationState,
 };
@@ -32,6 +36,7 @@ use wasmer_types::{
     CompileModuleInfo, Features, FunctionIndex, LocalFunctionIndex, MemoryIndex, MemoryStyle,
     SectionIndex, SignatureIndex, Symbol, SymbolRegistry, TableIndex, TableStyle,
 };
+use wasmer_vm::VMInstance;
 
 use crate::errors::CompileError;
 use crate::{Context, Module};
@@ -176,6 +181,61 @@ impl<'c> WASMCompiler<'c> {
         let mlir_module = MLIRModule::from_operation(op).expect("module failed to create");
         declare_symbols(&self.ctx.mlir_context, &mlir_module);
         Ok(Module::new(mlir_module))
+    }
+
+    /// Build the WASM instance with imports
+    pub fn build_instance_with_imports(
+        &self,
+        data: &[u8],
+        imports: Imports,
+    ) -> Result<VMInstance, CompileError> {
+        let mut store = Store::default();
+        let module =
+            WasmModule::new(&store, data).map_err(|err| CompileError::Codegen(err.to_string()))?;
+
+        let engine: &Engine = unsafe { std::mem::transmute(store.engine()) };
+        let artifact = engine
+            .compile(data)
+            .map_err(|err| CompileError::Codegen(err.to_string()))?;
+        let externs = imports
+            .imports_for_module(&module)
+            .map_err(|err| CompileError::Codegen(err.to_string()))?;
+        let signal_handler = store.as_store_ref().signal_handler();
+        let engine = store.engine().clone();
+        let tunables = engine.tunables();
+        unsafe {
+            let mut instance_handle = artifact
+                .instantiate(
+                    tunables,
+                    &externs.iter().map(Extern::to_vm_extern).collect::<Vec<_>>(),
+                    store.objects_mut(),
+                )
+                .map_err(|err| CompileError::Codegen(err.to_string()))?;
+
+            // After the instance handle is created, we need to initialize
+            // the data, call the start function and so. However, if any
+            // of this steps traps, we still need to keep the instance alive
+            // as some of the Instance elements may have placed in other
+            // instance tables.
+            artifact
+                .finish_instantiation(
+                    &VMConfig {
+                        wasm_stack_size: None,
+                    },
+                    signal_handler,
+                    &mut instance_handle,
+                )
+                .map_err(|err| CompileError::Codegen(err.to_string()))?;
+
+            Ok(instance_handle)
+        }
+    }
+
+    /// Build the WASM instance
+    pub fn build_instance(&self, data: &[u8]) -> Result<VMInstance, CompileError> {
+        // TODO: WASM EVM Host functions
+        let imports = imports! {};
+        self.build_instance_with_imports(data, imports)
     }
 }
 

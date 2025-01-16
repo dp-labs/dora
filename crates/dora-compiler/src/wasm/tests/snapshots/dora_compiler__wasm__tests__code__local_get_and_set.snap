@@ -4,7 +4,7 @@ expression: op
 snapshot_kind: text
 ---
 module {
-  func.func @f0(%arg0: !llvm.ptr) -> i32 {
+  func.func public @"type-local-i32"(%arg0: !llvm.ptr) -> i32 attributes {llvm.emit_c_interface} {
     %c0_i32 = arith.constant 0 : i32
     %c1_i64 = arith.constant 1 : i64
     %0 = llvm.alloca %c1_i64 x i32 : (i64) -> !llvm.ptr
@@ -18,7 +18,7 @@ module {
   ^bb2(%2: i32):  // pred: ^bb1
     return %2 : i32
   }
-  func.func @f1(%arg0: !llvm.ptr) -> i64 {
+  func.func public @"type-local-i64"(%arg0: !llvm.ptr) -> i64 attributes {llvm.emit_c_interface} {
     %c0_i64 = arith.constant 0 : i64
     %c1_i64 = arith.constant 1 : i64
     %0 = llvm.alloca %c1_i64 x i64 : (i64) -> !llvm.ptr
@@ -32,7 +32,7 @@ module {
   ^bb2(%2: i64):  // pred: ^bb1
     return %2 : i64
   }
-  func.func @f2(%arg0: !llvm.ptr) -> f32 {
+  func.func public @"type-local-f32"(%arg0: !llvm.ptr) -> f32 attributes {llvm.emit_c_interface} {
     %cst = arith.constant 0.000000e+00 : f32
     %c1_i64 = arith.constant 1 : i64
     %0 = llvm.alloca %c1_i64 x f32 : (i64) -> !llvm.ptr
@@ -46,7 +46,7 @@ module {
   ^bb2(%2: f32):  // pred: ^bb1
     return %2 : f32
   }
-  func.func @f3(%arg0: !llvm.ptr) -> f64 {
+  func.func public @"type-local-f64"(%arg0: !llvm.ptr) -> f64 attributes {llvm.emit_c_interface} {
     %cst = arith.constant 0.000000e+00 : f64
     %c1_i64 = arith.constant 1 : i64
     %0 = llvm.alloca %c1_i64 x f64 : (i64) -> !llvm.ptr

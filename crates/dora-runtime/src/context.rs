@@ -62,13 +62,16 @@ impl Default for Stack {
     }
 }
 
-/// Function type for the main entrypoint of the generated code.
-pub type MainFunc = extern "C" fn(
+/// Function type for the EVM main entrypoint of the generated code.
+pub type EVMMainFunc = extern "C" fn(
     *mut RuntimeContext,
     initial_gas: *mut u64,
     stack: *mut Stack,
     stack_size: *mut u64,
 ) -> u8;
+
+/// Function type for the EVM main entrypoint of the generated code.
+pub type WASMMainFunc = extern "C" fn(*mut wasmer_vm::VMContext);
 
 /// The main context for smart contract execution environment.
 pub struct VMContext<'a, DB: Database> {
@@ -321,9 +324,8 @@ impl<'a, DB: Database> VMContext<'a, DB> {
                 .code
                 .as_ref()
                 .cloned()
-                .unwrap_or_else(Bytecode::new)
-                .original_bytes()
-                .clone(),
+                .unwrap_or_else(Bytecode::empty)
+                .bytes(),
             acc.is_cold,
         ))
     }
@@ -643,7 +645,7 @@ impl<'a, DB: Database> VMContext<'a, DB> {
 
                 let contract = Contract {
                     input: Bytes::new(),
-                    code: Bytecode::new_raw(msg.input.clone()),
+                    code: Bytecode::new(msg.input.clone()),
                     hash: Some(init_code_hash),
                     target_address: created_address,
                     code_address: created_address,
@@ -730,7 +732,7 @@ impl<'a, DB: Database> VMContext<'a, DB> {
 
                 let contract = Contract {
                     input: Bytes::new(),
-                    code: Bytecode::new_raw(msg.input.clone()),
+                    code: Bytecode::new(msg.input.clone()),
                     hash: Some(init_code_hash),
                     target_address: created_address,
                     code_address: created_address,
@@ -2185,7 +2187,7 @@ impl RuntimeContext<'_> {
             .get(container_index)
             .expect("valid container")
             .clone();
-        let bytecode = Bytecode::new_raw_checked(container).expect("Subcontainer is verified");
+        let bytecode = Bytecode::new(container);
         if !bytecode.eof().expect("eof").body.is_data_filled {
             // Should be always false as it is verified by eof verification.
             panic!("Panic if data section is not full");
@@ -2323,8 +2325,7 @@ impl RuntimeContext<'_> {
             .get(container_index)
             .expect("valid container")
             .clone();
-        let bytecode_header = Bytecode::new_raw_checked(container.clone())
-            .expect("valid EOF header")
+        let bytecode_header = Bytecode::new(container.clone())
             .eof()
             .expect("eof")
             .header

@@ -52,7 +52,7 @@ impl EvmcVm for DoraVM {
         let spec_id = evmc_revision_to_spec_id(revision);
         let contract = Contract {
             input: message.input().cloned().unwrap_or_else(Vec::new).into(),
-            code: Bytecode::new_raw(code.to_owned().into()),
+            code: Bytecode::new(code.to_owned().into()),
             hash: None,
             target_address: evmc_address_to_address(message.recipient()),
             code_address: evmc_address_to_address(message.code_address()),

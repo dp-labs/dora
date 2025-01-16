@@ -4,7 +4,7 @@ expression: op
 snapshot_kind: text
 ---
 module {
-  func.func @f0(%arg0: !llvm.ptr, %arg1: i32) -> !llvm.ptr {
+  func.func public @get(%arg0: !llvm.ptr, %arg1: i32) -> !llvm.ptr attributes {llvm.emit_c_interface} {
     %c1_i64 = arith.constant 1 : i64
     %0 = llvm.alloca %c1_i64 x i32 : (i64) -> !llvm.ptr
     llvm.store %arg1, %0 : i32, !llvm.ptr
@@ -18,7 +18,7 @@ module {
   ^bb2(%4: !llvm.ptr):  // pred: ^bb1
     return %4 : !llvm.ptr
   }
-  func.func @f1(%arg0: !llvm.ptr, %arg1: i32, %arg2: !llvm.ptr) {
+  func.func public @set(%arg0: !llvm.ptr, %arg1: i32, %arg2: !llvm.ptr) attributes {llvm.emit_c_interface} {
     %c1_i64 = arith.constant 1 : i64
     %0 = llvm.alloca %c1_i64 x i32 : (i64) -> !llvm.ptr
     llvm.store %arg1, %0 : i32, !llvm.ptr
@@ -35,7 +35,7 @@ module {
   ^bb2:  // pred: ^bb1
     return
   }
-  func.func @f2(%arg0: !llvm.ptr, %arg1: i32, %arg2: !llvm.ptr) -> i32 {
+  func.func public @grow(%arg0: !llvm.ptr, %arg1: i32, %arg2: !llvm.ptr) -> i32 attributes {llvm.emit_c_interface} {
     %c1_i64 = arith.constant 1 : i64
     %0 = llvm.alloca %c1_i64 x i32 : (i64) -> !llvm.ptr
     llvm.store %arg1, %0 : i32, !llvm.ptr
@@ -52,7 +52,7 @@ module {
   ^bb2(%5: i32):  // pred: ^bb1
     return %5 : i32
   }
-  func.func @f3(%arg0: !llvm.ptr, %arg1: i32, %arg2: !llvm.ptr) -> i32 {
+  func.func public @"grow-abbrev"(%arg0: !llvm.ptr, %arg1: i32, %arg2: !llvm.ptr) -> i32 attributes {llvm.emit_c_interface} {
     %c1_i64 = arith.constant 1 : i64
     %0 = llvm.alloca %c1_i64 x i32 : (i64) -> !llvm.ptr
     llvm.store %arg1, %0 : i32, !llvm.ptr
@@ -69,7 +69,7 @@ module {
   ^bb2(%5: i32):  // pred: ^bb1
     return %5 : i32
   }
-  func.func @f4(%arg0: !llvm.ptr) -> i32 {
+  func.func public @size(%arg0: !llvm.ptr) -> i32 attributes {llvm.emit_c_interface} {
     cf.br ^bb1
   ^bb1:  // pred: ^bb0
     %c0_i32 = arith.constant 0 : i32

@@ -11,7 +11,7 @@ module {
   ^bb2:  // pred: ^bb1
     return
   }
-  func.func @f1(%arg0: !llvm.ptr, %arg1: i32) {
+  func.func public @empty(%arg0: !llvm.ptr, %arg1: i32) attributes {llvm.emit_c_interface} {
     %c1_i64 = arith.constant 1 : i64
     %0 = llvm.alloca %c1_i64 x i32 : (i64) -> !llvm.ptr
     llvm.store %arg1, %0 : i32, !llvm.ptr
@@ -57,7 +57,7 @@ module {
   ^bb14:  // 2 preds: ^bb12, ^bb13
     cf.br ^bb2
   }
-  func.func @f2(%arg0: !llvm.ptr, %arg1: i32) -> i32 {
+  func.func public @singular(%arg0: !llvm.ptr, %arg1: i32) -> i32 attributes {llvm.emit_c_interface} {
     %c1_i64 = arith.constant 1 : i64
     %0 = llvm.alloca %c1_i64 x i32 : (i64) -> !llvm.ptr
     llvm.store %arg1, %0 : i32, !llvm.ptr
@@ -96,7 +96,7 @@ module {
   ^bb11(%8: i32):  // 2 preds: ^bb9, ^bb10
     cf.br ^bb2(%8 : i32)
   }
-  func.func @f3(%arg0: !llvm.ptr, %arg1: i32) -> (i32, i32) {
+  func.func public @multi(%arg0: !llvm.ptr, %arg1: i32) -> (i32, i32) attributes {llvm.emit_c_interface} {
     %c1_i64 = arith.constant 1 : i64
     %0 = llvm.alloca %c1_i64 x i32 : (i64) -> !llvm.ptr
     llvm.store %arg1, %0 : i32, !llvm.ptr
@@ -180,7 +180,7 @@ module {
   ^bb14(%12: i32, %13: i64, %14: i32):  // 2 preds: ^bb12, ^bb13
     cf.br ^bb2(%9, %12 : i32, i32)
   }
-  func.func @f4(%arg0: !llvm.ptr, %arg1: i32, %arg2: i32) -> i32 {
+  func.func public @nested(%arg0: !llvm.ptr, %arg1: i32, %arg2: i32) -> i32 attributes {llvm.emit_c_interface} {
     %c1_i64 = arith.constant 1 : i64
     %0 = llvm.alloca %c1_i64 x i32 : (i64) -> !llvm.ptr
     llvm.store %arg1, %0 : i32, !llvm.ptr
@@ -276,7 +276,7 @@ module {
   ^bb27(%19: i32):  // 2 preds: ^bb25, ^bb26
     cf.br ^bb5(%19 : i32)
   }
-  func.func @f5(%arg0: !llvm.ptr, %arg1: i32) -> i32 {
+  func.func public @"as-select-first"(%arg0: !llvm.ptr, %arg1: i32) -> i32 attributes {llvm.emit_c_interface} {
     %c1_i64 = arith.constant 1 : i64
     %0 = llvm.alloca %c1_i64 x i32 : (i64) -> !llvm.ptr
     llvm.store %arg1, %0 : i32, !llvm.ptr
@@ -302,7 +302,7 @@ module {
     %5 = "wasm.select"(%4, %c2_i32, %c3_i32) : (i32, i32, i32) -> i32
     cf.br ^bb2(%5 : i32)
   }
-  func.func @f6(%arg0: !llvm.ptr, %arg1: i32) -> i32 {
+  func.func public @"as-select-mid"(%arg0: !llvm.ptr, %arg1: i32) -> i32 attributes {llvm.emit_c_interface} {
     %c1_i64 = arith.constant 1 : i64
     %0 = llvm.alloca %c1_i64 x i32 : (i64) -> !llvm.ptr
     llvm.store %arg1, %0 : i32, !llvm.ptr
@@ -328,7 +328,7 @@ module {
     %5 = "wasm.select"(%c2_i32, %4, %c3_i32) : (i32, i32, i32) -> i32
     cf.br ^bb2(%5 : i32)
   }
-  func.func @f7(%arg0: !llvm.ptr, %arg1: i32) -> i32 {
+  func.func public @"as-select-last"(%arg0: !llvm.ptr, %arg1: i32) -> i32 attributes {llvm.emit_c_interface} {
     %c1_i64 = arith.constant 1 : i64
     %0 = llvm.alloca %c1_i64 x i32 : (i64) -> !llvm.ptr
     llvm.store %arg1, %0 : i32, !llvm.ptr
@@ -354,7 +354,7 @@ module {
     %5 = "wasm.select"(%c2_i32, %c3_i32, %4) : (i32, i32, i32) -> i32
     cf.br ^bb2(%5 : i32)
   }
-  func.func @f8(%arg0: !llvm.ptr, %arg1: i32) -> i32 {
+  func.func public @"as-loop-first"(%arg0: !llvm.ptr, %arg1: i32) -> i32 attributes {llvm.emit_c_interface} {
     %c1_i64 = arith.constant 1 : i64
     %0 = llvm.alloca %c1_i64 x i32 : (i64) -> !llvm.ptr
     llvm.store %arg1, %0 : i32, !llvm.ptr
@@ -383,7 +383,7 @@ module {
     call @dummy(%arg0) : (!llvm.ptr) -> ()
     cf.br ^bb3(%5 : i32)
   }
-  func.func @f9(%arg0: !llvm.ptr, %arg1: i32) -> i32 {
+  func.func public @"as-loop-mid"(%arg0: !llvm.ptr, %arg1: i32) -> i32 attributes {llvm.emit_c_interface} {
     %c1_i64 = arith.constant 1 : i64
     %0 = llvm.alloca %c1_i64 x i32 : (i64) -> !llvm.ptr
     llvm.store %arg1, %0 : i32, !llvm.ptr
@@ -412,7 +412,7 @@ module {
     call @dummy(%arg0) : (!llvm.ptr) -> ()
     cf.br ^bb3(%5 : i32)
   }
-  func.func @f10(%arg0: !llvm.ptr, %arg1: i32) -> i32 {
+  func.func public @"as-loop-last"(%arg0: !llvm.ptr, %arg1: i32) -> i32 attributes {llvm.emit_c_interface} {
     %c1_i64 = arith.constant 1 : i64
     %0 = llvm.alloca %c1_i64 x i32 : (i64) -> !llvm.ptr
     llvm.store %arg1, %0 : i32, !llvm.ptr
@@ -441,7 +441,7 @@ module {
   ^bb7(%5: i32):  // 2 preds: ^bb5, ^bb6
     cf.br ^bb3(%5 : i32)
   }
-  func.func @f11(%arg0: !llvm.ptr, %arg1: i32) -> i32 {
+  func.func public @"as-if-condition"(%arg0: !llvm.ptr, %arg1: i32) -> i32 attributes {llvm.emit_c_interface} {
     %c1_i64 = arith.constant 1 : i64
     %0 = llvm.alloca %c1_i64 x i32 : (i64) -> !llvm.ptr
     llvm.store %arg1, %0 : i32, !llvm.ptr
@@ -474,7 +474,7 @@ module {
   ^bb8(%6: i32):  // 2 preds: ^bb6, ^bb7
     cf.br ^bb2(%6 : i32)
   }
-  func.func @f12(%arg0: !llvm.ptr, %arg1: i32) -> i32 {
+  func.func public @"as-br_if-first"(%arg0: !llvm.ptr, %arg1: i32) -> i32 attributes {llvm.emit_c_interface} {
     %c1_i64 = arith.constant 1 : i64
     %0 = llvm.alloca %c1_i64 x i32 : (i64) -> !llvm.ptr
     llvm.store %arg1, %0 : i32, !llvm.ptr
@@ -505,7 +505,7 @@ module {
     %c3_i32 = arith.constant 3 : i32
     cf.br ^bb2(%c3_i32 : i32)
   }
-  func.func @f13(%arg0: !llvm.ptr, %arg1: i32) -> i32 {
+  func.func public @"as-br_if-last"(%arg0: !llvm.ptr, %arg1: i32) -> i32 attributes {llvm.emit_c_interface} {
     %c1_i64 = arith.constant 1 : i64
     %0 = llvm.alloca %c1_i64 x i32 : (i64) -> !llvm.ptr
     llvm.store %arg1, %0 : i32, !llvm.ptr
@@ -536,7 +536,7 @@ module {
     %c3_i32 = arith.constant 3 : i32
     cf.br ^bb2(%c3_i32 : i32)
   }
-  func.func @f14(%arg0: !llvm.ptr, %arg1: i32) -> i32 {
+  func.func public @"as-br_table-first"(%arg0: !llvm.ptr, %arg1: i32) -> i32 attributes {llvm.emit_c_interface} {
     %c1_i64 = arith.constant 1 : i64
     %0 = llvm.alloca %c1_i64 x i32 : (i64) -> !llvm.ptr
     llvm.store %arg1, %0 : i32, !llvm.ptr
@@ -565,7 +565,7 @@ module {
       0: ^bb3(%5 : i32)
     ]
   }
-  func.func @f15(%arg0: !llvm.ptr, %arg1: i32) -> i32 {
+  func.func public @"as-br_table-last"(%arg0: !llvm.ptr, %arg1: i32) -> i32 attributes {llvm.emit_c_interface} {
     %c1_i64 = arith.constant 1 : i64
     %0 = llvm.alloca %c1_i64 x i32 : (i64) -> !llvm.ptr
     llvm.store %arg1, %0 : i32, !llvm.ptr
@@ -608,7 +608,7 @@ module {
   ^bb2(%3: i32):  // pred: ^bb1
     return %3 : i32
   }
-  func.func @f17(%arg0: !llvm.ptr, %arg1: i32) -> i32 {
+  func.func public @"as-call_indirect-first"(%arg0: !llvm.ptr, %arg1: i32) -> i32 attributes {llvm.emit_c_interface} {
     %c1_i64 = arith.constant 1 : i64
     %0 = llvm.alloca %c1_i64 x i32 : (i64) -> !llvm.ptr
     llvm.store %arg1, %0 : i32, !llvm.ptr
@@ -677,7 +677,7 @@ module {
     call @dora_fn_wasm_raise_trap(%c5_i32) : (i32) -> ()
     cf.br ^bb9
   }
-  func.func @f18(%arg0: !llvm.ptr, %arg1: i32) -> i32 {
+  func.func public @"as-call_indirect-mid"(%arg0: !llvm.ptr, %arg1: i32) -> i32 attributes {llvm.emit_c_interface} {
     %c1_i64 = arith.constant 1 : i64
     %0 = llvm.alloca %c1_i64 x i32 : (i64) -> !llvm.ptr
     llvm.store %arg1, %0 : i32, !llvm.ptr
@@ -746,7 +746,7 @@ module {
     call @dora_fn_wasm_raise_trap(%c5_i32) : (i32) -> ()
     cf.br ^bb9
   }
-  func.func @f19(%arg0: !llvm.ptr, %arg1: i32) -> i32 {
+  func.func public @"as-call_indirect-last"(%arg0: !llvm.ptr, %arg1: i32) -> i32 attributes {llvm.emit_c_interface} {
     %c1_i64 = arith.constant 1 : i64
     %0 = llvm.alloca %c1_i64 x i32 : (i64) -> !llvm.ptr
     llvm.store %arg1, %0 : i32, !llvm.ptr
@@ -815,7 +815,7 @@ module {
     call @dora_fn_wasm_raise_trap(%c5_i32) : (i32) -> ()
     cf.br ^bb9
   }
-  func.func @f20(%arg0: !llvm.ptr, %arg1: i32) {
+  func.func public @"as-store-first"(%arg0: !llvm.ptr, %arg1: i32) attributes {llvm.emit_c_interface} {
     %c1_i64 = arith.constant 1 : i64
     %0 = llvm.alloca %c1_i64 x i32 : (i64) -> !llvm.ptr
     llvm.store %arg1, %0 : i32, !llvm.ptr
@@ -847,7 +847,7 @@ module {
     llvm.store %c2_i32, %9 : i32, !llvm.ptr
     cf.br ^bb2
   }
-  func.func @f21(%arg0: !llvm.ptr, %arg1: i32) {
+  func.func public @"as-store-last"(%arg0: !llvm.ptr, %arg1: i32) attributes {llvm.emit_c_interface} {
     %c1_i64 = arith.constant 1 : i64
     %0 = llvm.alloca %c1_i64 x i32 : (i64) -> !llvm.ptr
     llvm.store %arg1, %0 : i32, !llvm.ptr
@@ -879,7 +879,7 @@ module {
     llvm.store %6, %9 : i32, !llvm.ptr
     cf.br ^bb2
   }
-  func.func @f22(%arg0: !llvm.ptr, %arg1: i32) -> i32 {
+  func.func public @"as-memory.grow-value"(%arg0: !llvm.ptr, %arg1: i32) -> i32 attributes {llvm.emit_c_interface} {
     %c1_i64 = arith.constant 1 : i64
     %0 = llvm.alloca %c1_i64 x i32 : (i64) -> !llvm.ptr
     llvm.store %arg1, %0 : i32, !llvm.ptr
@@ -913,7 +913,7 @@ module {
   ^bb2(%2: i32):  // pred: ^bb1
     return %2 : i32
   }
-  func.func @f24(%arg0: !llvm.ptr, %arg1: i32) -> i32 {
+  func.func public @"as-call-value"(%arg0: !llvm.ptr, %arg1: i32) -> i32 attributes {llvm.emit_c_interface} {
     %c1_i64 = arith.constant 1 : i64
     %0 = llvm.alloca %c1_i64 x i32 : (i64) -> !llvm.ptr
     llvm.store %arg1, %0 : i32, !llvm.ptr
@@ -935,7 +935,7 @@ module {
     %5 = call @f(%arg0, %4) : (!llvm.ptr, i32) -> i32
     cf.br ^bb2(%5 : i32)
   }
-  func.func @f25(%arg0: !llvm.ptr, %arg1: i32) -> i32 {
+  func.func public @"as-return-value"(%arg0: !llvm.ptr, %arg1: i32) -> i32 attributes {llvm.emit_c_interface} {
     %c1_i64 = arith.constant 1 : i64
     %0 = llvm.alloca %c1_i64 x i32 : (i64) -> !llvm.ptr
     llvm.store %arg1, %0 : i32, !llvm.ptr
@@ -956,7 +956,7 @@ module {
   ^bb5(%4: i32):  // 2 preds: ^bb3, ^bb4
     cf.br ^bb2(%4 : i32)
   }
-  func.func @f26(%arg0: !llvm.ptr, %arg1: i32) {
+  func.func public @"as-drop-operand"(%arg0: !llvm.ptr, %arg1: i32) attributes {llvm.emit_c_interface} {
     %c1_i64 = arith.constant 1 : i64
     %0 = llvm.alloca %c1_i64 x i32 : (i64) -> !llvm.ptr
     llvm.store %arg1, %0 : i32, !llvm.ptr
@@ -977,7 +977,7 @@ module {
   ^bb5(%3: i32):  // 2 preds: ^bb3, ^bb4
     cf.br ^bb2
   }
-  func.func @f27(%arg0: !llvm.ptr, %arg1: i32) -> i32 {
+  func.func public @"as-br-value"(%arg0: !llvm.ptr, %arg1: i32) -> i32 attributes {llvm.emit_c_interface} {
     %c1_i64 = arith.constant 1 : i64
     %0 = llvm.alloca %c1_i64 x i32 : (i64) -> !llvm.ptr
     llvm.store %arg1, %0 : i32, !llvm.ptr
@@ -1000,7 +1000,7 @@ module {
   ^bb6(%5: i32):  // 2 preds: ^bb4, ^bb5
     cf.br ^bb3(%5 : i32)
   }
-  func.func @f28(%arg0: !llvm.ptr, %arg1: i32) -> i32 {
+  func.func public @"as-local.set-value"(%arg0: !llvm.ptr, %arg1: i32) -> i32 attributes {llvm.emit_c_interface} {
     %c1_i64 = arith.constant 1 : i64
     %0 = llvm.alloca %c1_i64 x i32 : (i64) -> !llvm.ptr
     llvm.store %arg1, %0 : i32, !llvm.ptr
@@ -1027,7 +1027,7 @@ module {
     %6 = llvm.load %0 : !llvm.ptr -> i32
     cf.br ^bb2(%6 : i32)
   }
-  func.func @f29(%arg0: !llvm.ptr, %arg1: i32) -> i32 {
+  func.func public @"as-local.tee-value"(%arg0: !llvm.ptr, %arg1: i32) -> i32 attributes {llvm.emit_c_interface} {
     %c1_i64 = arith.constant 1 : i64
     %0 = llvm.alloca %c1_i64 x i32 : (i64) -> !llvm.ptr
     llvm.store %arg1, %0 : i32, !llvm.ptr
@@ -1049,7 +1049,7 @@ module {
     llvm.store %4, %0 : i32, !llvm.ptr
     cf.br ^bb2(%4 : i32)
   }
-  func.func @f30(%arg0: !llvm.ptr, %arg1: i32) -> i32 {
+  func.func public @"as-global.set-value"(%arg0: !llvm.ptr, %arg1: i32) -> i32 attributes {llvm.emit_c_interface} {
     %c1_i64 = arith.constant 1 : i64
     %0 = llvm.alloca %c1_i64 x i32 : (i64) -> !llvm.ptr
     llvm.store %arg1, %0 : i32, !llvm.ptr
@@ -1074,7 +1074,7 @@ module {
     %7 = llvm.load %2 : !llvm.ptr -> i32
     cf.br ^bb2(%7 : i32)
   }
-  func.func @f31(%arg0: !llvm.ptr, %arg1: i32) -> i32 {
+  func.func public @"as-load-operand"(%arg0: !llvm.ptr, %arg1: i32) -> i32 attributes {llvm.emit_c_interface} {
     %c1_i64 = arith.constant 1 : i64
     %0 = llvm.alloca %c1_i64 x i32 : (i64) -> !llvm.ptr
     llvm.store %arg1, %0 : i32, !llvm.ptr
@@ -1103,7 +1103,7 @@ module {
     %11 = llvm.load %10 : !llvm.ptr -> i32
     cf.br ^bb2(%11 : i32)
   }
-  func.func @f32(%arg0: !llvm.ptr, %arg1: i32) -> i32 {
+  func.func public @"as-unary-operand"(%arg0: !llvm.ptr, %arg1: i32) -> i32 attributes {llvm.emit_c_interface} {
     %c1_i64 = arith.constant 1 : i64
     %0 = llvm.alloca %c1_i64 x i32 : (i64) -> !llvm.ptr
     llvm.store %arg1, %0 : i32, !llvm.ptr
@@ -1127,7 +1127,7 @@ module {
     %5 = "wasm.ctz"(%4) : (i32) -> i32
     cf.br ^bb2(%5 : i32)
   }
-  func.func @f33(%arg0: !llvm.ptr, %arg1: i32, %arg2: i32) -> i32 {
+  func.func public @"as-binary-operand"(%arg0: !llvm.ptr, %arg1: i32, %arg2: i32) -> i32 attributes {llvm.emit_c_interface} {
     %c1_i64 = arith.constant 1 : i64
     %0 = llvm.alloca %c1_i64 x i32 : (i64) -> !llvm.ptr
     llvm.store %arg1, %0 : i32, !llvm.ptr
@@ -1167,7 +1167,7 @@ module {
     %9 = "wasm.mul"(%5, %8) : (i32, i32) -> i32
     cf.br ^bb2(%9 : i32)
   }
-  func.func @f34(%arg0: !llvm.ptr, %arg1: i32) -> i32 {
+  func.func public @"as-test-operand"(%arg0: !llvm.ptr, %arg1: i32) -> i32 attributes {llvm.emit_c_interface} {
     %c1_i64 = arith.constant 1 : i64
     %0 = llvm.alloca %c1_i64 x i32 : (i64) -> !llvm.ptr
     llvm.store %arg1, %0 : i32, !llvm.ptr
@@ -1191,7 +1191,7 @@ module {
     %5 = "wasm.eqz"(%4) : (i32) -> i32
     cf.br ^bb2(%5 : i32)
   }
-  func.func @f35(%arg0: !llvm.ptr, %arg1: i32, %arg2: i32) -> i32 {
+  func.func public @"as-compare-operand"(%arg0: !llvm.ptr, %arg1: i32, %arg2: i32) -> i32 attributes {llvm.emit_c_interface} {
     %c1_i64 = arith.constant 1 : i64
     %0 = llvm.alloca %c1_i64 x i32 : (i64) -> !llvm.ptr
     llvm.store %arg1, %0 : i32, !llvm.ptr
@@ -1231,7 +1231,7 @@ module {
     %9 = "wasm.gt"(%5, %8) : (f32, f32) -> i32
     cf.br ^bb2(%9 : i32)
   }
-  func.func @f36(%arg0: !llvm.ptr, %arg1: i32) -> i32 {
+  func.func public @"as-binary-operands"(%arg0: !llvm.ptr, %arg1: i32) -> i32 attributes {llvm.emit_c_interface} {
     %c1_i64 = arith.constant 1 : i64
     %0 = llvm.alloca %c1_i64 x i32 : (i64) -> !llvm.ptr
     llvm.store %arg1, %0 : i32, !llvm.ptr
@@ -1259,7 +1259,7 @@ module {
     %6 = "wasm.mul"(%4, %5) : (i32, i32) -> i32
     cf.br ^bb2(%6 : i32)
   }
-  func.func @f37(%arg0: !llvm.ptr, %arg1: i32) -> i32 {
+  func.func public @"as-compare-operands"(%arg0: !llvm.ptr, %arg1: i32) -> i32 attributes {llvm.emit_c_interface} {
     %c1_i64 = arith.constant 1 : i64
     %0 = llvm.alloca %c1_i64 x i32 : (i64) -> !llvm.ptr
     llvm.store %arg1, %0 : i32, !llvm.ptr
@@ -1287,7 +1287,7 @@ module {
     %6 = "wasm.gt"(%4, %5) : (f32, f32) -> i32
     cf.br ^bb2(%6 : i32)
   }
-  func.func @f38(%arg0: !llvm.ptr, %arg1: i32) -> i32 {
+  func.func public @"as-mixed-operands"(%arg0: !llvm.ptr, %arg1: i32) -> i32 attributes {llvm.emit_c_interface} {
     %c1_i64 = arith.constant 1 : i64
     %0 = llvm.alloca %c1_i64 x i32 : (i64) -> !llvm.ptr
     llvm.store %arg1, %0 : i32, !llvm.ptr
@@ -1317,7 +1317,7 @@ module {
     %7 = "wasm.mul"(%4, %6) : (i32, i32) -> i32
     cf.br ^bb2(%7 : i32)
   }
-  func.func @f39(%arg0: !llvm.ptr) -> i32 {
+  func.func public @"break-bare"(%arg0: !llvm.ptr) -> i32 attributes {llvm.emit_c_interface} {
     cf.br ^bb1
   ^bb1:  // pred: ^bb0
     %c1_i32 = arith.constant 1 : i32
@@ -1430,7 +1430,7 @@ module {
     %c19_i32 = arith.constant 19 : i32
     cf.br ^bb2(%c19_i32 : i32)
   }
-  func.func @f40(%arg0: !llvm.ptr, %arg1: i32) -> i32 {
+  func.func public @"break-value"(%arg0: !llvm.ptr, %arg1: i32) -> i32 attributes {llvm.emit_c_interface} {
     %c1_i64 = arith.constant 1 : i64
     %0 = llvm.alloca %c1_i64 x i32 : (i64) -> !llvm.ptr
     llvm.store %arg1, %0 : i32, !llvm.ptr
@@ -1451,7 +1451,7 @@ module {
   ^bb5(%4: i32):  // 2 preds: ^bb3, ^bb4
     cf.br ^bb2(%4 : i32)
   }
-  func.func @f41(%arg0: !llvm.ptr, %arg1: i32) -> (i32, i32, i64) {
+  func.func public @"break-multi-value"(%arg0: !llvm.ptr, %arg1: i32) -> (i32, i32, i64) attributes {llvm.emit_c_interface} {
     %c1_i64 = arith.constant 1 : i64
     %0 = llvm.alloca %c1_i64 x i32 : (i64) -> !llvm.ptr
     llvm.store %arg1, %0 : i32, !llvm.ptr
@@ -1476,7 +1476,7 @@ module {
   ^bb5(%6: i32, %7: i32, %8: i64):  // 2 preds: ^bb3, ^bb4
     cf.br ^bb2(%6, %7, %8 : i32, i32, i64)
   }
-  func.func @f42(%arg0: !llvm.ptr, %arg1: i32) -> i32 {
+  func.func public @param(%arg0: !llvm.ptr, %arg1: i32) -> i32 attributes {llvm.emit_c_interface} {
     %c1_i64 = arith.constant 1 : i64
     %0 = llvm.alloca %c1_i64 x i32 : (i64) -> !llvm.ptr
     llvm.store %arg1, %0 : i32, !llvm.ptr
@@ -1500,7 +1500,7 @@ module {
   ^bb5(%8: i32):  // 2 preds: ^bb3, ^bb4
     cf.br ^bb2(%8 : i32)
   }
-  func.func @f43(%arg0: !llvm.ptr, %arg1: i32) -> i32 {
+  func.func public @params(%arg0: !llvm.ptr, %arg1: i32) -> i32 attributes {llvm.emit_c_interface} {
     %c1_i64 = arith.constant 1 : i64
     %0 = llvm.alloca %c1_i64 x i32 : (i64) -> !llvm.ptr
     llvm.store %arg1, %0 : i32, !llvm.ptr
@@ -1523,7 +1523,7 @@ module {
   ^bb5(%10: i32):  // 2 preds: ^bb3, ^bb4
     cf.br ^bb2(%10 : i32)
   }
-  func.func @f44(%arg0: !llvm.ptr, %arg1: i32) -> i32 {
+  func.func public @"params-id"(%arg0: !llvm.ptr, %arg1: i32) -> i32 attributes {llvm.emit_c_interface} {
     %c1_i64 = arith.constant 1 : i64
     %0 = llvm.alloca %c1_i64 x i32 : (i64) -> !llvm.ptr
     llvm.store %arg1, %0 : i32, !llvm.ptr
@@ -1545,7 +1545,7 @@ module {
     %10 = "wasm.add"(%8, %9) : (i32, i32) -> i32
     cf.br ^bb2(%10 : i32)
   }
-  func.func @f45(%arg0: !llvm.ptr, %arg1: i32) -> i32 {
+  func.func public @"param-break"(%arg0: !llvm.ptr, %arg1: i32) -> i32 attributes {llvm.emit_c_interface} {
     %c1_i64 = arith.constant 1 : i64
     %0 = llvm.alloca %c1_i64 x i32 : (i64) -> !llvm.ptr
     llvm.store %arg1, %0 : i32, !llvm.ptr
@@ -1569,7 +1569,7 @@ module {
   ^bb5(%8: i32):  // 2 preds: ^bb3, ^bb4
     cf.br ^bb2(%8 : i32)
   }
-  func.func @f46(%arg0: !llvm.ptr, %arg1: i32) -> i32 {
+  func.func public @"params-break"(%arg0: !llvm.ptr, %arg1: i32) -> i32 attributes {llvm.emit_c_interface} {
     %c1_i64 = arith.constant 1 : i64
     %0 = llvm.alloca %c1_i64 x i32 : (i64) -> !llvm.ptr
     llvm.store %arg1, %0 : i32, !llvm.ptr
@@ -1592,7 +1592,7 @@ module {
   ^bb5(%10: i32):  // 2 preds: ^bb3, ^bb4
     cf.br ^bb2(%10 : i32)
   }
-  func.func @f47(%arg0: !llvm.ptr, %arg1: i32) -> i32 {
+  func.func public @"params-id-break"(%arg0: !llvm.ptr, %arg1: i32) -> i32 attributes {llvm.emit_c_interface} {
     %c1_i64 = arith.constant 1 : i64
     %0 = llvm.alloca %c1_i64 x i32 : (i64) -> !llvm.ptr
     llvm.store %arg1, %0 : i32, !llvm.ptr
@@ -1614,7 +1614,7 @@ module {
     %10 = "wasm.add"(%8, %9) : (i32, i32) -> i32
     cf.br ^bb2(%10 : i32)
   }
-  func.func @f48(%arg0: !llvm.ptr, %arg1: i32) -> i32 {
+  func.func public @effects(%arg0: !llvm.ptr, %arg1: i32) -> i32 attributes {llvm.emit_c_interface} {
     %c1_i64 = arith.constant 1 : i64
     %0 = llvm.alloca %c1_i64 x i32 : (i64) -> !llvm.ptr
     llvm.store %arg1, %0 : i32, !llvm.ptr
@@ -1723,7 +1723,7 @@ module {
   ^bb5(%9: i64):  // 2 preds: ^bb3, ^bb4
     cf.br ^bb2(%9 : i64)
   }
-  func.func @f51(%arg0: !llvm.ptr) {
+  func.func public @"type-use"(%arg0: !llvm.ptr) attributes {llvm.emit_c_interface} {
     cf.br ^bb1
   ^bb1:  // pred: ^bb0
     %c1_i32 = arith.constant 1 : i32
@@ -1803,7 +1803,7 @@ module {
   ^bb23(%28: i32, %29: f64, %30: i32):  // 2 preds: ^bb21, ^bb22
     cf.br ^bb2
   }
-  func.func @f52(%arg0: !llvm.ptr) {
+  func.func public @"atypical-condition"(%arg0: !llvm.ptr) attributes {llvm.emit_c_interface} {
     cf.br ^bb1
   ^bb1:  // pred: ^bb0
     %c0_i32 = arith.constant 0 : i32
