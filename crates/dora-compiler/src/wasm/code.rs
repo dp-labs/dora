@@ -14,6 +14,7 @@ use crate::conversion::builder::OpBuilder;
 use crate::errors::Result;
 use crate::intrinsics::{is_f32_arithmetic, is_f64_arithmetic};
 use crate::value::ToContextValue;
+use crate::wasm::backend::trap;
 use crate::wasm::intrinsics::MemoryCache;
 
 use super::backend;
@@ -280,11 +281,19 @@ macro_rules! bin_op {
     };
 }
 macro_rules! atomicrmw_op {
-    ($builder:ident, $state:ident, $memarg:ident, $fcx:ident, $backend:ident, $block:ident, $op:ident, i32) => {
+    ($builder:ident, $state:ident, $memarg:ident, $fcx:ident, $backend:ident, $region:ident, $block:ident, $op:ident, i32) => {
         let (offset, value) = $state.pop2()?;
         let memory_index = MemoryIndex::from_u32(0);
-        let (block, effective_address) =
-            Self::resolve_memory_ptr(memory_index, $memarg, offset, 4, $fcx, $backend.ctx, $block)?;
+        let (block, effective_address) = Self::resolve_memory_ptr(
+            memory_index,
+            $memarg,
+            offset,
+            4,
+            $fcx,
+            $backend.ctx,
+            $region,
+            $block,
+        )?;
         let result = $builder.make(
             ods::llvm::atomicrmw(
                 $builder.context(),
@@ -305,7 +314,7 @@ macro_rules! atomicrmw_op {
         $state.push1(result.to_ctx_value());
         return Ok(block);
     };
-    ($builder:ident, $state:ident, $memarg:ident, $fcx:ident, $backend:ident, $block:ident, $op:ident, i32, i8) => {
+    ($builder:ident, $state:ident, $memarg:ident, $fcx:ident, $backend:ident, $region:ident, $block:ident, $op:ident, i32, i8) => {
         let (offset, value) = $state.pop2()?;
         let memory_index = MemoryIndex::from_u32(0);
         let (block, effective_address) = Self::resolve_memory_ptr(
@@ -315,6 +324,7 @@ macro_rules! atomicrmw_op {
             size_of::<i8>(),
             $fcx,
             $backend.ctx,
+            $region,
             $block,
         )?;
         let value = $builder.make(arith::trunci(
@@ -347,7 +357,7 @@ macro_rules! atomicrmw_op {
         $state.push1_extra(result.to_ctx_value(), ExtraInfo::arithmetic_f32());
         return Ok(block);
     };
-    ($builder:ident, $state:ident, $memarg:ident, $fcx:ident, $backend:ident, $block:ident, $op:ident, i32, i16) => {
+    ($builder:ident, $state:ident, $memarg:ident, $fcx:ident, $backend:ident, $region:ident, $block:ident, $op:ident, i32, i16) => {
         let (offset, value) = $state.pop2()?;
         let memory_index = MemoryIndex::from_u32(0);
         let (block, effective_address) = Self::resolve_memory_ptr(
@@ -357,6 +367,7 @@ macro_rules! atomicrmw_op {
             size_of::<i16>(),
             $fcx,
             $backend.ctx,
+            $region,
             $block,
         )?;
         let value = $builder.make(arith::trunci(
@@ -389,7 +400,7 @@ macro_rules! atomicrmw_op {
         $state.push1_extra(result.to_ctx_value(), ExtraInfo::arithmetic_f32());
         return Ok(block);
     };
-    ($builder:ident, $state:ident, $memarg:ident, $fcx:ident, $backend:ident, $block:ident, $op:ident, i64) => {
+    ($builder:ident, $state:ident, $memarg:ident, $fcx:ident, $backend:ident, $region:ident, $block:ident, $op:ident, i64) => {
         let (offset, value) = $state.pop2()?;
         let memory_index = MemoryIndex::from_u32(0);
         let (block, effective_address) = Self::resolve_memory_ptr(
@@ -399,6 +410,7 @@ macro_rules! atomicrmw_op {
             size_of::<i64>(),
             $fcx,
             $backend.ctx,
+            $region,
             $block,
         )?;
         let result = $builder.make(
@@ -421,7 +433,7 @@ macro_rules! atomicrmw_op {
         $state.push1(result.to_ctx_value());
         return Ok(block);
     };
-    ($builder:ident, $state:ident, $memarg:ident, $fcx:ident, $backend:ident, $block:ident, $op:ident, i64, $ty:ident) => {
+    ($builder:ident, $state:ident, $memarg:ident, $fcx:ident, $backend:ident, $region:ident, $block:ident, $op:ident, i64, $ty:ident) => {
         let (offset, value) = $state.pop2()?;
         let memory_index = MemoryIndex::from_u32(0);
         let (block, effective_address) = Self::resolve_memory_ptr(
@@ -431,6 +443,7 @@ macro_rules! atomicrmw_op {
             size_of::<i8>(),
             $fcx,
             $backend.ctx,
+            $region,
             $block,
         )?;
         let value = $builder.make(arith::trunci(
@@ -463,7 +476,7 @@ macro_rules! atomicrmw_op {
         $state.push1_extra(result.to_ctx_value(), ExtraInfo::arithmetic_f64());
         return Ok(block);
     };
-    ($builder:ident, $state:ident, $memarg:ident, $fcx:ident, $backend:ident, $block:ident, $op:ident, i64, i16) => {
+    ($builder:ident, $state:ident, $memarg:ident, $fcx:ident, $backend:ident, $region:ident, $block:ident, $op:ident, i64, i16) => {
         let (offset, value) = $state.pop2()?;
         let memory_index = MemoryIndex::from_u32(0);
         let (block, effective_address) = Self::resolve_memory_ptr(
@@ -473,6 +486,7 @@ macro_rules! atomicrmw_op {
             size_of::<i16>(),
             $fcx,
             $backend.ctx,
+            $region,
             $block,
         )?;
         let value = $builder.make(arith::trunci(
@@ -505,7 +519,7 @@ macro_rules! atomicrmw_op {
         $state.push1_extra(result.to_ctx_value(), ExtraInfo::arithmetic_f64());
         return Ok(block);
     };
-    ($builder:ident, $state:ident, $memarg:ident, $fcx:ident, $backend:ident, $block:ident, $op:ident, i64, i32) => {
+    ($builder:ident, $state:ident, $memarg:ident, $fcx:ident, $backend:ident, $region:ident, $block:ident, $op:ident, i64, i32) => {
         let (offset, value) = $state.pop2()?;
         let memory_index = MemoryIndex::from_u32(0);
         let (block, effective_address) = Self::resolve_memory_ptr(
@@ -515,6 +529,7 @@ macro_rules! atomicrmw_op {
             size_of::<i32>(),
             $fcx,
             $backend.ctx,
+            $region,
             $block,
         )?;
         let value = $builder.make(arith::trunci(
@@ -549,7 +564,7 @@ macro_rules! atomicrmw_op {
     };
 }
 macro_rules! atomicrmw_cmpxchg_op {
-    ($builder:ident, $state:ident, $memarg:ident, $fcx:ident, $backend:ident, $block:ident, $ty:ident, $ty_func:ident) => {
+    ($builder:ident, $state:ident, $memarg:ident, $fcx:ident, $backend:ident, $region:ident, $block:ident, $ty:ident, $ty_func:ident) => {
         let (cmp, new) = $state.pop2()?;
         let offset = $state.pop1()?;
         let memory_index = MemoryIndex::from_u32(0);
@@ -560,6 +575,7 @@ macro_rules! atomicrmw_cmpxchg_op {
             size_of::<$ty>(),
             $fcx,
             $backend.ctx,
+            $region,
             $block,
         )?;
         let ordering = StringAttribute::new(
@@ -590,7 +606,7 @@ macro_rules! atomicrmw_cmpxchg_op {
         $state.push1(result.to_ctx_value());
         return Ok(block);
     };
-    ($builder:ident, $state:ident, $memarg:ident, $fcx:ident, $backend:ident, $block:ident, $ty:ident, $ty_func:ident, $narrow_ty_func:ident, $extra_ty_func:ident) => {
+    ($builder:ident, $state:ident, $memarg:ident, $fcx:ident, $backend:ident, $region:ident, $block:ident, $ty:ident, $ty_func:ident, $narrow_ty_func:ident, $extra_ty_func:ident) => {
         let (cmp, new) = $state.pop2()?;
         let offset = $state.pop1()?;
         let memory_index = MemoryIndex::from_u32(0);
@@ -601,6 +617,7 @@ macro_rules! atomicrmw_cmpxchg_op {
             size_of::<$ty>(),
             $fcx,
             $backend.ctx,
+            $region,
             $block,
         )?;
         let ordering = StringAttribute::new(
@@ -1271,6 +1288,7 @@ impl FunctionCodeGenerator {
                     4,
                     fcx,
                     backend.ctx,
+                    region,
                     block,
                 )?;
                 let result = builder.make(builder.load(effective_address, builder.i32_ty()))?;
@@ -1287,6 +1305,7 @@ impl FunctionCodeGenerator {
                     8,
                     fcx,
                     backend.ctx,
+                    region,
                     block,
                 )?;
                 let result = builder.make(builder.load(effective_address, builder.i64_ty()))?;
@@ -1303,6 +1322,7 @@ impl FunctionCodeGenerator {
                     4,
                     fcx,
                     backend.ctx,
+                    region,
                     block,
                 )?;
                 let result = builder.make(builder.load(effective_address, builder.f32_ty()))?;
@@ -1319,6 +1339,7 @@ impl FunctionCodeGenerator {
                     8,
                     fcx,
                     backend.ctx,
+                    region,
                     block,
                 )?;
                 let result = builder.make(builder.load(effective_address, builder.f64_ty()))?;
@@ -1335,6 +1356,7 @@ impl FunctionCodeGenerator {
                     1,
                     fcx,
                     backend.ctx,
+                    region,
                     block,
                 )?;
                 let result = builder.make(builder.load(effective_address, builder.i8_ty()))?;
@@ -1356,6 +1378,7 @@ impl FunctionCodeGenerator {
                     1,
                     fcx,
                     backend.ctx,
+                    region,
                     block,
                 )?;
                 let result = builder.make(builder.load(effective_address, builder.i8_ty()))?;
@@ -1377,6 +1400,7 @@ impl FunctionCodeGenerator {
                     2,
                     fcx,
                     backend.ctx,
+                    region,
                     block,
                 )?;
                 let result = builder.make(builder.load(effective_address, builder.i16_ty()))?;
@@ -1398,6 +1422,7 @@ impl FunctionCodeGenerator {
                     2,
                     fcx,
                     backend.ctx,
+                    region,
                     block,
                 )?;
                 let result = builder.make(builder.load(effective_address, builder.i16_ty()))?;
@@ -1419,6 +1444,7 @@ impl FunctionCodeGenerator {
                     1,
                     fcx,
                     backend.ctx,
+                    region,
                     block,
                 )?;
                 let result = builder.make(builder.load(effective_address, builder.i8_ty()))?;
@@ -1440,6 +1466,7 @@ impl FunctionCodeGenerator {
                     1,
                     fcx,
                     backend.ctx,
+                    region,
                     block,
                 )?;
                 let result = builder.make(builder.load(effective_address, builder.i8_ty()))?;
@@ -1461,6 +1488,7 @@ impl FunctionCodeGenerator {
                     2,
                     fcx,
                     backend.ctx,
+                    region,
                     block,
                 )?;
                 let result = builder.make(builder.load(effective_address, builder.i16_ty()))?;
@@ -1482,6 +1510,7 @@ impl FunctionCodeGenerator {
                     2,
                     fcx,
                     backend.ctx,
+                    region,
                     block,
                 )?;
                 let result = builder.make(builder.load(effective_address, builder.i16_ty()))?;
@@ -1503,6 +1532,7 @@ impl FunctionCodeGenerator {
                     4,
                     fcx,
                     backend.ctx,
+                    region,
                     block,
                 )?;
                 let result = builder.make(builder.load(effective_address, builder.i32_ty()))?;
@@ -1524,6 +1554,7 @@ impl FunctionCodeGenerator {
                     4,
                     fcx,
                     backend.ctx,
+                    region,
                     block,
                 )?;
                 let result = builder.make(builder.load(effective_address, builder.i32_ty()))?;
@@ -1545,6 +1576,7 @@ impl FunctionCodeGenerator {
                     4,
                     fcx,
                     backend.ctx,
+                    region,
                     block,
                 )?;
                 builder.create(builder.store(value, effective_address));
@@ -1560,6 +1592,7 @@ impl FunctionCodeGenerator {
                     8,
                     fcx,
                     backend.ctx,
+                    region,
                     block,
                 )?;
                 builder.create(builder.store(value, effective_address));
@@ -1575,6 +1608,7 @@ impl FunctionCodeGenerator {
                     4,
                     fcx,
                     backend.ctx,
+                    region,
                     block,
                 )?;
                 builder.create(builder.store(value, effective_address));
@@ -1590,6 +1624,7 @@ impl FunctionCodeGenerator {
                     8,
                     fcx,
                     backend.ctx,
+                    region,
                     block,
                 )?;
                 builder.create(builder.store(value, effective_address));
@@ -1605,6 +1640,7 @@ impl FunctionCodeGenerator {
                     1,
                     fcx,
                     backend.ctx,
+                    region,
                     block,
                 )?;
                 let value = builder.make(arith::trunci(
@@ -1625,6 +1661,7 @@ impl FunctionCodeGenerator {
                     2,
                     fcx,
                     backend.ctx,
+                    region,
                     block,
                 )?;
                 let value = builder.make(arith::trunci(
@@ -1645,6 +1682,7 @@ impl FunctionCodeGenerator {
                     4,
                     fcx,
                     backend.ctx,
+                    region,
                     block,
                 )?;
                 let value = builder.make(arith::trunci(
@@ -2634,6 +2672,7 @@ impl FunctionCodeGenerator {
                     4,
                     fcx,
                     backend.ctx,
+                    region,
                     block,
                 )?;
                 let result = builder.make(builder.load_with_ordering(
@@ -2654,6 +2693,7 @@ impl FunctionCodeGenerator {
                     8,
                     fcx,
                     backend.ctx,
+                    region,
                     block,
                 )?;
                 let result = builder.make(builder.load_with_ordering(
@@ -2674,6 +2714,7 @@ impl FunctionCodeGenerator {
                     1,
                     fcx,
                     backend.ctx,
+                    region,
                     block,
                 )?;
                 let result = builder.make(builder.load_with_ordering(
@@ -2699,6 +2740,7 @@ impl FunctionCodeGenerator {
                     2,
                     fcx,
                     backend.ctx,
+                    region,
                     block,
                 )?;
                 let result = builder.make(builder.load_with_ordering(
@@ -2724,6 +2766,7 @@ impl FunctionCodeGenerator {
                     1,
                     fcx,
                     backend.ctx,
+                    region,
                     block,
                 )?;
                 let result = builder.make(builder.load_with_ordering(
@@ -2749,6 +2792,7 @@ impl FunctionCodeGenerator {
                     2,
                     fcx,
                     backend.ctx,
+                    region,
                     block,
                 )?;
                 let result = builder.make(builder.load_with_ordering(
@@ -2774,6 +2818,7 @@ impl FunctionCodeGenerator {
                     4,
                     fcx,
                     backend.ctx,
+                    region,
                     block,
                 )?;
                 let result = builder.make(builder.load_with_ordering(
@@ -2799,6 +2844,7 @@ impl FunctionCodeGenerator {
                     4,
                     fcx,
                     backend.ctx,
+                    region,
                     block,
                 )?;
                 let result = builder.make(builder.store_with_ordering(
@@ -2818,6 +2864,7 @@ impl FunctionCodeGenerator {
                     8,
                     fcx,
                     backend.ctx,
+                    region,
                     block,
                 )?;
                 let result = builder.make(builder.store_with_ordering(
@@ -2837,6 +2884,7 @@ impl FunctionCodeGenerator {
                     1,
                     fcx,
                     backend.ctx,
+                    region,
                     block,
                 )?;
                 let value = builder.make(arith::trunci(
@@ -2861,6 +2909,7 @@ impl FunctionCodeGenerator {
                     2,
                     fcx,
                     backend.ctx,
+                    region,
                     block,
                 )?;
                 let value = builder.make(arith::trunci(
@@ -2885,6 +2934,7 @@ impl FunctionCodeGenerator {
                     1,
                     fcx,
                     backend.ctx,
+                    region,
                     block,
                 )?;
                 let value = builder.make(arith::trunci(
@@ -2909,6 +2959,7 @@ impl FunctionCodeGenerator {
                     2,
                     fcx,
                     backend.ctx,
+                    region,
                     block,
                 )?;
                 let value = builder.make(arith::trunci(
@@ -2933,6 +2984,7 @@ impl FunctionCodeGenerator {
                     4,
                     fcx,
                     backend.ctx,
+                    region,
                     block,
                 )?;
                 let value = builder.make(arith::trunci(
@@ -2948,136 +3000,140 @@ impl FunctionCodeGenerator {
                 return Ok(block);
             }
             Operator::I32AtomicRmwAdd { ref memarg } => {
-                atomicrmw_op!(builder, state, memarg, fcx, backend, block, Add, i32);
+                atomicrmw_op!(builder, state, memarg, fcx, backend, region, block, Add, i32);
             }
             Operator::I64AtomicRmwAdd { ref memarg } => {
-                atomicrmw_op!(builder, state, memarg, fcx, backend, block, Add, i64);
+                atomicrmw_op!(builder, state, memarg, fcx, backend, region, block, Add, i64);
             }
             Operator::I32AtomicRmw8AddU { ref memarg } => {
-                atomicrmw_op!(builder, state, memarg, fcx, backend, block, Add, i32, i8);
+                atomicrmw_op!(builder, state, memarg, fcx, backend, region, block, Add, i32, i8);
             }
             Operator::I32AtomicRmw16AddU { ref memarg } => {
-                atomicrmw_op!(builder, state, memarg, fcx, backend, block, Add, i32, i16);
+                atomicrmw_op!(builder, state, memarg, fcx, backend, region, block, Add, i32, i16);
             }
             Operator::I64AtomicRmw8AddU { ref memarg } => {
-                atomicrmw_op!(builder, state, memarg, fcx, backend, block, Add, i64, i8);
+                atomicrmw_op!(builder, state, memarg, fcx, backend, region, block, Add, i64, i8);
             }
             Operator::I64AtomicRmw16AddU { ref memarg } => {
-                atomicrmw_op!(builder, state, memarg, fcx, backend, block, Add, i64, i16);
+                atomicrmw_op!(builder, state, memarg, fcx, backend, region, block, Add, i64, i16);
             }
             Operator::I64AtomicRmw32AddU { ref memarg } => {
-                atomicrmw_op!(builder, state, memarg, fcx, backend, block, Add, i64, i32);
+                atomicrmw_op!(builder, state, memarg, fcx, backend, region, block, Add, i64, i32);
             }
             Operator::I32AtomicRmwSub { ref memarg } => {
-                atomicrmw_op!(builder, state, memarg, fcx, backend, block, Sub, i32);
+                atomicrmw_op!(builder, state, memarg, fcx, backend, region, block, Sub, i32);
             }
             Operator::I64AtomicRmwSub { ref memarg } => {
-                atomicrmw_op!(builder, state, memarg, fcx, backend, block, Sub, i64);
+                atomicrmw_op!(builder, state, memarg, fcx, backend, region, block, Sub, i64);
             }
             Operator::I32AtomicRmw8SubU { ref memarg } => {
-                atomicrmw_op!(builder, state, memarg, fcx, backend, block, Sub, i32, i8);
+                atomicrmw_op!(builder, state, memarg, fcx, backend, region, block, Sub, i32, i8);
             }
             Operator::I32AtomicRmw16SubU { ref memarg } => {
-                atomicrmw_op!(builder, state, memarg, fcx, backend, block, Sub, i32, i16);
+                atomicrmw_op!(builder, state, memarg, fcx, backend, region, block, Sub, i32, i16);
             }
             Operator::I64AtomicRmw8SubU { ref memarg } => {
-                atomicrmw_op!(builder, state, memarg, fcx, backend, block, Sub, i64, i8);
+                atomicrmw_op!(builder, state, memarg, fcx, backend, region, block, Sub, i64, i8);
             }
             Operator::I64AtomicRmw16SubU { ref memarg } => {
-                atomicrmw_op!(builder, state, memarg, fcx, backend, block, Sub, i64, i16);
+                atomicrmw_op!(builder, state, memarg, fcx, backend, region, block, Sub, i64, i16);
             }
             Operator::I64AtomicRmw32SubU { ref memarg } => {
-                atomicrmw_op!(builder, state, memarg, fcx, backend, block, Sub, i64, i32);
+                atomicrmw_op!(builder, state, memarg, fcx, backend, region, block, Sub, i64, i32);
             }
             Operator::I32AtomicRmwAnd { ref memarg } => {
-                atomicrmw_op!(builder, state, memarg, fcx, backend, block, And, i32);
+                atomicrmw_op!(builder, state, memarg, fcx, backend, region, block, And, i32);
             }
             Operator::I64AtomicRmwAnd { ref memarg } => {
-                atomicrmw_op!(builder, state, memarg, fcx, backend, block, And, i64);
+                atomicrmw_op!(builder, state, memarg, fcx, backend, region, block, And, i64);
             }
             Operator::I32AtomicRmw8AndU { ref memarg } => {
-                atomicrmw_op!(builder, state, memarg, fcx, backend, block, And, i32, i8);
+                atomicrmw_op!(builder, state, memarg, fcx, backend, region, block, And, i32, i8);
             }
             Operator::I32AtomicRmw16AndU { ref memarg } => {
-                atomicrmw_op!(builder, state, memarg, fcx, backend, block, And, i32, i16);
+                atomicrmw_op!(builder, state, memarg, fcx, backend, region, block, And, i32, i16);
             }
             Operator::I64AtomicRmw8AndU { ref memarg } => {
-                atomicrmw_op!(builder, state, memarg, fcx, backend, block, And, i64, i8);
+                atomicrmw_op!(builder, state, memarg, fcx, backend, region, block, And, i64, i8);
             }
             Operator::I64AtomicRmw16AndU { ref memarg } => {
-                atomicrmw_op!(builder, state, memarg, fcx, backend, block, And, i64, i16);
+                atomicrmw_op!(builder, state, memarg, fcx, backend, region, block, And, i64, i16);
             }
             Operator::I64AtomicRmw32AndU { ref memarg } => {
-                atomicrmw_op!(builder, state, memarg, fcx, backend, block, And, i64, i32);
+                atomicrmw_op!(builder, state, memarg, fcx, backend, region, block, And, i64, i32);
             }
             Operator::I32AtomicRmwOr { ref memarg } => {
-                atomicrmw_op!(builder, state, memarg, fcx, backend, block, Or, i32);
+                atomicrmw_op!(builder, state, memarg, fcx, backend, region, block, Or, i32);
             }
             Operator::I64AtomicRmwOr { ref memarg } => {
-                atomicrmw_op!(builder, state, memarg, fcx, backend, block, Or, i64);
+                atomicrmw_op!(builder, state, memarg, fcx, backend, region, block, Or, i64);
             }
             Operator::I32AtomicRmw8OrU { ref memarg } => {
-                atomicrmw_op!(builder, state, memarg, fcx, backend, block, Or, i32, i8);
+                atomicrmw_op!(builder, state, memarg, fcx, backend, region, block, Or, i32, i8);
             }
             Operator::I32AtomicRmw16OrU { ref memarg } => {
-                atomicrmw_op!(builder, state, memarg, fcx, backend, block, Or, i32, i16);
+                atomicrmw_op!(builder, state, memarg, fcx, backend, region, block, Or, i32, i16);
             }
             Operator::I64AtomicRmw8OrU { ref memarg } => {
-                atomicrmw_op!(builder, state, memarg, fcx, backend, block, Or, i64, i8);
+                atomicrmw_op!(builder, state, memarg, fcx, backend, region, block, Or, i64, i8);
             }
             Operator::I64AtomicRmw16OrU { ref memarg } => {
-                atomicrmw_op!(builder, state, memarg, fcx, backend, block, Or, i64, i16);
+                atomicrmw_op!(builder, state, memarg, fcx, backend, region, block, Or, i64, i16);
             }
             Operator::I64AtomicRmw32OrU { ref memarg } => {
-                atomicrmw_op!(builder, state, memarg, fcx, backend, block, Or, i64, i32);
+                atomicrmw_op!(builder, state, memarg, fcx, backend, region, block, Or, i64, i32);
             }
             Operator::I32AtomicRmwXor { ref memarg } => {
-                atomicrmw_op!(builder, state, memarg, fcx, backend, block, Xor, i32);
+                atomicrmw_op!(builder, state, memarg, fcx, backend, region, block, Xor, i32);
             }
             Operator::I64AtomicRmwXor { ref memarg } => {
-                atomicrmw_op!(builder, state, memarg, fcx, backend, block, Xor, i64);
+                atomicrmw_op!(builder, state, memarg, fcx, backend, region, block, Xor, i64);
             }
             Operator::I32AtomicRmw8XorU { ref memarg } => {
-                atomicrmw_op!(builder, state, memarg, fcx, backend, block, Xor, i32, i8);
+                atomicrmw_op!(builder, state, memarg, fcx, backend, region, block, Xor, i32, i8);
             }
             Operator::I32AtomicRmw16XorU { ref memarg } => {
-                atomicrmw_op!(builder, state, memarg, fcx, backend, block, Xor, i32, i16);
+                atomicrmw_op!(builder, state, memarg, fcx, backend, region, block, Xor, i32, i16);
             }
             Operator::I64AtomicRmw8XorU { ref memarg } => {
-                atomicrmw_op!(builder, state, memarg, fcx, backend, block, Xor, i64, i8);
+                atomicrmw_op!(builder, state, memarg, fcx, backend, region, block, Xor, i64, i8);
             }
             Operator::I64AtomicRmw16XorU { ref memarg } => {
-                atomicrmw_op!(builder, state, memarg, fcx, backend, block, Xor, i64, i16);
+                atomicrmw_op!(builder, state, memarg, fcx, backend, region, block, Xor, i64, i16);
             }
             Operator::I64AtomicRmw32XorU { ref memarg } => {
-                atomicrmw_op!(builder, state, memarg, fcx, backend, block, Xor, i64, i32);
+                atomicrmw_op!(builder, state, memarg, fcx, backend, region, block, Xor, i64, i32);
             }
             Operator::I32AtomicRmwXchg { ref memarg } => {
-                atomicrmw_op!(builder, state, memarg, fcx, backend, block, Xchg, i32);
+                atomicrmw_op!(builder, state, memarg, fcx, backend, region, block, Xchg, i32);
             }
             Operator::I64AtomicRmwXchg { ref memarg } => {
-                atomicrmw_op!(builder, state, memarg, fcx, backend, block, Xchg, i64);
+                atomicrmw_op!(builder, state, memarg, fcx, backend, region, block, Xchg, i64);
             }
             Operator::I32AtomicRmw8XchgU { ref memarg } => {
-                atomicrmw_op!(builder, state, memarg, fcx, backend, block, Xchg, i32, i8);
+                atomicrmw_op!(builder, state, memarg, fcx, backend, region, block, Xchg, i32, i8);
             }
             Operator::I32AtomicRmw16XchgU { ref memarg } => {
-                atomicrmw_op!(builder, state, memarg, fcx, backend, block, Xchg, i32, i16);
+                atomicrmw_op!(builder, state, memarg, fcx, backend, region, block, Xchg, i32, i16);
             }
             Operator::I64AtomicRmw8XchgU { ref memarg } => {
-                atomicrmw_op!(builder, state, memarg, fcx, backend, block, Xchg, i64, i8);
+                atomicrmw_op!(builder, state, memarg, fcx, backend, region, block, Xchg, i64, i8);
             }
             Operator::I64AtomicRmw16XchgU { ref memarg } => {
-                atomicrmw_op!(builder, state, memarg, fcx, backend, block, Xchg, i64, i16);
+                atomicrmw_op!(builder, state, memarg, fcx, backend, region, block, Xchg, i64, i16);
             }
             Operator::I64AtomicRmw32XchgU { ref memarg } => {
-                atomicrmw_op!(builder, state, memarg, fcx, backend, block, Xchg, i64, i32);
+                atomicrmw_op!(builder, state, memarg, fcx, backend, region, block, Xchg, i64, i32);
             }
             Operator::I32AtomicRmwCmpxchg { ref memarg } => {
-                atomicrmw_cmpxchg_op!(builder, state, memarg, fcx, backend, block, i32, i32_ty);
+                atomicrmw_cmpxchg_op!(
+                    builder, state, memarg, fcx, backend, region, block, i32, i32_ty
+                );
             }
             Operator::I64AtomicRmwCmpxchg { ref memarg } => {
-                atomicrmw_cmpxchg_op!(builder, state, memarg, fcx, backend, block, i64, i64_ty);
+                atomicrmw_cmpxchg_op!(
+                    builder, state, memarg, fcx, backend, region, block, i64, i64_ty
+                );
             }
             Operator::I32AtomicRmw8CmpxchgU { ref memarg } => {
                 atomicrmw_cmpxchg_op!(
@@ -3086,6 +3142,7 @@ impl FunctionCodeGenerator {
                     memarg,
                     fcx,
                     backend,
+                    region,
                     block,
                     i32,
                     i32_ty,
@@ -3100,6 +3157,7 @@ impl FunctionCodeGenerator {
                     memarg,
                     fcx,
                     backend,
+                    region,
                     block,
                     i32,
                     i32_ty,
@@ -3114,6 +3172,7 @@ impl FunctionCodeGenerator {
                     memarg,
                     fcx,
                     backend,
+                    region,
                     block,
                     i64,
                     i64_ty,
@@ -3128,6 +3187,7 @@ impl FunctionCodeGenerator {
                     memarg,
                     fcx,
                     backend,
+                    region,
                     block,
                     i64,
                     i64_ty,
@@ -3142,6 +3202,7 @@ impl FunctionCodeGenerator {
                     memarg,
                     fcx,
                     backend,
+                    region,
                     block,
                     i64,
                     i64_ty,
@@ -3159,6 +3220,7 @@ impl FunctionCodeGenerator {
                     16,
                     fcx,
                     backend.ctx,
+                    region,
                     block,
                 )?;
                 let result = builder.make(builder.load(effective_address, builder.i128_ty()))?;
@@ -3174,11 +3236,10 @@ impl FunctionCodeGenerator {
                 let expected_dynamic_sigindex = fcx.ctx.dynamic_sigindex(sigindex)?;
                 let (table_base, table_bound) = fcx.ctx.table(TableIndex::from_u32(table_index))?;
                 let func_index = state.pop1()?;
-
                 let ctx = &backend.ctx.mlir_context;
+
                 let index_in_bounds =
                     builder.make(builder.icmp(IntCC::UnsignedLessThan, func_index, table_bound))?;
-
                 let in_bounds_continue_block = region.append_block(Block::new(&[]));
                 let not_in_bounds_block = region.append_block(Block::new(&[]));
                 builder.create(cf::cond_br(
@@ -3193,20 +3254,11 @@ impl FunctionCodeGenerator {
                 // Raise the table access OOB error
                 {
                     let builder = OpBuilder::new_with_block(ctx, not_in_bounds_block);
-                    let code =
-                        builder.make(builder.iconst_32(TrapCode::TableAccessOutOfBounds as _))?;
-                    builder.create(func::call(
-                        ctx,
-                        FlatSymbolRefAttribute::new(ctx, symbols::wasm::RAISE_TRAP),
-                        &[code],
-                        &[],
-                        builder.get_insert_location(),
-                    ));
-                    builder.create(cf::br(
-                        &in_bounds_continue_block,
-                        &[],
-                        builder.get_insert_location(),
-                    ));
+                    trap(
+                        &builder,
+                        TrapCode::TableAccessOutOfBounds,
+                        in_bounds_continue_block,
+                    )?;
                 }
                 let builder = OpBuilder::new_with_block(ctx, in_bounds_continue_block);
                 let funcref_ptr = builder
@@ -3221,7 +3273,29 @@ impl FunctionCodeGenerator {
                 let anyfunc_struct_ptr = builder
                     .make(builder.load(funcref_ptr, builder.ptr_ty()))?
                     .to_ctx_value();
-                // TODO: Trap if we're trying to call a null funcref
+
+                let funcref_is_null = is_zero(&builder, anyfunc_struct_ptr)?;
+                let funcref_continue_deref_block = region.append_block(Block::new(&[]));
+                let funcref_is_null_block = region.append_block(Block::new(&[]));
+                builder.create(cf::cond_br(
+                    ctx,
+                    funcref_is_null,
+                    &funcref_is_null_block,
+                    &funcref_continue_deref_block,
+                    &[],
+                    &[],
+                    builder.get_insert_location(),
+                ));
+                // Trap if we're trying to call a null funcref
+                {
+                    let builder = OpBuilder::new_with_block(ctx, funcref_is_null_block);
+                    trap(
+                        &builder,
+                        TrapCode::IndirectCallToNull,
+                        funcref_continue_deref_block,
+                    )?;
+                }
+                let builder = OpBuilder::new_with_block(ctx, funcref_continue_deref_block);
                 // Load things from the anyfunc data structure.
                 let func_ptr_ptr = builder
                     .make(builder.gep(
@@ -3252,11 +3326,39 @@ impl FunctionCodeGenerator {
                     builder.make(builder.load(sigindex_ptr, builder.i32_ty()))?;
                 let ctx_ptr = builder.make(builder.load(ctx_ptr_ptr, builder.ptr_ty()))?;
 
-                // TODO: Check if the table element is initialized and if the signature id is correct.
-                let _elem_not_initialized = is_zero(&builder, func_ptr)?;
-
+                let elem_not_initialized = is_zero(&builder, func_ptr)?;
+                let sigindices_not_equal = builder.make(builder.icmp(
+                    IntCC::NotEqual,
+                    expected_dynamic_sigindex,
+                    found_dynamic_sigindex,
+                ))?;
+                let initialized_and_sigindices_not_match = builder.make(arith::ori(
+                    elem_not_initialized,
+                    sigindices_not_equal,
+                    builder.get_insert_location(),
+                ))?;
+                let continue_block = region.append_block(Block::new(&[]));
+                let sigindices_notequal_block = region.append_block(Block::new(&[]));
+                builder.create(cf::cond_br(
+                    ctx,
+                    initialized_and_sigindices_not_match,
+                    &sigindices_notequal_block,
+                    &continue_block,
+                    &[],
+                    &[],
+                    builder.get_insert_location(),
+                ));
+                // Check if the table element is initialized and if the signature id is correct.
+                {
+                    let builder = OpBuilder::new_with_block(ctx, sigindices_notequal_block);
+                    trap(
+                        &builder,
+                        TrapCode::BadSignature,
+                        funcref_continue_deref_block,
+                    )?;
+                }
+                let builder = OpBuilder::new_with_block(ctx, continue_block);
                 let mlir_func_type = func_type_to_mlir(backend.ctx, &backend.intrinsics, func_type);
-
                 let return_types = func_type
                     .results()
                     .iter()
@@ -3272,7 +3374,7 @@ impl FunctionCodeGenerator {
                 let args = args.iter().map(|p| p.0).collect::<Vec<Value<'_, '_>>>();
                 let result = builder.make(builder.indirect_call(ret_ty, func_ptr, &args)?)?;
                 state.push1(result.to_ctx_value());
-                return Ok(in_bounds_continue_block);
+                return Ok(continue_block);
             }
             _ => {
                 return Err(
@@ -3316,6 +3418,7 @@ impl FunctionCodeGenerator {
         Ok(())
     }
 
+    #[allow(clippy::too_many_arguments)]
     fn resolve_memory_ptr<'c, 'a>(
         memory_index: MemoryIndex,
         memarg: &MemArg,
@@ -3323,12 +3426,14 @@ impl FunctionCodeGenerator {
         value_size: usize,
         fcx: &mut FunctionCodeCtx<'c, 'a>,
         ctx: &'c Context,
+        region: &'c Region<'c>,
         block: BlockRef<'c, 'a>,
     ) -> Result<(BlockRef<'c, 'a>, Value<'c, 'a>)>
     where
         'a: 'c,
     {
-        let builder = OpBuilder::new_with_block(&ctx.mlir_context, block);
+        let ctx = &ctx.mlir_context;
+        let builder = OpBuilder::new_with_block(ctx, block);
         let location = builder.get_insert_location();
         // Compute the offset into the storage.
         let imm_offset = builder.make(builder.iconst_64(memarg.offset as i64))?;
@@ -3339,12 +3444,12 @@ impl FunctionCodeGenerator {
         };
         let offset = builder.make(arith::addi(var_offset, imm_offset, location))?;
         // Look up the memory base (as pointer) and bounds (as unsigned integer).
-        let base_ptr = match fcx.ctx.memory(memory_index, fcx.memory_styles)? {
+        let (base_ptr, block) = match fcx.ctx.memory(memory_index, fcx.memory_styles)? {
             MemoryCache::Dynamic {
                 ptr_to_base_ptr,
                 ptr_to_current_length,
             } => {
-                let builder = OpBuilder::new_with_block(&ctx.mlir_context, block);
+                let builder = OpBuilder::new_with_block(ctx, block);
                 // Bounds check it.
                 let minimum = fcx.wasm_module.memories[memory_index].minimum;
                 let value_size_v = builder.make(builder.iconst_64(value_size as i64))?;
@@ -3364,14 +3469,35 @@ impl FunctionCodeGenerator {
                     load_offset_end,
                     current_length,
                 ))?;
-
-                // TODO: check Memory out of index error.
-
-                builder
-                    .make(builder.load(ptr_to_base_ptr, builder.ptr_ty()))?
-                    .to_ctx_value()
+                // Check memory out of index error.
+                let in_bounds_continue_block = region.append_block(Block::new(&[]));
+                let not_in_bounds_block = region.append_block(Block::new(&[]));
+                builder.create(cf::cond_br(
+                    ctx,
+                    ptr_in_bounds,
+                    &in_bounds_continue_block,
+                    &not_in_bounds_block,
+                    &[],
+                    &[],
+                    builder.get_insert_location(),
+                ));
+                // Raise the memory OOB error
+                {
+                    let builder = OpBuilder::new_with_block(ctx, not_in_bounds_block);
+                    trap(
+                        &builder,
+                        TrapCode::HeapAccessOutOfBounds,
+                        in_bounds_continue_block,
+                    )?;
+                }
+                (
+                    builder
+                        .make(builder.load(ptr_to_base_ptr, builder.ptr_ty()))?
+                        .to_ctx_value(),
+                    in_bounds_continue_block,
+                )
             }
-            MemoryCache::Static { base_ptr } => base_ptr,
+            MemoryCache::Static { base_ptr } => (base_ptr, block),
         };
         let memory_ptr = builder.make(builder.gep_dynamic(
             base_ptr,

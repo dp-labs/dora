@@ -65,26 +65,43 @@ module {
     %c0_i32 = arith.constant 0 : i32
     %47 = arith.cmpi ult, %c0_i32, %32 : i32
     cf.cond_br %47, ^bb3, ^bb4
-  ^bb2:  // pred: ^bb3
+  ^bb2:  // pred: ^bb7
     return
   ^bb3:  // 2 preds: ^bb1, ^bb4
     %48 = llvm.getelementptr %31[%c0_i32] : (!llvm.ptr, i32) -> !llvm.ptr, !llvm.ptr
     %49 = llvm.load %48 : !llvm.ptr -> !llvm.ptr
-    %50 = llvm.getelementptr %49[0] : (!llvm.ptr) -> !llvm.ptr, i8
-    %51 = llvm.getelementptr %49[8] : (!llvm.ptr) -> !llvm.ptr, i8
-    %52 = llvm.getelementptr %49[16] : (!llvm.ptr) -> !llvm.ptr, i8
-    %53 = llvm.load %50 : !llvm.ptr -> !llvm.ptr
-    %54 = llvm.load %51 : !llvm.ptr -> i32
-    %55 = llvm.load %52 : !llvm.ptr -> !llvm.ptr
-    %56 = llvm.load %53 : !llvm.ptr -> i32
+    %50 = llvm.load %49 : !llvm.ptr -> i32
     %c0_i32_2 = arith.constant 0 : i32
-    %57 = arith.cmpi eq, %56, %c0_i32_2 : i32
-    %58 = llvm.call %53(%46) vararg(!llvm.func<void (...)>) : !llvm.ptr, (i32) -> !llvm.void
-    cf.br ^bb2
+    %51 = arith.cmpi eq, %50, %c0_i32_2 : i32
+    cf.cond_br %51, ^bb6, ^bb5
   ^bb4:  // pred: ^bb1
     %c3_i32 = arith.constant 3 : i32
     call @dora_fn_wasm_raise_trap(%c3_i32) : (i32) -> ()
     cf.br ^bb3
+  ^bb5:  // 3 preds: ^bb3, ^bb6, ^bb8
+    %52 = llvm.getelementptr %49[0] : (!llvm.ptr) -> !llvm.ptr, i8
+    %53 = llvm.getelementptr %49[8] : (!llvm.ptr) -> !llvm.ptr, i8
+    %54 = llvm.getelementptr %49[16] : (!llvm.ptr) -> !llvm.ptr, i8
+    %55 = llvm.load %52 : !llvm.ptr -> !llvm.ptr
+    %56 = llvm.load %53 : !llvm.ptr -> i32
+    %57 = llvm.load %54 : !llvm.ptr -> !llvm.ptr
+    %58 = llvm.load %55 : !llvm.ptr -> i32
+    %c0_i32_3 = arith.constant 0 : i32
+    %59 = arith.cmpi eq, %58, %c0_i32_3 : i32
+    %60 = arith.cmpi ne, %28, %56 : i32
+    %61 = arith.ori %59, %60 : i1
+    cf.cond_br %61, ^bb8, ^bb7
+  ^bb6:  // pred: ^bb3
+    %c4_i32 = arith.constant 4 : i32
+    call @dora_fn_wasm_raise_trap(%c4_i32) : (i32) -> ()
+    cf.br ^bb5
+  ^bb7:  // pred: ^bb5
+    %62 = llvm.call %55(%46) vararg(!llvm.func<void (...)>) : !llvm.ptr, (i32) -> !llvm.void
+    cf.br ^bb2
+  ^bb8:  // pred: ^bb5
+    %c5_i32 = arith.constant 5 : i32
+    call @dora_fn_wasm_raise_trap(%c5_i32) : (i32) -> ()
+    cf.br ^bb5
   }
   func.func @f1(%arg0: !llvm.ptr, %arg1: i64) {
     %c1_i64 = arith.constant 1 : i64
@@ -153,26 +170,43 @@ module {
     %c1_i32 = arith.constant 1 : i32
     %53 = arith.cmpi ult, %c1_i32, %37 : i32
     cf.cond_br %53, ^bb3, ^bb4
-  ^bb2:  // pred: ^bb3
+  ^bb2:  // pred: ^bb7
     return
   ^bb3:  // 2 preds: ^bb1, ^bb4
     %54 = llvm.getelementptr %36[%c1_i32] : (!llvm.ptr, i32) -> !llvm.ptr, !llvm.ptr
     %55 = llvm.load %54 : !llvm.ptr -> !llvm.ptr
-    %56 = llvm.getelementptr %55[0] : (!llvm.ptr) -> !llvm.ptr, i8
-    %57 = llvm.getelementptr %55[8] : (!llvm.ptr) -> !llvm.ptr, i8
-    %58 = llvm.getelementptr %55[16] : (!llvm.ptr) -> !llvm.ptr, i8
-    %59 = llvm.load %56 : !llvm.ptr -> !llvm.ptr
-    %60 = llvm.load %57 : !llvm.ptr -> i32
-    %61 = llvm.load %58 : !llvm.ptr -> !llvm.ptr
-    %62 = llvm.load %59 : !llvm.ptr -> i32
+    %56 = llvm.load %55 : !llvm.ptr -> i32
     %c0_i32 = arith.constant 0 : i32
-    %63 = arith.cmpi eq, %62, %c0_i32 : i32
-    %64 = llvm.call %59(%52) vararg(!llvm.func<void (...)>) : !llvm.ptr, (f64) -> !llvm.void
-    cf.br ^bb2
+    %57 = arith.cmpi eq, %56, %c0_i32 : i32
+    cf.cond_br %57, ^bb6, ^bb5
   ^bb4:  // pred: ^bb1
     %c3_i32 = arith.constant 3 : i32
     call @dora_fn_wasm_raise_trap(%c3_i32) : (i32) -> ()
     cf.br ^bb3
+  ^bb5:  // 3 preds: ^bb3, ^bb6, ^bb8
+    %58 = llvm.getelementptr %55[0] : (!llvm.ptr) -> !llvm.ptr, i8
+    %59 = llvm.getelementptr %55[8] : (!llvm.ptr) -> !llvm.ptr, i8
+    %60 = llvm.getelementptr %55[16] : (!llvm.ptr) -> !llvm.ptr, i8
+    %61 = llvm.load %58 : !llvm.ptr -> !llvm.ptr
+    %62 = llvm.load %59 : !llvm.ptr -> i32
+    %63 = llvm.load %60 : !llvm.ptr -> !llvm.ptr
+    %64 = llvm.load %61 : !llvm.ptr -> i32
+    %c0_i32_3 = arith.constant 0 : i32
+    %65 = arith.cmpi eq, %64, %c0_i32_3 : i32
+    %66 = arith.cmpi ne, %33, %62 : i32
+    %67 = arith.ori %65, %66 : i1
+    cf.cond_br %67, ^bb8, ^bb7
+  ^bb6:  // pred: ^bb3
+    %c4_i32 = arith.constant 4 : i32
+    call @dora_fn_wasm_raise_trap(%c4_i32) : (i32) -> ()
+    cf.br ^bb5
+  ^bb7:  // pred: ^bb5
+    %68 = llvm.call %61(%52) vararg(!llvm.func<void (...)>) : !llvm.ptr, (f64) -> !llvm.void
+    cf.br ^bb2
+  ^bb8:  // pred: ^bb5
+    %c5_i32 = arith.constant 5 : i32
+    call @dora_fn_wasm_raise_trap(%c5_i32) : (i32) -> ()
+    cf.br ^bb5
   }
   func.func private @dora_fn_wasm_table_init(!llvm.ptr, i32, i32, i32, i32, i32)
   func.func private @dora_fn_wasm_table_fill(!llvm.ptr, i32, i32, !llvm.ptr, i32)
