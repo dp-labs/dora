@@ -365,7 +365,6 @@ module {
     cf.br ^bb2(%1 : i32)
   ^bb4(%2: i32):  // pred: ^bb1
     %c2_i32 = arith.constant 2 : i32
-    %c0_i64 = arith.constant 0 : i64
     cf.switch %c2_i32 : i32, [
       default: ^bb3(%2 : i32),
       0: ^bb3(%2 : i32)
@@ -382,7 +381,6 @@ module {
   ^bb3(%1: i32):  // 2 preds: ^bb4, ^bb4
     cf.br ^bb2(%1 : i32)
   ^bb4(%2: i32):  // pred: ^bb1
-    %c0_i64 = arith.constant 0 : i64
     cf.switch %2 : i32, [
       default: ^bb3(%c2_i32 : i32),
       0: ^bb3(%c2_i32 : i32)
@@ -451,7 +449,7 @@ module {
     call @dora_fn_wasm_raise_trap(%c4_i32) : (i32) -> ()
     cf.br ^bb7
   ^bb9:  // pred: ^bb7
-    %24 = llvm.call %17(%8, %c2_i32) vararg(!llvm.func<i32 (...)>) : !llvm.ptr, (i32, i32) -> i32
+    %24 = llvm.call %17(%19, %8, %c2_i32) vararg(!llvm.func<i32 (...)>) : !llvm.ptr, (!llvm.ptr, i32, i32) -> i32
     cf.br ^bb3(%24 : i32)
   ^bb10:  // pred: ^bb7
     %c5_i32 = arith.constant 5 : i32
@@ -507,7 +505,7 @@ module {
     call @dora_fn_wasm_raise_trap(%c4_i32) : (i32) -> ()
     cf.br ^bb7
   ^bb9:  // pred: ^bb7
-    %24 = llvm.call %17(%c2_i32, %8) vararg(!llvm.func<i32 (...)>) : !llvm.ptr, (i32, i32) -> i32
+    %24 = llvm.call %17(%19, %c2_i32, %8) vararg(!llvm.func<i32 (...)>) : !llvm.ptr, (!llvm.ptr, i32, i32) -> i32
     cf.br ^bb3(%24 : i32)
   ^bb10:  // pred: ^bb7
     %c5_i32 = arith.constant 5 : i32
@@ -563,7 +561,7 @@ module {
     call @dora_fn_wasm_raise_trap(%c4_i32) : (i32) -> ()
     cf.br ^bb7
   ^bb9:  // pred: ^bb7
-    %24 = llvm.call %17(%c1_i32, %c2_i32) vararg(!llvm.func<i32 (...)>) : !llvm.ptr, (i32, i32) -> i32
+    %24 = llvm.call %17(%19, %c1_i32, %c2_i32) vararg(!llvm.func<i32 (...)>) : !llvm.ptr, (!llvm.ptr, i32, i32) -> i32
     cf.br ^bb3(%24 : i32)
   ^bb10:  // pred: ^bb7
     %c5_i32 = arith.constant 5 : i32
@@ -857,8 +855,6 @@ module {
     "wasm.unreachable"() : () -> ()
   ^bb6:  // pred: ^bb4
     %c1_i32_1 = arith.constant 1 : i32
-    %c0_i64 = arith.constant 0 : i64
-    %c1_i64 = arith.constant 1 : i64
     cf.switch %c1_i32_1 : i32, [
       default: ^bb7,
       0: ^bb7,

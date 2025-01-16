@@ -1,15 +1,7 @@
-#![allow(unused)]
-
-use std::borrow::Borrow;
-use std::cell::Ref;
-use std::cell::RefCell;
-use std::rc::Rc;
-
 use crate::backend::AtomicBinOp;
 use crate::backend::AtomicOrdering;
 use crate::backend::IntCC;
 use crate::context::Context;
-use crate::conversion::builder;
 use crate::conversion::builder::OpBuilder;
 use crate::errors::Result;
 use crate::intrinsics::{is_f32_arithmetic, is_f64_arithmetic};
@@ -17,36 +9,25 @@ use crate::value::ToContextValue;
 use crate::wasm::backend::trap;
 use crate::wasm::intrinsics::MemoryCache;
 
-use super::backend;
 use super::backend::is_zero;
 use super::backend::WASMBackend;
-use super::backend::WASMBuilder;
+use super::intrinsics::CtxType;
 use super::intrinsics::FunctionCache;
 use super::intrinsics::GlobalCache;
-use super::intrinsics::{CtxType, WASMIntrinsics};
-use super::ty::func_type_to_mlir;
 use super::ty::{type_to_mlir, type_to_mlir_zero_attribute};
 use super::Config;
 use crate::errors::CompileError;
-use crate::module::Module;
-use crate::state::BasicBlock;
 use crate::state::ControlFrame;
 use crate::state::ExtraInfo;
 use crate::state::IfElseState;
-use crate::state::{PhiValue, State};
+use crate::state::PhiValue;
 use dora_runtime::symbols;
-use melior::dialect::arith::{CmpfPredicate, CmpiPredicate};
 use melior::dialect::ods;
 use melior::dialect::{arith, cf, func, llvm};
 use melior::ir::attribute::DenseI64ArrayAttribute;
 use melior::ir::attribute::FlatSymbolRefAttribute;
 use melior::ir::attribute::StringAttribute;
-use melior::ir::attribute::TypeAttribute;
-use melior::ir::attribute::{FloatAttribute, IntegerAttribute};
-use melior::ir::{Block, BlockRef, Location, Region, RegionRef, Type, Value};
-use melior::ir::{Module as MLIRModule, TypeLike, ValueLike};
-use melior::Context as MLIRContext;
-use mlir_sys::mlirIntegerTypeGetWidth;
+use melior::ir::{Block, BlockRef, Location, Region, Type, Value, ValueLike};
 use smallvec::SmallVec;
 use wasmer::wasmparser::MemArg;
 use wasmer_compiler::from_binaryreadererror_wasmerror;
@@ -350,7 +331,7 @@ macro_rules! atomicrmw_op {
             .into(),
         )?;
         let result = $builder.make(arith::extui(
-            value,
+            result,
             $builder.i32_ty(),
             $builder.get_insert_location(),
         ))?;
@@ -393,7 +374,7 @@ macro_rules! atomicrmw_op {
             .into(),
         )?;
         let result = $builder.make(arith::extui(
-            value,
+            result,
             $builder.i32_ty(),
             $builder.get_insert_location(),
         ))?;
@@ -469,7 +450,7 @@ macro_rules! atomicrmw_op {
             .into(),
         )?;
         let result = $builder.make(arith::extui(
-            value,
+            result,
             $builder.i64_ty(),
             $builder.get_insert_location(),
         ))?;
@@ -731,7 +712,7 @@ pub struct FunctionCodeCtx<'c, 'a> {
     /// A symbol registry for resolving module symbols.
     pub symbol_registry: &'a dyn SymbolRegistry,
     /// Configuration settings for the code generation process.
-    pub config: &'a Config,
+    pub _config: &'a Config,
 }
 
 pub struct FunctionCodeGenerator;
@@ -854,7 +835,7 @@ impl FunctionCodeGenerator {
                     .collect::<WasmResult<_>>()?;
                 let loop_body = region.append_block(Block::new(&loop_phis));
                 let values = state.peekn(loop_phis.len())?;
-                state.popn(loop_phis.len());
+                state.popn(loop_phis.len())?;
                 builder.create(cf::br(&loop_body, &values, builder.unknown_loc()));
                 state.push_loop(loop_body, loop_next, loop_phis, phis);
                 for i in 0..loop_body.argument_count() {
@@ -944,7 +925,7 @@ impl FunctionCodeGenerator {
                 }
 
                 {
-                    let (if_else_block, if_else_state) = if let ControlFrame::IfElse {
+                    let (_, if_else_state) = if let ControlFrame::IfElse {
                         if_else,
                         if_else_state,
                         ..
@@ -972,7 +953,6 @@ impl FunctionCodeGenerator {
             }
             Operator::End => {
                 let frame = state.pop_frame()?;
-                let current_block = block;
                 if state.reachable {
                     let values = state.peekn(frame.phis().len())?;
                     state.popn(frame.phis().len())?;
@@ -988,7 +968,6 @@ impl FunctionCodeGenerator {
                     if_else,
                     next,
                     if_else_state: IfElseState::If,
-                    else_phis,
                     ..
                 } = &frame
                 {
@@ -1073,12 +1052,6 @@ impl FunctionCodeGenerator {
                 for (case_index, depth) in targets.targets().enumerate() {
                     let depth = depth.map_err(from_binaryreadererror_wasmerror)?;
                     let frame = state.frame_at_depth(depth)?;
-                    let case_index_literal = builder.make(builder.iconst_64(case_index as i64))?;
-                    let phis = if frame.is_loop() {
-                        frame.loop_body_phis()
-                    } else {
-                        frame.phis()
-                    };
                     case_values.push(case_index as i64);
                     case_destinations.push(*frame.br_dest());
                 }
@@ -1119,7 +1092,7 @@ impl FunctionCodeGenerator {
                 let sigindex = fcx.wasm_module.functions[func_index];
                 let wasm_func_type = &fcx.wasm_module.signatures[sigindex];
                 let vm_ctx = fcx.ctx.vm_ctx;
-                let import_key = fcx.ctx.get_import_function_info(function_index);
+                let _import_key = fcx.ctx.get_import_function_info(function_index);
                 let (
                     FunctionCache {
                         func_type,
@@ -1183,7 +1156,7 @@ impl FunctionCodeGenerator {
                         builder.get_insert_location(),
                     ))
                 };
-                for i in (0..result_count) {
+                for i in 0..result_count {
                     let value = op.result(i)?.to_ctx_value();
                     state.push1(value);
                 }
@@ -2599,13 +2572,15 @@ impl FunctionCodeGenerator {
                 let memory_index = MemoryIndex::from_u32(memarg.memory);
                 let (dst, count) = state.pop2()?;
                 let memory = builder.make(builder.iconst_32(memarg.memory as i32))?;
+                let symbol = if fcx.wasm_module.local_memory_index(memory_index).is_some() {
+                    symbols::wasm::MEMORY_NOTIFY
+                } else {
+                    symbols::wasm::IMPORTED_MEMORY_NOTIFY
+                };
                 let value = builder
                     .make(func::call(
                         &backend.ctx.mlir_context,
-                        FlatSymbolRefAttribute::new(
-                            &backend.ctx.mlir_context,
-                            symbols::wasm::MEMORY_NOTIFY,
-                        ),
+                        FlatSymbolRefAttribute::new(&backend.ctx.mlir_context, symbol),
                         &[fcx.ctx.vm_ctx, memory, dst, count],
                         &[builder.ptr_ty()],
                         builder.get_insert_location(),
@@ -2847,11 +2822,11 @@ impl FunctionCodeGenerator {
                     region,
                     block,
                 )?;
-                let result = builder.make(builder.store_with_ordering(
+                builder.create(builder.store_with_ordering(
                     value,
                     effective_address,
                     AtomicOrdering::SequentiallyConsistent,
-                ))?;
+                ));
                 return Ok(block);
             }
             Operator::I64AtomicStore { ref memarg } => {
@@ -2867,11 +2842,11 @@ impl FunctionCodeGenerator {
                     region,
                     block,
                 )?;
-                let result = builder.make(builder.store_with_ordering(
+                builder.create(builder.store_with_ordering(
                     value,
                     effective_address,
                     AtomicOrdering::SequentiallyConsistent,
-                ))?;
+                ));
                 return Ok(block);
             }
             Operator::I32AtomicStore8 { ref memarg } => {
@@ -2892,11 +2867,11 @@ impl FunctionCodeGenerator {
                     builder.i8_ty(),
                     builder.get_insert_location(),
                 ))?;
-                let result = builder.make(builder.store_with_ordering(
+                builder.create(builder.store_with_ordering(
                     value,
                     effective_address,
                     AtomicOrdering::SequentiallyConsistent,
-                ))?;
+                ));
                 return Ok(block);
             }
             Operator::I32AtomicStore16 { ref memarg } => {
@@ -2917,11 +2892,11 @@ impl FunctionCodeGenerator {
                     builder.i16_ty(),
                     builder.get_insert_location(),
                 ))?;
-                let result = builder.make(builder.store_with_ordering(
+                builder.create(builder.store_with_ordering(
                     value,
                     effective_address,
                     AtomicOrdering::SequentiallyConsistent,
-                ))?;
+                ));
                 return Ok(block);
             }
             Operator::I64AtomicStore8 { ref memarg } => {
@@ -2942,11 +2917,11 @@ impl FunctionCodeGenerator {
                     builder.i8_ty(),
                     builder.get_insert_location(),
                 ))?;
-                let result = builder.make(builder.store_with_ordering(
+                builder.create(builder.store_with_ordering(
                     value,
                     effective_address,
                     AtomicOrdering::SequentiallyConsistent,
-                ))?;
+                ));
                 return Ok(block);
             }
             Operator::I64AtomicStore16 { ref memarg } => {
@@ -2967,7 +2942,7 @@ impl FunctionCodeGenerator {
                     builder.i16_ty(),
                     builder.get_insert_location(),
                 ))?;
-                let result = builder.make(builder.store_with_ordering(
+                builder.make(builder.store_with_ordering(
                     value,
                     effective_address,
                     AtomicOrdering::SequentiallyConsistent,
@@ -2992,11 +2967,11 @@ impl FunctionCodeGenerator {
                     builder.i32_ty(),
                     builder.get_insert_location(),
                 ))?;
-                let result = builder.make(builder.store_with_ordering(
+                builder.create(builder.store_with_ordering(
                     value,
                     effective_address,
                     AtomicOrdering::SequentiallyConsistent,
-                ))?;
+                ));
                 return Ok(block);
             }
             Operator::I32AtomicRmwAdd { ref memarg } => {
@@ -3324,7 +3299,9 @@ impl FunctionCodeGenerator {
                     .to_ctx_value();
                 let found_dynamic_sigindex =
                     builder.make(builder.load(sigindex_ptr, builder.i32_ty()))?;
-                let ctx_ptr = builder.make(builder.load(ctx_ptr_ptr, builder.ptr_ty()))?;
+                let ctx_ptr = builder
+                    .make(builder.load(ctx_ptr_ptr, builder.ptr_ty()))?
+                    .to_ctx_value();
 
                 let elem_not_initialized = is_zero(&builder, func_ptr)?;
                 let sigindices_not_equal = builder.make(builder.icmp(
@@ -3358,7 +3335,6 @@ impl FunctionCodeGenerator {
                     )?;
                 }
                 let builder = OpBuilder::new_with_block(ctx, continue_block);
-                let mlir_func_type = func_type_to_mlir(backend.ctx, &backend.intrinsics, func_type);
                 let return_types = func_type
                     .results()
                     .iter()
@@ -3372,6 +3348,9 @@ impl FunctionCodeGenerator {
                 };
                 let args = state.popn_save_extra(func_type.params().len())?;
                 let args = args.iter().map(|p| p.0).collect::<Vec<Value<'_, '_>>>();
+                let args = std::iter::once(ctx_ptr)
+                    .chain(args.iter().copied())
+                    .collect::<Vec<Value<'_, '_>>>();
                 let result = builder.make(builder.indirect_call(ret_ty, func_ptr, &args)?)?;
                 state.push1(result.to_ctx_value());
                 return Ok(continue_block);
@@ -3407,7 +3386,6 @@ impl FunctionCodeGenerator {
         backend: &mut WASMBackend<'c>,
         block: BlockRef<'c, '_>,
         wasm_fn_type: &FunctionType,
-        fn_type: &melior::ir::r#type::FunctionType,
     ) -> Result<()> {
         debug_assert!(block.argument_count() == wasm_fn_type.results().len());
         let mut results = vec![];
@@ -3450,8 +3428,6 @@ impl FunctionCodeGenerator {
                 ptr_to_current_length,
             } => {
                 let builder = OpBuilder::new_with_block(ctx, block);
-                // Bounds check it.
-                let minimum = fcx.wasm_module.memories[memory_index].minimum;
                 let value_size_v = builder.make(builder.iconst_64(value_size as i64))?;
                 let load_offset_end = builder.make(arith::addi(
                     offset,

@@ -182,7 +182,7 @@ impl FuncTranslator {
                         module_translation,
                         wasm_module,
                         symbol_registry,
-                        config,
+                        _config: config,
                     };
                     let mut last_block = code_start_lock;
                     while backend.state.has_control_frames() {
@@ -198,12 +198,7 @@ impl FuncTranslator {
                         )?;
                         last_block = end_block;
                     }
-                    FunctionCodeGenerator::finalize(
-                        &mut backend,
-                        last_block,
-                        wasm_fn_type,
-                        &func_type,
-                    )?;
+                    FunctionCodeGenerator::finalize(&mut backend, last_block, wasm_fn_type)?;
                 }
                 region
             },
