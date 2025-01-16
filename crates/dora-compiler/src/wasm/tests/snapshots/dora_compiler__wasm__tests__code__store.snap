@@ -4,7 +4,7 @@ expression: op
 snapshot_kind: text
 ---
 module {
-  func.func @f0(%arg0: !llvm.ptr) {
+  func.func public @"as-block-value"(%arg0: !llvm.ptr) attributes {llvm.emit_c_interface} {
     %0 = llvm.getelementptr %arg0[8] : (!llvm.ptr) -> !llvm.ptr, i8
     %1 = llvm.getelementptr %0[0] : (!llvm.ptr) -> !llvm.ptr, !llvm.ptr
     %2 = llvm.load %1 : !llvm.ptr -> !llvm.ptr
@@ -23,7 +23,7 @@ module {
   ^bb3:  // pred: ^bb1
     cf.br ^bb2
   }
-  func.func @f1(%arg0: !llvm.ptr) {
+  func.func public @"as-loop-value"(%arg0: !llvm.ptr) attributes {llvm.emit_c_interface} {
     %0 = llvm.getelementptr %arg0[8] : (!llvm.ptr) -> !llvm.ptr, i8
     %1 = llvm.getelementptr %0[0] : (!llvm.ptr) -> !llvm.ptr, !llvm.ptr
     %2 = llvm.load %1 : !llvm.ptr -> !llvm.ptr
@@ -44,7 +44,7 @@ module {
     llvm.store %c1_i32, %5 : i32, !llvm.ptr
     cf.br ^bb3
   }
-  func.func @f2(%arg0: !llvm.ptr) {
+  func.func public @"as-br-value"(%arg0: !llvm.ptr) attributes {llvm.emit_c_interface} {
     %0 = llvm.getelementptr %arg0[8] : (!llvm.ptr) -> !llvm.ptr, i8
     %1 = llvm.getelementptr %0[0] : (!llvm.ptr) -> !llvm.ptr, !llvm.ptr
     %2 = llvm.load %1 : !llvm.ptr -> !llvm.ptr
@@ -63,7 +63,7 @@ module {
   ^bb3:  // pred: ^bb1
     cf.br ^bb2
   }
-  func.func @f3(%arg0: !llvm.ptr) {
+  func.func public @"as-br_if-value"(%arg0: !llvm.ptr) attributes {llvm.emit_c_interface} {
     %0 = llvm.getelementptr %arg0[8] : (!llvm.ptr) -> !llvm.ptr, i8
     %1 = llvm.getelementptr %0[0] : (!llvm.ptr) -> !llvm.ptr, !llvm.ptr
     %2 = llvm.load %1 : !llvm.ptr -> !llvm.ptr
@@ -87,7 +87,7 @@ module {
   ^bb4:  // pred: ^bb1
     cf.br ^bb3
   }
-  func.func @f4(%arg0: !llvm.ptr) {
+  func.func public @"as-br_if-value-cond"(%arg0: !llvm.ptr) attributes {llvm.emit_c_interface} {
     %0 = llvm.getelementptr %arg0[8] : (!llvm.ptr) -> !llvm.ptr, i8
     %1 = llvm.getelementptr %0[0] : (!llvm.ptr) -> !llvm.ptr, !llvm.ptr
     %2 = llvm.load %1 : !llvm.ptr -> !llvm.ptr
@@ -111,7 +111,7 @@ module {
   ^bb4:  // pred: ^bb1
     cf.br ^bb3
   }
-  func.func @f5(%arg0: !llvm.ptr) {
+  func.func public @"as-br_table-value"(%arg0: !llvm.ptr) attributes {llvm.emit_c_interface} {
     %0 = llvm.getelementptr %arg0[8] : (!llvm.ptr) -> !llvm.ptr, i8
     %1 = llvm.getelementptr %0[0] : (!llvm.ptr) -> !llvm.ptr, !llvm.ptr
     %2 = llvm.load %1 : !llvm.ptr -> !llvm.ptr
@@ -133,7 +133,7 @@ module {
   ^bb3:  // pred: ^bb1
     cf.br ^bb2
   }
-  func.func @f6(%arg0: !llvm.ptr) {
+  func.func public @"as-return-value"(%arg0: !llvm.ptr) attributes {llvm.emit_c_interface} {
     %0 = llvm.getelementptr %arg0[8] : (!llvm.ptr) -> !llvm.ptr, i8
     %1 = llvm.getelementptr %0[0] : (!llvm.ptr) -> !llvm.ptr, !llvm.ptr
     %2 = llvm.load %1 : !llvm.ptr -> !llvm.ptr
@@ -150,7 +150,7 @@ module {
   ^bb2:  // pred: ^bb1
     return
   }
-  func.func @f7(%arg0: !llvm.ptr) {
+  func.func public @"as-if-then"(%arg0: !llvm.ptr) attributes {llvm.emit_c_interface} {
     %0 = llvm.getelementptr %arg0[8] : (!llvm.ptr) -> !llvm.ptr, i8
     %1 = llvm.getelementptr %0[0] : (!llvm.ptr) -> !llvm.ptr, !llvm.ptr
     %2 = llvm.load %1 : !llvm.ptr -> !llvm.ptr
@@ -176,7 +176,7 @@ module {
   ^bb5:  // 2 preds: ^bb3, ^bb4
     cf.br ^bb2
   }
-  func.func @f8(%arg0: !llvm.ptr) {
+  func.func public @"as-if-else"(%arg0: !llvm.ptr) attributes {llvm.emit_c_interface} {
     %0 = llvm.getelementptr %arg0[8] : (!llvm.ptr) -> !llvm.ptr, i8
     %1 = llvm.getelementptr %0[0] : (!llvm.ptr) -> !llvm.ptr, !llvm.ptr
     %2 = llvm.load %1 : !llvm.ptr -> !llvm.ptr

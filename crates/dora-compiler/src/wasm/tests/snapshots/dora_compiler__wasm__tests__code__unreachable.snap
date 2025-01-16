@@ -27,42 +27,42 @@ module {
   ^bb2:  // pred: ^bb1
     return
   }
-  func.func @f2(%arg0: !llvm.ptr) -> i32 {
+  func.func public @"type-i32"(%arg0: !llvm.ptr) -> i32 attributes {llvm.emit_c_interface} {
     cf.br ^bb1
   ^bb1:  // pred: ^bb0
     "wasm.unreachable"() : () -> ()
   ^bb2(%0: i32):  // no predecessors
     return %0 : i32
   }
-  func.func @f3(%arg0: !llvm.ptr) -> i64 {
+  func.func public @"type-i64"(%arg0: !llvm.ptr) -> i64 attributes {llvm.emit_c_interface} {
     cf.br ^bb1
   ^bb1:  // pred: ^bb0
     "wasm.unreachable"() : () -> ()
   ^bb2(%0: i64):  // no predecessors
     return %0 : i64
   }
-  func.func @f4(%arg0: !llvm.ptr) -> f32 {
+  func.func public @"type-f32"(%arg0: !llvm.ptr) -> f32 attributes {llvm.emit_c_interface} {
     cf.br ^bb1
   ^bb1:  // pred: ^bb0
     "wasm.unreachable"() : () -> ()
   ^bb2(%0: f32):  // no predecessors
     return %0 : f32
   }
-  func.func @f5(%arg0: !llvm.ptr) -> f64 {
+  func.func public @"type-f64"(%arg0: !llvm.ptr) -> f64 attributes {llvm.emit_c_interface} {
     cf.br ^bb1
   ^bb1:  // pred: ^bb0
     "wasm.unreachable"() : () -> ()
   ^bb2(%0: f64):  // no predecessors
     return %0 : f64
   }
-  func.func @f6(%arg0: !llvm.ptr) -> i32 {
+  func.func public @"as-func-first"(%arg0: !llvm.ptr) -> i32 attributes {llvm.emit_c_interface} {
     cf.br ^bb1
   ^bb1:  // pred: ^bb0
     "wasm.unreachable"() : () -> ()
   ^bb2(%0: i32):  // no predecessors
     return %0 : i32
   }
-  func.func @f7(%arg0: !llvm.ptr) -> i32 {
+  func.func public @"as-func-mid"(%arg0: !llvm.ptr) -> i32 attributes {llvm.emit_c_interface} {
     cf.br ^bb1
   ^bb1:  // pred: ^bb0
     call @dummy(%arg0) : (!llvm.ptr) -> ()
@@ -70,7 +70,7 @@ module {
   ^bb2(%0: i32):  // no predecessors
     return %0 : i32
   }
-  func.func @f8(%arg0: !llvm.ptr) {
+  func.func public @"as-func-last"(%arg0: !llvm.ptr) attributes {llvm.emit_c_interface} {
     cf.br ^bb1
   ^bb1:  // pred: ^bb0
     call @dummy(%arg0) : (!llvm.ptr) -> ()
@@ -78,7 +78,7 @@ module {
   ^bb2:  // no predecessors
     return
   }
-  func.func @f9(%arg0: !llvm.ptr) -> i32 {
+  func.func public @"as-func-value"(%arg0: !llvm.ptr) -> i32 attributes {llvm.emit_c_interface} {
     cf.br ^bb1
   ^bb1:  // pred: ^bb0
     call @dummy(%arg0) : (!llvm.ptr) -> ()
@@ -86,7 +86,7 @@ module {
   ^bb2(%0: i32):  // no predecessors
     return %0 : i32
   }
-  func.func @f10(%arg0: !llvm.ptr) -> i32 {
+  func.func public @"as-block-first"(%arg0: !llvm.ptr) -> i32 attributes {llvm.emit_c_interface} {
     cf.br ^bb1
   ^bb1:  // pred: ^bb0
     "wasm.unreachable"() : () -> ()
@@ -95,7 +95,7 @@ module {
   ^bb3(%1: i32):  // no predecessors
     cf.br ^bb2(%1 : i32)
   }
-  func.func @f11(%arg0: !llvm.ptr) -> i32 {
+  func.func public @"as-block-mid"(%arg0: !llvm.ptr) -> i32 attributes {llvm.emit_c_interface} {
     cf.br ^bb1
   ^bb1:  // pred: ^bb0
     call @dummy(%arg0) : (!llvm.ptr) -> ()
@@ -105,7 +105,7 @@ module {
   ^bb3(%1: i32):  // no predecessors
     cf.br ^bb2(%1 : i32)
   }
-  func.func @f12(%arg0: !llvm.ptr) {
+  func.func public @"as-block-last"(%arg0: !llvm.ptr) attributes {llvm.emit_c_interface} {
     cf.br ^bb1
   ^bb1:  // pred: ^bb0
     call @dummy(%arg0) : (!llvm.ptr) -> ()
@@ -115,7 +115,7 @@ module {
   ^bb3:  // no predecessors
     cf.br ^bb2
   }
-  func.func @f13(%arg0: !llvm.ptr) -> i32 {
+  func.func public @"as-block-value"(%arg0: !llvm.ptr) -> i32 attributes {llvm.emit_c_interface} {
     cf.br ^bb1
   ^bb1:  // pred: ^bb0
     call @dummy(%arg0) : (!llvm.ptr) -> ()
@@ -125,7 +125,7 @@ module {
   ^bb3(%1: i32):  // no predecessors
     cf.br ^bb2(%1 : i32)
   }
-  func.func @f14(%arg0: !llvm.ptr) -> i32 {
+  func.func public @"as-block-broke"(%arg0: !llvm.ptr) -> i32 attributes {llvm.emit_c_interface} {
     cf.br ^bb1
   ^bb1:  // pred: ^bb0
     call @dummy(%arg0) : (!llvm.ptr) -> ()
@@ -136,7 +136,7 @@ module {
   ^bb3(%1: i32):  // pred: ^bb1
     cf.br ^bb2(%1 : i32)
   }
-  func.func @f15(%arg0: !llvm.ptr) -> i32 {
+  func.func public @"as-loop-first"(%arg0: !llvm.ptr) -> i32 attributes {llvm.emit_c_interface} {
     cf.br ^bb1
   ^bb1:  // pred: ^bb0
     cf.br ^bb4
@@ -147,7 +147,7 @@ module {
   ^bb4:  // pred: ^bb1
     "wasm.unreachable"() : () -> ()
   }
-  func.func @f16(%arg0: !llvm.ptr) -> i32 {
+  func.func public @"as-loop-mid"(%arg0: !llvm.ptr) -> i32 attributes {llvm.emit_c_interface} {
     cf.br ^bb1
   ^bb1:  // pred: ^bb0
     cf.br ^bb4
@@ -159,7 +159,7 @@ module {
     call @dummy(%arg0) : (!llvm.ptr) -> ()
     "wasm.unreachable"() : () -> ()
   }
-  func.func @f17(%arg0: !llvm.ptr) {
+  func.func public @"as-loop-last"(%arg0: !llvm.ptr) attributes {llvm.emit_c_interface} {
     cf.br ^bb1
   ^bb1:  // pred: ^bb0
     cf.br ^bb4
@@ -171,7 +171,7 @@ module {
     call @dummy(%arg0) : (!llvm.ptr) -> ()
     "wasm.unreachable"() : () -> ()
   }
-  func.func @f18(%arg0: !llvm.ptr) -> i32 {
+  func.func public @"as-loop-broke"(%arg0: !llvm.ptr) -> i32 attributes {llvm.emit_c_interface} {
     cf.br ^bb1
   ^bb1:  // pred: ^bb0
     cf.br ^bb5
@@ -186,7 +186,7 @@ module {
     %c1_i32 = arith.constant 1 : i32
     cf.br ^bb3(%c1_i32 : i32)
   }
-  func.func @f19(%arg0: !llvm.ptr) -> i32 {
+  func.func public @"as-br-value"(%arg0: !llvm.ptr) -> i32 attributes {llvm.emit_c_interface} {
     cf.br ^bb1
   ^bb1:  // pred: ^bb0
     "wasm.unreachable"() : () -> ()
@@ -195,7 +195,7 @@ module {
   ^bb3(%1: i32):  // no predecessors
     cf.br ^bb2(%1 : i32)
   }
-  func.func @f20(%arg0: !llvm.ptr) {
+  func.func public @"as-br_if-cond"(%arg0: !llvm.ptr) attributes {llvm.emit_c_interface} {
     cf.br ^bb1
   ^bb1:  // pred: ^bb0
     "wasm.unreachable"() : () -> ()
@@ -204,7 +204,7 @@ module {
   ^bb3:  // no predecessors
     cf.br ^bb2
   }
-  func.func @f21(%arg0: !llvm.ptr) -> i32 {
+  func.func public @"as-br_if-value"(%arg0: !llvm.ptr) -> i32 attributes {llvm.emit_c_interface} {
     cf.br ^bb1
   ^bb1:  // pred: ^bb0
     "wasm.unreachable"() : () -> ()
@@ -213,7 +213,7 @@ module {
   ^bb3(%1: i32):  // no predecessors
     cf.br ^bb2(%1 : i32)
   }
-  func.func @f22(%arg0: !llvm.ptr) -> i32 {
+  func.func public @"as-br_if-value-cond"(%arg0: !llvm.ptr) -> i32 attributes {llvm.emit_c_interface} {
     cf.br ^bb1
   ^bb1:  // pred: ^bb0
     %c6_i32 = arith.constant 6 : i32
@@ -223,7 +223,7 @@ module {
   ^bb3(%1: i32):  // no predecessors
     cf.br ^bb2(%1 : i32)
   }
-  func.func @f23(%arg0: !llvm.ptr) {
+  func.func public @"as-br_table-index"(%arg0: !llvm.ptr) attributes {llvm.emit_c_interface} {
     cf.br ^bb1
   ^bb1:  // pred: ^bb0
     "wasm.unreachable"() : () -> ()
@@ -232,7 +232,7 @@ module {
   ^bb3:  // no predecessors
     cf.br ^bb2
   }
-  func.func @f24(%arg0: !llvm.ptr) -> i32 {
+  func.func public @"as-br_table-value"(%arg0: !llvm.ptr) -> i32 attributes {llvm.emit_c_interface} {
     cf.br ^bb1
   ^bb1:  // pred: ^bb0
     "wasm.unreachable"() : () -> ()
@@ -241,7 +241,7 @@ module {
   ^bb3(%1: i32):  // no predecessors
     cf.br ^bb2(%1 : i32)
   }
-  func.func @f25(%arg0: !llvm.ptr) -> i32 {
+  func.func public @"as-br_table-value-2"(%arg0: !llvm.ptr) -> i32 attributes {llvm.emit_c_interface} {
     cf.br ^bb1
   ^bb1:  // pred: ^bb0
     "wasm.unreachable"() : () -> ()
@@ -252,7 +252,7 @@ module {
   ^bb4(%2: i32):  // no predecessors
     cf.br ^bb3(%2 : i32)
   }
-  func.func @f26(%arg0: !llvm.ptr) -> i32 {
+  func.func public @"as-br_table-value-index"(%arg0: !llvm.ptr) -> i32 attributes {llvm.emit_c_interface} {
     cf.br ^bb1
   ^bb1:  // pred: ^bb0
     %c6_i32 = arith.constant 6 : i32
@@ -262,7 +262,7 @@ module {
   ^bb3(%1: i32):  // no predecessors
     cf.br ^bb2(%1 : i32)
   }
-  func.func @f27(%arg0: !llvm.ptr) -> i32 {
+  func.func public @"as-br_table-value-and-index"(%arg0: !llvm.ptr) -> i32 attributes {llvm.emit_c_interface} {
     cf.br ^bb1
   ^bb1:  // pred: ^bb0
     "wasm.unreachable"() : () -> ()
@@ -271,21 +271,21 @@ module {
   ^bb3(%1: i32):  // no predecessors
     cf.br ^bb2(%1 : i32)
   }
-  func.func @f28(%arg0: !llvm.ptr) -> i64 {
+  func.func public @"as-return-value"(%arg0: !llvm.ptr) -> i64 attributes {llvm.emit_c_interface} {
     cf.br ^bb1
   ^bb1:  // pred: ^bb0
     "wasm.unreachable"() : () -> ()
   ^bb2(%0: i64):  // no predecessors
     return %0 : i64
   }
-  func.func @f29(%arg0: !llvm.ptr) -> i32 {
+  func.func public @"as-if-cond"(%arg0: !llvm.ptr) -> i32 attributes {llvm.emit_c_interface} {
     cf.br ^bb1
   ^bb1:  // pred: ^bb0
     "wasm.unreachable"() : () -> ()
   ^bb2(%0: i32):  // no predecessors
     return %0 : i32
   }
-  func.func @f30(%arg0: !llvm.ptr, %arg1: i32, %arg2: i32) -> i32 {
+  func.func public @"as-if-then"(%arg0: !llvm.ptr, %arg1: i32, %arg2: i32) -> i32 attributes {llvm.emit_c_interface} {
     %c1_i64 = arith.constant 1 : i64
     %0 = llvm.alloca %c1_i64 x i32 : (i64) -> !llvm.ptr
     llvm.store %arg1, %0 : i32, !llvm.ptr
@@ -308,7 +308,7 @@ module {
   ^bb5(%6: i32):  // pred: ^bb4
     cf.br ^bb2(%6 : i32)
   }
-  func.func @f31(%arg0: !llvm.ptr, %arg1: i32, %arg2: i32) -> i32 {
+  func.func public @"as-if-else"(%arg0: !llvm.ptr, %arg1: i32, %arg2: i32) -> i32 attributes {llvm.emit_c_interface} {
     %c1_i64 = arith.constant 1 : i64
     %0 = llvm.alloca %c1_i64 x i32 : (i64) -> !llvm.ptr
     llvm.store %arg1, %0 : i32, !llvm.ptr
@@ -331,7 +331,7 @@ module {
   ^bb5(%6: i32):  // pred: ^bb3
     cf.br ^bb2(%6 : i32)
   }
-  func.func @f32(%arg0: !llvm.ptr, %arg1: i32, %arg2: i32) -> i32 {
+  func.func public @"as-if-then-no-else"(%arg0: !llvm.ptr, %arg1: i32, %arg2: i32) -> i32 attributes {llvm.emit_c_interface} {
     %c1_i64 = arith.constant 1 : i64
     %0 = llvm.alloca %c1_i64 x i32 : (i64) -> !llvm.ptr
     llvm.store %arg1, %0 : i32, !llvm.ptr
@@ -354,7 +354,7 @@ module {
     %5 = llvm.load %1 : !llvm.ptr -> i32
     cf.br ^bb2(%5 : i32)
   }
-  func.func @f33(%arg0: !llvm.ptr, %arg1: i32, %arg2: i32) -> i32 {
+  func.func public @"as-select-first"(%arg0: !llvm.ptr, %arg1: i32, %arg2: i32) -> i32 attributes {llvm.emit_c_interface} {
     %c1_i64 = arith.constant 1 : i64
     %0 = llvm.alloca %c1_i64 x i32 : (i64) -> !llvm.ptr
     llvm.store %arg1, %0 : i32, !llvm.ptr
@@ -367,7 +367,7 @@ module {
   ^bb2(%2: i32):  // no predecessors
     return %2 : i32
   }
-  func.func @f34(%arg0: !llvm.ptr, %arg1: i32, %arg2: i32) -> i32 {
+  func.func public @"as-select-second"(%arg0: !llvm.ptr, %arg1: i32, %arg2: i32) -> i32 attributes {llvm.emit_c_interface} {
     %c1_i64 = arith.constant 1 : i64
     %0 = llvm.alloca %c1_i64 x i32 : (i64) -> !llvm.ptr
     llvm.store %arg1, %0 : i32, !llvm.ptr
@@ -381,7 +381,7 @@ module {
   ^bb2(%3: i32):  // no predecessors
     return %3 : i32
   }
-  func.func @f35(%arg0: !llvm.ptr) -> i32 {
+  func.func public @"as-select-cond"(%arg0: !llvm.ptr) -> i32 attributes {llvm.emit_c_interface} {
     cf.br ^bb1
   ^bb1:  // pred: ^bb0
     %c0_i32 = arith.constant 0 : i32
@@ -390,14 +390,14 @@ module {
   ^bb2(%0: i32):  // no predecessors
     return %0 : i32
   }
-  func.func @f36(%arg0: !llvm.ptr) {
+  func.func public @"as-call-first"(%arg0: !llvm.ptr) attributes {llvm.emit_c_interface} {
     cf.br ^bb1
   ^bb1:  // pred: ^bb0
     "wasm.unreachable"() : () -> ()
   ^bb2:  // no predecessors
     return
   }
-  func.func @f37(%arg0: !llvm.ptr) {
+  func.func public @"as-call-mid"(%arg0: !llvm.ptr) attributes {llvm.emit_c_interface} {
     cf.br ^bb1
   ^bb1:  // pred: ^bb0
     %c1_i32 = arith.constant 1 : i32
@@ -405,7 +405,7 @@ module {
   ^bb2:  // no predecessors
     return
   }
-  func.func @f38(%arg0: !llvm.ptr) {
+  func.func public @"as-call-last"(%arg0: !llvm.ptr) attributes {llvm.emit_c_interface} {
     cf.br ^bb1
   ^bb1:  // pred: ^bb0
     %c1_i32 = arith.constant 1 : i32
@@ -414,7 +414,7 @@ module {
   ^bb2:  // no predecessors
     return
   }
-  func.func @f39(%arg0: !llvm.ptr) {
+  func.func public @"as-local.set-value"(%arg0: !llvm.ptr) attributes {llvm.emit_c_interface} {
     %cst = arith.constant 0.000000e+00 : f32
     %c1_i64 = arith.constant 1 : i64
     %0 = llvm.alloca %c1_i64 x f32 : (i64) -> !llvm.ptr
@@ -425,7 +425,7 @@ module {
   ^bb2:  // no predecessors
     return
   }
-  func.func @f40(%arg0: !llvm.ptr) -> f32 {
+  func.func public @"as-local.tee-value"(%arg0: !llvm.ptr) -> f32 attributes {llvm.emit_c_interface} {
     %cst = arith.constant 0.000000e+00 : f32
     %c1_i64 = arith.constant 1 : i64
     %0 = llvm.alloca %c1_i64 x f32 : (i64) -> !llvm.ptr
@@ -436,50 +436,35 @@ module {
   ^bb2(%1: f32):  // no predecessors
     return %1 : f32
   }
-  func.func @f41(%arg0: !llvm.ptr) -> f32 {
+  func.func public @"as-global.set-value"(%arg0: !llvm.ptr) -> f32 attributes {llvm.emit_c_interface} {
     cf.br ^bb1
   ^bb1:  // pred: ^bb0
     "wasm.unreachable"() : () -> ()
   ^bb2(%0: f32):  // no predecessors
     return %0 : f32
   }
-  func.func @f42(%arg0: !llvm.ptr) -> f32 {
+  func.func public @"as-load-address"(%arg0: !llvm.ptr) -> f32 attributes {llvm.emit_c_interface} {
     cf.br ^bb1
   ^bb1:  // pred: ^bb0
     "wasm.unreachable"() : () -> ()
   ^bb2(%0: f32):  // no predecessors
     return %0 : f32
   }
-  func.func @f43(%arg0: !llvm.ptr) -> i64 {
+  func.func public @"as-loadN-address"(%arg0: !llvm.ptr) -> i64 attributes {llvm.emit_c_interface} {
     cf.br ^bb1
   ^bb1:  // pred: ^bb0
     "wasm.unreachable"() : () -> ()
   ^bb2(%0: i64):  // no predecessors
     return %0 : i64
   }
-  func.func @f44(%arg0: !llvm.ptr) {
+  func.func public @"as-store-address"(%arg0: !llvm.ptr) attributes {llvm.emit_c_interface} {
     cf.br ^bb1
   ^bb1:  // pred: ^bb0
     "wasm.unreachable"() : () -> ()
   ^bb2:  // no predecessors
     return
   }
-  func.func @f45(%arg0: !llvm.ptr) {
-    cf.br ^bb1
-  ^bb1:  // pred: ^bb0
-    %c2_i32 = arith.constant 2 : i32
-    "wasm.unreachable"() : () -> ()
-  ^bb2:  // no predecessors
-    return
-  }
-  func.func @f46(%arg0: !llvm.ptr) {
-    cf.br ^bb1
-  ^bb1:  // pred: ^bb0
-    "wasm.unreachable"() : () -> ()
-  ^bb2:  // no predecessors
-    return
-  }
-  func.func @f47(%arg0: !llvm.ptr) {
+  func.func public @"as-store-value"(%arg0: !llvm.ptr) attributes {llvm.emit_c_interface} {
     cf.br ^bb1
   ^bb1:  // pred: ^bb0
     %c2_i32 = arith.constant 2 : i32
@@ -487,21 +472,36 @@ module {
   ^bb2:  // no predecessors
     return
   }
-  func.func @f48(%arg0: !llvm.ptr) -> f32 {
+  func.func public @"as-storeN-address"(%arg0: !llvm.ptr) attributes {llvm.emit_c_interface} {
+    cf.br ^bb1
+  ^bb1:  // pred: ^bb0
+    "wasm.unreachable"() : () -> ()
+  ^bb2:  // no predecessors
+    return
+  }
+  func.func public @"as-storeN-value"(%arg0: !llvm.ptr) attributes {llvm.emit_c_interface} {
+    cf.br ^bb1
+  ^bb1:  // pred: ^bb0
+    %c2_i32 = arith.constant 2 : i32
+    "wasm.unreachable"() : () -> ()
+  ^bb2:  // no predecessors
+    return
+  }
+  func.func public @"as-unary-operand"(%arg0: !llvm.ptr) -> f32 attributes {llvm.emit_c_interface} {
     cf.br ^bb1
   ^bb1:  // pred: ^bb0
     "wasm.unreachable"() : () -> ()
   ^bb2(%0: f32):  // no predecessors
     return %0 : f32
   }
-  func.func @f49(%arg0: !llvm.ptr) -> i32 {
+  func.func public @"as-binary-left"(%arg0: !llvm.ptr) -> i32 attributes {llvm.emit_c_interface} {
     cf.br ^bb1
   ^bb1:  // pred: ^bb0
     "wasm.unreachable"() : () -> ()
   ^bb2(%0: i32):  // no predecessors
     return %0 : i32
   }
-  func.func @f50(%arg0: !llvm.ptr) -> i64 {
+  func.func public @"as-binary-right"(%arg0: !llvm.ptr) -> i64 attributes {llvm.emit_c_interface} {
     cf.br ^bb1
   ^bb1:  // pred: ^bb0
     %c10_i64 = arith.constant 10 : i64
@@ -509,21 +509,21 @@ module {
   ^bb2(%0: i64):  // no predecessors
     return %0 : i64
   }
-  func.func @f51(%arg0: !llvm.ptr) -> i32 {
+  func.func public @"as-test-operand"(%arg0: !llvm.ptr) -> i32 attributes {llvm.emit_c_interface} {
     cf.br ^bb1
   ^bb1:  // pred: ^bb0
     "wasm.unreachable"() : () -> ()
   ^bb2(%0: i32):  // no predecessors
     return %0 : i32
   }
-  func.func @f52(%arg0: !llvm.ptr) -> i32 {
+  func.func public @"as-compare-left"(%arg0: !llvm.ptr) -> i32 attributes {llvm.emit_c_interface} {
     cf.br ^bb1
   ^bb1:  // pred: ^bb0
     "wasm.unreachable"() : () -> ()
   ^bb2(%0: i32):  // no predecessors
     return %0 : i32
   }
-  func.func @f53(%arg0: !llvm.ptr) -> i32 {
+  func.func public @"as-compare-right"(%arg0: !llvm.ptr) -> i32 attributes {llvm.emit_c_interface} {
     cf.br ^bb1
   ^bb1:  // pred: ^bb0
     %cst = arith.constant 1.09261619E+9 : f32
@@ -531,14 +531,14 @@ module {
   ^bb2(%0: i32):  // no predecessors
     return %0 : i32
   }
-  func.func @f54(%arg0: !llvm.ptr) -> i32 {
+  func.func public @"as-convert-operand"(%arg0: !llvm.ptr) -> i32 attributes {llvm.emit_c_interface} {
     cf.br ^bb1
   ^bb1:  // pred: ^bb0
     "wasm.unreachable"() : () -> ()
   ^bb2(%0: i32):  // no predecessors
     return %0 : i32
   }
-  func.func @f55(%arg0: !llvm.ptr) -> i32 {
+  func.func public @"as-memory.grow-size"(%arg0: !llvm.ptr) -> i32 attributes {llvm.emit_c_interface} {
     cf.br ^bb1
   ^bb1:  // pred: ^bb0
     "wasm.unreachable"() : () -> ()

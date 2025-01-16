@@ -507,7 +507,7 @@ fn execute_test(path: &Path) -> Result<(), TestError> {
         for (address, account_info) in suite.pre.iter() {
             db = db.with_contract(
                 address.to_owned(),
-                Bytecode::new_raw(account_info.code.0.clone()),
+                Bytecode::new(account_info.code.0.clone()),
             );
             db.set_account(
                 address.to_owned(),

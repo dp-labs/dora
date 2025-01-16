@@ -154,7 +154,7 @@ impl JournaledState {
             .push(JournalEntry::CodeChange { address });
 
         account.info.code_hash = hash;
-        account.info.code = Some(Bytecode::new_raw(code));
+        account.info.code = Some(Bytecode::new(code));
     }
 
     /// use it only if you know that acc is warm
@@ -638,8 +638,7 @@ impl JournaledState {
         let acc = &mut account_load.data.info;
         if acc.code.is_none() {
             if acc.code_hash == EMPTY_CODE_HASH {
-                let empty = Default::default();
-                acc.code = Some(empty);
+                acc.code = Some(Bytecode::empty());
             } else {
                 let code = db.code_by_hash(acc.code_hash)?;
                 acc.code = Some(code);

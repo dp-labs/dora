@@ -4,7 +4,7 @@ expression: op
 snapshot_kind: text
 ---
 module {
-  func.func @f0(%arg0: !llvm.ptr, %arg1: i64) -> i64 {
+  func.func public @"fac-expr"(%arg0: !llvm.ptr, %arg1: i64) -> i64 attributes {llvm.emit_c_interface} {
     %c1_i64 = arith.constant 1 : i64
     %0 = llvm.alloca %c1_i64 x i64 : (i64) -> !llvm.ptr
     llvm.store %arg1, %0 : i64, !llvm.ptr
@@ -51,7 +51,7 @@ module {
   ^bb8:  // pred: ^bb7
     cf.br ^bb5
   }
-  func.func @f1(%arg0: !llvm.ptr, %arg1: i64) -> i64 {
+  func.func public @"fac-stack"(%arg0: !llvm.ptr, %arg1: i64) -> i64 attributes {llvm.emit_c_interface} {
     %c1_i64 = arith.constant 1 : i64
     %0 = llvm.alloca %c1_i64 x i64 : (i64) -> !llvm.ptr
     llvm.store %arg1, %0 : i64, !llvm.ptr
@@ -98,7 +98,7 @@ module {
   ^bb8:  // pred: ^bb7
     cf.br ^bb5
   }
-  func.func @f2(%arg0: !llvm.ptr, %arg1: i64) -> i64 {
+  func.func public @"fac-stack-raw"(%arg0: !llvm.ptr, %arg1: i64) -> i64 attributes {llvm.emit_c_interface} {
     %c1_i64 = arith.constant 1 : i64
     %0 = llvm.alloca %c1_i64 x i64 : (i64) -> !llvm.ptr
     llvm.store %arg1, %0 : i64, !llvm.ptr
@@ -145,7 +145,7 @@ module {
   ^bb8:  // pred: ^bb7
     cf.br ^bb5
   }
-  func.func @f3(%arg0: !llvm.ptr, %arg1: i64) -> i64 {
+  func.func public @"fac-mixed"(%arg0: !llvm.ptr, %arg1: i64) -> i64 attributes {llvm.emit_c_interface} {
     %c1_i64 = arith.constant 1 : i64
     %0 = llvm.alloca %c1_i64 x i64 : (i64) -> !llvm.ptr
     llvm.store %arg1, %0 : i64, !llvm.ptr
@@ -192,7 +192,7 @@ module {
   ^bb8:  // pred: ^bb7
     cf.br ^bb5
   }
-  func.func @f4(%arg0: !llvm.ptr, %arg1: i64) -> i64 {
+  func.func public @"fac-mixed-raw"(%arg0: !llvm.ptr, %arg1: i64) -> i64 attributes {llvm.emit_c_interface} {
     %c1_i64 = arith.constant 1 : i64
     %0 = llvm.alloca %c1_i64 x i64 : (i64) -> !llvm.ptr
     llvm.store %arg1, %0 : i64, !llvm.ptr
@@ -265,7 +265,7 @@ module {
   ^bb2:  // pred: ^bb1
     return
   }
-  func.func @f7(%arg0: !llvm.ptr) -> i32 {
+  func.func public @"not-quite-a-tree"(%arg0: !llvm.ptr) -> i32 attributes {llvm.emit_c_interface} {
     cf.br ^bb1
   ^bb1:  // pred: ^bb0
     %0 = call @add_one_to_global(%arg0) : (!llvm.ptr) -> i32

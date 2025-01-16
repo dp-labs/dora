@@ -35,14 +35,9 @@ use wasmer_compiler::wasmparser::Operator;
 use wasmer_compiler::wptype_to_type;
 use wasmer_compiler::{wpheaptype_to_type, ModuleTranslationState};
 use wasmer_types::entity::PrimaryMap;
-use wasmer_types::FunctionIndex;
-use wasmer_types::GlobalIndex;
-use wasmer_types::SignatureIndex;
-use wasmer_types::Symbol;
-use wasmer_types::TrapCode;
-use wasmer_types::WasmResult;
 use wasmer_types::{
-    FunctionType, MemoryIndex, MemoryStyle, ModuleInfo, SymbolRegistry, TableIndex, TableStyle,
+    ExportIndex, FunctionIndex, FunctionType, GlobalIndex, MemoryIndex, MemoryStyle, ModuleInfo,
+    SignatureIndex, Symbol, SymbolRegistry, TableIndex, TableStyle, TrapCode, WasmResult,
 };
 
 macro_rules! op {
@@ -1102,9 +1097,24 @@ impl FunctionCodeGenerator {
                 ) = if let Some(local_func_index) = fcx.wasm_module.local_func_index(func_index) {
                     let func_name = match fcx.wasm_module.function_names.get(&func_index) {
                         Some(name) => name.to_string(),
-                        None => fcx
-                            .symbol_registry
-                            .symbol_to_name(Symbol::LocalFunction(local_func_index)),
+                        None => {
+                            // Find name in export functions
+                            let mut ret_name = String::new();
+                            for (name, export_index) in &fcx.wasm_module.exports {
+                                if let ExportIndex::Function(index) = export_index {
+                                    if *index == func_index {
+                                        ret_name = name.clone();
+                                        break;
+                                    }
+                                }
+                            }
+                            if !ret_name.is_empty() {
+                                ret_name
+                            } else {
+                                fcx.symbol_registry
+                                    .symbol_to_name(Symbol::LocalFunction(local_func_index))
+                            }
+                        }
                     };
                     (
                         fcx.ctx.local_func(

@@ -3767,7 +3767,7 @@ fn func() {
   ;; Syntax
 
   (func)
-  (func (export "f"))
+  (func (export "export_f"))
   (func $f)
   (func $h (export "g"))
 

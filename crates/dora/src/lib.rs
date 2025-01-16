@@ -5,15 +5,17 @@ pub use dora_compiler as compiler;
 pub use dora_primitives as primitives;
 pub use dora_runtime as runtime;
 
-use dora_compiler::{
+pub use dora_compiler::{
     context::Context,
     dora,
     evm::{self, program::Program, CompileOptions, EVMCompiler},
-    pass, Compiler,
+    pass,
+    wasm::{self, Config, WASMCompiler},
+    Compiler,
 };
-use dora_primitives::{spec::SpecId, Bytecode, Bytes, Bytes32};
-use dora_runtime::executor::Executor;
-use dora_runtime::{
+pub use dora_primitives::{spec::SpecId, Bytecode, Bytes, Bytes32, EVMBytecode};
+pub use dora_runtime::executor::{ExecuteKind, Executor};
+pub use dora_runtime::{
     artifact::Artifact,
     call::CallResult,
     context::VMContext,
@@ -21,13 +23,14 @@ use dora_runtime::{
     result::EVMError,
     vm::VM,
 };
-use dora_runtime::{context::RuntimeContext, env::TxKind};
-use dora_runtime::{context::Stack, env::Env};
-use dora_runtime::{
+pub use dora_runtime::{context::RuntimeContext, env::TxKind};
+pub use dora_runtime::{context::Stack, env::Env};
+pub use dora_runtime::{
     db::{Database, MemoryDB},
     result::ResultAndState,
 };
 use std::sync::Arc;
+use wasmer::Imports;
 
 /// Run the EVM environment with the given state database and return the execution result and final state.
 ///
@@ -44,7 +47,7 @@ use std::sync::Arc;
 ///
 /// Returns an error if the program fails to execute or if the bytecode or address is invalid.
 #[inline]
-pub fn run_evm<DB: Database + 'static>(
+pub fn run<DB: Database + 'static>(
     env: Env,
     db: DB,
     spec_id: SpecId,
@@ -116,6 +119,17 @@ pub fn build_artifact<DB: Database>(
     code: &Bytecode,
     spec_id: SpecId,
 ) -> anyhow::Result<DB::Artifact> {
+    match code {
+        Bytecode::EVM(code) => build_evm_artifact::<DB>(code, spec_id),
+        Bytecode::WASM(code) => build_wasm_artifact::<DB>(code),
+    }
+}
+
+/// Build EVM opcode to the artifact
+pub fn build_evm_artifact<DB: Database>(
+    code: &EVMBytecode,
+    spec_id: SpecId,
+) -> anyhow::Result<DB::Artifact> {
     // Compile the contract code
     let program = Program::from_opcodes(code.bytecode(), code.eof().cloned());
     let context = Context::new();
@@ -141,7 +155,63 @@ pub fn build_artifact<DB: Database>(
     )?;
     pass::run(&context.mlir_context, &mut module.mlir_module)?;
     debug_assert!(module.mlir_module.as_operation().verify());
-    let executor = Executor::new(module.module(), Default::default());
+    let executor = Executor::new(module.module(), Default::default(), ExecuteKind::EVM);
+    Ok(DB::Artifact::new(executor))
+}
+
+/// Build WASM opcode to the artifact
+pub fn build_wasm_artifact<DB: Database>(code: &Bytes) -> anyhow::Result<DB::Artifact> {
+    let context = Context::new();
+    let compiler = WASMCompiler::new(&context, Config::default());
+    // Compile WASM Bytecode to MLIR EVM Dialect
+    let mut module = compiler.compile(code)?;
+    let instance = compiler.build_instance(code)?;
+    // Lowering the WASM dialect to the Dora dialect.
+    wasm::pass::run(&context.mlir_context, &mut module.mlir_module)?;
+    // Lowering the Dora dialect to MLIR builtin dialects.
+    dora::pass::run(
+        &context.mlir_context,
+        &mut module.mlir_module,
+        &dora::pass::PassOptions {
+            code_size: code.len() as u32,
+            ..Default::default()
+        },
+    )?;
+    pass::run(&context.mlir_context, &mut module.mlir_module)?;
+    let executor = Executor::new(
+        module.module(),
+        Default::default(),
+        ExecuteKind::WASM(instance.vmctx_ptr()),
+    );
+    Ok(DB::Artifact::new(executor))
+}
+
+/// Build WASM opcode to the artifact
+pub fn build_wasm_artifact_with_imports<DB: Database>(
+    code: &Bytes,
+    imports: Imports,
+) -> anyhow::Result<DB::Artifact> {
+    let context = Context::new();
+    let compiler = WASMCompiler::new(&context, Config::default());
+    // Compile WASM Bytecode to MLIR EVM Dialect
+    let mut module = compiler.compile(code)?;
+    let instance = compiler.build_instance_with_imports(code, imports)?;
+    // Lowering the WASM dialect to the Dora dialect.
+    wasm::pass::run(&context.mlir_context, &mut module.mlir_module)?;
+    // Lowering the Dora dialect to MLIR builtin dialects.
+    dora::pass::run(
+        &context.mlir_context,
+        &mut module.mlir_module,
+        &dora::pass::PassOptions {
+            code_size: code.len() as u32,
+            ..Default::default()
+        },
+    )?;
+    let executor = Executor::new(
+        module.module(),
+        Default::default(),
+        ExecuteKind::WASM(instance.vmctx_ptr()),
+    );
     Ok(DB::Artifact::new(executor))
 }
 
@@ -160,7 +230,7 @@ pub fn build_artifact<DB: Database>(
 /// # Errors
 ///
 /// Returns an error if the bytecode fails to decode or execute.
-pub fn run_evm_bytecode_with_calldata(
+pub fn run_bytecode_with_calldata(
     program: &str,
     calldata: &str,
     initial_gas: u64,
@@ -174,6 +244,6 @@ pub fn run_evm_bytecode_with_calldata(
     env.tx.gas_limit = initial_gas;
     env.tx.data = Bytes::from(calldata);
     env.tx.caller = Bytes32::from(10000_u32).to_address();
-    let db = MemoryDB::new().with_contract(address, Bytecode::new_raw(Bytes::from(opcodes)));
-    run_evm(env, db, spec_id).map_err(|err| anyhow::anyhow!(err))
+    let db = MemoryDB::new().with_contract(address, Bytecode::new(Bytes::from(opcodes)));
+    run(env, db, spec_id).map_err(|err| anyhow::anyhow!(err))
 }

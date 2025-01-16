@@ -1,6 +1,6 @@
 #![allow(missing_docs)]
 
-use ::dora::{build_artifact, run_evm};
+use ::dora::{build_artifact, run};
 use criterion::{
     criterion_group, criterion_main, measurement::WallTime, BenchmarkGroup, Criterion,
 };
@@ -14,7 +14,7 @@ use dora_primitives::{spec::SpecId, Bytes};
 use dora_runtime::context::{Contract, RuntimeContext, Stack};
 use dora_runtime::db::{Database, MemoryDB};
 use dora_runtime::env::{Env, TxEnv, TxKind};
-use dora_runtime::executor::Executor;
+use dora_runtime::executor::{ExecuteKind, Executor};
 use dora_runtime::host::DummyHost;
 use rustc_hash::FxHashMap;
 use std::hint::black_box;
@@ -74,12 +74,11 @@ fn run_bench(c: &mut Criterion, bench: &Bench) {
     env.tx.data = Bytes::from(calldata.to_vec());
     env.tx.transact_to = TxKind::Call(Address::left_padding_from(&[40]));
     env.tx.caller = address!("6666000000000000000000000000000000000000");
-    let contract =
-        Contract::new_with_env(&env, Bytecode::new_raw(program.to_opcode().into()), None);
+    let contract = Contract::new_with_env(&env, Bytecode::new(program.to_opcode().into()), None);
     let mut host = DummyHost::new(env);
     let mut context = RuntimeContext::new(contract, 1, false, false, &mut host, SpecId::CANCUN);
-    let executor = Executor::new(module.module(), Default::default());
-    let func = executor.get_main_entrypoint();
+    let executor = Executor::new(module.module(), Default::default(), ExecuteKind::EVM);
+    let func = executor.get_evm_main_entrypoint();
     let ctx = black_box(&mut context);
 
     g.bench_function("dora", |b| {
@@ -192,7 +191,7 @@ fn run_uniswapv3_bench(c: &mut Criterion) {
 
     let mut db = MemoryDB::new();
     for (address, info) in state.clone() {
-        let code = Bytecode::new_raw(info.0.into());
+        let code = Bytecode::new(info.0.into());
         let artifact = build_artifact::<MemoryDB>(&code, SpecId::CANCUN).unwrap();
         db.set_artifact(info.1.bytecode_hash, artifact);
         db = db.with_contract(address, code);
@@ -229,7 +228,7 @@ fn run_uniswapv3_bench(c: &mut Criterion) {
     let mut g = mk_group(c, "uniswapv3");
     g.bench_function("dora", |b| {
         b.iter(|| {
-            let result = run_evm(env.clone(), db.clone(), SpecId::CANCUN).unwrap();
+            let result = run(env.clone(), db.clone(), SpecId::CANCUN).unwrap();
             assert!(result.result.is_success());
         })
     });

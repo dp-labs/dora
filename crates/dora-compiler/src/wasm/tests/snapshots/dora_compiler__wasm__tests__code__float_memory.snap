@@ -4,7 +4,7 @@ expression: op
 snapshot_kind: text
 ---
 module {
-  func.func @f0(%arg0: !llvm.ptr) -> f64 {
+  func.func public @f64.load(%arg0: !llvm.ptr) -> f64 attributes {llvm.emit_c_interface} {
     %0 = llvm.getelementptr %arg0[16] : (!llvm.ptr) -> !llvm.ptr, i8
     %1 = llvm.getelementptr %0[0] : (!llvm.ptr) -> !llvm.ptr, !llvm.ptr
     %2 = llvm.load %1 : !llvm.ptr -> !llvm.ptr
@@ -20,7 +20,7 @@ module {
   ^bb2(%7: f64):  // pred: ^bb1
     return %7 : f64
   }
-  func.func @f1(%arg0: !llvm.ptr) -> i64 {
+  func.func public @i64.load(%arg0: !llvm.ptr) -> i64 attributes {llvm.emit_c_interface} {
     %0 = llvm.getelementptr %arg0[16] : (!llvm.ptr) -> !llvm.ptr, i8
     %1 = llvm.getelementptr %0[0] : (!llvm.ptr) -> !llvm.ptr, !llvm.ptr
     %2 = llvm.load %1 : !llvm.ptr -> !llvm.ptr
@@ -36,7 +36,7 @@ module {
   ^bb2(%7: i64):  // pred: ^bb1
     return %7 : i64
   }
-  func.func @f2(%arg0: !llvm.ptr) {
+  func.func public @f64.store(%arg0: !llvm.ptr) attributes {llvm.emit_c_interface} {
     %0 = llvm.getelementptr %arg0[16] : (!llvm.ptr) -> !llvm.ptr, i8
     %1 = llvm.getelementptr %0[0] : (!llvm.ptr) -> !llvm.ptr, !llvm.ptr
     %2 = llvm.load %1 : !llvm.ptr -> !llvm.ptr
@@ -53,7 +53,7 @@ module {
   ^bb2:  // pred: ^bb1
     return
   }
-  func.func @f3(%arg0: !llvm.ptr) {
+  func.func public @i64.store(%arg0: !llvm.ptr) attributes {llvm.emit_c_interface} {
     %0 = llvm.getelementptr %arg0[16] : (!llvm.ptr) -> !llvm.ptr, i8
     %1 = llvm.getelementptr %0[0] : (!llvm.ptr) -> !llvm.ptr, !llvm.ptr
     %2 = llvm.load %1 : !llvm.ptr -> !llvm.ptr
@@ -70,7 +70,7 @@ module {
   ^bb2:  // pred: ^bb1
     return
   }
-  func.func @f4(%arg0: !llvm.ptr) {
+  func.func public @reset(%arg0: !llvm.ptr) attributes {llvm.emit_c_interface} {
     %0 = llvm.getelementptr %arg0[16] : (!llvm.ptr) -> !llvm.ptr, i8
     %1 = llvm.getelementptr %0[0] : (!llvm.ptr) -> !llvm.ptr, !llvm.ptr
     %2 = llvm.load %1 : !llvm.ptr -> !llvm.ptr

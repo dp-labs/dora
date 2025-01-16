@@ -1862,7 +1862,7 @@ fn returndatacopy() {
     env.block.coinbase = Address::left_padding_from(&[80]);
     let contract = Contract::new_with_env(
         &env,
-        Bytecode::new_raw(
+        Bytecode::new(
             Program::from_operations(operations, false)
                 .to_opcode()
                 .into(),
@@ -1935,7 +1935,7 @@ fn returndatacopy_out_of_bounds() {
     env.block.coinbase = Address::left_padding_from(&[80]);
     let contract = Contract::new_with_env(
         &env,
-        Bytecode::new_raw(
+        Bytecode::new(
             Program::from_operations(operations, false)
                 .to_opcode()
                 .into(),

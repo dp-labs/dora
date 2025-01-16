@@ -47,6 +47,24 @@ fn sum() {
 }
 
 #[test]
+fn sum_with_export_functions() {
+    assert_snapshot!(
+        r#"
+(module
+  (func $sum_f (param $x i32) (param $y i32) (result i32)
+    local.get $x
+    local.get $y
+    i32.add)
+
+  (func (export "main") 
+    (call $sum_f (i32.const 2) (i32.const 3))
+  )
+)
+"#
+    );
+}
+
+#[test]
 fn and_i32() {
     assert_snapshot!(
         r#"

@@ -56,7 +56,7 @@ module {
   ^bb2:  // pred: ^bb1
     return
   }
-  func.func @f6(%arg0: !llvm.ptr) -> i32 {
+  func.func public @"is_null-f"(%arg0: !llvm.ptr) -> i32 attributes {llvm.emit_c_interface} {
     cf.br ^bb1
   ^bb1:  // pred: ^bb0
     %c0_i32 = arith.constant 0 : i32
@@ -69,7 +69,7 @@ module {
   ^bb2(%4: i32):  // pred: ^bb1
     return %4 : i32
   }
-  func.func @f7(%arg0: !llvm.ptr) -> i32 {
+  func.func public @"is_null-g"(%arg0: !llvm.ptr) -> i32 attributes {llvm.emit_c_interface} {
     cf.br ^bb1
   ^bb1:  // pred: ^bb0
     %c1_i32 = arith.constant 1 : i32
@@ -82,7 +82,7 @@ module {
   ^bb2(%4: i32):  // pred: ^bb1
     return %4 : i32
   }
-  func.func @f8(%arg0: !llvm.ptr) -> i32 {
+  func.func public @"is_null-v"(%arg0: !llvm.ptr) -> i32 attributes {llvm.emit_c_interface} {
     %0 = llvm.getelementptr %arg0[80] : (!llvm.ptr) -> !llvm.ptr, i8
     %1 = llvm.load %0 : !llvm.ptr -> !llvm.ptr
     cf.br ^bb1
@@ -96,7 +96,7 @@ module {
   ^bb2(%6: i32):  // pred: ^bb1
     return %6 : i32
   }
-  func.func @f9(%arg0: !llvm.ptr) {
+  func.func public @"set-f"(%arg0: !llvm.ptr) attributes {llvm.emit_c_interface} {
     %0 = llvm.getelementptr %arg0[80] : (!llvm.ptr) -> !llvm.ptr, i8
     %1 = llvm.load %0 : !llvm.ptr -> !llvm.ptr
     cf.br ^bb1
@@ -108,7 +108,7 @@ module {
   ^bb2:  // pred: ^bb1
     return
   }
-  func.func @f10(%arg0: !llvm.ptr) {
+  func.func public @"set-g"(%arg0: !llvm.ptr) attributes {llvm.emit_c_interface} {
     %0 = llvm.getelementptr %arg0[80] : (!llvm.ptr) -> !llvm.ptr, i8
     %1 = llvm.load %0 : !llvm.ptr -> !llvm.ptr
     cf.br ^bb1
@@ -120,7 +120,7 @@ module {
   ^bb2:  // pred: ^bb1
     return
   }
-  func.func @f11(%arg0: !llvm.ptr, %arg1: i32) -> i32 {
+  func.func public @"call-f"(%arg0: !llvm.ptr, %arg1: i32) -> i32 attributes {llvm.emit_c_interface} {
     %c1_i64 = arith.constant 1 : i64
     %0 = llvm.alloca %c1_i64 x i32 : (i64) -> !llvm.ptr
     llvm.store %arg1, %0 : i32, !llvm.ptr
@@ -179,7 +179,7 @@ module {
     call @dora_fn_wasm_raise_trap(%c5_i32) : (i32) -> ()
     cf.br ^bb5
   }
-  func.func @f12(%arg0: !llvm.ptr, %arg1: i32) -> i32 {
+  func.func public @"call-g"(%arg0: !llvm.ptr, %arg1: i32) -> i32 attributes {llvm.emit_c_interface} {
     %c1_i64 = arith.constant 1 : i64
     %0 = llvm.alloca %c1_i64 x i32 : (i64) -> !llvm.ptr
     llvm.store %arg1, %0 : i32, !llvm.ptr
@@ -238,7 +238,7 @@ module {
     call @dora_fn_wasm_raise_trap(%c5_i32) : (i32) -> ()
     cf.br ^bb5
   }
-  func.func @f13(%arg0: !llvm.ptr, %arg1: i32) -> i32 {
+  func.func public @"call-v"(%arg0: !llvm.ptr, %arg1: i32) -> i32 attributes {llvm.emit_c_interface} {
     %c1_i64 = arith.constant 1 : i64
     %0 = llvm.alloca %c1_i64 x i32 : (i64) -> !llvm.ptr
     llvm.store %arg1, %0 : i32, !llvm.ptr
