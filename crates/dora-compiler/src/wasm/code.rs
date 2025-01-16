@@ -3175,10 +3175,40 @@ impl FunctionCodeGenerator {
                 let (table_base, table_bound) = fcx.ctx.table(TableIndex::from_u32(table_index))?;
                 let func_index = state.pop1()?;
 
-                // TODO: check if the index is outside of the table bounds.
-                let _index_in_bounds =
+                let ctx = &backend.ctx.mlir_context;
+                let index_in_bounds =
                     builder.make(builder.icmp(IntCC::UnsignedLessThan, func_index, table_bound))?;
 
+                let in_bounds_continue_block = region.append_block(Block::new(&[]));
+                let not_in_bounds_block = region.append_block(Block::new(&[]));
+                builder.create(cf::cond_br(
+                    ctx,
+                    index_in_bounds,
+                    &in_bounds_continue_block,
+                    &not_in_bounds_block,
+                    &[],
+                    &[],
+                    builder.get_insert_location(),
+                ));
+                // Raise the table access OOB error
+                {
+                    let builder = OpBuilder::new_with_block(ctx, not_in_bounds_block);
+                    let code =
+                        builder.make(builder.iconst_32(TrapCode::TableAccessOutOfBounds as _))?;
+                    builder.create(func::call(
+                        ctx,
+                        FlatSymbolRefAttribute::new(ctx, symbols::wasm::RAISE_TRAP),
+                        &[code],
+                        &[],
+                        builder.get_insert_location(),
+                    ));
+                    builder.create(cf::br(
+                        &in_bounds_continue_block,
+                        &[],
+                        builder.get_insert_location(),
+                    ));
+                }
+                let builder = OpBuilder::new_with_block(ctx, in_bounds_continue_block);
                 let funcref_ptr = builder
                     .make(builder.gep_dynamic(
                         table_base,
@@ -3242,6 +3272,7 @@ impl FunctionCodeGenerator {
                 let args = args.iter().map(|p| p.0).collect::<Vec<Value<'_, '_>>>();
                 let result = builder.make(builder.indirect_call(ret_ty, func_ptr, &args)?)?;
                 state.push1(result.to_ctx_value());
+                return Ok(in_bounds_continue_block);
             }
             _ => {
                 return Err(

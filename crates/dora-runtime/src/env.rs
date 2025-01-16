@@ -336,7 +336,7 @@ impl CfgEnv {
 pub struct BlockEnv {
     /// The number of ancestor blocks of this block (block height).
     pub number: U256,
-    /// Coinbase or miner or address that created and signed the block.
+    /// Coinbase or miner address that created and signed the block.
     pub coinbase: Address,
     /// The timestamp of the block in seconds since the UNIX epoch.
     pub timestamp: U256,
