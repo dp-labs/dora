@@ -415,8 +415,6 @@ module {
   ^bb3:  // 4 preds: ^bb1, ^bb4, ^bb4, ^bb4
     cf.br ^bb2
   ^bb4:  // pred: ^bb1
-    %c0_i64 = arith.constant 0 : i64
-    %c1_i64 = arith.constant 1 : i64
     cf.switch %c1_i32 : i32, [
       default: ^bb3,
       0: ^bb3,
@@ -437,8 +435,6 @@ module {
     cf.br ^bb2(%2 : i32)
   ^bb4(%3: i32):  // pred: ^bb1
     %c3_i32 = arith.constant 3 : i32
-    %c0_i64 = arith.constant 0 : i64
-    %c1_i64 = arith.constant 1 : i64
     cf.switch %c3_i32 : i32, [
       default: ^bb3(%c1_i32 : i32),
       0: ^bb3(%c1_i32 : i32),
@@ -459,7 +455,6 @@ module {
   ^bb3(%2: i32):  // 3 preds: ^bb1, ^bb4, ^bb4
     cf.br ^bb2(%2 : i32)
   ^bb4(%3: i32):  // pred: ^bb1
-    %c0_i64 = arith.constant 0 : i64
     cf.switch %c1_i32 : i32, [
       default: ^bb3(%c2_i32 : i32),
       0: ^bb3(%c2_i32 : i32)
@@ -769,7 +764,7 @@ module {
     call @dora_fn_wasm_raise_trap(%c4_i32_3) : (i32) -> ()
     cf.br ^bb7
   ^bb9:  // pred: ^bb7
-    %25 = llvm.call %18(%c4_i32, %c1_i32, %c2_i32) vararg(!llvm.func<i32 (...)>) : !llvm.ptr, (i32, i32, i32) -> i32
+    %25 = llvm.call %18(%20, %c4_i32, %c1_i32, %c2_i32) vararg(!llvm.func<i32 (...)>) : !llvm.ptr, (!llvm.ptr, i32, i32, i32) -> i32
     cf.br ^bb3(%25 : i32)
   ^bb10:  // pred: ^bb7
     %c5_i32 = arith.constant 5 : i32
@@ -829,7 +824,7 @@ module {
     call @dora_fn_wasm_raise_trap(%c4_i32_3) : (i32) -> ()
     cf.br ^bb7
   ^bb9:  // pred: ^bb7
-    %25 = llvm.call %18(%c1_i32, %c4_i32, %c2_i32) vararg(!llvm.func<i32 (...)>) : !llvm.ptr, (i32, i32, i32) -> i32
+    %25 = llvm.call %18(%20, %c1_i32, %c4_i32, %c2_i32) vararg(!llvm.func<i32 (...)>) : !llvm.ptr, (!llvm.ptr, i32, i32, i32) -> i32
     cf.br ^bb3(%25 : i32)
   ^bb10:  // pred: ^bb7
     %c5_i32 = arith.constant 5 : i32
@@ -889,7 +884,7 @@ module {
     call @dora_fn_wasm_raise_trap(%c4_i32_3) : (i32) -> ()
     cf.br ^bb7
   ^bb9:  // pred: ^bb7
-    %25 = llvm.call %18(%c1_i32, %c2_i32, %c4_i32) vararg(!llvm.func<i32 (...)>) : !llvm.ptr, (i32, i32, i32) -> i32
+    %25 = llvm.call %18(%20, %c1_i32, %c2_i32, %c4_i32) vararg(!llvm.func<i32 (...)>) : !llvm.ptr, (!llvm.ptr, i32, i32, i32) -> i32
     cf.br ^bb3(%25 : i32)
   ^bb10:  // pred: ^bb7
     %c5_i32 = arith.constant 5 : i32
@@ -949,7 +944,7 @@ module {
     call @dora_fn_wasm_raise_trap(%c4_i32_3) : (i32) -> ()
     cf.br ^bb7
   ^bb9:  // pred: ^bb7
-    %25 = llvm.call %18(%c1_i32, %c2_i32, %c3_i32) vararg(!llvm.func<i32 (...)>) : !llvm.ptr, (i32, i32, i32) -> i32
+    %25 = llvm.call %18(%20, %c1_i32, %c2_i32, %c3_i32) vararg(!llvm.func<i32 (...)>) : !llvm.ptr, (!llvm.ptr, i32, i32, i32) -> i32
     cf.br ^bb3(%25 : i32)
   ^bb10:  // pred: ^bb7
     %c5_i32 = arith.constant 5 : i32
