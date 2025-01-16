@@ -1,8 +1,14 @@
 use dora_ir::IRTypes;
-use melior::dialect::arith::{self, CmpfPredicate, CmpiPredicate};
-use melior::ir::{
-    r#type::IntegerType, BlockRef, OperationRef, Region, Type, TypeLike, Value, ValueLike,
+use dora_runtime::symbols;
+use melior::dialect::{
+    arith::{self, CmpfPredicate, CmpiPredicate},
+    cf, func,
 };
+use melior::ir::{
+    attribute::FlatSymbolRefAttribute, r#type::IntegerType, BlockRef, OperationRef, Region, Type,
+    TypeLike, Value, ValueLike,
+};
+use wasmer_types::TrapCode;
 
 use crate::backend::IntCC;
 use crate::errors::Result;
@@ -122,7 +128,10 @@ impl TypeMethods for WASMBackend<'_> {
     }
 }
 
-pub fn is_zero<'c, 'a>(builder: &OpBuilder<'c, 'a>, value: Value<'c, 'a>) -> Result<Value<'c, 'a>> {
+pub(crate) fn is_zero<'c, 'a>(
+    builder: &OpBuilder<'c, 'a>,
+    value: Value<'c, 'a>,
+) -> Result<Value<'c, 'a>> {
     let ty = value.r#type();
     if ty.is_integer() {
         Ok(builder
@@ -160,4 +169,22 @@ pub fn is_zero<'c, 'a>(builder: &OpBuilder<'c, 'a>, value: Value<'c, 'a>) -> Res
         let result = builder.make(builder.icmp_imm(IntCC::Equal, value, 0)?)?;
         Ok(unsafe { Value::from_raw(result.to_raw()) })
     }
+}
+
+pub(crate) fn trap<'c, 'a>(
+    builder: &OpBuilder<'c, 'a>,
+    code: TrapCode,
+    continue_block: BlockRef<'c, 'a>,
+) -> Result<()> {
+    let ctx = builder.ctx;
+    let code = builder.make(builder.iconst_32(code as _))?;
+    builder.create(func::call(
+        ctx,
+        FlatSymbolRefAttribute::new(ctx, symbols::wasm::RAISE_TRAP),
+        &[code],
+        &[],
+        builder.get_insert_location(),
+    ));
+    builder.create(cf::br(&continue_block, &[], builder.get_insert_location()));
+    Ok(())
 }
