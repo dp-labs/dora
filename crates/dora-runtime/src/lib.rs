@@ -9,12 +9,12 @@ pub mod executor;
 pub mod gas;
 pub mod handler;
 pub mod host;
-pub mod imports;
 pub mod journaled_state;
 pub mod result;
 pub mod symbols;
 pub mod transaction;
 pub mod vm;
+pub mod wasm;
 
 #[repr(u8)]
 #[derive(Debug, Clone)]
