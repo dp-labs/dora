@@ -979,6 +979,9 @@ pub struct RuntimeContext<'a> {
     pub host: &'a mut dyn Host,
 }
 
+unsafe impl Send for RuntimeContext<'_> {}
+unsafe impl Sync for RuntimeContext<'_> {}
+
 /// VM contract information.
 #[derive(Clone, Debug, Default)]
 pub struct Contract {

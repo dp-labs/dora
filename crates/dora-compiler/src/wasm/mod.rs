@@ -16,6 +16,7 @@ pub use conversion::ConversionPass;
 #[cfg(test)]
 mod tests;
 
+use dora_runtime::wasm::{env::WASMEnv, host};
 use func::FuncTranslator;
 use melior::ir::operation::OperationBuilder;
 use melior::ir::{Block, Region};
@@ -23,8 +24,8 @@ use melior::ir::{Location, Module as MLIRModule};
 use std::sync::Arc;
 use symbols::declare_symbols;
 use wasmer::{
-    imports, AsStoreMut, AsStoreRef, Extern, Imports, Module as WasmModule, NativeEngineExt, Store,
-    Target, VMConfig,
+    imports, AsStoreMut, AsStoreRef, Exports, Extern, Function, FunctionEnv, Imports,
+    Module as WasmModule, NativeEngineExt, Store, Target, VMConfig,
 };
 use wasmer_compiler::Engine;
 use wasmer_compiler::{
@@ -187,12 +188,11 @@ impl<'c> WASMCompiler<'c> {
     pub fn build_instance_with_imports(
         &self,
         data: &[u8],
+        store: &mut Store,
         imports: Imports,
-    ) -> Result<VMInstance, CompileError> {
-        let mut store = Store::default();
+    ) -> Result<(WasmModule, VMInstance), CompileError> {
         let module =
             WasmModule::new(&store, data).map_err(|err| CompileError::Codegen(err.to_string()))?;
-
         let engine: &Engine = unsafe { std::mem::transmute(store.engine()) };
         let artifact = engine
             .compile(data)
@@ -227,15 +227,68 @@ impl<'c> WASMCompiler<'c> {
                 )
                 .map_err(|err| CompileError::Codegen(err.to_string()))?;
 
-            Ok(instance_handle)
+            Ok((module, instance_handle))
         }
     }
 
     /// Build the WASM instance
     pub fn build_instance(&self, data: &[u8]) -> Result<VMInstance, CompileError> {
-        // TODO: WASM EVM Host functions
-        let imports = imports! {};
-        self.build_instance_with_imports(data, imports)
+        let mut store = Store::default();
+        let wasm_env = WASMEnv { memory: None };
+        let func_env = FunctionEnv::new(&mut store, wasm_env);
+        macro_rules! func {
+            ($func:expr) => {
+                Function::new_typed_with_env(&mut store, &func_env, $func)
+            };
+        }
+        let imports = imports! {
+            "vm_hooks" => {
+                "account_balance" => func!(host::account_balance),
+                "account_code" => func!(host::account_code),
+                "account_code_size" => func!(host::account_code_size),
+                "account_codehash" => func!(host::account_codehash),
+                "sload" => func!(host::sload),
+                "sstore" => func!(host::sstore),
+                "tload" => func!(host::tload),
+                "tstore" => func!(host::tstore),
+                "block_basefee" => func!(host::block_basefee),
+                "block_gas_limit" => func!(host::block_gas_limit),
+                "block_number" => func!(host::block_number),
+                "block_timestamp" => func!(host::block_timestamp),
+                "chainid" => func!(host::chainid),
+                "call" => func!(host::call),
+                "delegate_call" => func!(host::delegate_call),
+                "static_call" => func!(host::static_call),
+                "contract_address" => func!(host::contract_address),
+                "create" => func!(host::create),
+                "create2" => func!(host::create2),
+                "emit_log" => func!(host::emit_log),
+                "gas_left" => func!(host::gas_left),
+                "msg_sender" => func!(host::msg_sender),
+                "msg_value" => func!(host::msg_value),
+                "keccak256" => func!(host::keccak256),
+                "call_data_copy" => func!(host::call_data_copy),
+                "return_data_copy" => func!(host::return_data_copy),
+                "return_data_size" => func!(host::return_data_size),
+                "gas_price" => func!(host::gas_price),
+                "tx_origin" => func!(host::tx_origin),
+                "write_result" => func!(host::write_result),
+            },
+        };
+        let (module, mut instance) = self.build_instance_with_imports(data, &mut store, imports)?;
+        let exports = module
+            .exports()
+            .map(|export| {
+                let name = export.name().to_string();
+                let export = instance.lookup(&name).expect("export");
+                let extern_ = Extern::from_vm_extern(&mut store, export);
+                (name, extern_)
+            })
+            .collect::<Exports>();
+        let memory = exports.get_memory("memory").ok().cloned();
+        let env = func_env.as_mut(&mut store);
+        env.memory = memory;
+        Ok(instance)
     }
 }
 
