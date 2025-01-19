@@ -3,7 +3,8 @@ use crate::conversion::walker::walk_operation;
 use crate::errors::Result;
 use crate::value::IntoContextOperation;
 use dora_ir;
-use melior::ir::ValueLike;
+use melior::dialect::arith;
+use melior::ir::{TypeLike, ValueLike};
 use melior::{
     dialect::DialectHandle,
     ir::{r#type::TypeId, OperationRef},
@@ -243,6 +244,67 @@ impl ConversionPass<'_> {
                     dora_ir::dora::signextend(self.ctx, value.r#type(), byte, value, op.location())
                         .into(),
                 )?;
+            } else if name == dora_ir::wasm::EqzOperation::name() {
+                let value = op.operand(0)?;
+                let rewriter = Rewriter::new_with_op(self.ctx, op);
+                let is_i32 =
+                    value.r#type().is_integer() && rewriter.int_ty_width(value.r#type())? == 32;
+                let is_zero_op =
+                    dora_ir::dora::iszero(self.ctx, value.r#type(), value, op.location()).into();
+                // Note: the wasm eqz operation always return i32 value.
+                if is_i32 {
+                    replace_op(op, is_zero_op);
+                } else {
+                    let is_zero_value = rewriter.make(is_zero_op)?;
+                    replace_op(
+                        op,
+                        arith::trunci(
+                            is_zero_value,
+                            rewriter.i32_ty(),
+                            rewriter.get_insert_location(),
+                        ),
+                    );
+                }
+            } else if name == dora_ir::wasm::EqOperation::name() {
+                let lhs = op.operand(0)?;
+                let rhs = op.operand(1)?;
+                debug_assert!(lhs.r#type() == rhs.r#type());
+                let rewriter = Rewriter::new_with_op(self.ctx, op);
+                let is_i32 =
+                    lhs.r#type().is_integer() && rewriter.int_ty_width(lhs.r#type())? == 32;
+                let eq_op =
+                    dora_ir::dora::eq(self.ctx, lhs.r#type(), lhs, rhs, op.location()).into();
+                // Note: the wasm eq operation always return i32 value.
+                if is_i32 {
+                    replace_op(op, eq_op);
+                } else {
+                    let eq_value = rewriter.make(eq_op)?;
+                    replace_op(
+                        op,
+                        arith::trunci(eq_value, rewriter.i32_ty(), rewriter.get_insert_location()),
+                    );
+                }
+            } else if name == dora_ir::wasm::NeOperation::name() {
+                let lhs = op.operand(0)?;
+                let rhs = op.operand(1)?;
+                debug_assert!(lhs.r#type() == rhs.r#type());
+                let rewriter = Rewriter::new_with_op(self.ctx, op);
+                let eq = rewriter.make(
+                    dora_ir::dora::eq(self.ctx, lhs.r#type(), lhs, rhs, op.location()).into(),
+                )?;
+                let not_op = dora_ir::dora::not(self.ctx, eq.r#type(), eq, op.location()).into();
+                let is_i32 =
+                    lhs.r#type().is_integer() && rewriter.int_ty_width(lhs.r#type())? == 32;
+                // Note: the wasm ne operation always return i32 value.
+                if is_i32 {
+                    replace_op(op, not_op);
+                } else {
+                    let not_value = rewriter.make(not_op)?;
+                    replace_op(
+                        op,
+                        arith::trunci(not_value, rewriter.i32_ty(), rewriter.get_insert_location()),
+                    );
+                }
             } else if name == dora_ir::wasm::SelectOperation::name() {
                 let lhs = op.operand(0)?;
                 let rhs = op.operand(1)?;

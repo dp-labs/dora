@@ -141,11 +141,22 @@ impl ConversionPass<'_> {
     pub(crate) fn not(context: &Context, op: &OperationRef<'_, '_>) -> Result<()> {
         operands!(op, value);
         rewrite_ctx!(context, op, rewriter, location);
+
+        fn get_ones_bigint(int_width: usize) -> BigUint {
+            let one = BigUint::from(1_u8);
+            let shifted = one.clone() << int_width;
+            shifted - one
+        }
+
+        let value_ty = value.r#type();
+        let int_width = rewriter.int_ty_width(value_ty)?;
         rewriter.make(arith::xori(
             value,
-            rewriter.make(rewriter.iconst_256(BigUint::from_bytes_be(&[0xff; 32]))?)?,
+            rewriter
+                .make(rewriter.iconst_bigint(value_ty, get_ones_bigint(int_width as usize))?)?,
             location,
         ))?;
+
         Ok(())
     }
 
