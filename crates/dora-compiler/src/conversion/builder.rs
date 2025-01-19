@@ -418,6 +418,25 @@ impl<'c, 'a> OpBuilder<'c, 'a> {
         )
     }
 
+    /// Creates an integer constant operation with the specified type and biguint value.
+    ///
+    /// # Parameters
+    /// - `ty`: The type of the integer.
+    /// - `value`: The integer value.
+    ///
+    /// # Returns
+    /// An integer constant operation.
+    #[inline]
+    pub fn iconst_bigint(&self, ty: Ty<'c, 'a>, value: BigUint) -> Result<Op<'c, '_>> {
+        Ok(arith::constant(
+            self.context(),
+            Attribute::parse(self.context(), &format!("{value} : {ty}")).ok_or(
+                CompileError::Codegen(format!("can't parse value {value} to {ty}")),
+            )?,
+            self.intrinsics.unknown_loc,
+        ))
+    }
+
     /// Creates an unsigned integer constant operation with the specified type and value.
     ///
     /// # Parameters

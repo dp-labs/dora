@@ -7,9 +7,7 @@ use melior::{
         arith::{self, CmpiPredicate},
         llvm, scf,
     },
-    ir::{
-        attribute::StringAttribute, operation::OperationRef, Block, Region, Type, Value, ValueLike,
-    },
+    ir::{attribute::StringAttribute, operation::OperationRef, Block, Region, ValueLike},
     Context,
 };
 use num_bigint::BigUint;
@@ -144,25 +142,20 @@ impl ConversionPass<'_> {
         operands!(op, value);
         rewrite_ctx!(context, op, rewriter, location);
 
-        let value_ty = value.r#type();
-        // todo: refactor and support iconst creation facade?
-        let mask_func = |ty: &Type| -> Result<Value> {
-            match ty {
-                _ if *ty == rewriter.i32_ty() => {
-                    rewriter.make(rewriter.iconst_32(0xFFFFFFFFu32 as i32))
-                }
-                _ if *ty == rewriter.i64_ty() => {
-                    rewriter.make(rewriter.iconst_64(0xFFFFFFFFFFFFFFFFu64 as i64))
-                }
-                _ if *ty == rewriter.i256_ty() => {
-                    rewriter.make(rewriter.iconst_256(BigUint::from_bytes_be(&[0xff; 32]))?)
-                }
-                _ => Err(anyhow::anyhow!("Unsupported type for NOT operation")),
-            }
-        };
+        fn get_ones_bigint(int_width: usize) -> BigUint {
+            let one = BigUint::from(1_u8);
+            let shifted = one.clone() << int_width;
+            shifted - one
+        }
 
-        let mask = mask_func(&value_ty)?;
-        rewriter.make(arith::xori(value, mask, location))?;
+        let value_ty = value.r#type();
+        let int_width = rewriter.int_ty_width(value_ty)?;
+        rewriter.make(arith::xori(
+            value,
+            rewriter
+                .make(rewriter.iconst_bigint(value_ty, get_ones_bigint(int_width as usize))?)?,
+            location,
+        ))?;
 
         Ok(())
     }
