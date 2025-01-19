@@ -3,7 +3,7 @@ use crate::conversion::walker::walk_operation;
 use crate::errors::Result;
 use crate::value::IntoContextOperation;
 use dora_ir;
-use melior::ir::ValueLike;
+use melior::ir::{Value, ValueLike};
 use melior::{
     dialect::DialectHandle,
     ir::{r#type::TypeId, OperationRef},
@@ -243,6 +243,32 @@ impl ConversionPass<'_> {
                     dora_ir::dora::signextend(self.ctx, value.r#type(), byte, value, op.location())
                         .into(),
                 )?;
+            } else if name == dora_ir::wasm::EqzOperation::name() {
+                let value = op.operand(0)?;
+                replace_op(
+                    op,
+                    dora_ir::dora::iszero(self.ctx, value.r#type(), value, op.location()).into(),
+                );
+            } else if name == dora_ir::wasm::EqOperation::name() {
+                let lhs = op.operand(0)?;
+                let rhs = op.operand(1)?;
+                debug_assert!(lhs.r#type() == rhs.r#type());
+                replace_op(
+                    op,
+                    dora_ir::dora::eq(self.ctx, lhs.r#type(), lhs, rhs, op.location()).into(),
+                );
+            } else if name == dora_ir::wasm::NeOperation::name() {
+                let lhs = op.operand(0)?;
+                let rhs = op.operand(1)?;
+                debug_assert!(lhs.r#type() == rhs.r#type());
+                let rewriter = Rewriter::new_with_op(self.ctx, op);
+                let eq: Value = rewriter.make(
+                    dora_ir::dora::eq(self.ctx, lhs.r#type(), lhs, rhs, op.location()).into(),
+                )?;
+                replace_op(
+                    op,
+                    dora_ir::dora::not(self.ctx, eq.r#type(), eq, op.location()).into(),
+                );
             } else if name == dora_ir::wasm::SelectOperation::name() {
                 let lhs = op.operand(0)?;
                 let rhs = op.operand(1)?;

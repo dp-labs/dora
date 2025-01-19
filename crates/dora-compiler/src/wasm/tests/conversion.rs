@@ -332,6 +332,32 @@ fn extend_i64() {
 }
 
 #[test]
+fn eq_i32() {
+    assert_snapshot!(
+        r#"
+(module
+  (func (export "eqz") (param $x i32) (result i32) (i32.eqz (local.get $x)))
+  (func (export "eq") (param $x i32) (param $y i32) (result i32) (i32.eq (local.get $x) (local.get $y)))
+  (func (export "ne") (param $x i32) (param $y i32) (result i32) (i32.ne (local.get $x) (local.get $y)))
+)
+"#
+    );
+}
+
+#[test]
+fn eq_i64() {
+    assert_snapshot!(
+        r#"
+(module
+  (func (export "eqz") (param $x i64) (result i32) (i64.eqz (local.get $x)))
+  (func (export "eq") (param $x i64) (param $y i64) (result i32) (i64.eq (local.get $x) (local.get $y)))
+  (func (export "ne") (param $x i64) (param $y i64) (result i32) (i64.ne (local.get $x) (local.get $y)))
+)
+"#
+    );
+}
+
+#[test]
 fn select() {
     assert_snapshot!(
         r#"
