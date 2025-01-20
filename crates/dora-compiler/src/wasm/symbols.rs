@@ -29,6 +29,11 @@ pub(crate) fn declare_symbols(context: &MLIRContext, module: &MLIRModule) {
             &[],
         ),
         (
+            symbols::wasm::TABLE_COPY,
+            &[ptr_type, uint32, uint32, uint32, uint32, uint32],
+            &[],
+        ),
+        (
             symbols::wasm::TABLE_FILL,
             &[ptr_type, uint32, uint32, ptr_type, uint32],
             &[],
@@ -45,23 +50,39 @@ pub(crate) fn declare_symbols(context: &MLIRContext, module: &MLIRModule) {
             &[],
         ),
         (
-            symbols::wasm::IMPROTED_TABLE_SIZE,
+            symbols::wasm::TABLE_GROW,
+            &[ptr_type, ptr_type, uint32, uint32],
+            &[uint32],
+        ),
+        (
+            symbols::wasm::IMPORTED_TABLE_SIZE,
             &[ptr_type, uint32],
             &[uint32],
         ),
         (
-            symbols::wasm::IMPROTED_TABLE_GET,
+            symbols::wasm::IMPORTED_TABLE_GET,
             &[ptr_type, uint32, uint32],
             &[ptr_type],
         ),
         (
-            symbols::wasm::IMPROTED_TABLE_GROW,
+            symbols::wasm::IMPORTED_TABLE_GROW,
             &[ptr_type, ptr_type, uint32, uint32],
             &[uint32],
         ),
         (
             symbols::wasm::MEMORY_INIT,
             &[ptr_type, uint32, uint32, uint32, uint32, uint32],
+            &[],
+        ),
+        (symbols::wasm::MEMORY_SIZE, &[ptr_type, uint32], &[uint32]),
+        (
+            symbols::wasm::MEMORY_GROW,
+            &[ptr_type, uint32, uint32],
+            &[uint32],
+        ),
+        (
+            symbols::wasm::MEMORY_COPY,
+            &[ptr_type, uint32, uint32, uint32, uint32],
             &[],
         ),
         (
@@ -82,6 +103,16 @@ pub(crate) fn declare_symbols(context: &MLIRContext, module: &MLIRModule) {
         (
             symbols::wasm::MEMORY_WAIT64,
             &[ptr_type, uint32, uint32, uint64, uint64],
+            &[uint32],
+        ),
+        (
+            symbols::wasm::IMPORTED_MEMORY_SIZE,
+            &[ptr_type, uint32],
+            &[uint32],
+        ),
+        (
+            symbols::wasm::IMPORTED_MEMORY_GROW,
+            &[ptr_type, uint32, uint32],
             &[uint32],
         ),
         (

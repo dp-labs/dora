@@ -2199,18 +2199,16 @@ impl FunctionCodeGenerator {
                     .result(0)?
                     .into();
 
-                builder.create(
-                    dora_ir::wasm::mem_init(
-                        builder.context(),
-                        mem,
-                        segment,
-                        dest,
-                        src,
-                        len,
-                        builder.unknown_loc(),
-                    )
-                    .into(),
-                );
+                builder.create(func::call(
+                    &backend.ctx.mlir_context,
+                    FlatSymbolRefAttribute::new(
+                        &backend.ctx.mlir_context,
+                        symbols::wasm::MEMORY_INIT,
+                    ),
+                    &[fcx.ctx.vm_ctx, mem, segment, dest, src, len],
+                    &[],
+                    builder.get_insert_location(),
+                ));
             }
             Operator::DataDrop { data_index } => {
                 let segment = builder
@@ -2218,10 +2216,16 @@ impl FunctionCodeGenerator {
                     .result(0)?
                     .into();
 
-                builder.create(
-                    dora_ir::wasm::data_drop(builder.context(), segment, builder.unknown_loc())
-                        .into(),
-                );
+                builder.create(func::call(
+                    &backend.ctx.mlir_context,
+                    FlatSymbolRefAttribute::new(
+                        &backend.ctx.mlir_context,
+                        symbols::wasm::DATA_DROP,
+                    ),
+                    &[fcx.ctx.vm_ctx, segment],
+                    &[],
+                    builder.get_insert_location(),
+                ));
             }
             Operator::ElemDrop { elem_index } => {
                 let segment = builder
@@ -2229,10 +2233,16 @@ impl FunctionCodeGenerator {
                     .result(0)?
                     .into();
 
-                builder.create(
-                    dora_ir::wasm::elem_drop(builder.context(), segment, builder.unknown_loc())
-                        .into(),
-                );
+                builder.create(func::call(
+                    &backend.ctx.mlir_context,
+                    FlatSymbolRefAttribute::new(
+                        &backend.ctx.mlir_context,
+                        symbols::wasm::ELEM_DROP,
+                    ),
+                    &[fcx.ctx.vm_ctx, segment],
+                    &[],
+                    builder.get_insert_location(),
+                ));
             }
             Operator::MemoryCopy { dst_mem, src_mem } => {
                 // ignored until we support multiple memories
@@ -2247,33 +2257,32 @@ impl FunctionCodeGenerator {
                         .create(builder.iconst_32(local_memory_index.as_u32() as i32))
                         .result(0)?
                         .into();
-                    builder.create(
-                        dora_ir::wasm::mem_copy(
-                            builder.context(),
-                            src_index,
-                            dest_pos,
-                            src_pos,
-                            len,
-                            builder.unknown_loc(),
-                        )
-                        .into(),
-                    );
+                    builder.create(func::call(
+                        &backend.ctx.mlir_context,
+                        FlatSymbolRefAttribute::new(
+                            &backend.ctx.mlir_context,
+                            symbols::wasm::MEMORY_COPY,
+                        ),
+                        &[fcx.ctx.vm_ctx, src_index, dest_pos, src_pos, len],
+                        &[],
+                        builder.get_insert_location(),
+                    ));
                 } else {
                     let src_index = builder
                         .create(builder.iconst_32(src_mem as i32))
                         .result(0)?
                         .into();
-                    builder.create(
-                        dora_ir::wasm::imported_mem_copy(
-                            builder.context(),
-                            src_index,
-                            dest_pos,
-                            src_pos,
-                            len,
-                            builder.unknown_loc(),
-                        )
-                        .into(),
-                    );
+
+                    builder.create(func::call(
+                        &backend.ctx.mlir_context,
+                        FlatSymbolRefAttribute::new(
+                            &backend.ctx.mlir_context,
+                            symbols::wasm::IMPORTED_MEMORY_COPY,
+                        ),
+                        &[fcx.ctx.vm_ctx, src_index, dest_pos, src_pos, len],
+                        &[],
+                        builder.get_insert_location(),
+                    ));
                 };
             }
             Operator::MemoryFill { mem } => {
@@ -2287,33 +2296,31 @@ impl FunctionCodeGenerator {
                         .create(builder.iconst_32(local_memory_index.as_u32() as i32))
                         .result(0)?
                         .into();
-                    builder.create(
-                        dora_ir::wasm::mem_copy(
-                            builder.context(),
-                            mem_index,
-                            dst,
-                            val,
-                            len,
-                            builder.unknown_loc(),
-                        )
-                        .into(),
-                    );
+                    builder.create(func::call(
+                        &backend.ctx.mlir_context,
+                        FlatSymbolRefAttribute::new(
+                            &backend.ctx.mlir_context,
+                            symbols::wasm::MEMORY_FILL,
+                        ),
+                        &[fcx.ctx.vm_ctx, mem_index, dst, val, len],
+                        &[],
+                        builder.get_insert_location(),
+                    ));
                 } else {
                     let mem_index = builder
                         .create(builder.iconst_32(mem as i32))
                         .result(0)?
                         .into();
-                    builder.create(
-                        dora_ir::wasm::mem_copy(
-                            builder.context(),
-                            mem_index,
-                            dst,
-                            val,
-                            len,
-                            builder.unknown_loc(),
-                        )
-                        .into(),
-                    );
+                    builder.create(func::call(
+                        &backend.ctx.mlir_context,
+                        FlatSymbolRefAttribute::new(
+                            &backend.ctx.mlir_context,
+                            symbols::wasm::IMPORTED_MEMORY_FILL,
+                        ),
+                        &[fcx.ctx.vm_ctx, mem_index, dst, val, len],
+                        &[],
+                        builder.get_insert_location(),
+                    ));
                 };
             }
             Operator::TableInit { elem_index, table } => {
@@ -2326,18 +2333,16 @@ impl FunctionCodeGenerator {
                     .create(builder.iconst_32(table as i32))
                     .result(0)?
                     .into();
-                builder.create(
-                    dora_ir::wasm::table_init(
-                        builder.context(),
-                        table,
-                        segment,
-                        dst,
-                        src,
-                        len,
-                        builder.unknown_loc(),
-                    )
-                    .into(),
-                );
+                builder.create(func::call(
+                    &backend.ctx.mlir_context,
+                    FlatSymbolRefAttribute::new(
+                        &backend.ctx.mlir_context,
+                        symbols::wasm::TABLE_INIT,
+                    ),
+                    &[fcx.ctx.vm_ctx, table, segment, dst, src, len],
+                    &[],
+                    builder.get_insert_location(),
+                ));
             }
             Operator::TableCopy {
                 dst_table,
@@ -2352,18 +2357,17 @@ impl FunctionCodeGenerator {
                     .create(builder.iconst_32(src_table as i32))
                     .result(0)?
                     .into();
-                builder.create(
-                    dora_ir::wasm::table_copy(
-                        builder.context(),
-                        dst_table,
-                        src_table,
-                        dst,
-                        src,
-                        len,
-                        builder.unknown_loc(),
-                    )
-                    .into(),
-                );
+
+                builder.create(func::call(
+                    &backend.ctx.mlir_context,
+                    FlatSymbolRefAttribute::new(
+                        &backend.ctx.mlir_context,
+                        symbols::wasm::TABLE_COPY,
+                    ),
+                    &[fcx.ctx.vm_ctx, dst_table, src_table, dst, src, len],
+                    &[],
+                    builder.get_insert_location(),
+                ));
             }
             Operator::TableFill { table } => {
                 let table = builder
@@ -2371,17 +2375,16 @@ impl FunctionCodeGenerator {
                     .result(0)?
                     .into();
                 let (start, elem, len) = state.pop3()?;
-                builder.create(
-                    dora_ir::wasm::table_fill(
-                        builder.context(),
-                        table,
-                        start,
-                        elem,
-                        len,
-                        builder.unknown_loc(),
-                    )
-                    .into(),
-                );
+                builder.create(func::call(
+                    &backend.ctx.mlir_context,
+                    FlatSymbolRefAttribute::new(
+                        &backend.ctx.mlir_context,
+                        symbols::wasm::TABLE_FILL,
+                    ),
+                    &[fcx.ctx.vm_ctx, table, start, elem, len],
+                    &[],
+                    builder.get_insert_location(),
+                ));
             }
             Operator::TableGet { table } => {
                 let table_index = builder
@@ -2394,27 +2397,27 @@ impl FunctionCodeGenerator {
                     .local_table_index(TableIndex::from_u32(table))
                     .is_some()
                 {
-                    builder.create(
-                        dora_ir::wasm::table_get(
-                            builder.context(),
-                            builder.ptr_ty(),
-                            table_index,
-                            elem,
-                            builder.unknown_loc(),
-                        )
-                        .into(),
-                    )
+                    builder.create(func::call(
+                        &backend.ctx.mlir_context,
+                        FlatSymbolRefAttribute::new(
+                            &backend.ctx.mlir_context,
+                            symbols::wasm::TABLE_GET,
+                        ),
+                        &[fcx.ctx.vm_ctx, table_index, elem],
+                        &[builder.ptr_ty()],
+                        builder.get_insert_location(),
+                    ))
                 } else {
-                    builder.create(
-                        dora_ir::wasm::imported_table_get(
-                            builder.context(),
-                            builder.ptr_ty(),
-                            table_index,
-                            elem,
-                            builder.unknown_loc(),
-                        )
-                        .into(),
-                    )
+                    builder.create(func::call(
+                        &backend.ctx.mlir_context,
+                        FlatSymbolRefAttribute::new(
+                            &backend.ctx.mlir_context,
+                            symbols::wasm::IMPORTED_TABLE_GET,
+                        ),
+                        &[fcx.ctx.vm_ctx, table_index, elem],
+                        &[builder.ptr_ty()],
+                        builder.get_insert_location(),
+                    ))
                 };
                 let value = op.result(0)?.into();
                 let op = builder.create(llvm::bitcast(
@@ -2443,27 +2446,27 @@ impl FunctionCodeGenerator {
                     .local_table_index(TableIndex::from_u32(table))
                     .is_some()
                 {
-                    builder.create(
-                        dora_ir::wasm::table_set(
-                            builder.context(),
-                            table_index,
-                            elem,
-                            value,
-                            builder.unknown_loc(),
-                        )
-                        .into(),
-                    )
+                    builder.create(func::call(
+                        &backend.ctx.mlir_context,
+                        FlatSymbolRefAttribute::new(
+                            &backend.ctx.mlir_context,
+                            symbols::wasm::TABLE_SET,
+                        ),
+                        &[fcx.ctx.vm_ctx, table_index, elem, value],
+                        &[],
+                        builder.get_insert_location(),
+                    ))
                 } else {
-                    builder.create(
-                        dora_ir::wasm::imported_table_set(
-                            builder.context(),
-                            table_index,
-                            elem,
-                            value,
-                            builder.unknown_loc(),
-                        )
-                        .into(),
-                    )
+                    builder.create(func::call(
+                        &backend.ctx.mlir_context,
+                        FlatSymbolRefAttribute::new(
+                            &backend.ctx.mlir_context,
+                            symbols::wasm::IMPORTED_TABLE_SET,
+                        ),
+                        &[fcx.ctx.vm_ctx, table_index, elem, value],
+                        &[],
+                        builder.get_insert_location(),
+                    ))
                 };
             }
             Operator::TableGrow { table } => {
@@ -2476,33 +2479,31 @@ impl FunctionCodeGenerator {
                         .create(builder.iconst_32(local_table_index.as_u32() as i32))
                         .result(0)?
                         .into();
-                    builder.create(
-                        dora_ir::wasm::table_grow(
-                            builder.context(),
-                            builder.i32_ty(),
-                            elem,
-                            delta,
-                            table_index,
-                            builder.unknown_loc(),
-                        )
-                        .into(),
-                    )
+                    builder.create(func::call(
+                        &backend.ctx.mlir_context,
+                        FlatSymbolRefAttribute::new(
+                            &backend.ctx.mlir_context,
+                            symbols::wasm::TABLE_GROW,
+                        ),
+                        &[fcx.ctx.vm_ctx, elem, delta, table_index],
+                        &[builder.i32_ty()],
+                        builder.get_insert_location(),
+                    ))
                 } else {
                     let table_index = builder
                         .create(builder.iconst_32(table as i32))
                         .result(0)?
                         .into();
-                    builder.create(
-                        dora_ir::wasm::imported_table_grow(
-                            builder.context(),
-                            builder.i32_ty(),
-                            elem,
-                            delta,
-                            table_index,
-                            builder.unknown_loc(),
-                        )
-                        .into(),
-                    )
+                    builder.create(func::call(
+                        &backend.ctx.mlir_context,
+                        FlatSymbolRefAttribute::new(
+                            &backend.ctx.mlir_context,
+                            symbols::wasm::IMPORTED_TABLE_GROW,
+                        ),
+                        &[fcx.ctx.vm_ctx, elem, delta, table_index],
+                        &[builder.i32_ty()],
+                        builder.get_insert_location(),
+                    ))
                 };
                 let size = op.result(0)?.to_ctx_value();
                 state.push1(size);
@@ -2516,66 +2517,78 @@ impl FunctionCodeGenerator {
                         .create(builder.iconst_32(local_table_index.as_u32() as i32))
                         .result(0)?
                         .into();
-                    builder.create(
-                        dora_ir::wasm::table_size(
-                            builder.context(),
-                            builder.i32_ty(),
-                            table_index,
-                            builder.unknown_loc(),
-                        )
-                        .into(),
-                    )
+                    builder.create(func::call(
+                        &backend.ctx.mlir_context,
+                        FlatSymbolRefAttribute::new(
+                            &backend.ctx.mlir_context,
+                            symbols::wasm::TABLE_SIZE,
+                        ),
+                        &[fcx.ctx.vm_ctx, table_index],
+                        &[builder.i32_ty()],
+                        builder.get_insert_location(),
+                    ))
                 } else {
                     let table_index = builder
                         .create(builder.iconst_32(table as i32))
                         .result(0)?
                         .into();
-                    builder.create(
-                        dora_ir::wasm::imported_table_size(
-                            builder.context(),
-                            table_index,
-                            builder.unknown_loc(),
-                        )
-                        .into(),
-                    )
+                    builder.create(func::call(
+                        &backend.ctx.mlir_context,
+                        FlatSymbolRefAttribute::new(
+                            &backend.ctx.mlir_context,
+                            symbols::wasm::IMPORTED_TABLE_SIZE,
+                        ),
+                        &[fcx.ctx.vm_ctx, table_index],
+                        &[builder.i32_ty()],
+                        builder.get_insert_location(),
+                    ))
                 };
                 let size = op.result(0)?.to_ctx_value();
                 state.push1(size);
             }
             Operator::MemorySize { mem } => {
+                let memory_index = MemoryIndex::from_u32(mem);
                 let mem = builder
                     .create(builder.iconst_32(mem as i32))
                     .result(0)?
                     .into();
-                let op = builder.create(
-                    dora_ir::wasm::mem_size(
-                        builder.context(),
-                        builder.i32_ty(),
-                        mem,
-                        builder.unknown_loc(),
-                    )
-                    .into(),
-                );
-                let size = op.result(0)?.to_ctx_value();
+                let symbol = if fcx.wasm_module.local_memory_index(memory_index).is_some() {
+                    symbols::wasm::MEMORY_SIZE
+                } else {
+                    symbols::wasm::IMPORTED_MEMORY_SIZE
+                };
+                let size = builder
+                    .make(func::call(
+                        &backend.ctx.mlir_context,
+                        FlatSymbolRefAttribute::new(&backend.ctx.mlir_context, symbol),
+                        &[fcx.ctx.vm_ctx, mem],
+                        &[builder.i32_ty()],
+                        builder.get_insert_location(),
+                    ))?
+                    .to_ctx_value();
                 state.push1(size);
             }
             Operator::MemoryGrow { mem } => {
+                let memory_index = MemoryIndex::from_u32(mem);
                 let mem = builder
                     .create(builder.iconst_32(mem as i32))
                     .result(0)?
                     .into();
                 let delta = state.pop1()?;
-                let op = builder.create(
-                    dora_ir::wasm::mem_grow(
-                        builder.context(),
-                        builder.i32_ty(),
-                        delta,
-                        mem,
-                        builder.unknown_loc(),
-                    )
-                    .into(),
-                );
-                let size = op.result(0)?.to_ctx_value();
+                let symbol = if fcx.wasm_module.local_memory_index(memory_index).is_some() {
+                    symbols::wasm::MEMORY_GROW
+                } else {
+                    symbols::wasm::IMPORTED_MEMORY_GROW
+                };
+                let size = builder
+                    .make(func::call(
+                        &backend.ctx.mlir_context,
+                        FlatSymbolRefAttribute::new(&backend.ctx.mlir_context, symbol),
+                        &[fcx.ctx.vm_ctx, delta, mem],
+                        &[builder.i32_ty()],
+                        builder.get_insert_location(),
+                    ))?
+                    .to_ctx_value();
                 state.push1(size);
             }
             Operator::MemoryAtomicNotify { ref memarg } => {

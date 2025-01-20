@@ -1239,24 +1239,31 @@ module {
     %c40_i32 = arith.constant 40 : i32
     llvm.store %c40_i32, %0 : i32, !llvm.ptr
     %c0_i32 = arith.constant 0 : i32
-    %1 = "wasm.mem_grow"(%c40_i32, %c0_i32) : (i32, i32) -> i32
+    %1 = call @dora_fn_wasm_memory_grow(%arg0, %c40_i32, %c0_i32) : (!llvm.ptr, i32, i32) -> i32
     cf.br ^bb2(%1 : i32)
   ^bb2(%2: i32):  // pred: ^bb1
     return %2 : i32
   }
   func.func private @dora_fn_wasm_table_init(!llvm.ptr, i32, i32, i32, i32, i32)
+  func.func private @dora_fn_wasm_table_copy(!llvm.ptr, i32, i32, i32, i32, i32)
   func.func private @dora_fn_wasm_table_fill(!llvm.ptr, i32, i32, !llvm.ptr, i32)
   func.func private @dora_fn_wasm_table_size(!llvm.ptr, i32) -> i32
   func.func private @dora_fn_wasm_table_get(!llvm.ptr, i32, i32) -> !llvm.ptr
   func.func private @dora_fn_wasm_table_set(!llvm.ptr, i32, i32, !llvm.ptr)
+  func.func private @dora_fn_wasm_table_grow(!llvm.ptr, !llvm.ptr, i32, i32) -> i32
   func.func private @dora_fn_wasm_imported_table_size(!llvm.ptr, i32) -> i32
   func.func private @dora_fn_wasm_imported_table_get(!llvm.ptr, i32, i32) -> !llvm.ptr
   func.func private @dora_fn_wasm_imported_table_grow(!llvm.ptr, !llvm.ptr, i32, i32) -> i32
   func.func private @dora_fn_wasm_memory_init(!llvm.ptr, i32, i32, i32, i32, i32)
+  func.func private @dora_fn_wasm_memory_size(!llvm.ptr, i32) -> i32
+  func.func private @dora_fn_wasm_memory_grow(!llvm.ptr, i32, i32) -> i32
+  func.func private @dora_fn_wasm_memory_copy(!llvm.ptr, i32, i32, i32, i32)
   func.func private @dora_fn_wasm_memory_fill(!llvm.ptr, i32, i32, i32, i32)
   func.func private @dora_fn_wasm_memory_notify(!llvm.ptr, i32, i32, i32) -> i32
   func.func private @dora_fn_wasm_memory_wait32(!llvm.ptr, i32, i32, i32, i64) -> i32
   func.func private @dora_fn_wasm_memory_wait64(!llvm.ptr, i32, i32, i64, i64) -> i32
+  func.func private @dora_fn_wasm_imported_memory_size(!llvm.ptr, i32) -> i32
+  func.func private @dora_fn_wasm_imported_memory_grow(!llvm.ptr, i32, i32) -> i32
   func.func private @dora_fn_wasm_imported_memory_copy(!llvm.ptr, i32, i32, i32, i32)
   func.func private @dora_fn_wasm_imported_memory_fill(!llvm.ptr, i32, i32, i32, i32)
   func.func private @dora_fn_wasm_imported_memory_notify(!llvm.ptr, i32, i32, i32) -> i32
