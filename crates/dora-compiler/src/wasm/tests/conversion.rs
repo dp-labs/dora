@@ -32,6 +32,23 @@ macro_rules! assert_snapshot {
 }
 
 #[test]
+fn unreachable() {
+    assert_snapshot!(
+        r#"
+(module
+    (func (export "break-bare") (result i32)
+    (block (br 0) (unreachable))
+    (block (br_if 0 (i32.const 1)) (unreachable))
+    (block (br_table 0 (i32.const 0)) (unreachable))
+    (block (br_table 0 0 0 (i32.const 1)) (unreachable))
+    (i32.const 19)
+  )
+)
+"#
+    );
+}
+
+#[test]
 fn sum() {
     assert_snapshot!(
         r#"

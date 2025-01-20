@@ -3,7 +3,7 @@ use crate::conversion::walker::walk_operation;
 use crate::errors::Result;
 use crate::value::IntoContextOperation;
 use dora_ir;
-use melior::dialect::arith;
+use melior::dialect::{arith, llvm};
 use melior::ir::{TypeLike, ValueLike};
 use melior::{
     dialect::DialectHandle,
@@ -81,7 +81,9 @@ impl ConversionPass<'_> {
 
         for op in wasm_ops {
             let name = op.name().as_string_ref().as_str().unwrap().to_string();
-            if name == dora_ir::wasm::AddOperation::name() {
+            if name == dora_ir::wasm::UnreachableOperation::name() {
+                replace_op(op, llvm::unreachable(op.location()));
+            } else if name == dora_ir::wasm::AddOperation::name() {
                 let lhs = op.operand(0)?;
                 let rhs = op.operand(1)?;
                 debug_assert!(lhs.r#type() == rhs.r#type());
