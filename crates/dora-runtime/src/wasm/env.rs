@@ -6,4 +6,5 @@ pub struct WASMEnv {
     pub memory: Option<Memory>,
 }
 
+/// A WASM mut env for the host functions.
 pub type WASMEnvMut<'a> = FunctionEnvMut<'a, WASMEnv>;

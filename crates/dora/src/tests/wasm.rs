@@ -13,6 +13,10 @@ use dora_runtime::host::DummyHost;
 use wasmer::wat2wasm;
 
 macro_rules! build_wasm_code {
+    ($code:ident, $artifact:ident) => {
+        let wasm_code = wat2wasm($code).unwrap();
+        let $artifact = build_wasm_artifact::<MemoryDB>(&wasm_code.to_vec().into()).unwrap();
+    };
     ($code:ident, $artifact:ident, $runtime_context:ident, $gas:ident) => {
         let wasm_code = wat2wasm($code).unwrap();
         let $artifact = build_wasm_artifact::<MemoryDB>(&wasm_code.to_vec().into()).unwrap();
@@ -31,8 +35,25 @@ macro_rules! build_wasm_code {
     };
 }
 
+macro_rules! build_runtime_context {
+    ($runtime_context:ident, $gas:ident) => {
+        // Run WASM code with env.
+        let env = Env::default();
+        let mut host = DummyHost::new(env);
+        let $runtime_context = RuntimeContext::new(
+            Contract::new_with_env(&host.env, Bytecode::new(vec![].into()), None),
+            1,
+            false,
+            false,
+            &mut host,
+            SpecId::CANCUN,
+        );
+        let $gas = INIT_GAS;
+    };
+}
+
 #[test]
-fn test_build_wasm_artifact_and_run() {
+fn test_wasm_main() {
     let code = br#"
 (module
   (func $sum_f (param $x i32) (param $y i32) (result i32)
@@ -72,7 +93,7 @@ fn test_wasm_fib() {
   )
 )
 "#;
-    build_wasm_code!(code, artifact, runtime_context, gas);
+    build_wasm_code!(code, artifact);
     let tests: &[(i64, i64)] = &[
         (0, 1),
         (1, 1),
@@ -84,8 +105,9 @@ fn test_wasm_fib() {
         (7, 21),
     ];
     for (input, output) in tests {
+        build_runtime_context!(runtime_context, gas);
         let result: i64 = artifact
-            .execute_wasm_func("fib", *input, &mut runtime_context, &mut gas)
+            .execute_wasm_func("fib", *input, runtime_context, gas)
             .unwrap();
         assert_eq!(result, *output);
     }
