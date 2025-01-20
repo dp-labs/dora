@@ -97,6 +97,14 @@ impl ConversionPass<'_> {
                 Self::exp(context, op, &self.spec_id)?
             } else if name == "dora.signextend" {
                 Self::signextend(context, op)?
+            } else if name == "dora.lte" {
+                Self::lte(context, op)?
+            } else if name == "dora.gte" {
+                Self::gte(context, op)?
+            } else if name == "dora.slte" {
+                Self::slte(context, op)?
+            } else if name == "dora.sgte" {
+                Self::sgte(context, op)?
             } else if name == "dora.lt" {
                 Self::lt(context, op)?
             } else if name == "dora.gt" {

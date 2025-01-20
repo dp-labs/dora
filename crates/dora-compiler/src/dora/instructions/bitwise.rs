@@ -13,6 +13,74 @@ use melior::{
 use num_bigint::BigUint;
 
 impl ConversionPass<'_> {
+    pub(crate) fn lte(context: &Context, op: &OperationRef<'_, '_>) -> Result<()> {
+        operands!(op, l, r);
+        rewrite_ctx!(context, op, rewriter, location);
+
+        let ty = op.result(0)?.r#type();
+
+        let lt = rewriter.make(arith::cmpi(
+            context,
+            arith::CmpiPredicate::Ule,
+            l,
+            r,
+            location,
+        ))?;
+        rewriter.make(arith::extui(lt, ty, location))?;
+        Ok(())
+    }
+
+    pub(crate) fn gte(context: &Context, op: &OperationRef<'_, '_>) -> Result<()> {
+        operands!(op, l, r);
+        rewrite_ctx!(context, op, rewriter, location);
+
+        let ty = l.r#type();
+
+        let gt = rewriter.make(arith::cmpi(
+            context,
+            arith::CmpiPredicate::Uge,
+            l,
+            r,
+            location,
+        ))?;
+        rewriter.make(arith::extui(gt, ty, location))?;
+        Ok(())
+    }
+
+    pub(crate) fn slte(context: &Context, op: &OperationRef<'_, '_>) -> Result<()> {
+        operands!(op, l, r);
+        rewrite_ctx!(context, op, rewriter, location);
+
+        let ty = op.result(0)?.r#type();
+
+        let slt = rewriter.make(arith::cmpi(
+            context,
+            arith::CmpiPredicate::Sle,
+            l,
+            r,
+            location,
+        ))?;
+        rewriter.make(arith::extui(slt, ty, location))?;
+        Ok(())
+    }
+
+    pub(crate) fn sgte(context: &Context, op: &OperationRef<'_, '_>) -> Result<()> {
+        operands!(op, l, r);
+        rewrite_ctx!(context, op, rewriter, location);
+
+        let ty = op.result(0)?.r#type();
+
+        let sgt = rewriter.make(arith::cmpi(
+            context,
+            arith::CmpiPredicate::Sge,
+            l,
+            r,
+            location,
+        ))?;
+        rewriter.make(arith::extui(sgt, ty, location))?;
+        Ok(())
+    }
+
     pub(crate) fn lt(context: &Context, op: &OperationRef<'_, '_>) -> Result<()> {
         operands!(op, l, r);
         rewrite_ctx!(context, op, rewriter, location);

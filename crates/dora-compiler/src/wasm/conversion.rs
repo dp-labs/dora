@@ -307,6 +307,158 @@ impl ConversionPass<'_> {
                         arith::trunci(not_value, rewriter.i32_ty(), rewriter.get_insert_location()),
                     );
                 }
+            } else if name == dora_ir::wasm::LeuOperation::name() {
+                let lhs = op.operand(0)?;
+                let rhs = op.operand(1)?;
+                debug_assert!(lhs.r#type() == rhs.r#type());
+                let rewriter = Rewriter::new_with_op(self.ctx, op);
+                let val_op =
+                    dora_ir::dora::lte(self.ctx, lhs.r#type(), lhs, rhs, op.location()).into();
+                let is_i32 =
+                    lhs.r#type().is_integer() && rewriter.int_ty_width(lhs.r#type())? == 32;
+                // Note: the wasm ne operation always return i32 value.
+                if is_i32 {
+                    replace_op(op, val_op);
+                } else {
+                    let lte_value = rewriter.make(val_op)?;
+                    replace_op(
+                        op,
+                        arith::trunci(lte_value, rewriter.i32_ty(), rewriter.get_insert_location()),
+                    );
+                }
+            } else if name == dora_ir::wasm::LesOperation::name() {
+                let lhs = op.operand(0)?;
+                let rhs = op.operand(1)?;
+                debug_assert!(lhs.r#type() == rhs.r#type());
+                let rewriter = Rewriter::new_with_op(self.ctx, op);
+                let val_op =
+                    dora_ir::dora::slte(self.ctx, lhs.r#type(), lhs, rhs, op.location()).into();
+                let is_i32 =
+                    lhs.r#type().is_integer() && rewriter.int_ty_width(lhs.r#type())? == 32;
+                // Note: the wasm ne operation always return i32 value.
+                if is_i32 {
+                    replace_op(op, val_op);
+                } else {
+                    let lte_value = rewriter.make(val_op)?;
+                    replace_op(
+                        op,
+                        arith::trunci(lte_value, rewriter.i32_ty(), rewriter.get_insert_location()),
+                    );
+                }
+            } else if name == dora_ir::wasm::LtsOperation::name() {
+                let lhs = op.operand(0)?;
+                let rhs = op.operand(1)?;
+                debug_assert!(lhs.r#type() == rhs.r#type());
+                let rewriter = Rewriter::new_with_op(self.ctx, op);
+                let val_op =
+                    dora_ir::dora::slt(self.ctx, lhs.r#type(), lhs, rhs, op.location()).into();
+                let is_i32 =
+                    lhs.r#type().is_integer() && rewriter.int_ty_width(lhs.r#type())? == 32;
+                // Note: the wasm ne operation always return i32 value.
+                if is_i32 {
+                    replace_op(op, val_op);
+                } else {
+                    let lte_value = rewriter.make(val_op)?;
+                    replace_op(
+                        op,
+                        arith::trunci(lte_value, rewriter.i32_ty(), rewriter.get_insert_location()),
+                    );
+                }
+            } else if name == dora_ir::wasm::LtuOperation::name() {
+                let lhs = op.operand(0)?;
+                let rhs = op.operand(1)?;
+                debug_assert!(lhs.r#type() == rhs.r#type());
+                let rewriter = Rewriter::new_with_op(self.ctx, op);
+                let val_op =
+                    dora_ir::dora::lt(self.ctx, lhs.r#type(), lhs, rhs, op.location()).into();
+                let is_i32 =
+                    lhs.r#type().is_integer() && rewriter.int_ty_width(lhs.r#type())? == 32;
+                // Note: the wasm ne operation always return i32 value.
+                if is_i32 {
+                    replace_op(op, val_op);
+                } else {
+                    let lte_value = rewriter.make(val_op)?;
+                    replace_op(
+                        op,
+                        arith::trunci(lte_value, rewriter.i32_ty(), rewriter.get_insert_location()),
+                    );
+                }
+            } else if name == dora_ir::wasm::GeuOperation::name() {
+                let lhs = op.operand(0)?;
+                let rhs = op.operand(1)?;
+                debug_assert!(lhs.r#type() == rhs.r#type());
+                let rewriter = Rewriter::new_with_op(self.ctx, op);
+                let val_op =
+                    dora_ir::dora::gte(self.ctx, lhs.r#type(), lhs, rhs, op.location()).into();
+                let is_i32 =
+                    lhs.r#type().is_integer() && rewriter.int_ty_width(lhs.r#type())? == 32;
+                // Note: the wasm ne operation always return i32 value.
+                if is_i32 {
+                    replace_op(op, val_op);
+                } else {
+                    let lte_value = rewriter.make(val_op)?;
+                    replace_op(
+                        op,
+                        arith::trunci(lte_value, rewriter.i32_ty(), rewriter.get_insert_location()),
+                    );
+                }
+            } else if name == dora_ir::wasm::GesOperation::name() {
+                let lhs = op.operand(0)?;
+                let rhs = op.operand(1)?;
+                debug_assert!(lhs.r#type() == rhs.r#type());
+                let rewriter = Rewriter::new_with_op(self.ctx, op);
+                let val_op =
+                    dora_ir::dora::sgte(self.ctx, lhs.r#type(), lhs, rhs, op.location()).into();
+                let is_i32 =
+                    lhs.r#type().is_integer() && rewriter.int_ty_width(lhs.r#type())? == 32;
+                // Note: the wasm ne operation always return i32 value.
+                if is_i32 {
+                    replace_op(op, val_op);
+                } else {
+                    let lte_value = rewriter.make(val_op)?;
+                    replace_op(
+                        op,
+                        arith::trunci(lte_value, rewriter.i32_ty(), rewriter.get_insert_location()),
+                    );
+                }
+            } else if name == dora_ir::wasm::GtsOperation::name() {
+                let lhs = op.operand(0)?;
+                let rhs = op.operand(1)?;
+                debug_assert!(lhs.r#type() == rhs.r#type());
+                let rewriter = Rewriter::new_with_op(self.ctx, op);
+                let val_op =
+                    dora_ir::dora::sgt(self.ctx, lhs.r#type(), lhs, rhs, op.location()).into();
+                let is_i32 =
+                    lhs.r#type().is_integer() && rewriter.int_ty_width(lhs.r#type())? == 32;
+                // Note: the wasm ne operation always return i32 value.
+                if is_i32 {
+                    replace_op(op, val_op);
+                } else {
+                    let lte_value = rewriter.make(val_op)?;
+                    replace_op(
+                        op,
+                        arith::trunci(lte_value, rewriter.i32_ty(), rewriter.get_insert_location()),
+                    );
+                }
+            } else if name == dora_ir::wasm::GtuOperation::name() {
+                let lhs = op.operand(0)?;
+                let rhs = op.operand(1)?;
+                debug_assert!(lhs.r#type() == rhs.r#type());
+                let rewriter = Rewriter::new_with_op(self.ctx, op);
+                let val_op =
+                    dora_ir::dora::gt(self.ctx, lhs.r#type(), lhs, rhs, op.location()).into();
+                let is_i32 =
+                    lhs.r#type().is_integer() && rewriter.int_ty_width(lhs.r#type())? == 32;
+                // Note: the wasm ne operation always return i32 value.
+                if is_i32 {
+                    replace_op(op, val_op);
+                } else {
+                    let lte_value = rewriter.make(val_op)?;
+                    replace_op(
+                        op,
+                        arith::trunci(lte_value, rewriter.i32_ty(), rewriter.get_insert_location()),
+                    );
+                }
             } else if name == dora_ir::wasm::SelectOperation::name() {
                 let lhs = op.operand(0)?;
                 let rhs = op.operand(1)?;

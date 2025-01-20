@@ -178,6 +178,7 @@ pub fn build_wasm_artifact<DB: Database>(code: &Bytes) -> anyhow::Result<DB::Art
         },
     )?;
     pass::run(&context.mlir_context, &mut module.mlir_module)?;
+    debug_assert!(module.mlir_module.as_operation().verify());
     let executor = Executor::new(
         module.module(),
         Default::default(),
