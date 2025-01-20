@@ -1236,6 +1236,12 @@ impl<'a> RuntimeContext<'a> {
         self.inner.returndata.to_vec().into()
     }
 
+    /// Retrieves the return data size produced during execution.
+    #[inline]
+    pub fn return_data_size(&self) -> usize {
+        self.inner.returndata.len()
+    }
+
     /// Retrieves the memory used during execution.
     #[inline]
     pub fn memory(&self) -> &[u8] {

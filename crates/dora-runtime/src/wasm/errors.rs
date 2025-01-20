@@ -10,25 +10,13 @@ pub enum Escape {
     Memory(MemoryAccessError),
     #[error("internal error: `{0}`")]
     Internal(String),
-    #[error("logic error: `{0}`")]
-    Logical(String),
-    #[error("out of gas")]
-    OutOfGas,
     #[error("exit early: `{0}`")]
-    Exit(u32),
+    Exit(u8),
 }
 
 impl Escape {
     pub fn internal<T>(error: &'static str) -> Result<T, Escape> {
         Err(Self::Internal(error.to_string()))
-    }
-
-    pub fn logical<T>(error: &'static str) -> Result<T, Escape> {
-        Err(Self::Logical(error.to_string()))
-    }
-
-    pub fn out_of_gas<T>() -> Result<T, Escape> {
-        Err(Self::OutOfGas)
     }
 }
 

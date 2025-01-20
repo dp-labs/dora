@@ -73,6 +73,12 @@ pub enum SStoreResult {
     Status(SStoreStatus),
 }
 
+impl Default for SStoreResult {
+    fn default() -> Self {
+        Self::Slot(SStoreSlot::default())
+    }
+}
+
 /// Result of a `set_storage` action.
 #[derive(Debug, Clone, Default, PartialEq, Eq, Hash)]
 pub struct SStoreSlot {

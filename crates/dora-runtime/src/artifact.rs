@@ -1,6 +1,7 @@
 use crate::{
     context::{EVMMainFunc, RuntimeContext, Stack, WASMMainFunc},
     executor::{ExecuteKind, Executor},
+    wasm::context::set_runtime_context,
 };
 use anyhow::{anyhow, Result};
 use std::fmt::Debug;
@@ -118,9 +119,9 @@ impl SymbolArtifact {
         &self,
         name: &str,
         args: Args,
-        // TODO: EVM host API and gas meter.
-        _runtime_context: &mut RuntimeContext,
-        _initial_gas: &mut u64,
+        runtime_context: RuntimeContext,
+        // TODO: gas meter.
+        _initial_gas: u64,
     ) -> Result<Ret>
     where
         Args: Sized,
@@ -131,11 +132,11 @@ impl SymbolArtifact {
             ExecuteKind::EVM => Err(anyhow!(
                 "The compiled code kind is EVM, and it's not WASM kind"
             )),
-            ExecuteKind::WASM(vm_ctx) => {
+            ExecuteKind::WASM(vm_ctx) => set_runtime_context(runtime_context, || {
                 let func: fn(*mut VMContext, Args) -> Ret =
                     unsafe { std::mem::transmute(func_ptr) };
                 Ok(func(vm_ctx, args))
-            }
+            }),
         }
     }
 }
