@@ -19,7 +19,7 @@ module {
   ^bb1:  // pred: ^bb0
     %1 = llvm.load %0 : !llvm.ptr -> i32
     %c0_i32 = arith.constant 0 : i32
-    %2 = "wasm.table_get"(%c0_i32, %1) : (i32, i32) -> !llvm.ptr
+    %2 = call @dora_fn_wasm_table_get(%arg0, %c0_i32, %1) : (!llvm.ptr, i32, i32) -> !llvm.ptr
     %3 = llvm.bitcast %2 : !llvm.ptr to !llvm.ptr
     cf.br ^bb2(%3 : !llvm.ptr)
   ^bb2(%4: !llvm.ptr):  // pred: ^bb1
@@ -33,7 +33,7 @@ module {
   ^bb1:  // pred: ^bb0
     %1 = llvm.load %0 : !llvm.ptr -> i32
     %c1_i32 = arith.constant 1 : i32
-    %2 = "wasm.table_get"(%c1_i32, %1) : (i32, i32) -> !llvm.ptr
+    %2 = call @dora_fn_wasm_table_get(%arg0, %c1_i32, %1) : (!llvm.ptr, i32, i32) -> !llvm.ptr
     %3 = llvm.bitcast %2 : !llvm.ptr to !llvm.ptr
     cf.br ^bb2(%3 : !llvm.ptr)
   ^bb2(%4: !llvm.ptr):  // pred: ^bb1
@@ -51,7 +51,7 @@ module {
     %2 = llvm.load %0 : !llvm.ptr -> i32
     %3 = llvm.load %1 : !llvm.ptr -> !llvm.ptr
     %c0_i32 = arith.constant 0 : i32
-    "wasm.table_set"(%c0_i32, %2, %3) : (i32, i32, !llvm.ptr) -> ()
+    call @dora_fn_wasm_table_set(%arg0, %c0_i32, %2, %3) : (!llvm.ptr, i32, i32, !llvm.ptr) -> ()
     cf.br ^bb2
   ^bb2:  // pred: ^bb1
     return
@@ -68,7 +68,7 @@ module {
     %2 = llvm.load %0 : !llvm.ptr -> i32
     %3 = llvm.load %1 : !llvm.ptr -> !llvm.ptr
     %c1_i32 = arith.constant 1 : i32
-    "wasm.table_set"(%c1_i32, %2, %3) : (i32, i32, !llvm.ptr) -> ()
+    call @dora_fn_wasm_table_set(%arg0, %c1_i32, %2, %3) : (!llvm.ptr, i32, i32, !llvm.ptr) -> ()
     cf.br ^bb2
   ^bb2:  // pred: ^bb1
     return
@@ -85,10 +85,10 @@ module {
     %2 = llvm.load %0 : !llvm.ptr -> i32
     %3 = llvm.load %1 : !llvm.ptr -> i32
     %c1_i32 = arith.constant 1 : i32
-    %4 = "wasm.table_get"(%c1_i32, %3) : (i32, i32) -> !llvm.ptr
+    %4 = call @dora_fn_wasm_table_get(%arg0, %c1_i32, %3) : (!llvm.ptr, i32, i32) -> !llvm.ptr
     %5 = llvm.bitcast %4 : !llvm.ptr to !llvm.ptr
     %c1_i32_1 = arith.constant 1 : i32
-    "wasm.table_set"(%c1_i32_1, %2, %5) : (i32, i32, !llvm.ptr) -> ()
+    call @dora_fn_wasm_table_set(%arg0, %c1_i32_1, %2, %5) : (!llvm.ptr, i32, i32, !llvm.ptr) -> ()
     cf.br ^bb2
   ^bb2:  // pred: ^bb1
     return
@@ -110,18 +110,25 @@ module {
     return %6 : i32
   }
   func.func private @dora_fn_wasm_table_init(!llvm.ptr, i32, i32, i32, i32, i32)
+  func.func private @dora_fn_wasm_table_copy(!llvm.ptr, i32, i32, i32, i32, i32)
   func.func private @dora_fn_wasm_table_fill(!llvm.ptr, i32, i32, !llvm.ptr, i32)
   func.func private @dora_fn_wasm_table_size(!llvm.ptr, i32) -> i32
   func.func private @dora_fn_wasm_table_get(!llvm.ptr, i32, i32) -> !llvm.ptr
   func.func private @dora_fn_wasm_table_set(!llvm.ptr, i32, i32, !llvm.ptr)
+  func.func private @dora_fn_wasm_table_grow(!llvm.ptr, !llvm.ptr, i32, i32) -> i32
   func.func private @dora_fn_wasm_imported_table_size(!llvm.ptr, i32) -> i32
   func.func private @dora_fn_wasm_imported_table_get(!llvm.ptr, i32, i32) -> !llvm.ptr
   func.func private @dora_fn_wasm_imported_table_grow(!llvm.ptr, !llvm.ptr, i32, i32) -> i32
   func.func private @dora_fn_wasm_memory_init(!llvm.ptr, i32, i32, i32, i32, i32)
+  func.func private @dora_fn_wasm_memory_size(!llvm.ptr, i32) -> i32
+  func.func private @dora_fn_wasm_memory_grow(!llvm.ptr, i32, i32) -> i32
+  func.func private @dora_fn_wasm_memory_copy(!llvm.ptr, i32, i32, i32, i32)
   func.func private @dora_fn_wasm_memory_fill(!llvm.ptr, i32, i32, i32, i32)
   func.func private @dora_fn_wasm_memory_notify(!llvm.ptr, i32, i32, i32) -> i32
   func.func private @dora_fn_wasm_memory_wait32(!llvm.ptr, i32, i32, i32, i64) -> i32
   func.func private @dora_fn_wasm_memory_wait64(!llvm.ptr, i32, i32, i64, i64) -> i32
+  func.func private @dora_fn_wasm_imported_memory_size(!llvm.ptr, i32) -> i32
+  func.func private @dora_fn_wasm_imported_memory_grow(!llvm.ptr, i32, i32) -> i32
   func.func private @dora_fn_wasm_imported_memory_copy(!llvm.ptr, i32, i32, i32, i32)
   func.func private @dora_fn_wasm_imported_memory_fill(!llvm.ptr, i32, i32, i32, i32)
   func.func private @dora_fn_wasm_imported_memory_notify(!llvm.ptr, i32, i32, i32) -> i32

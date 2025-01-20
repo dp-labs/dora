@@ -2614,6 +2614,10 @@ impl RuntimeContext<'_> {
                     wasmer_vm::libcalls::wasmer_vm_table_init as *const _,
                 ),
                 (
+                    symbols::wasm::TABLE_COPY,
+                    wasmer_vm::libcalls::wasmer_vm_table_copy as *const _,
+                ),
+                (
                     symbols::wasm::TABLE_FILL,
                     wasmer_vm::libcalls::wasmer_vm_table_fill as *const _,
                 ),
@@ -2634,24 +2638,32 @@ impl RuntimeContext<'_> {
                     wasmer_vm::libcalls::wasmer_vm_table_grow as *const _,
                 ),
                 (
-                    symbols::wasm::IMPROTED_TABLE_SIZE,
+                    symbols::wasm::IMPORTED_TABLE_SIZE,
                     wasmer_vm::libcalls::wasmer_vm_imported_table_size as *const _,
                 ),
                 (
-                    symbols::wasm::IMPROTED_TABLE_GET,
+                    symbols::wasm::IMPORTED_TABLE_GET,
                     wasmer_vm::libcalls::wasmer_vm_imported_table_get as *const _,
                 ),
                 (
-                    symbols::wasm::IMPROTED_TABLE_SET,
+                    symbols::wasm::IMPORTED_TABLE_SET,
                     wasmer_vm::libcalls::wasmer_vm_imported_table_set as *const _,
                 ),
                 (
-                    symbols::wasm::IMPROTED_TABLE_GROW,
+                    symbols::wasm::IMPORTED_TABLE_GROW,
                     wasmer_vm::libcalls::wasmer_vm_imported_table_grow as *const _,
                 ),
                 (
                     symbols::wasm::MEMORY_INIT,
                     wasmer_vm::libcalls::wasmer_vm_memory32_init as *const _,
+                ),
+                (
+                    symbols::wasm::MEMORY_SIZE,
+                    wasmer_vm::libcalls::wasmer_vm_memory32_size as *const _,
+                ),
+                (
+                    symbols::wasm::MEMORY_GROW,
+                    wasmer_vm::libcalls::wasmer_vm_memory32_grow as *const _,
                 ),
                 (
                     symbols::wasm::MEMORY_COPY,
@@ -2672,6 +2684,14 @@ impl RuntimeContext<'_> {
                 (
                     symbols::wasm::MEMORY_WAIT64,
                     wasmer_vm::libcalls::wasmer_vm_memory32_atomic_wait64 as *const _,
+                ),
+                (
+                    symbols::wasm::IMPORTED_MEMORY_SIZE,
+                    wasmer_vm::libcalls::wasmer_vm_imported_memory32_size as *const _,
+                ),
+                (
+                    symbols::wasm::IMPORTED_MEMORY_GROW,
+                    wasmer_vm::libcalls::wasmer_vm_imported_memory32_grow as *const _,
                 ),
                 (
                     symbols::wasm::IMPORTED_MEMORY_COPY,

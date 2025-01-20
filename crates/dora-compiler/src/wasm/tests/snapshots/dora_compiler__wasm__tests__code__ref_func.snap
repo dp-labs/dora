@@ -136,7 +136,7 @@ module {
     %c0_i32_0 = arith.constant 0 : i32
     %7 = call @dora_fn_wasm_func_ref(%arg0, %c0_i32_0) : (!llvm.ptr, i32) -> !llvm.ptr
     %c0_i32_1 = arith.constant 0 : i32
-    "wasm.table_set"(%c0_i32_1, %c0_i32, %7) : (i32, i32, !llvm.ptr) -> ()
+    call @dora_fn_wasm_table_set(%arg0, %c0_i32_1, %c0_i32, %7) : (!llvm.ptr, i32, i32, !llvm.ptr) -> ()
     %8 = llvm.load %0 : !llvm.ptr -> i32
     %c0_i32_2 = arith.constant 0 : i32
     %9 = arith.cmpi ult, %c0_i32_2, %6 : i32
@@ -195,7 +195,7 @@ module {
     %c1_i32 = arith.constant 1 : i32
     %7 = call @dora_fn_wasm_func_ref(%arg0, %c1_i32) : (!llvm.ptr, i32) -> !llvm.ptr
     %c0_i32_0 = arith.constant 0 : i32
-    "wasm.table_set"(%c0_i32_0, %c0_i32, %7) : (i32, i32, !llvm.ptr) -> ()
+    call @dora_fn_wasm_table_set(%arg0, %c0_i32_0, %c0_i32, %7) : (!llvm.ptr, i32, i32, !llvm.ptr) -> ()
     %8 = llvm.load %0 : !llvm.ptr -> i32
     %c0_i32_1 = arith.constant 0 : i32
     %9 = arith.cmpi ult, %c0_i32_1, %6 : i32
@@ -255,7 +255,7 @@ module {
     %c0_i32 = arith.constant 0 : i32
     %9 = llvm.load %2 : !llvm.ptr -> !llvm.ptr
     %c0_i32_0 = arith.constant 0 : i32
-    "wasm.table_set"(%c0_i32_0, %c0_i32, %9) : (i32, i32, !llvm.ptr) -> ()
+    call @dora_fn_wasm_table_set(%arg0, %c0_i32_0, %c0_i32, %9) : (!llvm.ptr, i32, i32, !llvm.ptr) -> ()
     %10 = llvm.load %0 : !llvm.ptr -> i32
     %c0_i32_1 = arith.constant 0 : i32
     %11 = arith.cmpi ult, %c0_i32_1, %8 : i32
@@ -299,18 +299,25 @@ module {
     cf.br ^bb5
   }
   func.func private @dora_fn_wasm_table_init(!llvm.ptr, i32, i32, i32, i32, i32)
+  func.func private @dora_fn_wasm_table_copy(!llvm.ptr, i32, i32, i32, i32, i32)
   func.func private @dora_fn_wasm_table_fill(!llvm.ptr, i32, i32, !llvm.ptr, i32)
   func.func private @dora_fn_wasm_table_size(!llvm.ptr, i32) -> i32
   func.func private @dora_fn_wasm_table_get(!llvm.ptr, i32, i32) -> !llvm.ptr
   func.func private @dora_fn_wasm_table_set(!llvm.ptr, i32, i32, !llvm.ptr)
+  func.func private @dora_fn_wasm_table_grow(!llvm.ptr, !llvm.ptr, i32, i32) -> i32
   func.func private @dora_fn_wasm_imported_table_size(!llvm.ptr, i32) -> i32
   func.func private @dora_fn_wasm_imported_table_get(!llvm.ptr, i32, i32) -> !llvm.ptr
   func.func private @dora_fn_wasm_imported_table_grow(!llvm.ptr, !llvm.ptr, i32, i32) -> i32
   func.func private @dora_fn_wasm_memory_init(!llvm.ptr, i32, i32, i32, i32, i32)
+  func.func private @dora_fn_wasm_memory_size(!llvm.ptr, i32) -> i32
+  func.func private @dora_fn_wasm_memory_grow(!llvm.ptr, i32, i32) -> i32
+  func.func private @dora_fn_wasm_memory_copy(!llvm.ptr, i32, i32, i32, i32)
   func.func private @dora_fn_wasm_memory_fill(!llvm.ptr, i32, i32, i32, i32)
   func.func private @dora_fn_wasm_memory_notify(!llvm.ptr, i32, i32, i32) -> i32
   func.func private @dora_fn_wasm_memory_wait32(!llvm.ptr, i32, i32, i32, i64) -> i32
   func.func private @dora_fn_wasm_memory_wait64(!llvm.ptr, i32, i32, i64, i64) -> i32
+  func.func private @dora_fn_wasm_imported_memory_size(!llvm.ptr, i32) -> i32
+  func.func private @dora_fn_wasm_imported_memory_grow(!llvm.ptr, i32, i32) -> i32
   func.func private @dora_fn_wasm_imported_memory_copy(!llvm.ptr, i32, i32, i32, i32)
   func.func private @dora_fn_wasm_imported_memory_fill(!llvm.ptr, i32, i32, i32, i32)
   func.func private @dora_fn_wasm_imported_memory_notify(!llvm.ptr, i32, i32, i32) -> i32
