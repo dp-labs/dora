@@ -15,9 +15,21 @@ pub enum Operation {
     MulMod = 0x09,
     Exp = 0x0A,
     SignExtend = 0x0B,
+    /// Unsigned `<=`.
+    Lte = 0x0C,
+    /// Unsigned `>=`.
+    Gte = 0x0D,
+    /// Signed `<=`.
+    Slte = 0x0E,
+    /// Signed `>=`.
+    Sgte = 0x0F,
+    /// Unsigned `<`.
     Lt = 0x10,
+    /// Unsigned `>`.
     Gt = 0x11,
+    /// Signed `<`.
     Slt = 0x12,
+    /// Signed `>`.
     Sgt = 0x13,
     Eq = 0x14,
     IsZero = 0x15,
@@ -117,6 +129,10 @@ impl Operation {
             Operation::MulMod => dora::MulModOperation::name(),
             Operation::Exp => dora::ExpOperation::name(),
             Operation::SignExtend => dora::SignExtendOperation::name(),
+            Operation::Lte => dora::LteOperation::name(),
+            Operation::Gte => dora::GteOperation::name(),
+            Operation::Slte => dora::SlteOperation::name(),
+            Operation::Sgte => dora::SgteOperation::name(),
             Operation::Lt => dora::LtOperation::name(),
             Operation::Gt => dora::GtOperation::name(),
             Operation::Slt => dora::SltOperation::name(),
@@ -231,6 +247,10 @@ impl TryFrom<&str> for Operation {
             x if x == dora::MulModOperation::name() => Ok(Operation::MulMod),
             x if x == dora::ExpOperation::name() => Ok(Operation::Exp),
             x if x == dora::SignExtendOperation::name() => Ok(Operation::SignExtend),
+            x if x == dora::LteOperation::name() => Ok(Operation::Lte),
+            x if x == dora::GteOperation::name() => Ok(Operation::Gte),
+            x if x == dora::SlteOperation::name() => Ok(Operation::Slte),
+            x if x == dora::SgteOperation::name() => Ok(Operation::Sgte),
             x if x == dora::LtOperation::name() => Ok(Operation::Lt),
             x if x == dora::GtOperation::name() => Ok(Operation::Gt),
             x if x == dora::SltOperation::name() => Ok(Operation::Slt),

@@ -2,7 +2,9 @@ use crate::{
     context::{EVMMainFunc, RuntimeContext, Stack, WASMMainFunc},
     executor::{ExecuteKind, Executor},
 };
+use anyhow::{anyhow, Result};
 use std::fmt::Debug;
+use wasmer_vm::VMContext;
 
 /// Artifact represents an abstraction of a compilation product for EVM/WASM bytecode.
 /// This versatile concept can be implemented in various forms, including intermediate
@@ -48,9 +50,6 @@ pub trait Artifact: Default + Debug + Clone {
 /// of compiled bytecode.
 #[derive(Default, Debug, Clone)]
 pub struct SymbolArtifact {
-    /// The raw pointer to the entry point of the compiled symbol.
-    /// This pointer represents the memory address where the compiled code begins.
-    entry_ptr: usize,
     /// An instance of the Executor that produced this artifact.
     /// This field ensures that the Executor is kept alive as long as the SymbolArtifact exists,
     /// preventing the compiled code from being deallocated prematurely from the memory.
@@ -69,10 +68,7 @@ impl Artifact for SymbolArtifact {
     /// A new SymbolArtifact instance.
     #[inline]
     fn new(executor: Executor) -> Self {
-        Self {
-            entry_ptr: executor.get_main_entrypoint_ptr() as usize,
-            executor,
-        }
+        Self { executor }
     }
 
     /// Executes the compiled code represented by this artifact.
@@ -99,17 +95,46 @@ impl Artifact for SymbolArtifact {
         stack: &mut Stack,
         stack_size: &mut u64,
     ) -> u8 {
+        let ptr = self.executor.get_main_entrypoint_ptr();
         match self.executor.kind {
             ExecuteKind::EVM => {
-                let ptr = self.entry_ptr as *mut ();
                 let func: EVMMainFunc = unsafe { std::mem::transmute(ptr) };
                 func(runtime_context, initial_gas, stack, stack_size)
             }
             ExecuteKind::WASM(vm_ctx) => {
-                let ptr = self.entry_ptr as *mut ();
                 let func: WASMMainFunc = unsafe { std::mem::transmute(ptr) };
                 func(vm_ctx);
                 0
+            }
+        }
+    }
+}
+
+impl SymbolArtifact {
+    /// Executes the WASM compiled code represented by this artifact.
+    /// This method demonstrates the primary advantage of the SymbolArtifact:
+    /// direct execution of pre-compiled code without any additional compilation step.
+    pub fn execute_wasm_func<Args, Ret>(
+        &self,
+        name: &str,
+        args: Args,
+        // TODO: EVM host API and gas meter.
+        _runtime_context: &mut RuntimeContext,
+        _initial_gas: &mut u64,
+    ) -> Result<Ret>
+    where
+        Args: Sized,
+        Ret: Sized,
+    {
+        let func_ptr = self.executor.lookup(name);
+        match self.executor.kind {
+            ExecuteKind::EVM => Err(anyhow!(
+                "The compiled code kind is EVM, and it's not WASM kind"
+            )),
+            ExecuteKind::WASM(vm_ctx) => {
+                let func: fn(*mut VMContext, Args) -> Ret =
+                    unsafe { std::mem::transmute(func_ptr) };
+                Ok(func(vm_ctx, args))
             }
         }
     }

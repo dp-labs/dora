@@ -375,6 +375,42 @@ fn eq_i64() {
 }
 
 #[test]
+fn cmp_i32() {
+    assert_snapshot!(
+        r#"
+(module
+  (func (export "lt_s") (param $x i32) (param $y i32) (result i32) (i32.lt_s (local.get $x) (local.get $y)))
+  (func (export "lt_u") (param $x i32) (param $y i32) (result i32) (i32.lt_u (local.get $x) (local.get $y)))
+  (func (export "le_s") (param $x i32) (param $y i32) (result i32) (i32.le_s (local.get $x) (local.get $y)))
+  (func (export "le_u") (param $x i32) (param $y i32) (result i32) (i32.le_u (local.get $x) (local.get $y)))
+  (func (export "gt_s") (param $x i32) (param $y i32) (result i32) (i32.gt_s (local.get $x) (local.get $y)))
+  (func (export "gt_u") (param $x i32) (param $y i32) (result i32) (i32.gt_u (local.get $x) (local.get $y)))
+  (func (export "ge_s") (param $x i32) (param $y i32) (result i32) (i32.ge_s (local.get $x) (local.get $y)))
+  (func (export "ge_u") (param $x i32) (param $y i32) (result i32) (i32.ge_u (local.get $x) (local.get $y)))
+)
+"#
+    );
+}
+
+#[test]
+fn cmp_i64() {
+    assert_snapshot!(
+        r#"
+(module
+  (func (export "lt_s") (param $x i64) (param $y i64) (result i32) (i64.lt_s (local.get $x) (local.get $y)))
+  (func (export "lt_u") (param $x i64) (param $y i64) (result i32) (i64.lt_u (local.get $x) (local.get $y)))
+  (func (export "le_s") (param $x i64) (param $y i64) (result i32) (i64.le_s (local.get $x) (local.get $y)))
+  (func (export "le_u") (param $x i64) (param $y i64) (result i32) (i64.le_u (local.get $x) (local.get $y)))
+  (func (export "gt_s") (param $x i64) (param $y i64) (result i32) (i64.gt_s (local.get $x) (local.get $y)))
+  (func (export "gt_u") (param $x i64) (param $y i64) (result i32) (i64.gt_u (local.get $x) (local.get $y)))
+  (func (export "ge_s") (param $x i64) (param $y i64) (result i32) (i64.ge_s (local.get $x) (local.get $y)))
+  (func (export "ge_u") (param $x i64) (param $y i64) (result i32) (i64.ge_u (local.get $x) (local.get $y)))
+)
+"#
+    );
+}
+
+#[test]
 fn select() {
     assert_snapshot!(
         r#"
@@ -386,6 +422,27 @@ fn select() {
         select
     )
     (export "select" (func $select))
+)
+"#
+    );
+}
+
+#[test]
+fn fib() {
+    assert_snapshot!(
+        r#"
+(module
+  (func $fib (export "fib") (param i64) (result i64)
+    (if (result i64) (i64.le_u (local.get 0) (i64.const 1))
+      (then (i64.const 1))
+      (else
+        (i64.add
+          (call $fib (i64.sub (local.get 0) (i64.const 2)))
+          (call $fib (i64.sub (local.get 0) (i64.const 1)))
+        )
+      )
+    )
+  )
 )
 "#
     );

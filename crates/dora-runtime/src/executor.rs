@@ -156,6 +156,12 @@ impl Executor {
         let function_name = format!("_mlir_ciface_{MAIN_ENTRYPOINT}");
         self.engine.lookup(&function_name)
     }
+
+    /// Searches a symbol in a module and returns a pointer to it.
+    #[inline]
+    pub fn lookup(&self, name: &str) -> *mut () {
+        self.engine.lookup(name)
+    }
 }
 
 /// A shared reference execution engine for the artifact cache.

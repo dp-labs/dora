@@ -200,6 +200,74 @@ def Dora_SignExtend : Dora_Op<"signextend"> {
   let assemblyFormat = "$byte `,` $value `:` type($byte) `->` type($result)";
 }
 
+// Less-than comparison or equal
+def Dora_Lte : Dora_Op<"lte"> {
+  let summary = "Compares if the first 256-bit integer is less than or equal the second.";
+  let description = [{
+    This operation takes two `i256` operands from the stack and returns `1` if the first is less than or equal the second, otherwise `0`.
+  }];
+
+  let arguments = (ins
+    AnyTypeOf<[I32, I64, I<128>, I<256>, F32, F64, F128, F<256>]>:$lhs,
+    AnyTypeOf<[I32, I64, I<128>, I<256>, F32, F64, F128, F<256>]>:$rhs
+  );
+
+  let results = (outs AnyTypeOf<[I32, I64, I<128>, I<256>, F32, F64, F128, F<256>]>:$result);
+
+  let assemblyFormat = "$lhs `,` $rhs `:` type($lhs) `->` type($result)";
+}
+
+// Greater-than comparison or equal
+def Dora_Gte : Dora_Op<"gte"> {
+  let summary = "Compares if the first 256-bit integer is greater than or equal the second.";
+  let description = [{
+    This operation takes two `i256` operands from the stack and returns `1` if the first is greater than or equal the second, otherwise `0`.
+  }];
+
+  let arguments = (ins
+    AnyTypeOf<[I32, I64, I<128>, I<256>, F32, F64, F128, F<256>]>:$lhs,
+    AnyTypeOf<[I32, I64, I<128>, I<256>, F32, F64, F128, F<256>]>:$rhs
+  );
+
+  let results = (outs AnyTypeOf<[I32, I64, I<128>, I<256>, F32, F64, F128, F<256>]>:$result);
+
+  let assemblyFormat = "$lhs `,` $rhs `:` type($lhs) `->` type($result)";
+}
+
+// Signed less-than or equal comparison
+def Dora_Slte : Dora_Op<"slte"> {
+  let summary = "Signed comparison if the first 256-bit integer is less than or equal the second.";
+  let description = [{
+    This operation takes two `i256` operands from the stack, treats them as signed integers, and returns `1` if the first is less than or equal the second, otherwise `0`.
+  }];
+
+  let arguments = (ins
+    AnyTypeOf<[I32, I64, I<128>, I<256>, F32, F64, F128, F<256>]>:$lhs,
+    AnyTypeOf<[I32, I64, I<128>, I<256>, F32, F64, F128, F<256>]>:$rhs
+  );
+
+  let results = (outs AnyTypeOf<[I32, I64, I<128>, I<256>, F32, F64, F128, F<256>]>:$result);
+
+  let assemblyFormat = "$lhs `,` $rhs `:` type($lhs) `->` type($result)";
+}
+
+// Signed greater-than or equal comparison
+def Dora_Sgte : Dora_Op<"sgte"> {
+  let summary = "Signed comparison if the first 256-bit integer is greater than or equal the second.";
+  let description = [{
+    This operation takes two `i256` operands from the stack, treats them as signed integers, and returns `1` if the first is greater than or equal the second, otherwise `0`.
+  }];
+
+  let arguments = (ins
+    AnyTypeOf<[I32, I64, I<128>, I<256>, F32, F64, F128, F<256>]>:$lhs,
+    AnyTypeOf<[I32, I64, I<128>, I<256>, F32, F64, F128, F<256>]>:$rhs
+  );
+
+  let results = (outs AnyTypeOf<[I32, I64, I<128>, I<256>, F32, F64, F128, F<256>]>:$result);
+
+  let assemblyFormat = "$lhs `,` $rhs `:` type($lhs) `->` type($result)";
+}
+
 // Less-than comparison
 def Dora_Lt : Dora_Op<"lt"> {
   let summary = "Compares if the first 256-bit integer is less than the second.";
