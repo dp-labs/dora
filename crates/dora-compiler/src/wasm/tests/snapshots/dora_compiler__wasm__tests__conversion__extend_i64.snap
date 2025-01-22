@@ -11,20 +11,11 @@ module {
     cf.br ^bb1
   ^bb1:  // pred: ^bb0
     %1 = llvm.load %0 : !llvm.ptr -> i64
-    %c63_i64 = arith.constant 63 : i64
-    %c7_i64 = arith.constant 7 : i64
-    %c8_i64 = arith.constant 8 : i64
-    %c7_i64_0 = arith.constant 7 : i64
-    %c63_i64_1 = arith.constant 63 : i64
-    %2 = arith.minui %c63_i64, %c7_i64 : i64
-    %3 = arith.muli %2, %c8_i64 : i64
-    %4 = arith.addi %3, %c7_i64_0 : i64
-    %5 = arith.subi %c63_i64_1, %4 : i64
-    %6 = llvm.shl %1, %5 : i64
-    %7 = llvm.ashr %6, %5  : i64
-    cf.br ^bb2(%7 : i64)
-  ^bb2(%8: i64):  // pred: ^bb1
-    return %8 : i64
+    %2 = arith.trunci %1 : i64 to i8
+    %3 = arith.extsi %2 : i8 to i64
+    cf.br ^bb2(%3 : i64)
+  ^bb2(%4: i64):  // pred: ^bb1
+    return %4 : i64
   }
   func.func public @extend16_s(%arg0: !llvm.ptr, %arg1: i64) -> i64 attributes {llvm.emit_c_interface} {
     %c1_i64 = arith.constant 1 : i64
@@ -33,20 +24,11 @@ module {
     cf.br ^bb1
   ^bb1:  // pred: ^bb0
     %1 = llvm.load %0 : !llvm.ptr -> i64
-    %c63_i64 = arith.constant 63 : i64
-    %c7_i64 = arith.constant 7 : i64
-    %c8_i64 = arith.constant 8 : i64
-    %c7_i64_0 = arith.constant 7 : i64
-    %c63_i64_1 = arith.constant 63 : i64
-    %2 = arith.minui %c63_i64, %c7_i64 : i64
-    %3 = arith.muli %2, %c8_i64 : i64
-    %4 = arith.addi %3, %c7_i64_0 : i64
-    %5 = arith.subi %c63_i64_1, %4 : i64
-    %6 = llvm.shl %1, %5 : i64
-    %7 = llvm.ashr %6, %5  : i64
-    cf.br ^bb2(%7 : i64)
-  ^bb2(%8: i64):  // pred: ^bb1
-    return %8 : i64
+    %2 = arith.trunci %1 : i64 to i16
+    %3 = arith.extsi %2 : i16 to i64
+    cf.br ^bb2(%3 : i64)
+  ^bb2(%4: i64):  // pred: ^bb1
+    return %4 : i64
   }
   func.func public @extend32_s(%arg0: !llvm.ptr, %arg1: i64) -> i64 attributes {llvm.emit_c_interface} {
     %c1_i64 = arith.constant 1 : i64
@@ -55,20 +37,11 @@ module {
     cf.br ^bb1
   ^bb1:  // pred: ^bb0
     %1 = llvm.load %0 : !llvm.ptr -> i64
-    %c63_i64 = arith.constant 63 : i64
-    %c7_i64 = arith.constant 7 : i64
-    %c8_i64 = arith.constant 8 : i64
-    %c7_i64_0 = arith.constant 7 : i64
-    %c63_i64_1 = arith.constant 63 : i64
-    %2 = arith.minui %c63_i64, %c7_i64 : i64
-    %3 = arith.muli %2, %c8_i64 : i64
-    %4 = arith.addi %3, %c7_i64_0 : i64
-    %5 = arith.subi %c63_i64_1, %4 : i64
-    %6 = llvm.shl %1, %5 : i64
-    %7 = llvm.ashr %6, %5  : i64
-    cf.br ^bb2(%7 : i64)
-  ^bb2(%8: i64):  // pred: ^bb1
-    return %8 : i64
+    %2 = arith.trunci %1 : i64 to i32
+    %3 = arith.extsi %2 : i32 to i64
+    cf.br ^bb2(%3 : i64)
+  ^bb2(%4: i64):  // pred: ^bb1
+    return %4 : i64
   }
   func.func private @dora_fn_wasm_table_init(!llvm.ptr, i32, i32, i32, i32, i32)
   func.func private @dora_fn_wasm_table_copy(!llvm.ptr, i32, i32, i32, i32, i32)

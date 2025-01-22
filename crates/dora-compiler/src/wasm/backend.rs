@@ -10,9 +10,9 @@ use melior::ir::{
 };
 use wasmer_types::TrapCode;
 
-use crate::backend::IntCC;
 use crate::errors::Result;
 use crate::value::ToContextValue;
+use crate::{backend::IntCC, conversion::rewriter::Rewriter};
 use crate::{backend::TypeMethods, context::Context, conversion::builder::OpBuilder, state::State};
 
 use super::intrinsics::WASMIntrinsics;
@@ -187,4 +187,125 @@ pub(crate) fn trap<'c, 'a>(
     ));
     builder.create(cf::br(&continue_block, &[], builder.get_insert_location()));
     Ok(())
+}
+
+/// Convert floating point vector to integer and saturate when out of range.
+/// Reference https://github.com/WebAssembly/nontrapping-float-to-int-conversions/blob/master/proposals/nontrapping-float-to-int-conversion/Overview.md
+pub(crate) fn trunc_sat_scalar<'c, 'a>(
+    rewriter: &Rewriter<'c, 'a>,
+    int_ty: Type<'c>,
+    lower_bound: u64, // Exclusive (least representable value)
+    upper_bound: u64, // Exclusive (greatest representable value)
+    int_min_value: u64,
+    int_max_value: u64,
+    value: Value<'c, 'a>, // float value
+) -> Result<Value<'c, 'a>> {
+    // a) Compare value with itself to identify NaN.
+    // b) Compare value inttofp(upper_bound) to identify values that need to
+    //    saturate to max.
+    // c) Compare value with inttofp(lower_bound) to identify values that need
+    //    to saturate to min.
+    // d) Use select to pick from either zero or the input vector depending on
+    //    whether the comparison indicates that we have an unrepresentable
+    //    value.
+    // e) Now that the value is safe, fpto[su]i it.
+    // f) Use our previous comparison results to replace certain zeros with
+    //    int_min or int_max.
+
+    let is_signed = int_min_value != 0;
+    let int_min_value = rewriter.make(rewriter.iconst(int_ty, int_min_value as i64))?;
+    let int_max_value = rewriter.make(rewriter.iconst(int_ty, int_max_value as i64))?;
+
+    let lower_bound = if is_signed {
+        rewriter.make(arith::sitofp(
+            rewriter.make(rewriter.iconst(int_ty, lower_bound as i64))?,
+            value.r#type(),
+            rewriter.get_insert_location(),
+        ))?
+    } else {
+        rewriter.make(arith::uitofp(
+            rewriter.make(rewriter.iconst(int_ty, lower_bound as i64))?,
+            value.r#type(),
+            rewriter.get_insert_location(),
+        ))?
+    };
+    let upper_bound = if is_signed {
+        rewriter.make(arith::sitofp(
+            rewriter.make(rewriter.iconst(int_ty, upper_bound as i64))?,
+            value.r#type(),
+            rewriter.get_insert_location(),
+        ))?
+    } else {
+        rewriter.make(arith::uitofp(
+            rewriter.make(rewriter.iconst(int_ty, upper_bound as i64))?,
+            value.r#type(),
+            rewriter.get_insert_location(),
+        ))?
+    };
+
+    let zero = rewriter.make(rewriter.fconst(value.r#type(), 0.0))?;
+
+    let nan_cmp = rewriter.make(arith::cmpf(
+        rewriter.context(),
+        CmpfPredicate::Uno,
+        value,
+        zero,
+        rewriter.get_insert_location(),
+    ))?;
+
+    let above_upper_bound_cmp = rewriter.make(arith::cmpf(
+        rewriter.context(),
+        CmpfPredicate::Ogt,
+        value,
+        upper_bound,
+        rewriter.get_insert_location(),
+    ))?;
+
+    let below_lower_bound_cmp = rewriter.make(arith::cmpf(
+        rewriter.context(),
+        CmpfPredicate::Olt,
+        value,
+        lower_bound,
+        rewriter.get_insert_location(),
+    ))?;
+
+    let not_representable = rewriter.make(arith::ori(
+        nan_cmp,
+        above_upper_bound_cmp,
+        rewriter.get_insert_location(),
+    ))?;
+    let not_representable = rewriter.make(arith::ori(
+        not_representable,
+        below_lower_bound_cmp,
+        rewriter.get_insert_location(),
+    ))?;
+
+    let value = rewriter.make(arith::select(
+        not_representable,
+        zero,
+        value,
+        rewriter.get_insert_location(),
+    ))?;
+
+    let value = if is_signed {
+        rewriter.make(arith::fptosi(value, int_ty, rewriter.get_insert_location()))?
+    } else {
+        rewriter.make(arith::fptoui(value, int_ty, rewriter.get_insert_location()))?
+    };
+
+    let value = rewriter.make(arith::select(
+        above_upper_bound_cmp,
+        int_max_value,
+        value,
+        rewriter.get_insert_location(),
+    ))?;
+
+    let value = rewriter.make(arith::select(
+        below_lower_bound_cmp,
+        int_min_value,
+        value,
+        rewriter.get_insert_location(),
+    ))?;
+
+    Ok(value.to_ctx_value())
 }

@@ -1,0 +1,560 @@
+---
+source: crates/dora-compiler/src/wasm/tests/conversion.rs
+expression: op
+snapshot_kind: text
+---
+module {
+  func.func public @i64.extend_i32_s(%arg0: !llvm.ptr, %arg1: i32) -> i64 attributes {llvm.emit_c_interface} {
+    %c1_i64 = arith.constant 1 : i64
+    %0 = llvm.alloca %c1_i64 x i32 : (i64) -> !llvm.ptr
+    llvm.store %arg1, %0 : i32, !llvm.ptr
+    cf.br ^bb1
+  ^bb1:  // pred: ^bb0
+    %1 = llvm.load %0 : !llvm.ptr -> i32
+    %2 = arith.extsi %1 : i32 to i64
+    cf.br ^bb2(%2 : i64)
+  ^bb2(%3: i64):  // pred: ^bb1
+    return %3 : i64
+  }
+  func.func public @i64.extend_i32_u(%arg0: !llvm.ptr, %arg1: i32) -> i64 attributes {llvm.emit_c_interface} {
+    %c1_i64 = arith.constant 1 : i64
+    %0 = llvm.alloca %c1_i64 x i32 : (i64) -> !llvm.ptr
+    llvm.store %arg1, %0 : i32, !llvm.ptr
+    cf.br ^bb1
+  ^bb1:  // pred: ^bb0
+    %1 = llvm.load %0 : !llvm.ptr -> i32
+    %2 = arith.extui %1 : i32 to i64
+    cf.br ^bb2(%2 : i64)
+  ^bb2(%3: i64):  // pred: ^bb1
+    return %3 : i64
+  }
+  func.func public @i32.wrap_i64(%arg0: !llvm.ptr, %arg1: i64) -> i32 attributes {llvm.emit_c_interface} {
+    %c1_i64 = arith.constant 1 : i64
+    %0 = llvm.alloca %c1_i64 x i64 : (i64) -> !llvm.ptr
+    llvm.store %arg1, %0 : i64, !llvm.ptr
+    cf.br ^bb1
+  ^bb1:  // pred: ^bb0
+    %1 = llvm.load %0 : !llvm.ptr -> i64
+    %2 = arith.trunci %1 : i64 to i32
+    cf.br ^bb2(%2 : i32)
+  ^bb2(%3: i32):  // pred: ^bb1
+    return %3 : i32
+  }
+  func.func public @i32.trunc_f32_s(%arg0: !llvm.ptr, %arg1: f32) -> i32 attributes {llvm.emit_c_interface} {
+    %c1_i64 = arith.constant 1 : i64
+    %0 = llvm.alloca %c1_i64 x f32 : (i64) -> !llvm.ptr
+    llvm.store %arg1, %0 : f32, !llvm.ptr
+    cf.br ^bb1
+  ^bb1:  // pred: ^bb0
+    %1 = llvm.load %0 : !llvm.ptr -> f32
+    %2 = arith.fptosi %1 : f32 to i32
+    cf.br ^bb2(%2 : i32)
+  ^bb2(%3: i32):  // pred: ^bb1
+    return %3 : i32
+  }
+  func.func public @i32.trunc_f32_u(%arg0: !llvm.ptr, %arg1: f32) -> i32 attributes {llvm.emit_c_interface} {
+    %c1_i64 = arith.constant 1 : i64
+    %0 = llvm.alloca %c1_i64 x f32 : (i64) -> !llvm.ptr
+    llvm.store %arg1, %0 : f32, !llvm.ptr
+    cf.br ^bb1
+  ^bb1:  // pred: ^bb0
+    %1 = llvm.load %0 : !llvm.ptr -> f32
+    %2 = arith.fptosi %1 : f32 to i32
+    cf.br ^bb2(%2 : i32)
+  ^bb2(%3: i32):  // pred: ^bb1
+    return %3 : i32
+  }
+  func.func public @i32.trunc_f64_s(%arg0: !llvm.ptr, %arg1: f64) -> i32 attributes {llvm.emit_c_interface} {
+    %c1_i64 = arith.constant 1 : i64
+    %0 = llvm.alloca %c1_i64 x f64 : (i64) -> !llvm.ptr
+    llvm.store %arg1, %0 : f64, !llvm.ptr
+    cf.br ^bb1
+  ^bb1:  // pred: ^bb0
+    %1 = llvm.load %0 : !llvm.ptr -> f64
+    %2 = "wasm.i32_trunc_f64s"(%1) : (f64) -> i32
+    cf.br ^bb2(%2 : i32)
+  ^bb2(%3: i32):  // pred: ^bb1
+    return %3 : i32
+  }
+  func.func public @i32.trunc_f64_u(%arg0: !llvm.ptr, %arg1: f64) -> i32 attributes {llvm.emit_c_interface} {
+    %c1_i64 = arith.constant 1 : i64
+    %0 = llvm.alloca %c1_i64 x f64 : (i64) -> !llvm.ptr
+    llvm.store %arg1, %0 : f64, !llvm.ptr
+    cf.br ^bb1
+  ^bb1:  // pred: ^bb0
+    %1 = llvm.load %0 : !llvm.ptr -> f64
+    %2 = arith.fptoui %1 : f64 to i32
+    cf.br ^bb2(%2 : i32)
+  ^bb2(%3: i32):  // pred: ^bb1
+    return %3 : i32
+  }
+  func.func public @i64.trunc_f32_s(%arg0: !llvm.ptr, %arg1: f32) -> i64 attributes {llvm.emit_c_interface} {
+    %c1_i64 = arith.constant 1 : i64
+    %0 = llvm.alloca %c1_i64 x f32 : (i64) -> !llvm.ptr
+    llvm.store %arg1, %0 : f32, !llvm.ptr
+    cf.br ^bb1
+  ^bb1:  // pred: ^bb0
+    %1 = llvm.load %0 : !llvm.ptr -> f32
+    %2 = arith.fptosi %1 : f32 to i64
+    cf.br ^bb2(%2 : i64)
+  ^bb2(%3: i64):  // pred: ^bb1
+    return %3 : i64
+  }
+  func.func public @i64.trunc_f32_u(%arg0: !llvm.ptr, %arg1: f32) -> i64 attributes {llvm.emit_c_interface} {
+    %c1_i64 = arith.constant 1 : i64
+    %0 = llvm.alloca %c1_i64 x f32 : (i64) -> !llvm.ptr
+    llvm.store %arg1, %0 : f32, !llvm.ptr
+    cf.br ^bb1
+  ^bb1:  // pred: ^bb0
+    %1 = llvm.load %0 : !llvm.ptr -> f32
+    %2 = arith.fptosi %1 : f32 to i64
+    cf.br ^bb2(%2 : i64)
+  ^bb2(%3: i64):  // pred: ^bb1
+    return %3 : i64
+  }
+  func.func public @i64.trunc_f64_s(%arg0: !llvm.ptr, %arg1: f64) -> i64 attributes {llvm.emit_c_interface} {
+    %c1_i64 = arith.constant 1 : i64
+    %0 = llvm.alloca %c1_i64 x f64 : (i64) -> !llvm.ptr
+    llvm.store %arg1, %0 : f64, !llvm.ptr
+    cf.br ^bb1
+  ^bb1:  // pred: ^bb0
+    %1 = llvm.load %0 : !llvm.ptr -> f64
+    %2 = "wasm.i64_trunc_f64s"(%1) : (f64) -> i64
+    cf.br ^bb2(%2 : i64)
+  ^bb2(%3: i64):  // pred: ^bb1
+    return %3 : i64
+  }
+  func.func public @i64.trunc_f64_u(%arg0: !llvm.ptr, %arg1: f64) -> i64 attributes {llvm.emit_c_interface} {
+    %c1_i64 = arith.constant 1 : i64
+    %0 = llvm.alloca %c1_i64 x f64 : (i64) -> !llvm.ptr
+    llvm.store %arg1, %0 : f64, !llvm.ptr
+    cf.br ^bb1
+  ^bb1:  // pred: ^bb0
+    %1 = llvm.load %0 : !llvm.ptr -> f64
+    %2 = arith.fptoui %1 : f64 to i64
+    cf.br ^bb2(%2 : i64)
+  ^bb2(%3: i64):  // pred: ^bb1
+    return %3 : i64
+  }
+  func.func public @i32.trunc_sat_f32_s(%arg0: !llvm.ptr, %arg1: f32) -> i32 attributes {llvm.emit_c_interface} {
+    %c1_i64 = arith.constant 1 : i64
+    %0 = llvm.alloca %c1_i64 x f32 : (i64) -> !llvm.ptr
+    llvm.store %arg1, %0 : f32, !llvm.ptr
+    cf.br ^bb1
+  ^bb1:  // pred: ^bb0
+    %1 = llvm.load %0 : !llvm.ptr -> f32
+    %c-2147483648_i32 = arith.constant -2147483648 : i32
+    %c2147483647_i32 = arith.constant 2147483647 : i32
+    %c-2147483648_i32_0 = arith.constant -2147483648 : i32
+    %2 = arith.sitofp %c-2147483648_i32_0 : i32 to f32
+    %c1325400063_i32 = arith.constant 1325400063 : i32
+    %3 = arith.sitofp %c1325400063_i32 : i32 to f32
+    %cst = arith.constant 0.000000e+00 : f32
+    %4 = arith.cmpf uno, %1, %cst : f32
+    %5 = arith.cmpf ogt, %1, %3 : f32
+    %6 = arith.cmpf olt, %1, %2 : f32
+    %7 = arith.ori %4, %5 : i1
+    %8 = arith.ori %7, %6 : i1
+    %9 = arith.select %8, %cst, %1 : f32
+    %10 = arith.fptosi %9 : f32 to i32
+    %11 = arith.select %5, %c2147483647_i32, %10 : i32
+    %12 = arith.select %6, %c-2147483648_i32, %11 : i32
+    %13 = arith.bitcast %12 : i32 to i32
+    cf.br ^bb2(%13 : i32)
+  ^bb2(%14: i32):  // pred: ^bb1
+    return %14 : i32
+  }
+  func.func public @i32.trunc_sat_f32_u(%arg0: !llvm.ptr, %arg1: f32) -> i32 attributes {llvm.emit_c_interface} {
+    %c1_i64 = arith.constant 1 : i64
+    %0 = llvm.alloca %c1_i64 x f32 : (i64) -> !llvm.ptr
+    llvm.store %arg1, %0 : f32, !llvm.ptr
+    cf.br ^bb1
+  ^bb1:  // pred: ^bb0
+    %1 = llvm.load %0 : !llvm.ptr -> f32
+    %c0_i32 = arith.constant 0 : i32
+    %c-1_i32 = arith.constant -1 : i32
+    %c0_i32_0 = arith.constant 0 : i32
+    %2 = arith.uitofp %c0_i32_0 : i32 to f32
+    %c1333788671_i32 = arith.constant 1333788671 : i32
+    %3 = arith.uitofp %c1333788671_i32 : i32 to f32
+    %cst = arith.constant 0.000000e+00 : f32
+    %4 = arith.cmpf uno, %1, %cst : f32
+    %5 = arith.cmpf ogt, %1, %3 : f32
+    %6 = arith.cmpf olt, %1, %2 : f32
+    %7 = arith.ori %4, %5 : i1
+    %8 = arith.ori %7, %6 : i1
+    %9 = arith.select %8, %cst, %1 : f32
+    %10 = arith.fptoui %9 : f32 to i32
+    %11 = arith.select %5, %c-1_i32, %10 : i32
+    %12 = arith.select %6, %c0_i32, %11 : i32
+    %13 = arith.bitcast %12 : i32 to i32
+    cf.br ^bb2(%13 : i32)
+  ^bb2(%14: i32):  // pred: ^bb1
+    return %14 : i32
+  }
+  func.func public @i32.trunc_sat_f64_s(%arg0: !llvm.ptr, %arg1: f64) -> i32 attributes {llvm.emit_c_interface} {
+    %c1_i64 = arith.constant 1 : i64
+    %0 = llvm.alloca %c1_i64 x f64 : (i64) -> !llvm.ptr
+    llvm.store %arg1, %0 : f64, !llvm.ptr
+    cf.br ^bb1
+  ^bb1:  // pred: ^bb0
+    %1 = llvm.load %0 : !llvm.ptr -> f64
+    %c-2147483648_i32 = arith.constant -2147483648 : i32
+    %c2147483647_i32 = arith.constant 2147483647 : i32
+    %c-2147483648_i32_0 = arith.constant -2147483648 : i32
+    %2 = arith.sitofp %c-2147483648_i32_0 : i32 to f64
+    %c2147483647_i32_1 = arith.constant 2147483647 : i32
+    %3 = arith.sitofp %c2147483647_i32_1 : i32 to f64
+    %cst = arith.constant 0.000000e+00 : f64
+    %4 = arith.cmpf uno, %1, %cst : f64
+    %5 = arith.cmpf ogt, %1, %3 : f64
+    %6 = arith.cmpf olt, %1, %2 : f64
+    %7 = arith.ori %4, %5 : i1
+    %8 = arith.ori %7, %6 : i1
+    %9 = arith.select %8, %cst, %1 : f64
+    %10 = arith.fptosi %9 : f64 to i32
+    %11 = arith.select %5, %c2147483647_i32, %10 : i32
+    %12 = arith.select %6, %c-2147483648_i32, %11 : i32
+    %13 = arith.bitcast %12 : i32 to i32
+    cf.br ^bb2(%13 : i32)
+  ^bb2(%14: i32):  // pred: ^bb1
+    return %14 : i32
+  }
+  func.func public @i32.trunc_sat_f64_u(%arg0: !llvm.ptr, %arg1: f64) -> i32 attributes {llvm.emit_c_interface} {
+    %c1_i64 = arith.constant 1 : i64
+    %0 = llvm.alloca %c1_i64 x f64 : (i64) -> !llvm.ptr
+    llvm.store %arg1, %0 : f64, !llvm.ptr
+    cf.br ^bb1
+  ^bb1:  // pred: ^bb0
+    %1 = llvm.load %0 : !llvm.ptr -> f64
+    %c0_i32 = arith.constant 0 : i32
+    %c-1_i32 = arith.constant -1 : i32
+    %c0_i32_0 = arith.constant 0 : i32
+    %2 = arith.uitofp %c0_i32_0 : i32 to f64
+    %c-1_i32_1 = arith.constant -1 : i32
+    %3 = arith.uitofp %c-1_i32_1 : i32 to f64
+    %cst = arith.constant 0.000000e+00 : f64
+    %4 = arith.cmpf uno, %1, %cst : f64
+    %5 = arith.cmpf ogt, %1, %3 : f64
+    %6 = arith.cmpf olt, %1, %2 : f64
+    %7 = arith.ori %4, %5 : i1
+    %8 = arith.ori %7, %6 : i1
+    %9 = arith.select %8, %cst, %1 : f64
+    %10 = arith.fptoui %9 : f64 to i32
+    %11 = arith.select %5, %c-1_i32, %10 : i32
+    %12 = arith.select %6, %c0_i32, %11 : i32
+    %13 = arith.bitcast %12 : i32 to i32
+    cf.br ^bb2(%13 : i32)
+  ^bb2(%14: i32):  // pred: ^bb1
+    return %14 : i32
+  }
+  func.func public @i64.trunc_sat_f32_s(%arg0: !llvm.ptr, %arg1: f32) -> i64 attributes {llvm.emit_c_interface} {
+    %c1_i64 = arith.constant 1 : i64
+    %0 = llvm.alloca %c1_i64 x f32 : (i64) -> !llvm.ptr
+    llvm.store %arg1, %0 : f32, !llvm.ptr
+    cf.br ^bb1
+  ^bb1:  // pred: ^bb0
+    %1 = llvm.load %0 : !llvm.ptr -> f32
+    %c-9223372036854775808_i64 = arith.constant -9223372036854775808 : i64
+    %c9223372036854775807_i64 = arith.constant 9223372036854775807 : i64
+    %c-9223372036854775808_i64_0 = arith.constant -9223372036854775808 : i64
+    %2 = arith.sitofp %c-9223372036854775808_i64_0 : i64 to f32
+    %c1593835519_i64 = arith.constant 1593835519 : i64
+    %3 = arith.sitofp %c1593835519_i64 : i64 to f32
+    %cst = arith.constant 0.000000e+00 : f32
+    %4 = arith.cmpf uno, %1, %cst : f32
+    %5 = arith.cmpf ogt, %1, %3 : f32
+    %6 = arith.cmpf olt, %1, %2 : f32
+    %7 = arith.ori %4, %5 : i1
+    %8 = arith.ori %7, %6 : i1
+    %9 = arith.select %8, %cst, %1 : f32
+    %10 = arith.fptosi %9 : f32 to i64
+    %11 = arith.select %5, %c9223372036854775807_i64, %10 : i64
+    %12 = arith.select %6, %c-9223372036854775808_i64, %11 : i64
+    %13 = arith.bitcast %12 : i64 to i64
+    cf.br ^bb2(%13 : i64)
+  ^bb2(%14: i64):  // pred: ^bb1
+    return %14 : i64
+  }
+  func.func public @i64.trunc_sat_f32_u(%arg0: !llvm.ptr, %arg1: f32) -> i64 attributes {llvm.emit_c_interface} {
+    %c1_i64 = arith.constant 1 : i64
+    %0 = llvm.alloca %c1_i64 x f32 : (i64) -> !llvm.ptr
+    llvm.store %arg1, %0 : f32, !llvm.ptr
+    cf.br ^bb1
+  ^bb1:  // pred: ^bb0
+    %1 = llvm.load %0 : !llvm.ptr -> f32
+    %c0_i64 = arith.constant 0 : i64
+    %c-1_i64 = arith.constant -1 : i64
+    %c0_i64_0 = arith.constant 0 : i64
+    %2 = arith.uitofp %c0_i64_0 : i64 to f32
+    %c1602224127_i64 = arith.constant 1602224127 : i64
+    %3 = arith.uitofp %c1602224127_i64 : i64 to f32
+    %cst = arith.constant 0.000000e+00 : f32
+    %4 = arith.cmpf uno, %1, %cst : f32
+    %5 = arith.cmpf ogt, %1, %3 : f32
+    %6 = arith.cmpf olt, %1, %2 : f32
+    %7 = arith.ori %4, %5 : i1
+    %8 = arith.ori %7, %6 : i1
+    %9 = arith.select %8, %cst, %1 : f32
+    %10 = arith.fptoui %9 : f32 to i64
+    %11 = arith.select %5, %c-1_i64, %10 : i64
+    %12 = arith.select %6, %c0_i64, %11 : i64
+    %13 = arith.bitcast %12 : i64 to i64
+    cf.br ^bb2(%13 : i64)
+  ^bb2(%14: i64):  // pred: ^bb1
+    return %14 : i64
+  }
+  func.func public @i64.trunc_sat_f64_s(%arg0: !llvm.ptr, %arg1: f64) -> i64 attributes {llvm.emit_c_interface} {
+    %c1_i64 = arith.constant 1 : i64
+    %0 = llvm.alloca %c1_i64 x f64 : (i64) -> !llvm.ptr
+    llvm.store %arg1, %0 : f64, !llvm.ptr
+    cf.br ^bb1
+  ^bb1:  // pred: ^bb0
+    %1 = llvm.load %0 : !llvm.ptr -> f64
+    %c-9223372036854775808_i64 = arith.constant -9223372036854775808 : i64
+    %c9223372036854775807_i64 = arith.constant 9223372036854775807 : i64
+    %c-9223372036854775808_i64_0 = arith.constant -9223372036854775808 : i64
+    %2 = arith.sitofp %c-9223372036854775808_i64_0 : i64 to f64
+    %c9223372036854775807_i64_1 = arith.constant 9223372036854775807 : i64
+    %3 = arith.sitofp %c9223372036854775807_i64_1 : i64 to f64
+    %cst = arith.constant 0.000000e+00 : f64
+    %4 = arith.cmpf uno, %1, %cst : f64
+    %5 = arith.cmpf ogt, %1, %3 : f64
+    %6 = arith.cmpf olt, %1, %2 : f64
+    %7 = arith.ori %4, %5 : i1
+    %8 = arith.ori %7, %6 : i1
+    %9 = arith.select %8, %cst, %1 : f64
+    %10 = arith.fptosi %9 : f64 to i64
+    %11 = arith.select %5, %c9223372036854775807_i64, %10 : i64
+    %12 = arith.select %6, %c-9223372036854775808_i64, %11 : i64
+    %13 = arith.bitcast %12 : i64 to i64
+    cf.br ^bb2(%13 : i64)
+  ^bb2(%14: i64):  // pred: ^bb1
+    return %14 : i64
+  }
+  func.func public @i64.trunc_sat_f64_u(%arg0: !llvm.ptr, %arg1: f64) -> i64 attributes {llvm.emit_c_interface} {
+    %c1_i64 = arith.constant 1 : i64
+    %0 = llvm.alloca %c1_i64 x f64 : (i64) -> !llvm.ptr
+    llvm.store %arg1, %0 : f64, !llvm.ptr
+    cf.br ^bb1
+  ^bb1:  // pred: ^bb0
+    %1 = llvm.load %0 : !llvm.ptr -> f64
+    %c0_i64 = arith.constant 0 : i64
+    %c-1_i64 = arith.constant -1 : i64
+    %c0_i64_0 = arith.constant 0 : i64
+    %2 = arith.uitofp %c0_i64_0 : i64 to f64
+    %c-1_i64_1 = arith.constant -1 : i64
+    %3 = arith.uitofp %c-1_i64_1 : i64 to f64
+    %cst = arith.constant 0.000000e+00 : f64
+    %4 = arith.cmpf uno, %1, %cst : f64
+    %5 = arith.cmpf ogt, %1, %3 : f64
+    %6 = arith.cmpf olt, %1, %2 : f64
+    %7 = arith.ori %4, %5 : i1
+    %8 = arith.ori %7, %6 : i1
+    %9 = arith.select %8, %cst, %1 : f64
+    %10 = arith.fptoui %9 : f64 to i64
+    %11 = arith.select %5, %c-1_i64, %10 : i64
+    %12 = arith.select %6, %c0_i64, %11 : i64
+    %13 = arith.bitcast %12 : i64 to i64
+    cf.br ^bb2(%13 : i64)
+  ^bb2(%14: i64):  // pred: ^bb1
+    return %14 : i64
+  }
+  func.func public @f32.convert_i32_s(%arg0: !llvm.ptr, %arg1: i32) -> f32 attributes {llvm.emit_c_interface} {
+    %c1_i64 = arith.constant 1 : i64
+    %0 = llvm.alloca %c1_i64 x i32 : (i64) -> !llvm.ptr
+    llvm.store %arg1, %0 : i32, !llvm.ptr
+    cf.br ^bb1
+  ^bb1:  // pred: ^bb0
+    %1 = llvm.load %0 : !llvm.ptr -> i32
+    %2 = arith.sitofp %1 : i32 to f32
+    cf.br ^bb2(%2 : f32)
+  ^bb2(%3: f32):  // pred: ^bb1
+    return %3 : f32
+  }
+  func.func public @f32.convert_i64_s(%arg0: !llvm.ptr, %arg1: i64) -> f32 attributes {llvm.emit_c_interface} {
+    %c1_i64 = arith.constant 1 : i64
+    %0 = llvm.alloca %c1_i64 x i64 : (i64) -> !llvm.ptr
+    llvm.store %arg1, %0 : i64, !llvm.ptr
+    cf.br ^bb1
+  ^bb1:  // pred: ^bb0
+    %1 = llvm.load %0 : !llvm.ptr -> i64
+    %2 = arith.sitofp %1 : i64 to f32
+    cf.br ^bb2(%2 : f32)
+  ^bb2(%3: f32):  // pred: ^bb1
+    return %3 : f32
+  }
+  func.func public @f64.convert_i32_s(%arg0: !llvm.ptr, %arg1: i32) -> f64 attributes {llvm.emit_c_interface} {
+    %c1_i64 = arith.constant 1 : i64
+    %0 = llvm.alloca %c1_i64 x i32 : (i64) -> !llvm.ptr
+    llvm.store %arg1, %0 : i32, !llvm.ptr
+    cf.br ^bb1
+  ^bb1:  // pred: ^bb0
+    %1 = llvm.load %0 : !llvm.ptr -> i32
+    %2 = "wasm.f64_convert_i32s"(%1) : (i32) -> f64
+    cf.br ^bb2(%2 : f64)
+  ^bb2(%3: f64):  // pred: ^bb1
+    return %3 : f64
+  }
+  func.func public @f64.convert_i64_s(%arg0: !llvm.ptr, %arg1: i64) -> f64 attributes {llvm.emit_c_interface} {
+    %c1_i64 = arith.constant 1 : i64
+    %0 = llvm.alloca %c1_i64 x i64 : (i64) -> !llvm.ptr
+    llvm.store %arg1, %0 : i64, !llvm.ptr
+    cf.br ^bb1
+  ^bb1:  // pred: ^bb0
+    %1 = llvm.load %0 : !llvm.ptr -> i64
+    %2 = "wasm.f64_convert_i64s"(%1) : (i64) -> f64
+    cf.br ^bb2(%2 : f64)
+  ^bb2(%3: f64):  // pred: ^bb1
+    return %3 : f64
+  }
+  func.func public @f32.convert_i32_u(%arg0: !llvm.ptr, %arg1: i32) -> f32 attributes {llvm.emit_c_interface} {
+    %c1_i64 = arith.constant 1 : i64
+    %0 = llvm.alloca %c1_i64 x i32 : (i64) -> !llvm.ptr
+    llvm.store %arg1, %0 : i32, !llvm.ptr
+    cf.br ^bb1
+  ^bb1:  // pred: ^bb0
+    %1 = llvm.load %0 : !llvm.ptr -> i32
+    %2 = arith.uitofp %1 : i32 to f32
+    cf.br ^bb2(%2 : f32)
+  ^bb2(%3: f32):  // pred: ^bb1
+    return %3 : f32
+  }
+  func.func public @f32.convert_i64_u(%arg0: !llvm.ptr, %arg1: i64) -> f32 attributes {llvm.emit_c_interface} {
+    %c1_i64 = arith.constant 1 : i64
+    %0 = llvm.alloca %c1_i64 x i64 : (i64) -> !llvm.ptr
+    llvm.store %arg1, %0 : i64, !llvm.ptr
+    cf.br ^bb1
+  ^bb1:  // pred: ^bb0
+    %1 = llvm.load %0 : !llvm.ptr -> i64
+    %2 = arith.uitofp %1 : i64 to f32
+    cf.br ^bb2(%2 : f32)
+  ^bb2(%3: f32):  // pred: ^bb1
+    return %3 : f32
+  }
+  func.func public @f64.convert_i32_u(%arg0: !llvm.ptr, %arg1: i32) -> f64 attributes {llvm.emit_c_interface} {
+    %c1_i64 = arith.constant 1 : i64
+    %0 = llvm.alloca %c1_i64 x i32 : (i64) -> !llvm.ptr
+    llvm.store %arg1, %0 : i32, !llvm.ptr
+    cf.br ^bb1
+  ^bb1:  // pred: ^bb0
+    %1 = llvm.load %0 : !llvm.ptr -> i32
+    %2 = "wasm.f64_convert_i32u"(%1) : (i32) -> f64
+    cf.br ^bb2(%2 : f64)
+  ^bb2(%3: f64):  // pred: ^bb1
+    return %3 : f64
+  }
+  func.func public @f64.convert_i64_u(%arg0: !llvm.ptr, %arg1: i64) -> f64 attributes {llvm.emit_c_interface} {
+    %c1_i64 = arith.constant 1 : i64
+    %0 = llvm.alloca %c1_i64 x i64 : (i64) -> !llvm.ptr
+    llvm.store %arg1, %0 : i64, !llvm.ptr
+    cf.br ^bb1
+  ^bb1:  // pred: ^bb0
+    %1 = llvm.load %0 : !llvm.ptr -> i64
+    %2 = "wasm.f64_convert_i64u"(%1) : (i64) -> f64
+    cf.br ^bb2(%2 : f64)
+  ^bb2(%3: f64):  // pred: ^bb1
+    return %3 : f64
+  }
+  func.func public @f64.promote_f32(%arg0: !llvm.ptr, %arg1: f32) -> f64 attributes {llvm.emit_c_interface} {
+    %c1_i64 = arith.constant 1 : i64
+    %0 = llvm.alloca %c1_i64 x f32 : (i64) -> !llvm.ptr
+    llvm.store %arg1, %0 : f32, !llvm.ptr
+    cf.br ^bb1
+  ^bb1:  // pred: ^bb0
+    %1 = llvm.load %0 : !llvm.ptr -> f32
+    %2 = arith.extf %1 : f32 to f64
+    cf.br ^bb2(%2 : f64)
+  ^bb2(%3: f64):  // pred: ^bb1
+    return %3 : f64
+  }
+  func.func public @f32.demote_f64(%arg0: !llvm.ptr, %arg1: f64) -> f32 attributes {llvm.emit_c_interface} {
+    %c1_i64 = arith.constant 1 : i64
+    %0 = llvm.alloca %c1_i64 x f64 : (i64) -> !llvm.ptr
+    llvm.store %arg1, %0 : f64, !llvm.ptr
+    cf.br ^bb1
+  ^bb1:  // pred: ^bb0
+    %1 = llvm.load %0 : !llvm.ptr -> f64
+    %2 = "wasm.f32_demote_f64"(%1) : (f64) -> f32
+    cf.br ^bb2(%2 : f32)
+  ^bb2(%3: f32):  // pred: ^bb1
+    return %3 : f32
+  }
+  func.func public @f32.reinterpret_i32(%arg0: !llvm.ptr, %arg1: i32) -> f32 attributes {llvm.emit_c_interface} {
+    %c1_i64 = arith.constant 1 : i64
+    %0 = llvm.alloca %c1_i64 x i32 : (i64) -> !llvm.ptr
+    llvm.store %arg1, %0 : i32, !llvm.ptr
+    cf.br ^bb1
+  ^bb1:  // pred: ^bb0
+    %1 = llvm.load %0 : !llvm.ptr -> i32
+    %2 = arith.bitcast %1 : i32 to f32
+    cf.br ^bb2(%2 : f32)
+  ^bb2(%3: f32):  // pred: ^bb1
+    return %3 : f32
+  }
+  func.func public @f64.reinterpret_i64(%arg0: !llvm.ptr, %arg1: i64) -> f64 attributes {llvm.emit_c_interface} {
+    %c1_i64 = arith.constant 1 : i64
+    %0 = llvm.alloca %c1_i64 x i64 : (i64) -> !llvm.ptr
+    llvm.store %arg1, %0 : i64, !llvm.ptr
+    cf.br ^bb1
+  ^bb1:  // pred: ^bb0
+    %1 = llvm.load %0 : !llvm.ptr -> i64
+    %2 = arith.bitcast %1 : i64 to f64
+    cf.br ^bb2(%2 : f64)
+  ^bb2(%3: f64):  // pred: ^bb1
+    return %3 : f64
+  }
+  func.func public @i32.reinterpret_f32(%arg0: !llvm.ptr, %arg1: f32) -> i32 attributes {llvm.emit_c_interface} {
+    %c1_i64 = arith.constant 1 : i64
+    %0 = llvm.alloca %c1_i64 x f32 : (i64) -> !llvm.ptr
+    llvm.store %arg1, %0 : f32, !llvm.ptr
+    cf.br ^bb1
+  ^bb1:  // pred: ^bb0
+    %1 = llvm.load %0 : !llvm.ptr -> f32
+    %2 = arith.bitcast %1 : f32 to i32
+    cf.br ^bb2(%2 : i32)
+  ^bb2(%3: i32):  // pred: ^bb1
+    return %3 : i32
+  }
+  func.func public @i64.reinterpret_f64(%arg0: !llvm.ptr, %arg1: f64) -> i64 attributes {llvm.emit_c_interface} {
+    %c1_i64 = arith.constant 1 : i64
+    %0 = llvm.alloca %c1_i64 x f64 : (i64) -> !llvm.ptr
+    llvm.store %arg1, %0 : f64, !llvm.ptr
+    cf.br ^bb1
+  ^bb1:  // pred: ^bb0
+    %1 = llvm.load %0 : !llvm.ptr -> f64
+    %2 = arith.bitcast %1 : f64 to i64
+    cf.br ^bb2(%2 : i64)
+  ^bb2(%3: i64):  // pred: ^bb1
+    return %3 : i64
+  }
+  func.func private @dora_fn_wasm_table_init(!llvm.ptr, i32, i32, i32, i32, i32)
+  func.func private @dora_fn_wasm_table_copy(!llvm.ptr, i32, i32, i32, i32, i32)
+  func.func private @dora_fn_wasm_table_fill(!llvm.ptr, i32, i32, !llvm.ptr, i32)
+  func.func private @dora_fn_wasm_table_size(!llvm.ptr, i32) -> i32
+  func.func private @dora_fn_wasm_table_get(!llvm.ptr, i32, i32) -> !llvm.ptr
+  func.func private @dora_fn_wasm_table_set(!llvm.ptr, i32, i32, !llvm.ptr)
+  func.func private @dora_fn_wasm_table_grow(!llvm.ptr, !llvm.ptr, i32, i32) -> i32
+  func.func private @dora_fn_wasm_imported_table_size(!llvm.ptr, i32) -> i32
+  func.func private @dora_fn_wasm_imported_table_get(!llvm.ptr, i32, i32) -> !llvm.ptr
+  func.func private @dora_fn_wasm_imported_table_grow(!llvm.ptr, !llvm.ptr, i32, i32) -> i32
+  func.func private @dora_fn_wasm_memory_init(!llvm.ptr, i32, i32, i32, i32, i32)
+  func.func private @dora_fn_wasm_memory_size(!llvm.ptr, i32) -> i32
+  func.func private @dora_fn_wasm_memory_grow(!llvm.ptr, i32, i32) -> i32
+  func.func private @dora_fn_wasm_memory_copy(!llvm.ptr, i32, i32, i32, i32)
+  func.func private @dora_fn_wasm_memory_fill(!llvm.ptr, i32, i32, i32, i32)
+  func.func private @dora_fn_wasm_memory_notify(!llvm.ptr, i32, i32, i32) -> i32
+  func.func private @dora_fn_wasm_memory_wait32(!llvm.ptr, i32, i32, i32, i64) -> i32
+  func.func private @dora_fn_wasm_memory_wait64(!llvm.ptr, i32, i32, i64, i64) -> i32
+  func.func private @dora_fn_wasm_imported_memory_size(!llvm.ptr, i32) -> i32
+  func.func private @dora_fn_wasm_imported_memory_grow(!llvm.ptr, i32, i32) -> i32
+  func.func private @dora_fn_wasm_imported_memory_copy(!llvm.ptr, i32, i32, i32, i32)
+  func.func private @dora_fn_wasm_imported_memory_fill(!llvm.ptr, i32, i32, i32, i32)
+  func.func private @dora_fn_wasm_imported_memory_notify(!llvm.ptr, i32, i32, i32) -> i32
+  func.func private @dora_fn_wasm_imported_memory_wait32(!llvm.ptr, i32, i32, i32, i64) -> i32
+  func.func private @dora_fn_wasm_imported_memory_wait64(!llvm.ptr, i32, i32, i64, i64) -> i32
+  func.func private @dora_fn_wasm_func_ref(!llvm.ptr, i32) -> !llvm.ptr
+  func.func private @dora_fn_wasm_data_drop(!llvm.ptr, i32)
+  func.func private @dora_fn_wasm_elem_drop(!llvm.ptr, i32)
+  func.func private @dora_fn_wasm_raise_trap(i32)
+}
