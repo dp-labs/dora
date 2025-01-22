@@ -3,6 +3,12 @@ use crate::conversion::walker::walk_operation;
 use crate::errors::Result;
 use crate::value::IntoContextOperation;
 use dora_ir;
+use dora_runtime::constants::{
+    GEF32_LEQ_I32_MAX, GEF32_LEQ_I64_MAX, GEF32_LEQ_U32_MAX, GEF32_LEQ_U64_MAX, GEF64_LEQ_I32_MAX,
+    GEF64_LEQ_I64_MAX, GEF64_LEQ_U32_MAX, GEF64_LEQ_U64_MAX, LEF32_GEQ_I32_MIN, LEF32_GEQ_I64_MIN,
+    LEF32_GEQ_U32_MIN, LEF32_GEQ_U64_MIN, LEF64_GEQ_I32_MIN, LEF64_GEQ_I64_MIN, LEF64_GEQ_U32_MIN,
+    LEF64_GEQ_U64_MIN,
+};
 use melior::dialect::{arith, llvm};
 use melior::ir::{TypeLike, ValueLike};
 use melior::{
@@ -12,6 +18,8 @@ use melior::{
     Context, ContextRef,
 };
 use tracing::debug;
+
+use super::backend::trunc_sat_scalar;
 
 #[repr(align(8))]
 struct PassId;
@@ -78,9 +86,9 @@ impl ConversionPass<'_> {
                 Ok(())
             }),
         )?;
-
         for op in wasm_ops {
             let name = op.name().as_string_ref().as_str().unwrap().to_string();
+            let rewriter = Rewriter::new_with_op(self.ctx, op);
             if name == dora_ir::wasm::UnreachableOperation::name() {
                 replace_op(op, llvm::unreachable(op.location()));
             } else if name == dora_ir::wasm::AddOperation::name() {
@@ -229,26 +237,208 @@ impl ConversionPass<'_> {
                     op,
                     dora_ir::dora::popcnt(self.ctx, value.r#type(), value, op.location()).into(),
                 );
-            } else if name == dora_ir::wasm::I32Extend8SOperation::name()
-                || name == dora_ir::wasm::I32Extend16SOperation::name()
-                || name == dora_ir::wasm::I64Extend8SOperation::name()
-                || name == dora_ir::wasm::I64Extend16SOperation::name()
-                || name == dora_ir::wasm::I64Extend32SOperation::name()
+            } else if name == dora_ir::wasm::I32WrapI64Operation::name() {
+                let value = op.operand(0)?;
+                replace_op(op, arith::trunci(value, rewriter.i32_ty(), op.location()));
+            } else if name == dora_ir::wasm::I32TruncF32SOperation::name()
+                || name == dora_ir::wasm::I32TruncF32UOperation::name()
             {
                 let value = op.operand(0)?;
-                let rewriter = Rewriter::new_with_op(self.ctx, op);
-                let byte = rewriter.make(rewriter.iconst(
-                    value.r#type(),
-                    rewriter.int_ty_width(value.r#type())? as i64 - 1,
-                ))?;
+                replace_op(op, arith::fptosi(value, rewriter.i32_ty(), op.location()));
+            } else if name == dora_ir::wasm::I32TruncF32UOperation::name()
+                || name == dora_ir::wasm::I32TruncF64UOperation::name()
+            {
+                let value = op.operand(0)?;
+                replace_op(op, arith::fptoui(value, rewriter.i32_ty(), op.location()));
+            } else if name == dora_ir::wasm::I64TruncF32SOperation::name()
+                || name == dora_ir::wasm::I64TruncF32UOperation::name()
+            {
+                let value = op.operand(0)?;
+                replace_op(op, arith::fptosi(value, rewriter.i64_ty(), op.location()));
+            } else if name == dora_ir::wasm::I64TruncF32UOperation::name()
+                || name == dora_ir::wasm::I64TruncF64UOperation::name()
+            {
+                let value = op.operand(0)?;
+                replace_op(op, arith::fptoui(value, rewriter.i64_ty(), op.location()));
+            } else if name == dora_ir::wasm::F32ConvertI64UOperation::name()
+                || name == dora_ir::wasm::F32ConvertI32UOperation::name()
+            {
+                let value = op.operand(0)?;
+                replace_op(op, arith::uitofp(value, rewriter.f32_ty(), op.location()));
+            } else if name == dora_ir::wasm::F32ConvertI64SOperation::name()
+                || name == dora_ir::wasm::F32ConvertI32SOperation::name()
+            {
+                let value = op.operand(0)?;
+                replace_op(op, arith::sitofp(value, rewriter.f32_ty(), op.location()));
+            } else if name == dora_ir::wasm::F64PromoteF32Operation::name() {
+                let value = op.operand(0)?;
+                replace_op(op, arith::extf(value, rewriter.f64_ty(), op.location()));
+            } else if name == dora_ir::wasm::I32ReinterpretF32Operation::name() {
+                let value = op.operand(0)?;
+                replace_op(op, arith::bitcast(value, rewriter.i32_ty(), op.location()));
+            } else if name == dora_ir::wasm::I64ReinterpretF64Operation::name() {
+                let value = op.operand(0)?;
+                replace_op(op, arith::bitcast(value, rewriter.i64_ty(), op.location()));
+            } else if name == dora_ir::wasm::I32ReinterpretF32Operation::name() {
+                let value = op.operand(0)?;
+                replace_op(op, arith::bitcast(value, rewriter.i32_ty(), op.location()));
+            } else if name == dora_ir::wasm::F32ReinterpretI32Operation::name() {
+                let value = op.operand(0)?;
+                replace_op(op, arith::bitcast(value, rewriter.f32_ty(), op.location()));
+            } else if name == dora_ir::wasm::F64ReinterpretI64Operation::name() {
+                let value = op.operand(0)?;
+                replace_op(op, arith::bitcast(value, rewriter.f64_ty(), op.location()));
+            } else if name == dora_ir::wasm::I64ExtendI32UOperation::name() {
+                let value = op.operand(0)?;
+                replace_op(op, arith::extui(value, rewriter.i64_ty(), op.location()));
+            } else if name == dora_ir::wasm::I64ExtendI32SOperation::name() {
+                let value = op.operand(0)?;
+                replace_op(op, arith::extsi(value, rewriter.i64_ty(), op.location()));
+            } else if name == dora_ir::wasm::I32Extend8SOperation::name() {
+                let value = op.operand(0)?;
+                let value = rewriter.make(arith::trunci(value, rewriter.i8_ty(), op.location()))?;
+                replace_op(op, arith::extsi(value, rewriter.i32_ty(), op.location()));
+            } else if name == dora_ir::wasm::I32Extend16SOperation::name() {
+                let value = op.operand(0)?;
+                let value =
+                    rewriter.make(arith::trunci(value, rewriter.i16_ty(), op.location()))?;
+                replace_op(op, arith::extsi(value, rewriter.i32_ty(), op.location()));
+            } else if name == dora_ir::wasm::I64Extend8SOperation::name() {
+                let value = op.operand(0)?;
+                let value = rewriter.make(arith::trunci(value, rewriter.i8_ty(), op.location()))?;
+                replace_op(op, arith::extsi(value, rewriter.i64_ty(), op.location()));
+            } else if name == dora_ir::wasm::I64Extend16SOperation::name() {
+                let value = op.operand(0)?;
+                let value =
+                    rewriter.make(arith::trunci(value, rewriter.i16_ty(), op.location()))?;
+                replace_op(op, arith::extsi(value, rewriter.i64_ty(), op.location()));
+            } else if name == dora_ir::wasm::I64Extend32SOperation::name() {
+                let value = op.operand(0)?;
+                let value =
+                    rewriter.make(arith::trunci(value, rewriter.i32_ty(), op.location()))?;
+                replace_op(op, arith::extsi(value, rewriter.i64_ty(), op.location()));
+            } else if name == dora_ir::wasm::I32TruncSatF32SOperation::name() {
+                let value = op.operand(0)?;
+                let value = trunc_sat_scalar(
+                    &rewriter,
+                    rewriter.i32_ty(),
+                    LEF32_GEQ_I32_MIN,
+                    GEF32_LEQ_I32_MAX,
+                    i32::MIN as u32 as u64,
+                    i32::MAX as u32 as u64,
+                    value,
+                )?;
                 rewriter.replace_op(
                     op,
-                    dora_ir::dora::signextend(self.ctx, value.r#type(), byte, value, op.location())
-                        .into(),
+                    arith::bitcast(value, rewriter.i32_ty(), rewriter.get_insert_location()),
+                )?;
+            } else if name == dora_ir::wasm::I32TruncSatF32UOperation::name() {
+                let value = op.operand(0)?;
+                let value = trunc_sat_scalar(
+                    &rewriter,
+                    rewriter.i32_ty(),
+                    LEF32_GEQ_U32_MIN,
+                    GEF32_LEQ_U32_MAX,
+                    u32::MIN as u64,
+                    u32::MAX as u64,
+                    value,
+                )?;
+                rewriter.replace_op(
+                    op,
+                    arith::bitcast(value, rewriter.i32_ty(), rewriter.get_insert_location()),
+                )?;
+            } else if name == dora_ir::wasm::I64TruncSatF32SOperation::name() {
+                let value = op.operand(0)?;
+                let value = trunc_sat_scalar(
+                    &rewriter,
+                    rewriter.i64_ty(),
+                    LEF32_GEQ_I64_MIN,
+                    GEF32_LEQ_I64_MAX,
+                    i64::MIN as u64,
+                    i64::MAX as u64,
+                    value,
+                )?;
+                rewriter.replace_op(
+                    op,
+                    arith::bitcast(value, rewriter.i64_ty(), rewriter.get_insert_location()),
+                )?;
+            } else if name == dora_ir::wasm::I32TruncSatF64SOperation::name() {
+                let value = op.operand(0)?;
+                let value = trunc_sat_scalar(
+                    &rewriter,
+                    rewriter.i32_ty(),
+                    LEF64_GEQ_I32_MIN,
+                    GEF64_LEQ_I32_MAX,
+                    i32::MIN as u64,
+                    i32::MAX as u64,
+                    value,
+                )?;
+                rewriter.replace_op(
+                    op,
+                    arith::bitcast(value, rewriter.i32_ty(), rewriter.get_insert_location()),
+                )?;
+            } else if name == dora_ir::wasm::I64TruncSatF32UOperation::name() {
+                let value = op.operand(0)?;
+                let value = trunc_sat_scalar(
+                    &rewriter,
+                    rewriter.i64_ty(),
+                    LEF32_GEQ_U64_MIN,
+                    GEF32_LEQ_U64_MAX,
+                    u64::MIN,
+                    u64::MAX,
+                    value,
+                )?;
+                rewriter.replace_op(
+                    op,
+                    arith::bitcast(value, rewriter.i64_ty(), rewriter.get_insert_location()),
+                )?;
+            } else if name == dora_ir::wasm::I64TruncSatF64SOperation::name() {
+                let value = op.operand(0)?;
+                let value = trunc_sat_scalar(
+                    &rewriter,
+                    rewriter.i64_ty(),
+                    LEF64_GEQ_I64_MIN,
+                    GEF64_LEQ_I64_MAX,
+                    i64::MIN as u64,
+                    i64::MAX as u64,
+                    value,
+                )?;
+                rewriter.replace_op(
+                    op,
+                    arith::bitcast(value, rewriter.i64_ty(), rewriter.get_insert_location()),
+                )?;
+            } else if name == dora_ir::wasm::I32TruncSatF64UOperation::name() {
+                let value = op.operand(0)?;
+                let value = trunc_sat_scalar(
+                    &rewriter,
+                    rewriter.i32_ty(),
+                    LEF64_GEQ_U32_MIN,
+                    GEF64_LEQ_U32_MAX,
+                    u32::MIN as u64,
+                    u32::MAX as u64,
+                    value,
+                )?;
+                rewriter.replace_op(
+                    op,
+                    arith::bitcast(value, rewriter.i32_ty(), rewriter.get_insert_location()),
+                )?;
+            } else if name == dora_ir::wasm::I64TruncSatF64UOperation::name() {
+                let value = op.operand(0)?;
+                let value = trunc_sat_scalar(
+                    &rewriter,
+                    rewriter.i64_ty(),
+                    LEF64_GEQ_U64_MIN,
+                    GEF64_LEQ_U64_MAX,
+                    u64::MIN,
+                    u64::MAX,
+                    value,
+                )?;
+                rewriter.replace_op(
+                    op,
+                    arith::bitcast(value, rewriter.i64_ty(), rewriter.get_insert_location()),
                 )?;
             } else if name == dora_ir::wasm::EqzOperation::name() {
                 let value = op.operand(0)?;
-                let rewriter = Rewriter::new_with_op(self.ctx, op);
                 let is_i32 =
                     value.r#type().is_integer() && rewriter.int_ty_width(value.r#type())? == 32;
                 let is_zero_op =
@@ -271,7 +461,6 @@ impl ConversionPass<'_> {
                 let lhs = op.operand(0)?;
                 let rhs = op.operand(1)?;
                 debug_assert!(lhs.r#type() == rhs.r#type());
-                let rewriter = Rewriter::new_with_op(self.ctx, op);
                 let is_i32 =
                     lhs.r#type().is_integer() && rewriter.int_ty_width(lhs.r#type())? == 32;
                 let eq_op =
@@ -290,7 +479,6 @@ impl ConversionPass<'_> {
                 let lhs = op.operand(0)?;
                 let rhs = op.operand(1)?;
                 debug_assert!(lhs.r#type() == rhs.r#type());
-                let rewriter = Rewriter::new_with_op(self.ctx, op);
                 let eq = rewriter.make(
                     dora_ir::dora::eq(self.ctx, lhs.r#type(), lhs, rhs, op.location()).into(),
                 )?;
@@ -311,7 +499,6 @@ impl ConversionPass<'_> {
                 let lhs = op.operand(0)?;
                 let rhs = op.operand(1)?;
                 debug_assert!(lhs.r#type() == rhs.r#type());
-                let rewriter = Rewriter::new_with_op(self.ctx, op);
                 let val_op =
                     dora_ir::dora::lte(self.ctx, lhs.r#type(), lhs, rhs, op.location()).into();
                 let is_i32 =
@@ -330,7 +517,6 @@ impl ConversionPass<'_> {
                 let lhs = op.operand(0)?;
                 let rhs = op.operand(1)?;
                 debug_assert!(lhs.r#type() == rhs.r#type());
-                let rewriter = Rewriter::new_with_op(self.ctx, op);
                 let val_op =
                     dora_ir::dora::slte(self.ctx, lhs.r#type(), lhs, rhs, op.location()).into();
                 let is_i32 =
@@ -349,7 +535,6 @@ impl ConversionPass<'_> {
                 let lhs = op.operand(0)?;
                 let rhs = op.operand(1)?;
                 debug_assert!(lhs.r#type() == rhs.r#type());
-                let rewriter = Rewriter::new_with_op(self.ctx, op);
                 let val_op =
                     dora_ir::dora::slt(self.ctx, lhs.r#type(), lhs, rhs, op.location()).into();
                 let is_i32 =
@@ -368,7 +553,6 @@ impl ConversionPass<'_> {
                 let lhs = op.operand(0)?;
                 let rhs = op.operand(1)?;
                 debug_assert!(lhs.r#type() == rhs.r#type());
-                let rewriter = Rewriter::new_with_op(self.ctx, op);
                 let val_op =
                     dora_ir::dora::lt(self.ctx, lhs.r#type(), lhs, rhs, op.location()).into();
                 let is_i32 =
@@ -387,7 +571,6 @@ impl ConversionPass<'_> {
                 let lhs = op.operand(0)?;
                 let rhs = op.operand(1)?;
                 debug_assert!(lhs.r#type() == rhs.r#type());
-                let rewriter = Rewriter::new_with_op(self.ctx, op);
                 let val_op =
                     dora_ir::dora::gte(self.ctx, lhs.r#type(), lhs, rhs, op.location()).into();
                 let is_i32 =
@@ -406,7 +589,6 @@ impl ConversionPass<'_> {
                 let lhs = op.operand(0)?;
                 let rhs = op.operand(1)?;
                 debug_assert!(lhs.r#type() == rhs.r#type());
-                let rewriter = Rewriter::new_with_op(self.ctx, op);
                 let val_op =
                     dora_ir::dora::sgte(self.ctx, lhs.r#type(), lhs, rhs, op.location()).into();
                 let is_i32 =
@@ -425,7 +607,6 @@ impl ConversionPass<'_> {
                 let lhs = op.operand(0)?;
                 let rhs = op.operand(1)?;
                 debug_assert!(lhs.r#type() == rhs.r#type());
-                let rewriter = Rewriter::new_with_op(self.ctx, op);
                 let val_op =
                     dora_ir::dora::sgt(self.ctx, lhs.r#type(), lhs, rhs, op.location()).into();
                 let is_i32 =
@@ -444,7 +625,6 @@ impl ConversionPass<'_> {
                 let lhs = op.operand(0)?;
                 let rhs = op.operand(1)?;
                 debug_assert!(lhs.r#type() == rhs.r#type());
-                let rewriter = Rewriter::new_with_op(self.ctx, op);
                 let val_op =
                     dora_ir::dora::gt(self.ctx, lhs.r#type(), lhs, rhs, op.location()).into();
                 let is_i32 =
