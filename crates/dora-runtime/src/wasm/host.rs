@@ -682,3 +682,20 @@ fn data_slice(data: &[u8], offset: u32, size: u32) -> &[u8] {
         &[]
     }
 }
+
+// Mocked Arbitrum Stylus Host Functions, just for test
+// Reference: https://github.com/OffchainLabs/stylus-sdk-rs/blob/main/stylus-sdk/src/hostio.rs
+
+/// Whether the current call is reentrant.
+pub fn msg_reentrant(mut _env: WASMEnvMut) -> u32 {
+    0
+}
+
+pub fn tx_ink_price(mut _env: WASMEnvMut) -> u32 {
+    0
+}
+
+// TODO: gas meter for WASM memory
+pub fn pay_for_memory_grow(mut _env: WASMEnvMut, _memory: u32) {}
+
+pub fn storage_flush_cache(mut _env: WASMEnvMut, _clear: u32) {}

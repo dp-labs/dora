@@ -256,6 +256,7 @@ impl<'c> WASMCompiler<'c> {
                 "block_gas_limit" => func!(host::block_gas_limit),
                 "block_number" => func!(host::block_number),
                 "block_timestamp" => func!(host::block_timestamp),
+                "block_coinbase" => func!(host::block_coinbase),
                 "chainid" => func!(host::chainid),
                 "call" => func!(host::call),
                 "delegate_call" => func!(host::delegate_call),
@@ -274,9 +275,24 @@ impl<'c> WASMCompiler<'c> {
                 "gas_price" => func!(host::gas_price),
                 "tx_origin" => func!(host::tx_origin),
                 "write_result" => func!(host::write_result),
+                "pay_for_memory_grow" => func!(host::pay_for_memory_grow),
                 // Arbitrum stylus host functions
                 // Reference: https://github.com/OffchainLabs/stylus-sdk-rs/blob/main/stylus-sdk/src/hostio.rs
-                "read_args" => func!(host::call_data_copy)
+                "read_args" => func!(host::call_data_copy),
+                "msg_reentrant" => func!(host::msg_reentrant),
+                "tx_ink_price" => func!(host::tx_ink_price),
+                "tx_gas_price" => func!(host::gas_price),
+                "native_keccak256" => func!(host::keccak256),
+                "read_return_data" => func!(host::return_data_copy),
+                "create1" => func!(host::create),
+                "storage_cache_bytes32" => func!(host::sstore),
+                "storage_load_bytes32" => func!(host::sload),
+                "storage_flush_cache" => func!(host::storage_flush_cache),
+                "call_contract" => func!(host::call),
+                "delegate_call_contract" => func!(host::delegate_call),
+                "static_call_contract" => func!(host::static_call),
+                "evm_gas_left" => func!(host::gas_left),
+                "evm_ink_left" => func!(host::gas_left),
             },
         };
         let (module, mut instance) = self.build_instance_with_imports(data, &mut store, imports)?;
