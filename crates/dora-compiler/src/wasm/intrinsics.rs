@@ -7,8 +7,6 @@ use crate::conversion::builder::OpBuilder;
 use crate::intrinsics::Intrinsics;
 use crate::value::ToContextValue;
 use anyhow::Result;
-use melior::dialect::llvm;
-use melior::ir::attribute::DenseI32ArrayAttribute;
 use melior::ir::r#type::Type;
 use melior::ir::{Value, ValueLike};
 use melior::{dialect::llvm::r#type::r#struct, ir::r#type::FunctionType};
@@ -456,16 +454,13 @@ impl<'c, 'a> CtxType<'c, 'a> {
             };
             let builder = &self.cache_builder;
             let global = {
-                let context = builder.context();
                 let global_ptr = {
                     let global_ptr_ptr = builder
-                        .make(llvm::get_element_ptr(
-                            context,
+                        .make(builder.gep(
                             ctx_ptr_value,
-                            DenseI32ArrayAttribute::new(context, &[offset as i32]),
-                            builder.intrinsics.i8_ty,
-                            builder.intrinsics.ptr_ty,
-                            builder.get_insert_location(),
+                            offset as usize,
+                            builder.i8_ty(),
+                            builder.ptr_ty(),
                         ))?
                         .to_ctx_value();
                     let global_ptr = builder

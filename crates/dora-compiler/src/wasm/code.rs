@@ -11,6 +11,7 @@ use crate::wasm::intrinsics::MemoryCache;
 
 use super::backend::is_zero;
 use super::backend::WASMBackend;
+use super::func::FuncTranslator;
 use super::intrinsics::CtxType;
 use super::intrinsics::FunctionCache;
 use super::intrinsics::GlobalCache;
@@ -36,8 +37,8 @@ use wasmer_compiler::wptype_to_type;
 use wasmer_compiler::{wpheaptype_to_type, ModuleTranslationState};
 use wasmer_types::entity::PrimaryMap;
 use wasmer_types::{
-    ExportIndex, FunctionIndex, FunctionType, GlobalIndex, MemoryIndex, MemoryStyle, ModuleInfo,
-    SignatureIndex, Symbol, SymbolRegistry, TableIndex, TableStyle, TrapCode, WasmResult,
+    FunctionIndex, FunctionType, GlobalIndex, MemoryIndex, MemoryStyle, ModuleInfo, SignatureIndex,
+    SymbolRegistry, TableIndex, TableStyle, TrapCode, WasmResult,
 };
 
 macro_rules! op {
@@ -1095,27 +1096,12 @@ impl FunctionCodeGenerator {
                     },
                     func_name,
                 ) = if let Some(local_func_index) = fcx.wasm_module.local_func_index(func_index) {
-                    let func_name = match fcx.wasm_module.function_names.get(&func_index) {
-                        Some(name) => name.to_string(),
-                        None => {
-                            // Find name in export functions
-                            let mut ret_name = String::new();
-                            for (name, export_index) in &fcx.wasm_module.exports {
-                                if let ExportIndex::Function(index) = export_index {
-                                    if *index == func_index {
-                                        ret_name = name.clone();
-                                        break;
-                                    }
-                                }
-                            }
-                            if !ret_name.is_empty() {
-                                ret_name
-                            } else {
-                                fcx.symbol_registry
-                                    .symbol_to_name(Symbol::LocalFunction(local_func_index))
-                            }
-                        }
-                    };
+                    let (func_name, _) = FuncTranslator::get_func_name(
+                        fcx.wasm_module,
+                        &local_func_index,
+                        &func_index,
+                        fcx.symbol_registry,
+                    );
                     (
                         fcx.ctx.local_func(
                             local_func_index,
@@ -1143,6 +1129,7 @@ impl FunctionCodeGenerator {
                 let return_types = (0..result_count)
                     .map(|i| func_type.result(i).unwrap())
                     .collect::<Vec<_>>();
+                // Call import host functions
                 let op = if let Some((func_ptr, vm_ctx)) = func_with_vmctx {
                     debug_assert!(return_types.len() <= 1);
                     let args = std::iter::once(*vm_ctx)
@@ -1155,6 +1142,7 @@ impl FunctionCodeGenerator {
                     };
                     builder.create(builder.indirect_call(ret_ty, *func_ptr, &args)?)
                 } else {
+                    // Call local functions
                     let args = std::iter::once(vm_ctx)
                         .chain(args.iter().copied())
                         .collect::<Vec<Value<'_, '_>>>();

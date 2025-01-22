@@ -16,6 +16,7 @@ pub use conversion::ConversionPass;
 #[cfg(test)]
 mod tests;
 
+use dora_runtime::wasm::WASMInstance;
 use dora_runtime::wasm::{env::WASMEnv, host};
 use func::FuncTranslator;
 use melior::ir::operation::OperationBuilder;
@@ -25,7 +26,7 @@ use std::sync::Arc;
 use symbols::declare_symbols;
 use wasmer::{
     imports, AsStoreMut, AsStoreRef, Exports, Extern, Function, FunctionEnv, Imports,
-    Module as WasmModule, NativeEngineExt, Store, Target, VMConfig,
+    Module as WasmModule, Store, Target, VMConfig,
 };
 use wasmer_compiler::Engine;
 use wasmer_compiler::{
@@ -201,7 +202,6 @@ impl<'c> WASMCompiler<'c> {
             .imports_for_module(&module)
             .map_err(|err| CompileError::Codegen(err.to_string()))?;
         let signal_handler = store.as_store_ref().signal_handler();
-        let engine = store.engine().clone();
         let tunables = engine.tunables();
         unsafe {
             let mut instance_handle = artifact
@@ -232,7 +232,7 @@ impl<'c> WASMCompiler<'c> {
     }
 
     /// Build the WASM instance
-    pub fn build_instance(&self, data: &[u8]) -> Result<VMInstance, CompileError> {
+    pub fn build_instance(&self, data: &[u8]) -> Result<WASMInstance, CompileError> {
         let mut store = Store::default();
         let wasm_env = WASMEnv { memory: None };
         let func_env = FunctionEnv::new(&mut store, wasm_env);
@@ -243,6 +243,7 @@ impl<'c> WASMCompiler<'c> {
         }
         let imports = imports! {
             "vm_hooks" => {
+                // Dora host functions
                 "account_balance" => func!(host::account_balance),
                 "account_code" => func!(host::account_code),
                 "account_code_size" => func!(host::account_code_size),
@@ -273,9 +274,13 @@ impl<'c> WASMCompiler<'c> {
                 "gas_price" => func!(host::gas_price),
                 "tx_origin" => func!(host::tx_origin),
                 "write_result" => func!(host::write_result),
+                // Arbitrum stylus host functions
+                // Reference: https://github.com/OffchainLabs/stylus-sdk-rs/blob/main/stylus-sdk/src/hostio.rs
+                "read_args" => func!(host::call_data_copy)
             },
         };
         let (module, mut instance) = self.build_instance_with_imports(data, &mut store, imports)?;
+
         let exports = module
             .exports()
             .map(|export| {
@@ -288,7 +293,11 @@ impl<'c> WASMCompiler<'c> {
         let memory = exports.get_memory("memory").ok().cloned();
         let env = func_env.as_mut(&mut store);
         env.memory = memory;
-        Ok(instance)
+        Ok(WASMInstance {
+            store,
+            instance,
+            exports,
+        })
     }
 }
 

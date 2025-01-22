@@ -19,8 +19,8 @@ use wasmer_compiler::{
 };
 use wasmer_types::entity::PrimaryMap;
 use wasmer_types::{
-    LocalFunctionIndex, MemoryIndex, MemoryStyle, ModuleInfo, Symbol, SymbolRegistry, TableIndex,
-    TableStyle,
+    FunctionIndex, LocalFunctionIndex, MemoryIndex, MemoryStyle, ModuleInfo, Symbol,
+    SymbolRegistry, TableIndex, TableStyle,
 };
 
 /// Responsible for translating WebAssembly functions into the target intermediate representation
@@ -87,28 +87,8 @@ impl FuncTranslator {
         symbol_registry: &'c dyn SymbolRegistry,
     ) -> Result<Operation<'c>> {
         let func_index = wasm_module.func_index(*local_func_index);
-        let mut is_export_function = false;
-        let function_name = match wasm_module.function_names.get(&func_index) {
-            Some(name) => name.to_string(),
-            None => {
-                // Find name in export functions
-                let mut ret_name = String::new();
-                for (name, export_index) in &wasm_module.exports {
-                    if let ExportIndex::Function(index) = export_index {
-                        if *index == func_index {
-                            ret_name = name.clone();
-                            is_export_function = true;
-                            break;
-                        }
-                    }
-                }
-                if !ret_name.is_empty() {
-                    ret_name
-                } else {
-                    symbol_registry.symbol_to_name(Symbol::LocalFunction(*local_func_index))
-                }
-            }
-        };
+        let (function_name, is_export_function) =
+            Self::get_func_name(wasm_module, local_func_index, &func_index, symbol_registry);
         let wasm_fn_type = wasm_module
             .signatures
             .get(wasm_module.functions[func_index])
@@ -262,5 +242,34 @@ impl FuncTranslator {
             block.add_argument(ty, Location::unknown(&context.mlir_context));
         }
         Ok(block)
+    }
+
+    pub(crate) fn get_func_name<'c>(
+        wasm_module: &'c ModuleInfo,
+        local_func_index: &'c LocalFunctionIndex,
+        func_index: &'c FunctionIndex,
+        symbol_registry: &'c dyn SymbolRegistry,
+    ) -> (String, bool) {
+        let mut is_export_function = false;
+        // Find name in export functions
+        let mut ret_name = String::new();
+        for (name, export_index) in &wasm_module.exports {
+            if let ExportIndex::Function(index) = export_index {
+                if *index == *func_index {
+                    ret_name = name.clone();
+                    is_export_function = true;
+                    break;
+                }
+            }
+        }
+        let function_name = if !ret_name.is_empty() {
+            ret_name
+        } else {
+            match wasm_module.function_names.get(func_index) {
+                Some(name) => name.to_string(),
+                None => symbol_registry.symbol_to_name(Symbol::LocalFunction(*local_func_index)),
+            }
+        };
+        (function_name, is_export_function)
     }
 }

@@ -1666,7 +1666,7 @@ module {
     %18 = llvm.load %1 : !llvm.ptr -> i32
     cf.br ^bb2(%18 : i32)
   }
-  func.func @add64_u_with_carry(%arg0: !llvm.ptr, %arg1: i64, %arg2: i64, %arg3: i32) -> (i64, i32) {
+  func.func public @add64_u_with_carry(%arg0: !llvm.ptr, %arg1: i64, %arg2: i64, %arg3: i32) -> (i64, i32) attributes {llvm.emit_c_interface} {
     %c1_i64 = arith.constant 1 : i64
     %0 = llvm.alloca %c1_i64 x i64 : (i64) -> !llvm.ptr
     llvm.store %arg1, %0 : i64, !llvm.ptr
@@ -1697,7 +1697,7 @@ module {
   ^bb2(%14: i64, %15: i32):  // pred: ^bb1
     return %14, %15 : i64, i32
   }
-  func.func @add64_u_saturated(%arg0: !llvm.ptr, %arg1: i64, %arg2: i64) -> i64 {
+  func.func public @add64_u_saturated(%arg0: !llvm.ptr, %arg1: i64, %arg2: i64) -> i64 attributes {llvm.emit_c_interface} {
     %c1_i64 = arith.constant 1 : i64
     %0 = llvm.alloca %c1_i64 x i64 : (i64) -> !llvm.ptr
     llvm.store %arg1, %0 : i64, !llvm.ptr

@@ -2,7 +2,7 @@ use core::ops::{Add, AddAssign, Deref};
 use wasmer::{FromToNativeWasmType, WasmPtr};
 
 /// Represents a pointer to a Guest WASM's memory.
-#[derive(Clone, Copy, Eq, PartialEq)]
+#[derive(Debug, Clone, Copy, Eq, PartialEq)]
 #[repr(transparent)]
 pub struct GuestPtr(pub u32);
 

@@ -2,6 +2,7 @@
 
 use crate::constants::MAIN_ENTRYPOINT;
 use crate::context::{EVMMainFunc, RuntimeContext, Stack, WASMMainFunc};
+use crate::wasm::WASMInstance;
 use dora_primitives::config::OptimizationLevel;
 use melior::ir::Module;
 use melior::StringRef;
@@ -9,9 +10,9 @@ use mlir_sys::{
     mlirExecutionEngineCreate, mlirExecutionEngineDestroy, mlirExecutionEngineLookup,
     mlirExecutionEngineRegisterSymbol, MlirExecutionEngine,
 };
+use parking_lot::RwLock;
 use std::fmt::Debug;
 use std::sync::Arc;
-use wasmer_vm::VMContext;
 
 /// The stack size at runtime, used for recursive program execution to prevent stack overflow
 pub const RUNTIME_STACK_SIZE: usize = 64 * 1024 * 1024;
@@ -41,11 +42,17 @@ pub struct Executor {
 pub enum ExecuteKind {
     #[default]
     EVM,
-    WASM(*mut VMContext),
+    WASM(Arc<RwLock<WASMInstance>>),
 }
 
 unsafe impl Send for ExecuteKind {}
 unsafe impl Sync for ExecuteKind {}
+
+impl ExecuteKind {
+    pub fn new_wasm(instance: WASMInstance) -> ExecuteKind {
+        ExecuteKind::WASM(Arc::new(RwLock::new(instance)))
+    }
+}
 
 impl Executor {
     /// Creates a new `Executor` instance by initializing the `ExecutionEngine` with the provided MLIR `module` and
@@ -99,14 +106,14 @@ impl Executor {
         stack: &mut Stack,
         stack_size: &mut u64,
     ) -> u8 {
-        match self.kind {
+        match &self.kind {
             ExecuteKind::EVM => {
                 let main_fn = self.get_evm_main_entrypoint();
                 main_fn(context, initial_gas, stack, stack_size)
             }
-            ExecuteKind::WASM(vm_ctx) => {
+            ExecuteKind::WASM(vm_inst) => {
                 let main_fn = self.get_wasm_main_entrypoint();
-                main_fn(vm_ctx);
+                main_fn(vm_inst.read().vmctx_ptr());
                 0
             }
         }

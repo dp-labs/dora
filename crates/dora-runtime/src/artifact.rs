@@ -97,14 +97,14 @@ impl Artifact for SymbolArtifact {
         stack_size: &mut u64,
     ) -> u8 {
         let ptr = self.executor.get_main_entrypoint_ptr();
-        match self.executor.kind {
+        match &self.executor.kind {
             ExecuteKind::EVM => {
                 let func: EVMMainFunc = unsafe { std::mem::transmute(ptr) };
                 func(runtime_context, initial_gas, stack, stack_size)
             }
-            ExecuteKind::WASM(vm_ctx) => {
+            ExecuteKind::WASM(vm_inst) => {
                 let func: WASMMainFunc = unsafe { std::mem::transmute(ptr) };
-                func(vm_ctx);
+                func(vm_inst.read().vmctx_ptr());
                 0
             }
         }
@@ -128,14 +128,14 @@ impl SymbolArtifact {
         Ret: Sized,
     {
         let func_ptr = self.executor.lookup(name);
-        match self.executor.kind {
+        match &self.executor.kind {
             ExecuteKind::EVM => Err(anyhow!(
                 "The compiled code kind is EVM, and it's not WASM kind"
             )),
-            ExecuteKind::WASM(vm_ctx) => set_runtime_context(runtime_context, || {
+            ExecuteKind::WASM(vm_inst) => set_runtime_context(runtime_context, || {
                 let func: fn(*mut VMContext, Args) -> Ret =
                     unsafe { std::mem::transmute(func_ptr) };
-                Ok(func(vm_ctx, args))
+                Ok(func(vm_inst.read().vmctx_ptr(), args))
             }),
         }
     }

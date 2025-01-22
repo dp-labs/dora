@@ -30,7 +30,6 @@ pub use dora_runtime::{
     result::ResultAndState,
 };
 use std::sync::Arc;
-use wasmer::{Imports, Store};
 
 /// Run the EVM environment with the given state database and return the execution result and final state.
 ///
@@ -179,40 +178,11 @@ pub fn build_wasm_artifact<DB: Database>(code: &Bytes) -> anyhow::Result<DB::Art
     )?;
     pass::run(&context.mlir_context, &mut module.mlir_module)?;
     debug_assert!(module.mlir_module.as_operation().verify());
-    let executor = Executor::new(
-        module.module(),
-        Default::default(),
-        ExecuteKind::WASM(instance.vmctx_ptr()),
-    );
-    Ok(DB::Artifact::new(executor))
-}
 
-/// Build WASM opcode to the artifact
-pub fn build_wasm_artifact_with_imports<DB: Database>(
-    code: &Bytes,
-    store: &mut Store,
-    imports: Imports,
-) -> anyhow::Result<DB::Artifact> {
-    let context = Context::new();
-    let compiler = WASMCompiler::new(&context, Config::default());
-    // Compile WASM Bytecode to MLIR EVM Dialect
-    let mut module = compiler.compile(code)?;
-    let (_, instance) = compiler.build_instance_with_imports(code, store, imports)?;
-    // Lowering the WASM dialect to the Dora dialect.
-    wasm::pass::run(&context.mlir_context, &mut module.mlir_module)?;
-    // Lowering the Dora dialect to MLIR builtin dialects.
-    dora::pass::run(
-        &context.mlir_context,
-        &mut module.mlir_module,
-        &dora::pass::PassOptions {
-            code_size: code.len() as u32,
-            ..Default::default()
-        },
-    )?;
     let executor = Executor::new(
         module.module(),
         Default::default(),
-        ExecuteKind::WASM(instance.vmctx_ptr()),
+        ExecuteKind::new_wasm(instance),
     );
     Ok(DB::Artifact::new(executor))
 }

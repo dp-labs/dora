@@ -396,7 +396,7 @@ module {
   ^bb2(%2: i32, %3: i32):  // pred: ^bb1
     return %2, %3 : i32, i32
   }
-  func.func @fac(%arg0: !llvm.ptr, %arg1: i64) -> i64 {
+  func.func public @fac(%arg0: !llvm.ptr, %arg1: i64) -> i64 attributes {llvm.emit_c_interface} {
     %c1_i64 = arith.constant 1 : i64
     %0 = llvm.alloca %c1_i64 x i64 : (i64) -> !llvm.ptr
     llvm.store %arg1, %0 : i64, !llvm.ptr
@@ -423,7 +423,7 @@ module {
   ^bb5(%10: i64):  // 2 preds: ^bb3, ^bb4
     cf.br ^bb2(%10 : i64)
   }
-  func.func @"fac-acc"(%arg0: !llvm.ptr, %arg1: i64, %arg2: i64) -> i64 {
+  func.func public @"fac-acc"(%arg0: !llvm.ptr, %arg1: i64, %arg2: i64) -> i64 attributes {llvm.emit_c_interface} {
     %c1_i64 = arith.constant 1 : i64
     %0 = llvm.alloca %c1_i64 x i64 : (i64) -> !llvm.ptr
     llvm.store %arg1, %0 : i64, !llvm.ptr
@@ -454,7 +454,7 @@ module {
   ^bb5(%13: i64):  // 2 preds: ^bb3, ^bb4
     cf.br ^bb2(%13 : i64)
   }
-  func.func @fib(%arg0: !llvm.ptr, %arg1: i64) -> i64 {
+  func.func public @fib(%arg0: !llvm.ptr, %arg1: i64) -> i64 attributes {llvm.emit_c_interface} {
     %c1_i64 = arith.constant 1 : i64
     %0 = llvm.alloca %c1_i64 x i64 : (i64) -> !llvm.ptr
     llvm.store %arg1, %0 : i64, !llvm.ptr
@@ -485,7 +485,7 @@ module {
   ^bb5(%12: i64):  // 2 preds: ^bb3, ^bb4
     cf.br ^bb2(%12 : i64)
   }
-  func.func @even(%arg0: !llvm.ptr, %arg1: i64) -> i32 {
+  func.func public @even(%arg0: !llvm.ptr, %arg1: i64) -> i32 attributes {llvm.emit_c_interface} {
     %c1_i64 = arith.constant 1 : i64
     %0 = llvm.alloca %c1_i64 x i64 : (i64) -> !llvm.ptr
     llvm.store %arg1, %0 : i64, !llvm.ptr
@@ -510,7 +510,7 @@ module {
   ^bb5(%8: i32):  // 2 preds: ^bb3, ^bb4
     cf.br ^bb2(%8 : i32)
   }
-  func.func @odd(%arg0: !llvm.ptr, %arg1: i64) -> i32 {
+  func.func public @odd(%arg0: !llvm.ptr, %arg1: i64) -> i32 attributes {llvm.emit_c_interface} {
     %c1_i64 = arith.constant 1 : i64
     %0 = llvm.alloca %c1_i64 x i64 : (i64) -> !llvm.ptr
     llvm.store %arg1, %0 : i64, !llvm.ptr
@@ -535,7 +535,7 @@ module {
   ^bb5(%8: i32):  // 2 preds: ^bb3, ^bb4
     cf.br ^bb2(%8 : i32)
   }
-  func.func @runaway(%arg0: !llvm.ptr) {
+  func.func public @runaway(%arg0: !llvm.ptr) attributes {llvm.emit_c_interface} {
     cf.br ^bb1
   ^bb1:  // pred: ^bb0
     call @runaway(%arg0) : (!llvm.ptr) -> ()
@@ -543,7 +543,7 @@ module {
   ^bb2:  // pred: ^bb1
     return
   }
-  func.func @"mutual-runaway1"(%arg0: !llvm.ptr) {
+  func.func public @"mutual-runaway"(%arg0: !llvm.ptr) attributes {llvm.emit_c_interface} {
     cf.br ^bb1
   ^bb1:  // pred: ^bb0
     call @"mutual-runaway2"(%arg0) : (!llvm.ptr) -> ()
@@ -554,7 +554,7 @@ module {
   func.func @"mutual-runaway2"(%arg0: !llvm.ptr) {
     cf.br ^bb1
   ^bb1:  // pred: ^bb0
-    call @"mutual-runaway1"(%arg0) : (!llvm.ptr) -> ()
+    call @"mutual-runaway"(%arg0) : (!llvm.ptr) -> ()
     cf.br ^bb2
   ^bb2:  // pred: ^bb1
     return

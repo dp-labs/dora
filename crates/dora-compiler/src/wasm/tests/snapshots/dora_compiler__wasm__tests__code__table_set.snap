@@ -25,7 +25,7 @@ module {
   ^bb2(%4: !llvm.ptr):  // pred: ^bb1
     return %4 : !llvm.ptr
   }
-  func.func @fx(%arg0: !llvm.ptr, %arg1: i32) -> !llvm.ptr {
+  func.func public @"get-funcref"(%arg0: !llvm.ptr, %arg1: i32) -> !llvm.ptr attributes {llvm.emit_c_interface} {
     %c1_i64 = arith.constant 1 : i64
     %0 = llvm.alloca %c1_i64 x i32 : (i64) -> !llvm.ptr
     llvm.store %arg1, %0 : i32, !llvm.ptr
@@ -100,7 +100,7 @@ module {
     cf.br ^bb1
   ^bb1:  // pred: ^bb0
     %1 = llvm.load %0 : !llvm.ptr -> i32
-    %2 = call @fx(%arg0, %1) : (!llvm.ptr, i32) -> !llvm.ptr
+    %2 = call @"get-funcref"(%arg0, %1) : (!llvm.ptr, i32) -> !llvm.ptr
     %3 = llvm.load %2 : !llvm.ptr -> i32
     %c0_i32 = arith.constant 0 : i32
     %4 = arith.cmpi eq, %3, %c0_i32 : i32
