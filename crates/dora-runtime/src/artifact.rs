@@ -1,9 +1,11 @@
 use crate::{
-    context::{EVMMainFunc, RuntimeContext, Stack, WASMMainFunc},
+    context::{Contract, EVMMainFunc, RuntimeContext, Stack, WASMMainFunc},
     executor::{ExecuteKind, Executor},
+    host::DummyHost,
     wasm::context::set_runtime_context,
 };
 use anyhow::{anyhow, Result};
+use dora_primitives::SpecId;
 use std::fmt::Debug;
 use wasmer_vm::VMContext;
 
@@ -112,10 +114,58 @@ impl Artifact for SymbolArtifact {
 }
 
 impl SymbolArtifact {
+    /// Executes a WASM function by name with the given arguments.
+    ///
+    /// # Arguments
+    /// * `name` - The name of the WASM function to execute.
+    /// * `args` - The arguments to pass to the WASM function.
+    ///
+    /// # Returns
+    /// * `Result<Ret>` - The result of the WASM function execution, or an error if the function fails.
+    ///
+    /// # Safety
+    /// This function uses `unsafe` to transmute a function pointer, which is inherently unsafe.
+    /// Ensure that the function pointer is valid and that the arguments and return types match the expected types.
+    #[inline]
+    pub fn execute_wasm_func<Args, Ret>(&self, name: &str, args: Args) -> Result<Ret>
+    where
+        Args: Sized,
+        Ret: Sized,
+    {
+        let mut host = DummyHost::default();
+        self.execute_wasm_func_with_context(
+            name,
+            args,
+            RuntimeContext::new(
+                Contract::default(),
+                1,
+                false,
+                false,
+                &mut host,
+                SpecId::default(),
+            ),
+            u64::MAX,
+        )
+    }
+
     /// Executes the WASM compiled code represented by this artifact.
+    ///
     /// This method demonstrates the primary advantage of the SymbolArtifact:
     /// direct execution of pre-compiled code without any additional compilation step.
-    pub fn execute_wasm_func<Args, Ret>(
+    ///
+    /// # Arguments
+    /// * `name` - The name of the WASM function to execute.
+    /// * `args` - The arguments to pass to the WASM function.
+    /// * `runtime_context` - The runtime context to use during execution.
+    /// * `initial_gas` - The initial gas limit for execution (currently unused).
+    ///
+    /// # Returns
+    /// * `Result<Ret>` - The result of the WASM function execution, or an error if the function fails.
+    ///
+    /// # Safety
+    /// This function uses `unsafe` to transmute a function pointer, which is inherently unsafe.
+    /// Ensure that the function pointer is valid and that the arguments and return types match the expected types.
+    pub fn execute_wasm_func_with_context<Args, Ret>(
         &self,
         name: &str,
         args: Args,

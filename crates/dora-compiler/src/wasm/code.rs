@@ -3251,7 +3251,7 @@ impl FunctionCodeGenerator {
                     .make(builder.gep_dynamic(
                         table_base,
                         &[func_index],
-                        builder.ptr_ty(),
+                        builder.i8_ty(),
                         builder.ptr_ty(),
                     ))?
                     .to_ctx_value();
@@ -3489,7 +3489,7 @@ impl FunctionCodeGenerator {
         let memory_ptr = builder.make(builder.gep_dynamic(
             base_ptr,
             &[offset],
-            builder.ptr_ty(),
+            builder.i8_ty(),
             builder.ptr_ty(),
         ))?;
         Ok((block, unsafe { Value::from_raw(memory_ptr.to_raw()) }))
