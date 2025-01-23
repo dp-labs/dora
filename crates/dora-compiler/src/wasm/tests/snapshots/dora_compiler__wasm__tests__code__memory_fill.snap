@@ -15,7 +15,7 @@ module {
     %2 = llvm.alloca %c1_i64_1 x i32 : (i64) -> !llvm.ptr
     llvm.store %arg3, %2 : i32, !llvm.ptr
     %3 = llvm.getelementptr %arg0[8] : (!llvm.ptr) -> !llvm.ptr, i8
-    %4 = llvm.getelementptr %3[0] : (!llvm.ptr) -> !llvm.ptr, !llvm.ptr
+    %4 = llvm.getelementptr %3[0] : (!llvm.ptr) -> !llvm.ptr, i8
     %5 = llvm.load %4 : !llvm.ptr -> !llvm.ptr
     cf.br ^bb1
   ^bb1:  // pred: ^bb0
@@ -42,7 +42,7 @@ module {
     %c0_i64 = arith.constant 0 : i64
     %13 = arith.extui %12 : i32 to i64
     %14 = arith.addi %13, %c0_i64 : i64
-    %15 = llvm.getelementptr %5[%14] : (!llvm.ptr, i64) -> !llvm.ptr, !llvm.ptr
+    %15 = llvm.getelementptr %5[%14] : (!llvm.ptr, i64) -> !llvm.ptr, i8
     %16 = llvm.load %15 : !llvm.ptr -> i8
     %17 = arith.extui %16 : i8 to i32
     %18 = llvm.load %2 : !llvm.ptr -> i32

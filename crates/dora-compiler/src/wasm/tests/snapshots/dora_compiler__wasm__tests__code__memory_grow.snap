@@ -6,7 +6,7 @@ snapshot_kind: text
 module {
   func.func public @load_at_zero(%arg0: !llvm.ptr) -> i32 attributes {llvm.emit_c_interface} {
     %0 = llvm.getelementptr %arg0[16] : (!llvm.ptr) -> !llvm.ptr, i8
-    %1 = llvm.getelementptr %0[0] : (!llvm.ptr) -> !llvm.ptr, !llvm.ptr
+    %1 = llvm.getelementptr %0[0] : (!llvm.ptr) -> !llvm.ptr, i8
     %2 = llvm.load %1 : !llvm.ptr -> !llvm.ptr
     cf.br ^bb1
   ^bb1:  // pred: ^bb0
@@ -14,7 +14,7 @@ module {
     %c0_i64 = arith.constant 0 : i64
     %3 = arith.extui %c0_i32 : i32 to i64
     %4 = arith.addi %3, %c0_i64 : i64
-    %5 = llvm.getelementptr %2[%4] : (!llvm.ptr, i64) -> !llvm.ptr, !llvm.ptr
+    %5 = llvm.getelementptr %2[%4] : (!llvm.ptr, i64) -> !llvm.ptr, i8
     %6 = llvm.load %5 : !llvm.ptr -> i32
     cf.br ^bb2(%6 : i32)
   ^bb2(%7: i32):  // pred: ^bb1
@@ -22,7 +22,7 @@ module {
   }
   func.func public @store_at_zero(%arg0: !llvm.ptr) attributes {llvm.emit_c_interface} {
     %0 = llvm.getelementptr %arg0[16] : (!llvm.ptr) -> !llvm.ptr, i8
-    %1 = llvm.getelementptr %0[0] : (!llvm.ptr) -> !llvm.ptr, !llvm.ptr
+    %1 = llvm.getelementptr %0[0] : (!llvm.ptr) -> !llvm.ptr, i8
     %2 = llvm.load %1 : !llvm.ptr -> !llvm.ptr
     cf.br ^bb1
   ^bb1:  // pred: ^bb0
@@ -31,7 +31,7 @@ module {
     %c0_i64 = arith.constant 0 : i64
     %3 = arith.extui %c0_i32 : i32 to i64
     %4 = arith.addi %3, %c0_i64 : i64
-    %5 = llvm.getelementptr %2[%4] : (!llvm.ptr, i64) -> !llvm.ptr, !llvm.ptr
+    %5 = llvm.getelementptr %2[%4] : (!llvm.ptr, i64) -> !llvm.ptr, i8
     llvm.store %c2_i32, %5 : i32, !llvm.ptr
     cf.br ^bb2
   ^bb2:  // pred: ^bb1
@@ -39,7 +39,7 @@ module {
   }
   func.func public @load_at_page_size(%arg0: !llvm.ptr) -> i32 attributes {llvm.emit_c_interface} {
     %0 = llvm.getelementptr %arg0[16] : (!llvm.ptr) -> !llvm.ptr, i8
-    %1 = llvm.getelementptr %0[0] : (!llvm.ptr) -> !llvm.ptr, !llvm.ptr
+    %1 = llvm.getelementptr %0[0] : (!llvm.ptr) -> !llvm.ptr, i8
     %2 = llvm.load %1 : !llvm.ptr -> !llvm.ptr
     cf.br ^bb1
   ^bb1:  // pred: ^bb0
@@ -47,7 +47,7 @@ module {
     %c0_i64 = arith.constant 0 : i64
     %3 = arith.extui %c65536_i32 : i32 to i64
     %4 = arith.addi %3, %c0_i64 : i64
-    %5 = llvm.getelementptr %2[%4] : (!llvm.ptr, i64) -> !llvm.ptr, !llvm.ptr
+    %5 = llvm.getelementptr %2[%4] : (!llvm.ptr, i64) -> !llvm.ptr, i8
     %6 = llvm.load %5 : !llvm.ptr -> i32
     cf.br ^bb2(%6 : i32)
   ^bb2(%7: i32):  // pred: ^bb1
@@ -55,7 +55,7 @@ module {
   }
   func.func public @store_at_page_size(%arg0: !llvm.ptr) attributes {llvm.emit_c_interface} {
     %0 = llvm.getelementptr %arg0[16] : (!llvm.ptr) -> !llvm.ptr, i8
-    %1 = llvm.getelementptr %0[0] : (!llvm.ptr) -> !llvm.ptr, !llvm.ptr
+    %1 = llvm.getelementptr %0[0] : (!llvm.ptr) -> !llvm.ptr, i8
     %2 = llvm.load %1 : !llvm.ptr -> !llvm.ptr
     cf.br ^bb1
   ^bb1:  // pred: ^bb0
@@ -64,7 +64,7 @@ module {
     %c0_i64 = arith.constant 0 : i64
     %3 = arith.extui %c65536_i32 : i32 to i64
     %4 = arith.addi %3, %c0_i64 : i64
-    %5 = llvm.getelementptr %2[%4] : (!llvm.ptr, i64) -> !llvm.ptr, !llvm.ptr
+    %5 = llvm.getelementptr %2[%4] : (!llvm.ptr, i64) -> !llvm.ptr, i8
     llvm.store %c3_i32, %5 : i32, !llvm.ptr
     cf.br ^bb2
   ^bb2:  // pred: ^bb1

@@ -939,7 +939,7 @@ impl<DB: Database> Host for VMContext<'_, DB> {
 /// - `is_eof_init`: A boolean flag indicating whether the context is EOF init.
 /// - `spec_id`: The EVM spec ID from [SpecId].
 /// ```
-#[derive(Debug, Default)]
+#[derive(Debug, Default, Clone)]
 pub struct InnerContext {
     /// Represents the mutable, byte-addressable memory used during contract execution.
     /// This memory is accessible by smart contracts for reading and writing data.

@@ -1,3 +1,5 @@
+//！Reference: https://github.com/WebAssembly/spec/tree/main/test/core
+
 use crate::build_wasm_artifact;
 use crate::tests::INIT_GAS;
 use crate::MemoryDB;
@@ -66,7 +68,7 @@ fn test_wasm_main() {
 "#;
     build_wasm_code!(code, artifact, runtime_context, gas);
     let _ret: () = artifact
-        .execute_wasm_func("main", (), runtime_context, gas)
+        .execute_wasm_func_with_context("main", (), runtime_context, gas)
         .unwrap();
 }
 
@@ -101,7 +103,7 @@ fn test_wasm_fib() {
     for (input, output) in tests {
         build_runtime_context!(runtime_context, gas);
         let result: i64 = artifact
-            .execute_wasm_func("fib", *input, runtime_context, gas)
+            .execute_wasm_func_with_context("fib", *input, runtime_context, gas)
             .unwrap();
         assert_eq!(result, *output);
     }
@@ -125,7 +127,7 @@ fn test_wasm_global() {
 "#;
     build_wasm_code!(code, artifact, runtime_context, gas);
     let result: i32 = artifact
-        .execute_wasm_func("user_entrypoint", 10, runtime_context, gas)
+        .execute_wasm_func_with_context("user_entrypoint", 10, runtime_context, gas)
         .unwrap();
     assert_eq!(result, 10 + 255 + 255);
 }
@@ -261,7 +263,186 @@ fn _test_wasm_brainfuck_with_host_functions() {
 "#;
     build_wasm_code!(code, artifact, runtime_context, gas);
     let result: i32 = artifact
-        .execute_wasm_func("user_entrypoint", 0, runtime_context, gas)
+        .execute_wasm_func_with_context("user_entrypoint", 0, runtime_context, gas)
         .unwrap();
     assert_eq!(result, 0);
+}
+
+#[test]
+fn test_wasm_address() -> anyhow::Result<()> {
+    let code = br#"
+(module
+  (memory 1)
+  (data (i32.const 0) "abcdefghijklmnopqrstuvwxyz")
+
+  (func (export "8u_good1") (param $i i32) (result i32)
+    (i32.load8_u offset=0 (local.get $i))                   ;; 97 'a'
+  )
+  (func (export "8u_good2") (param $i i32) (result i32)
+    (i32.load8_u align=1 (local.get $i))                    ;; 97 'a'
+  )
+  (func (export "8u_good3") (param $i i32) (result i32)
+    (i32.load8_u offset=1 align=1 (local.get $i))           ;; 98 'b'
+  )
+  (func (export "8u_good4") (param $i i32) (result i32)
+    (i32.load8_u offset=2 align=1 (local.get $i))           ;; 99 'c'
+  )
+  (func (export "8u_good5") (param $i i32) (result i32)
+    (i32.load8_u offset=25 align=1 (local.get $i))          ;; 122 'z'
+  )
+
+  (func (export "8s_good1") (param $i i32) (result i32)
+    (i32.load8_s offset=0 (local.get $i))                   ;; 97 'a'
+  )
+  (func (export "8s_good2") (param $i i32) (result i32)
+    (i32.load8_s align=1 (local.get $i))                    ;; 97 'a'
+  )
+  (func (export "8s_good3") (param $i i32) (result i32)
+    (i32.load8_s offset=1 align=1 (local.get $i))           ;; 98 'b'
+  )
+  (func (export "8s_good4") (param $i i32) (result i32)
+    (i32.load8_s offset=2 align=1 (local.get $i))           ;; 99 'c'
+  )
+  (func (export "8s_good5") (param $i i32) (result i32)
+    (i32.load8_s offset=25 align=1 (local.get $i))          ;; 122 'z'
+  )
+
+  (func (export "16u_good1") (param $i i32) (result i32)
+    (i32.load16_u offset=0 (local.get $i))                  ;; 25185 'ab'
+  )
+  (func (export "16u_good2") (param $i i32) (result i32)
+    (i32.load16_u align=1 (local.get $i))                   ;; 25185 'ab'
+  )
+  (func (export "16u_good3") (param $i i32) (result i32)
+    (i32.load16_u offset=1 align=1 (local.get $i))          ;; 25442 'bc'
+  )
+  (func (export "16u_good4") (param $i i32) (result i32)
+    (i32.load16_u offset=2 align=2 (local.get $i))          ;; 25699 'cd'
+  )
+  (func (export "16u_good5") (param $i i32) (result i32)
+    (i32.load16_u offset=25 align=2 (local.get $i))         ;; 122 'z\0'
+  )
+
+  (func (export "16s_good1") (param $i i32) (result i32)
+    (i32.load16_s offset=0 (local.get $i))                  ;; 25185 'ab'
+  )
+  (func (export "16s_good2") (param $i i32) (result i32)
+    (i32.load16_s align=1 (local.get $i))                   ;; 25185 'ab'
+  )
+  (func (export "16s_good3") (param $i i32) (result i32)
+    (i32.load16_s offset=1 align=1 (local.get $i))          ;; 25442 'bc'
+  )
+  (func (export "16s_good4") (param $i i32) (result i32)
+    (i32.load16_s offset=2 align=2 (local.get $i))          ;; 25699 'cd'
+  )
+  (func (export "16s_good5") (param $i i32) (result i32)
+    (i32.load16_s offset=25 align=2 (local.get $i))         ;; 122 'z\0'
+  )
+
+  (func (export "32_good1") (param $i i32) (result i32)
+    (i32.load offset=0 (local.get $i))                      ;; 1684234849 'abcd'
+  )
+  (func (export "32_good2") (param $i i32) (result i32)
+    (i32.load align=1 (local.get $i))                       ;; 1684234849 'abcd'
+  )
+  (func (export "32_good3") (param $i i32) (result i32)
+    (i32.load offset=1 align=1 (local.get $i))              ;; 1701077858 'bcde'
+  )
+  (func (export "32_good4") (param $i i32) (result i32)
+    (i32.load offset=2 align=2 (local.get $i))              ;; 1717920867 'cdef'
+  )
+  (func (export "32_good5") (param $i i32) (result i32)
+    (i32.load offset=25 align=4 (local.get $i))             ;; 122 'z\0\0\0'
+  )
+
+  (func (export "8u_bad") (param $i i32)
+    (drop (i32.load8_u offset=4294967295 (local.get $i)))
+  )
+  (func (export "8s_bad") (param $i i32)
+    (drop (i32.load8_s offset=4294967295 (local.get $i)))
+  )
+  (func (export "16u_bad") (param $i i32)
+    (drop (i32.load16_u offset=4294967295 (local.get $i)))
+  )
+  (func (export "16s_bad") (param $i i32)
+    (drop (i32.load16_s offset=4294967295 (local.get $i)))
+  )
+  (func (export "32_bad") (param $i i32)
+    (drop (i32.load offset=4294967295 (local.get $i)))
+  )
+)
+"#;
+    build_wasm_code!(code, artifact);
+    // i32.load_8u
+    let result: i32 = artifact.execute_wasm_func("8u_good1", 0)?;
+    assert_eq!(result, 97);
+    let result: i32 = artifact.execute_wasm_func("8u_good2", 0)?;
+    assert_eq!(result, 97);
+    let result: i32 = artifact.execute_wasm_func("8u_good3", 0)?;
+    assert_eq!(result, 98);
+    let result: i32 = artifact.execute_wasm_func("8u_good4", 0)?;
+    assert_eq!(result, 99);
+    let result: i32 = artifact.execute_wasm_func("8u_good5", 0)?;
+    assert_eq!(result, 122);
+    // i32.load_8s
+    let result: i32 = artifact.execute_wasm_func("8s_good1", 0)?;
+    assert_eq!(result, 97);
+    let result: i32 = artifact.execute_wasm_func("8s_good2", 0)?;
+    assert_eq!(result, 97);
+    let result: i32 = artifact.execute_wasm_func("8s_good3", 0)?;
+    assert_eq!(result, 98);
+    let result: i32 = artifact.execute_wasm_func("8s_good4", 0)?;
+    assert_eq!(result, 99);
+    let result: i32 = artifact.execute_wasm_func("8s_good5", 0)?;
+    assert_eq!(result, 122);
+    // i32.load_16u
+    let result: i32 = artifact.execute_wasm_func("16u_good1", 0)?;
+    assert_eq!(result, 25185);
+    let result: i32 = artifact.execute_wasm_func("16u_good2", 0)?;
+    assert_eq!(result, 25185);
+    let result: i32 = artifact.execute_wasm_func("16u_good3", 0)?;
+    assert_eq!(result, 25442);
+    let result: i32 = artifact.execute_wasm_func("16u_good4", 0)?;
+    assert_eq!(result, 25699);
+    let result: i32 = artifact.execute_wasm_func("16u_good5", 0)?;
+    assert_eq!(result, 122);
+    // i32.load_16s
+    let result: i32 = artifact.execute_wasm_func("16s_good1", 0)?;
+    assert_eq!(result, 25185);
+    let result: i32 = artifact.execute_wasm_func("16s_good2", 0)?;
+    assert_eq!(result, 25185);
+    let result: i32 = artifact.execute_wasm_func("16s_good3", 0)?;
+    assert_eq!(result, 25442);
+    let result: i32 = artifact.execute_wasm_func("16s_good4", 0)?;
+    assert_eq!(result, 25699);
+    let result: i32 = artifact.execute_wasm_func("16s_good5", 0)?;
+    assert_eq!(result, 122);
+    // i32.load
+    let result: i32 = artifact.execute_wasm_func("32_good1", 0)?;
+    assert_eq!(result, 1684234849);
+    let result: i32 = artifact.execute_wasm_func("32_good2", 0)?;
+    assert_eq!(result, 1684234849);
+    let result: i32 = artifact.execute_wasm_func("32_good3", 0)?;
+    assert_eq!(result, 1701077858);
+    let result: i32 = artifact.execute_wasm_func("32_good4", 0)?;
+    assert_eq!(result, 1717920867);
+    let result: i32 = artifact.execute_wasm_func("32_good5", 0)?;
+    assert_eq!(result, 122);
+    // i32.load_8u
+    let result: i32 = artifact.execute_wasm_func("8u_good1", 65507)?;
+    assert_eq!(result, 0);
+    let result: i32 = artifact.execute_wasm_func("8u_good2", 65507)?;
+    assert_eq!(result, 0);
+    let result: i32 = artifact.execute_wasm_func("8u_good3", 65507)?;
+    assert_eq!(result, 0);
+    let result: i32 = artifact.execute_wasm_func("8u_good4", 65507)?;
+    assert_eq!(result, 0);
+    let result: i32 = artifact.execute_wasm_func("8u_good5", 65507)?;
+    assert_eq!(result, 0);
+    // TODO: Out of bounds memory access error deal
+    // assert!(artifact.execute_wasm_func("32_good5", 65508).is_err());
+    // assert!(artifact.execute_wasm_func("8u_good3", -1).is_err());
+    // assert!(artifact.execute_wasm_func("8u_bad", 0).is_err());
+    assert_eq!(result, 0);
+    Ok(())
 }

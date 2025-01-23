@@ -537,7 +537,7 @@ impl<'c, 'a> CtxType<'c, 'a> {
                     .make(builder.gep(
                         memory_definition_ptr,
                         offsets.vmmemory_definition_base() as usize,
-                        builder.ptr_ty(),
+                        builder.i8_ty(),
                         builder.ptr_ty(),
                     ))?
                     .to_ctx_value();
@@ -546,7 +546,7 @@ impl<'c, 'a> CtxType<'c, 'a> {
                         .make(builder.gep(
                             memory_definition_ptr,
                             offsets.vmmemory_definition_current_length() as usize,
-                            builder.ptr_ty(),
+                            builder.i8_ty(),
                             builder.ptr_ty(),
                         ))?
                         .to_ctx_value();
