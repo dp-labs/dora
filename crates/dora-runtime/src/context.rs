@@ -1627,7 +1627,7 @@ impl RuntimeContext<'_> {
         }
         let data_end = min(data_offset + len, data.len());
         let data_len = data_end - data_offset;
-        debug_assert!(data_offset < data.len() && data_end <= data.len());
+        debug_assert!(data_offset <= data.len() && data_end <= data.len());
         let data = unsafe { data.get_unchecked(data_offset..data_end) };
         self.memory_slice_mut(memory_offset, data_len)
             .copy_from_slice(data);

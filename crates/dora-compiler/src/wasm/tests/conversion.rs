@@ -901,3 +901,8 @@ fn complex_logic() {
 "#
     );
 }
+
+#[test]
+fn counter_contract() {
+    assert_snapshot!(include_str!("suites/counter.wat"));
+}
