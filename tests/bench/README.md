@@ -37,3 +37,5 @@ Then you can find the benchmark results at the `target/criterion/` folder in the
 <p align="center">
   <img src="../../imgs/bench/uniswapv3_swap.png"/>
 </p>
+
+> Note: When the contract involves Host API or precompile calls, the above results may vary depending on the selection of different Host APIs or precompiles.
