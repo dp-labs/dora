@@ -684,7 +684,7 @@ module {
   }
   func.func public @"as-store-first"(%arg0: !llvm.ptr) attributes {llvm.emit_c_interface} {
     %0 = llvm.getelementptr %arg0[120] : (!llvm.ptr) -> !llvm.ptr, i8
-    %1 = llvm.getelementptr %0[0] : (!llvm.ptr) -> !llvm.ptr, !llvm.ptr
+    %1 = llvm.getelementptr %0[0] : (!llvm.ptr) -> !llvm.ptr, i8
     %2 = llvm.load %1 : !llvm.ptr -> !llvm.ptr
     cf.br ^bb1
   ^bb1:  // pred: ^bb0
@@ -693,7 +693,7 @@ module {
     %c0_i64 = arith.constant 0 : i64
     %4 = arith.extui %3 : i32 to i64
     %5 = arith.addi %4, %c0_i64 : i64
-    %6 = llvm.getelementptr %2[%5] : (!llvm.ptr, i64) -> !llvm.ptr, !llvm.ptr
+    %6 = llvm.getelementptr %2[%5] : (!llvm.ptr, i64) -> !llvm.ptr, i8
     llvm.store %c1_i32, %6 : i32, !llvm.ptr
     cf.br ^bb2
   ^bb2:  // pred: ^bb1
@@ -701,7 +701,7 @@ module {
   }
   func.func public @"as-store-last"(%arg0: !llvm.ptr) attributes {llvm.emit_c_interface} {
     %0 = llvm.getelementptr %arg0[120] : (!llvm.ptr) -> !llvm.ptr, i8
-    %1 = llvm.getelementptr %0[0] : (!llvm.ptr) -> !llvm.ptr, !llvm.ptr
+    %1 = llvm.getelementptr %0[0] : (!llvm.ptr) -> !llvm.ptr, i8
     %2 = llvm.load %1 : !llvm.ptr -> !llvm.ptr
     cf.br ^bb1
   ^bb1:  // pred: ^bb0
@@ -710,7 +710,7 @@ module {
     %c0_i64 = arith.constant 0 : i64
     %4 = arith.extui %c10_i32 : i32 to i64
     %5 = arith.addi %4, %c0_i64 : i64
-    %6 = llvm.getelementptr %2[%5] : (!llvm.ptr, i64) -> !llvm.ptr, !llvm.ptr
+    %6 = llvm.getelementptr %2[%5] : (!llvm.ptr, i64) -> !llvm.ptr, i8
     llvm.store %3, %6 : i32, !llvm.ptr
     cf.br ^bb2
   ^bb2:  // pred: ^bb1
@@ -793,7 +793,7 @@ module {
   }
   func.func public @"as-load-operand"(%arg0: !llvm.ptr) -> i32 attributes {llvm.emit_c_interface} {
     %0 = llvm.getelementptr %arg0[120] : (!llvm.ptr) -> !llvm.ptr, i8
-    %1 = llvm.getelementptr %0[0] : (!llvm.ptr) -> !llvm.ptr, !llvm.ptr
+    %1 = llvm.getelementptr %0[0] : (!llvm.ptr) -> !llvm.ptr, i8
     %2 = llvm.load %1 : !llvm.ptr -> !llvm.ptr
     cf.br ^bb1
   ^bb1:  // pred: ^bb0
@@ -801,7 +801,7 @@ module {
     %c0_i64 = arith.constant 0 : i64
     %4 = arith.extui %3 : i32 to i64
     %5 = arith.addi %4, %c0_i64 : i64
-    %6 = llvm.getelementptr %2[%5] : (!llvm.ptr, i64) -> !llvm.ptr, !llvm.ptr
+    %6 = llvm.getelementptr %2[%5] : (!llvm.ptr, i64) -> !llvm.ptr, i8
     %7 = llvm.load %6 : !llvm.ptr -> i32
     cf.br ^bb2(%7 : i32)
   ^bb2(%8: i32):  // pred: ^bb1
