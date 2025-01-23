@@ -21,7 +21,7 @@ use melior::ir::{
 };
 use melior::Context as MLIRContext;
 use mlir_sys::{mlirIntegerTypeGetWidth, mlirOperationGetBlock, mlirOperationGetLocation};
-use num_bigint::BigUint;
+use num_bigint::{BigInt, BigUint};
 
 /// The `OpBuilder` struct is responsible for constructing operations within an MLIR context.
 /// It manages the current insertion point within a block, allowing the user to define and insert
@@ -312,6 +312,12 @@ impl<'c, 'a> OpBuilder<'c, 'a> {
         }
     }
 
+    /// Returns the specified integer type with bits.
+    #[inline]
+    pub fn int_ty(&self, bits: u32) -> Ty<'c, '_> {
+        IntegerType::new(self.context(), bits).into()
+    }
+
     /// Creates an `i32` integer attribute with the specified value.
     ///
     /// # Parameters
@@ -427,7 +433,26 @@ impl<'c, 'a> OpBuilder<'c, 'a> {
     /// # Returns
     /// An integer constant operation.
     #[inline]
-    pub fn iconst_bigint(&self, ty: Ty<'c, 'a>, value: BigUint) -> Result<Op<'c, '_>> {
+    pub fn iconst_biguint(&self, ty: Ty<'c, 'a>, value: BigUint) -> Result<Op<'c, '_>> {
+        Ok(arith::constant(
+            self.context(),
+            Attribute::parse(self.context(), &format!("{value} : {ty}")).ok_or(
+                CompileError::Codegen(format!("can't parse value {value} to {ty}")),
+            )?,
+            self.intrinsics.unknown_loc,
+        ))
+    }
+
+    /// Creates an integer constant operation with the specified type and bigint value.
+    ///
+    /// # Parameters
+    /// - `ty`: The type of the integer.
+    /// - `value`: The integer value.
+    ///
+    /// # Returns
+    /// An integer constant operation.
+    #[inline]
+    pub fn iconst_bigint(&self, ty: Ty<'c, 'a>, value: BigInt) -> Result<Op<'c, '_>> {
         Ok(arith::constant(
             self.context(),
             Attribute::parse(self.context(), &format!("{value} : {ty}")).ok_or(

@@ -221,7 +221,7 @@ impl ConversionPass<'_> {
         rewriter.make(arith::xori(
             value,
             rewriter
-                .make(rewriter.iconst_bigint(value_ty, get_ones_bigint(int_width as usize))?)?,
+                .make(rewriter.iconst_biguint(value_ty, get_ones_bigint(int_width as usize))?)?,
             location,
         ))?;
 
@@ -229,25 +229,26 @@ impl ConversionPass<'_> {
     }
 
     pub(crate) fn byte(context: &Context, op: &OperationRef<'_, '_>) -> Result<()> {
-        const BITS_PER_BYTE: u8 = 8;
-        const MAX_SHIFT: u8 = 31;
+        const BITS_PER_BYTE: u32 = 8;
         operands!(op, offset, shift);
         rewrite_ctx!(context, op, rewriter, location);
 
-        let uint256 = rewriter.i256_ty();
+        let ty = offset.r#type();
+        let ty_width = rewriter.int_ty_width(ty)?;
+        let max_shift = if ty_width >= 8 { ty_width / 8 - 1 } else { 0 };
 
         let constant_bits_per_byte = rewriter.make(arith_constant!(
             rewriter,
             context,
-            uint256,
+            ty,
             BITS_PER_BYTE as i64,
             location
         ))?;
         let constant_max_shift_in_bits = rewriter.make(arith_constant!(
             rewriter,
             context,
-            uint256,
-            (MAX_SHIFT * BITS_PER_BYTE) as i64,
+            ty,
+            (max_shift * BITS_PER_BYTE) as i64,
             location
         ))?;
 
@@ -266,13 +267,12 @@ impl ConversionPass<'_> {
 
         rewriter.create(scf::r#if(
             is_offset_oob,
-            &[uint256],
+            &[ty],
             {
                 let region = Region::new();
                 let block = region.append_block(Block::new(&[]));
                 let rewriter = Rewriter::new_with_block(context, block);
-                let zero =
-                    rewriter.make(arith_constant!(rewriter, context, uint256, 0, location))?;
+                let zero = rewriter.make(arith_constant!(rewriter, context, ty, 0, location))?;
                 rewriter.create(scf::r#yield(&[zero], location));
                 region
             },
@@ -293,8 +293,7 @@ impl ConversionPass<'_> {
                     rewriter.make(arith::shrui(shift, shift_right_in_bits, location))?;
 
                 // Define the mask for isolating the desired byte
-                let mask =
-                    rewriter.make(arith_constant!(rewriter, context, uint256, 0xff, location))?;
+                let mask = rewriter.make(arith_constant!(rewriter, context, ty, 0xff, location))?;
 
                 // Apply the bitwise AND operation: result = shifted_right_value & mask
                 let result = rewriter.make(arith::andi(shifted_value, mask, location))?;

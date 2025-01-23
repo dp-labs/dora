@@ -8,17 +8,20 @@ use melior::{
         arith::{self, CmpiPredicate},
         llvm, scf,
     },
-    ir::{Block, Location, Region, Value},
+    ir::{Block, Location, Region, Value, ValueLike},
 };
+use std::cmp::Ordering;
 
 /// Calculates the cost of the `EXP` opcode.
 pub(crate) fn compute_exp_cost<'c>(
     rewriter: &'c Rewriter,
-    exponent: Value<'c, 'c>, /*i256*/
+    exponent: Value<'c, 'c>, /*int value*/
     spec_id: &SpecId,
 ) -> Result<Value<'c, 'c>> {
+    let ty = exponent.r#type();
+    let ty_width = rewriter.int_ty_width(ty)?;
     let location = rewriter.get_insert_location();
-    let zero = rewriter.make(rewriter.iconst_256_from_u64(0)?)?;
+    let zero = rewriter.make(rewriter.iconst(ty, 0))?;
     let is_exponent_zero = rewriter.make(arith::cmpi(
         rewriter.context(),
         CmpiPredicate::Eq,
@@ -27,12 +30,9 @@ pub(crate) fn compute_exp_cost<'c>(
         location,
     ))?;
 
-    let uint64 = rewriter.i64_ty();
-    let uint256 = rewriter.i256_ty();
-
     rewriter.make(scf::r#if(
         is_exponent_zero,
-        &[uint64],
+        &[rewriter.i64_ty()],
         {
             let region = Region::new();
             let block = region.append_block(Block::new(&[]));
@@ -51,37 +51,45 @@ pub(crate) fn compute_exp_cost<'c>(
                 rewriter.context(),
                 exponent,
                 false,
-                uint256,
+                ty,
                 location,
             ))?;
             let number_of_bits = rewriter.make(arith::subi(
-                rewriter.make(rewriter.iconst_256_from_u64(256)?)?,
+                rewriter.make(rewriter.iconst(ty, ty_width as i64))?,
                 leading_zeros,
                 location,
             ))?;
             let bits_with_offset = rewriter.make(arith::addi(
                 number_of_bits,
-                rewriter.make(rewriter.iconst_256_from_u64(7)?)?,
+                rewriter.make(rewriter.iconst(ty, 7))?,
                 location,
             ))?;
             let number_of_bytes = rewriter.make(arith::divui(
                 bits_with_offset,
-                rewriter.make(rewriter.iconst_256_from_u64(8)?)?,
+                rewriter.make(rewriter.iconst(ty, 8))?,
                 location,
             ))?;
             let total_gas_cost = rewriter.make(arith::muli(
                 number_of_bytes,
-                rewriter.make(rewriter.iconst_256_from_u64(
+                rewriter.make(rewriter.iconst(
+                    ty,
                     if spec_id.is_enabled_in(SpecId::SPURIOUS_DRAGON) {
                         50
                     } else {
                         10
                     },
-                )?)?,
+                ))?,
                 location,
             ))?;
-
-            let total_gas_cost = rewriter.make(arith::trunci(total_gas_cost, uint64, location))?;
+            let total_gas_cost = match ty_width.cmp(&64) {
+                Ordering::Less => {
+                    rewriter.make(arith::extui(total_gas_cost, rewriter.i64_ty(), location))?
+                }
+                Ordering::Greater => {
+                    rewriter.make(arith::trunci(total_gas_cost, rewriter.i64_ty(), location))?
+                }
+                Ordering::Equal => total_gas_cost,
+            };
             rewriter.create(scf::r#yield(&[total_gas_cost], location));
             region
         },
