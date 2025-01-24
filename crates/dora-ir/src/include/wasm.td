@@ -790,76 +790,76 @@ def Wasm_GeuOp : WASM_Op<"geu"> {
     }];
 }
 
-// Lt Operation
-def Wasm_LtOp : WASM_Op<"lt"> {
+// Flt Operation
+def Wasm_FltOp : WASM_Op<"flt"> {
     let summary = "Not equality comparison between two operands of the same type";
     let description = [{
         This operation compares two operands of the same type for not equality and returns the result.
     }];
 
     let arguments = (ins
-        AnyTypeOf<[I32, I64, F32, F64]>:$lhs,
-        AnyTypeOf<[I32, I64, F32, F64]>:$rhs
+        AnyTypeOf<[F32, F64]>:$lhs,
+        AnyTypeOf<[F32, F64]>:$rhs
     );
 
-    let results = (outs AnyTypeOf<[I32, I64, F32, F64]>:$result);
+    let results = (outs I32:$result);
 
     let assemblyFormat = [{
         $lhs `,` $rhs `:` type($lhs) `->` type($result)
     }];
 }
 
-// Gt Operation
-def Wasm_GtOp : WASM_Op<"gt"> {
+// Fgt Operation
+def Wasm_FgtOp : WASM_Op<"fgt"> {
     let summary = "Not equality comparison between two operands of the same type";
     let description = [{
         This operation compares two operands of the same type for not equality and returns the result.
     }];
 
     let arguments = (ins
-        AnyTypeOf<[I32, I64, F32, F64]>:$lhs,
-        AnyTypeOf<[I32, I64, F32, F64]>:$rhs
+        AnyTypeOf<[F32, F64]>:$lhs,
+        AnyTypeOf<[F32, F64]>:$rhs
     );
 
-    let results = (outs AnyTypeOf<[I32, I64, F32, F64]>:$result);
+    let results = (outs I32:$result);
 
     let assemblyFormat = [{
         $lhs `,` $rhs `:` type($lhs) `->` type($result)
     }];
 }
 
-// Le Operation
-def Wasm_LeOp : WASM_Op<"le"> {
+// Fle Operation
+def Wasm_FleOp : WASM_Op<"fle"> {
     let summary = "Not equality comparison between two operands of the same type";
     let description = [{
         This operation compares two operands of the same type for not equality and returns the result.
     }];
 
     let arguments = (ins
-        AnyTypeOf<[I32, I64, F32, F64]>:$lhs,
-        AnyTypeOf<[I32, I64, F32, F64]>:$rhs
+        AnyTypeOf<[F32, F64]>:$lhs,
+        AnyTypeOf<[F32, F64]>:$rhs
     );
 
-    let results = (outs AnyTypeOf<[I32, I64, F32, F64]>:$result);
+    let results = (outs I32:$result);
 
     let assemblyFormat = [{
         $lhs `,` $rhs `:` type($lhs) `->` type($result)
     }];
 }
 
-// Ge Operation
-def Wasm_GeOp : WASM_Op<"ge"> {
+// Fge Operation
+def Wasm_FgeOp : WASM_Op<"fge"> {
     let summary = "Not equality comparison between two operands of the same type";
     let description = [{
         This operation compares two operands of the same type for not equality and returns the result.
     }];
 
     let arguments = (ins
-        AnyTypeOf<[I32, I64, F32, F64]>:$lhs,
-        AnyTypeOf<[I32, I64, F32, F64]>:$rhs
+        AnyTypeOf<[F32, F64]>:$lhs,
+        AnyTypeOf<[F32, F64]>:$rhs
     );
 
-    let results = (outs AnyTypeOf<[I32, I64, F32, F64]>:$result);
+    let results = (outs I32:$result);
 
     let assemblyFormat = [{
         $lhs `,` $rhs `:` type($lhs) `->` type($result)

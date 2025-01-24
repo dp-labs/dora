@@ -4,6 +4,21 @@ expression: op
 snapshot_kind: text
 ---
 module {
+  func.func public @f32_align(%arg0: !llvm.ptr) -> f32 attributes {llvm.emit_c_interface} {
+    %cst = arith.constant 0.000000e+00 : f32
+    %c1_i64 = arith.constant 1 : i64
+    %0 = llvm.alloca %c1_i64 x f32 : (i64) -> !llvm.ptr
+    llvm.store %cst, %0 : f32, !llvm.ptr
+    cf.br ^bb1
+  ^bb1:  // pred: ^bb0
+    %c1092616192_i32 = arith.constant 1092616192 : i32
+    %1 = arith.bitcast %c1092616192_i32 : i32 to f32
+    llvm.store %1, %0 : f32, !llvm.ptr
+    %2 = llvm.load %0 : !llvm.ptr -> f32
+    cf.br ^bb2(%2 : f32)
+  ^bb2(%3: f32):  // pred: ^bb1
+    return %3 : f32
+  }
   func.func public @f32_align_switch(%arg0: !llvm.ptr, %arg1: i32) -> f32 attributes {llvm.emit_c_interface} {
     %c1_i64 = arith.constant 1 : i64
     %0 = llvm.alloca %c1_i64 x i32 : (i64) -> !llvm.ptr
@@ -15,7 +30,7 @@ module {
     %c1_i64_1 = arith.constant 1 : i64
     %2 = llvm.alloca %c1_i64_1 x f32 : (i64) -> !llvm.ptr
     llvm.store %cst, %2 : f32, !llvm.ptr
-    %3 = llvm.getelementptr %arg0[16] : (!llvm.ptr) -> !llvm.ptr, i8
+    %3 = llvm.getelementptr %arg0[24] : (!llvm.ptr) -> !llvm.ptr, i8
     %4 = llvm.getelementptr %3[0] : (!llvm.ptr) -> !llvm.ptr, i8
     %5 = llvm.load %4 : !llvm.ptr -> !llvm.ptr
     cf.br ^bb1
@@ -112,7 +127,7 @@ module {
     %c1_i64_1 = arith.constant 1 : i64
     %2 = llvm.alloca %c1_i64_1 x f64 : (i64) -> !llvm.ptr
     llvm.store %cst, %2 : f64, !llvm.ptr
-    %3 = llvm.getelementptr %arg0[16] : (!llvm.ptr) -> !llvm.ptr, i8
+    %3 = llvm.getelementptr %arg0[24] : (!llvm.ptr) -> !llvm.ptr, i8
     %4 = llvm.getelementptr %3[0] : (!llvm.ptr) -> !llvm.ptr, i8
     %5 = llvm.load %4 : !llvm.ptr -> !llvm.ptr
     cf.br ^bb1
@@ -229,7 +244,7 @@ module {
     %c1_i64_2 = arith.constant 1 : i64
     %3 = llvm.alloca %c1_i64_2 x i32 : (i64) -> !llvm.ptr
     llvm.store %c0_i32, %3 : i32, !llvm.ptr
-    %4 = llvm.getelementptr %arg0[16] : (!llvm.ptr) -> !llvm.ptr, i8
+    %4 = llvm.getelementptr %arg0[24] : (!llvm.ptr) -> !llvm.ptr, i8
     %5 = llvm.getelementptr %4[0] : (!llvm.ptr) -> !llvm.ptr, i8
     %6 = llvm.load %5 : !llvm.ptr -> !llvm.ptr
     cf.br ^bb1
@@ -659,7 +674,7 @@ module {
     %c1_i64_2 = arith.constant 1 : i64
     %3 = llvm.alloca %c1_i64_2 x i64 : (i64) -> !llvm.ptr
     llvm.store %c0_i64, %3 : i64, !llvm.ptr
-    %4 = llvm.getelementptr %arg0[16] : (!llvm.ptr) -> !llvm.ptr, i8
+    %4 = llvm.getelementptr %arg0[24] : (!llvm.ptr) -> !llvm.ptr, i8
     %5 = llvm.getelementptr %4[0] : (!llvm.ptr) -> !llvm.ptr, i8
     %6 = llvm.load %5 : !llvm.ptr -> !llvm.ptr
     cf.br ^bb1
