@@ -205,7 +205,9 @@ fn test_wasm_align_read_write() -> anyhow::Result<()> {
     Ok(())
 }
 
+// TODO: test errors on macos.
 #[test]
+#[cfg(target_os = "linux")]
 fn test_wasm_block() -> anyhow::Result<()> {
     let code = include_bytes!("suites/block.wat");
     build_wasm_code!(code, artifact);

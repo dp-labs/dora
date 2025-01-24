@@ -52,7 +52,10 @@ jobs:
   macos-test:
     name: Macos Test
     if: github.event.pull_request.draft == false
-    runs-on: macos-latest
+    strategy:
+      matrix:
+        os: [macos-latest, macos-13]
+    runs-on: ${{ matrix.os }}
     steps:
       - name: Checkout sources
         uses: actions/checkout@v4
