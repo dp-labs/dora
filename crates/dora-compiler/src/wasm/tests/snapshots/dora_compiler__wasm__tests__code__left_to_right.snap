@@ -424,10 +424,11 @@ module {
     %5 = llvm.getelementptr %2[%4] : (!llvm.ptr, i64) -> !llvm.ptr, i8
     %6 = arith.trunci %c1_i32 : i32 to i8
     llvm.store %6, %5 : i8, !llvm.ptr
-    %cst = arith.constant 0.000000e+00 : f32
-    cf.br ^bb2(%cst : f32)
-  ^bb2(%7: f32):  // pred: ^bb1
-    return %7 : f32
+    %c0_i32 = arith.constant 0 : i32
+    %7 = arith.bitcast %c0_i32 : i32 to f32
+    cf.br ^bb2(%7 : f32)
+  ^bb2(%8: f32):  // pred: ^bb1
+    return %8 : f32
   }
   func.func @f32_right(%arg0: !llvm.ptr) -> f32 {
     %0 = llvm.getelementptr %arg0[72] : (!llvm.ptr) -> !llvm.ptr, i8
@@ -444,10 +445,11 @@ module {
     %5 = llvm.getelementptr %2[%4] : (!llvm.ptr, i64) -> !llvm.ptr, i8
     %6 = arith.trunci %c2_i32 : i32 to i8
     llvm.store %6, %5 : i8, !llvm.ptr
-    %cst = arith.constant 1.06535322E+9 : f32
-    cf.br ^bb2(%cst : f32)
-  ^bb2(%7: f32):  // pred: ^bb1
-    return %7 : f32
+    %c1065353216_i32 = arith.constant 1065353216 : i32
+    %7 = arith.bitcast %c1065353216_i32 : i32 to f32
+    cf.br ^bb2(%7 : f32)
+  ^bb2(%8: f32):  // pred: ^bb1
+    return %8 : f32
   }
   func.func @f32_another(%arg0: !llvm.ptr) -> f32 {
     %0 = llvm.getelementptr %arg0[72] : (!llvm.ptr) -> !llvm.ptr, i8
@@ -464,10 +466,11 @@ module {
     %5 = llvm.getelementptr %2[%4] : (!llvm.ptr, i64) -> !llvm.ptr, i8
     %6 = arith.trunci %c3_i32 : i32 to i8
     llvm.store %6, %5 : i8, !llvm.ptr
-    %cst = arith.constant 1.06535322E+9 : f32
-    cf.br ^bb2(%cst : f32)
-  ^bb2(%7: f32):  // pred: ^bb1
-    return %7 : f32
+    %c1065353216_i32 = arith.constant 1065353216 : i32
+    %7 = arith.bitcast %c1065353216_i32 : i32 to f32
+    cf.br ^bb2(%7 : f32)
+  ^bb2(%8: f32):  // pred: ^bb1
+    return %8 : f32
   }
   func.func @f32_callee(%arg0: !llvm.ptr) -> i32 {
     %0 = llvm.getelementptr %arg0[72] : (!llvm.ptr) -> !llvm.ptr, i8
@@ -524,10 +527,11 @@ module {
     %5 = llvm.getelementptr %2[%4] : (!llvm.ptr, i64) -> !llvm.ptr, i8
     %6 = arith.trunci %c1_i32 : i32 to i8
     llvm.store %6, %5 : i8, !llvm.ptr
-    %cst = arith.constant 0.000000e+00 : f64
-    cf.br ^bb2(%cst : f64)
-  ^bb2(%7: f64):  // pred: ^bb1
-    return %7 : f64
+    %c0_i64_0 = arith.constant 0 : i64
+    %7 = arith.bitcast %c0_i64_0 : i64 to f64
+    cf.br ^bb2(%7 : f64)
+  ^bb2(%8: f64):  // pred: ^bb1
+    return %8 : f64
   }
   func.func @f64_right(%arg0: !llvm.ptr) -> f64 {
     %0 = llvm.getelementptr %arg0[72] : (!llvm.ptr) -> !llvm.ptr, i8
@@ -544,10 +548,11 @@ module {
     %5 = llvm.getelementptr %2[%4] : (!llvm.ptr, i64) -> !llvm.ptr, i8
     %6 = arith.trunci %c2_i32 : i32 to i8
     llvm.store %6, %5 : i8, !llvm.ptr
-    %cst = arith.constant 4.6071824188000174E+18 : f64
-    cf.br ^bb2(%cst : f64)
-  ^bb2(%7: f64):  // pred: ^bb1
-    return %7 : f64
+    %c4607182418800017408_i64 = arith.constant 4607182418800017408 : i64
+    %7 = arith.bitcast %c4607182418800017408_i64 : i64 to f64
+    cf.br ^bb2(%7 : f64)
+  ^bb2(%8: f64):  // pred: ^bb1
+    return %8 : f64
   }
   func.func @f64_another(%arg0: !llvm.ptr) -> f64 {
     %0 = llvm.getelementptr %arg0[72] : (!llvm.ptr) -> !llvm.ptr, i8
@@ -564,10 +569,11 @@ module {
     %5 = llvm.getelementptr %2[%4] : (!llvm.ptr, i64) -> !llvm.ptr, i8
     %6 = arith.trunci %c3_i32 : i32 to i8
     llvm.store %6, %5 : i8, !llvm.ptr
-    %cst = arith.constant 4.6071824188000174E+18 : f64
-    cf.br ^bb2(%cst : f64)
-  ^bb2(%7: f64):  // pred: ^bb1
-    return %7 : f64
+    %c4607182418800017408_i64 = arith.constant 4607182418800017408 : i64
+    %7 = arith.bitcast %c4607182418800017408_i64 : i64 to f64
+    cf.br ^bb2(%7 : f64)
+  ^bb2(%8: f64):  // pred: ^bb1
+    return %8 : f64
   }
   func.func @f64_callee(%arg0: !llvm.ptr) -> i32 {
     %0 = llvm.getelementptr %arg0[72] : (!llvm.ptr) -> !llvm.ptr, i8
@@ -1678,7 +1684,7 @@ module {
     %5 = arith.extui %3 : i32 to i64
     %6 = arith.addi %5, %c0_i64 : i64
     %7 = llvm.getelementptr %2[%6] : (!llvm.ptr, i64) -> !llvm.ptr, i8
-    llvm.store %4, %7 : f32, !llvm.ptr
+    llvm.store %4, %7 {alignment = 1 : i64} : f32, !llvm.ptr
     %8 = call @get(%arg0) : (!llvm.ptr) -> i32
     cf.br ^bb2(%8 : i32)
   ^bb2(%9: i32):  // pred: ^bb1

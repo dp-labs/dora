@@ -34,233 +34,21 @@ macro_rules! build_wasm_code {
     };
 }
 
-macro_rules! build_runtime_context {
-    ($runtime_context:ident, $gas:ident) => {
-        // Run WASM code with env.
-        let env = Env::default();
-        let mut host = DummyHost::new(env);
-        let $runtime_context = RuntimeContext::new(
-            Contract::new_with_env(&host.env, Bytecode::new(vec![].into()), None),
-            1,
-            false,
-            false,
-            &mut host,
-            SpecId::CANCUN,
-        );
-        let $gas = INIT_GAS;
+macro_rules! generate_test_cases {
+    ($artifact:expr, [ $(($func_name:expr, $arg:expr, $expect:expr, $ty:ty)),* $(,)? ]) => {
+        $(
+            {
+                let result: $ty = $artifact.execute_wasm_func($func_name, $arg)?;
+                assert_eq!(result, $expect);
+            }
+        )*
     };
-}
-
-#[test]
-fn test_wasm_main() {
-    let code = br#"
-(module
-  (func $sum_f (param $x i32) (param $y i32) (result i32)
-    local.get $x
-    local.get $y
-    i32.add)
-
-  (func (export "main") 
-    (call $sum_f (i32.const 2) (i32.const 3))
-    drop
-  )
-)
-"#;
-    build_wasm_code!(code, artifact, runtime_context, gas);
-    let _ret: () = artifact
-        .execute_wasm_func_with_context("main", (), runtime_context, gas)
-        .unwrap();
-}
-
-#[test]
-fn test_wasm_fib() {
-    let code = br#"
-(module
-  (func $fib (export "fib") (param i64) (result i64)
-    (if (result i64) (i64.le_u (local.get 0) (i64.const 1))
-      (then (i64.const 1))
-      (else
-        (i64.add
-          (call $fib (i64.sub (local.get 0) (i64.const 2)))
-          (call $fib (i64.sub (local.get 0) (i64.const 1)))
-        )
-      )
-    )
-  )
-)
-"#;
-    build_wasm_code!(code, artifact);
-    let tests: &[(i64, i64)] = &[
-        (0, 1),
-        (1, 1),
-        (2, 2),
-        (3, 3),
-        (4, 5),
-        (5, 8),
-        (6, 13),
-        (7, 21),
-    ];
-    for (input, output) in tests {
-        build_runtime_context!(runtime_context, gas);
-        let result: i64 = artifact
-            .execute_wasm_func_with_context("fib", *input, runtime_context, gas)
-            .unwrap();
-        assert_eq!(result, *output);
-    }
-}
-
-#[test]
-fn test_wasm_global() {
-    let code = br#"
-(module
-  (global $a i32 (i32.const 255))
-  (global $b i32 (i32.const 255))
-
-  (func $main (export "user_entrypoint") (param $c i32) (result i32)
-    global.get $a
-    global.get $b
-    i32.add
-    local.get $c
-    i32.add
-  )
-)
-"#;
-    build_wasm_code!(code, artifact, runtime_context, gas);
-    let result: i32 = artifact
-        .execute_wasm_func_with_context("user_entrypoint", 10, runtime_context, gas)
-        .unwrap();
-    assert_eq!(result, 10 + 255 + 255);
 }
 
 // #[test]
 // TODO: fix panic on macos arm-64.
 fn _test_wasm_brainfuck_with_host_functions() {
-    let code = br#"
-(module
-  (import "vm_hooks" "read_args"    (func $read_args   (param i32    )))
-  (import "vm_hooks" "write_result" (func $return_data (param i32 i32)))
-  (memory (export "memory") 1 1)
-
-  ;; args advances byte by byte
-  (global $args_ptr (mut i32) (i32.const 0x00))
-  (global $args_end (mut i32) (i32.const 0x00))
-
-  ;; outs just extends the length
-  (global $outs_ptr i32 (i32.const 0x400))
-  (global $outs_len (mut i32) (i32.const 0))
-  (global $outs_cap i32 (i32.const 0x400))
-
-  (global $cell (mut i32) (i32.const 0x800))
-
-  ;; sets up the entry point
-  (func $main (export "user_entrypoint") (param $args_len i32) (result i32)
-
-      ;; load the args
-      local.get $args_len
-      global.set $args_end
-      global.get $args_ptr
-      call $read_args
-
-      ;; set up the pointer
-      global.get $outs_ptr
-      global.get $outs_cap
-      i32.add
-      global.set $cell
-
-      ;; call the generated program
-      call $user
-
-      ;; write the outs
-      ;; global.get $outs_ptr
-      ;; global.get $outs_len
-      ;; call $return_data
-
-      ;; return status success
-      i32.const 0)
-
-  ;; reads one byte from the args
-  (func $comma
-      ;; read the value
-      global.get $args_ptr
-      global.get $args_end
-      i32.eq
-      (if (then
-        ;; at the end, write a 0
-        global.get $cell
-        i32.const 0
-        i32.store8
-        return))
-
-      ;; write the value
-      global.get $cell
-      global.get $args_ptr
-      i32.load8_u
-      i32.store8
-
-      ;; advance 1 byte
-      global.get $args_ptr
-      i32.const 1
-      i32.add
-      global.set $args_ptr)
-
-  ;; writes one byte to the outs
-  (func $dot
-      ;; noop when out of space
-      global.get $outs_len
-      global.get $outs_cap
-      i32.eq
-      (if (then (return)))
-
-      ;; store the value
-      global.get $outs_ptr
-      global.get $outs_len
-      i32.add
-      global.get $cell
-      i32.load8_u
-      i32.store8
-
-      ;; advance by 1
-      global.get $outs_len
-      i32.const 1
-      i32.add
-      global.set $outs_len)
-
-  (func $right
-      global.get $cell
-      i32.const 1
-      i32.add
-      global.set $cell)
-
-  (func $left
-      global.get $cell
-      i32.const 1
-      i32.sub
-      global.set $cell)
-
-  (func $plus
-      global.get $cell
-      global.get $cell
-      i32.load8_u
-      i32.const 1
-      i32.add
-      i32.store8)
-
-  (func $minus
-      global.get $cell
-      global.get $cell
-      i32.load8_u
-      i32.const 1
-      i32.sub
-      i32.store8)
-
-  (func $repeat (result i32)
-      global.get $cell
-      i32.load8_u
-      i32.const 0
-      i32.ne)
-  (func $user)
-)
-"#;
+    let code = include_bytes!("suites/brainfuck.wat");
     build_wasm_code!(code, artifact, runtime_context, gas);
     let result: i32 = artifact
         .execute_wasm_func_with_context("user_entrypoint", 0, runtime_context, gas)
@@ -269,180 +57,148 @@ fn _test_wasm_brainfuck_with_host_functions() {
 }
 
 #[test]
-fn test_wasm_address() -> anyhow::Result<()> {
-    let code = br#"
-(module
-  (memory 1)
-  (data (i32.const 0) "abcdefghijklmnopqrstuvwxyz")
-
-  (func (export "8u_good1") (param $i i32) (result i32)
-    (i32.load8_u offset=0 (local.get $i))                   ;; 97 'a'
-  )
-  (func (export "8u_good2") (param $i i32) (result i32)
-    (i32.load8_u align=1 (local.get $i))                    ;; 97 'a'
-  )
-  (func (export "8u_good3") (param $i i32) (result i32)
-    (i32.load8_u offset=1 align=1 (local.get $i))           ;; 98 'b'
-  )
-  (func (export "8u_good4") (param $i i32) (result i32)
-    (i32.load8_u offset=2 align=1 (local.get $i))           ;; 99 'c'
-  )
-  (func (export "8u_good5") (param $i i32) (result i32)
-    (i32.load8_u offset=25 align=1 (local.get $i))          ;; 122 'z'
-  )
-
-  (func (export "8s_good1") (param $i i32) (result i32)
-    (i32.load8_s offset=0 (local.get $i))                   ;; 97 'a'
-  )
-  (func (export "8s_good2") (param $i i32) (result i32)
-    (i32.load8_s align=1 (local.get $i))                    ;; 97 'a'
-  )
-  (func (export "8s_good3") (param $i i32) (result i32)
-    (i32.load8_s offset=1 align=1 (local.get $i))           ;; 98 'b'
-  )
-  (func (export "8s_good4") (param $i i32) (result i32)
-    (i32.load8_s offset=2 align=1 (local.get $i))           ;; 99 'c'
-  )
-  (func (export "8s_good5") (param $i i32) (result i32)
-    (i32.load8_s offset=25 align=1 (local.get $i))          ;; 122 'z'
-  )
-
-  (func (export "16u_good1") (param $i i32) (result i32)
-    (i32.load16_u offset=0 (local.get $i))                  ;; 25185 'ab'
-  )
-  (func (export "16u_good2") (param $i i32) (result i32)
-    (i32.load16_u align=1 (local.get $i))                   ;; 25185 'ab'
-  )
-  (func (export "16u_good3") (param $i i32) (result i32)
-    (i32.load16_u offset=1 align=1 (local.get $i))          ;; 25442 'bc'
-  )
-  (func (export "16u_good4") (param $i i32) (result i32)
-    (i32.load16_u offset=2 align=2 (local.get $i))          ;; 25699 'cd'
-  )
-  (func (export "16u_good5") (param $i i32) (result i32)
-    (i32.load16_u offset=25 align=2 (local.get $i))         ;; 122 'z\0'
-  )
-
-  (func (export "16s_good1") (param $i i32) (result i32)
-    (i32.load16_s offset=0 (local.get $i))                  ;; 25185 'ab'
-  )
-  (func (export "16s_good2") (param $i i32) (result i32)
-    (i32.load16_s align=1 (local.get $i))                   ;; 25185 'ab'
-  )
-  (func (export "16s_good3") (param $i i32) (result i32)
-    (i32.load16_s offset=1 align=1 (local.get $i))          ;; 25442 'bc'
-  )
-  (func (export "16s_good4") (param $i i32) (result i32)
-    (i32.load16_s offset=2 align=2 (local.get $i))          ;; 25699 'cd'
-  )
-  (func (export "16s_good5") (param $i i32) (result i32)
-    (i32.load16_s offset=25 align=2 (local.get $i))         ;; 122 'z\0'
-  )
-
-  (func (export "32_good1") (param $i i32) (result i32)
-    (i32.load offset=0 (local.get $i))                      ;; 1684234849 'abcd'
-  )
-  (func (export "32_good2") (param $i i32) (result i32)
-    (i32.load align=1 (local.get $i))                       ;; 1684234849 'abcd'
-  )
-  (func (export "32_good3") (param $i i32) (result i32)
-    (i32.load offset=1 align=1 (local.get $i))              ;; 1701077858 'bcde'
-  )
-  (func (export "32_good4") (param $i i32) (result i32)
-    (i32.load offset=2 align=2 (local.get $i))              ;; 1717920867 'cdef'
-  )
-  (func (export "32_good5") (param $i i32) (result i32)
-    (i32.load offset=25 align=4 (local.get $i))             ;; 122 'z\0\0\0'
-  )
-
-  (func (export "8u_bad") (param $i i32)
-    (drop (i32.load8_u offset=4294967295 (local.get $i)))
-  )
-  (func (export "8s_bad") (param $i i32)
-    (drop (i32.load8_s offset=4294967295 (local.get $i)))
-  )
-  (func (export "16u_bad") (param $i i32)
-    (drop (i32.load16_u offset=4294967295 (local.get $i)))
-  )
-  (func (export "16s_bad") (param $i i32)
-    (drop (i32.load16_s offset=4294967295 (local.get $i)))
-  )
-  (func (export "32_bad") (param $i i32)
-    (drop (i32.load offset=4294967295 (local.get $i)))
-  )
-)
-"#;
+fn test_wasm_sum() -> anyhow::Result<()> {
+    let code = include_bytes!("suites/sum.wat");
     build_wasm_code!(code, artifact);
-    // i32.load_8u
-    let result: i32 = artifact.execute_wasm_func("8u_good1", 0)?;
-    assert_eq!(result, 97);
-    let result: i32 = artifact.execute_wasm_func("8u_good2", 0)?;
-    assert_eq!(result, 97);
-    let result: i32 = artifact.execute_wasm_func("8u_good3", 0)?;
-    assert_eq!(result, 98);
-    let result: i32 = artifact.execute_wasm_func("8u_good4", 0)?;
-    assert_eq!(result, 99);
-    let result: i32 = artifact.execute_wasm_func("8u_good5", 0)?;
-    assert_eq!(result, 122);
-    // i32.load_8s
-    let result: i32 = artifact.execute_wasm_func("8s_good1", 0)?;
-    assert_eq!(result, 97);
-    let result: i32 = artifact.execute_wasm_func("8s_good2", 0)?;
-    assert_eq!(result, 97);
-    let result: i32 = artifact.execute_wasm_func("8s_good3", 0)?;
-    assert_eq!(result, 98);
-    let result: i32 = artifact.execute_wasm_func("8s_good4", 0)?;
-    assert_eq!(result, 99);
-    let result: i32 = artifact.execute_wasm_func("8s_good5", 0)?;
-    assert_eq!(result, 122);
-    // i32.load_16u
-    let result: i32 = artifact.execute_wasm_func("16u_good1", 0)?;
-    assert_eq!(result, 25185);
-    let result: i32 = artifact.execute_wasm_func("16u_good2", 0)?;
-    assert_eq!(result, 25185);
-    let result: i32 = artifact.execute_wasm_func("16u_good3", 0)?;
-    assert_eq!(result, 25442);
-    let result: i32 = artifact.execute_wasm_func("16u_good4", 0)?;
-    assert_eq!(result, 25699);
-    let result: i32 = artifact.execute_wasm_func("16u_good5", 0)?;
-    assert_eq!(result, 122);
-    // i32.load_16s
-    let result: i32 = artifact.execute_wasm_func("16s_good1", 0)?;
-    assert_eq!(result, 25185);
-    let result: i32 = artifact.execute_wasm_func("16s_good2", 0)?;
-    assert_eq!(result, 25185);
-    let result: i32 = artifact.execute_wasm_func("16s_good3", 0)?;
-    assert_eq!(result, 25442);
-    let result: i32 = artifact.execute_wasm_func("16s_good4", 0)?;
-    assert_eq!(result, 25699);
-    let result: i32 = artifact.execute_wasm_func("16s_good5", 0)?;
-    assert_eq!(result, 122);
-    // i32.load
-    let result: i32 = artifact.execute_wasm_func("32_good1", 0)?;
-    assert_eq!(result, 1684234849);
-    let result: i32 = artifact.execute_wasm_func("32_good2", 0)?;
-    assert_eq!(result, 1684234849);
-    let result: i32 = artifact.execute_wasm_func("32_good3", 0)?;
-    assert_eq!(result, 1701077858);
-    let result: i32 = artifact.execute_wasm_func("32_good4", 0)?;
-    assert_eq!(result, 1717920867);
-    let result: i32 = artifact.execute_wasm_func("32_good5", 0)?;
-    assert_eq!(result, 122);
-    // i32.load_8u
-    let result: i32 = artifact.execute_wasm_func("8u_good1", 65507)?;
-    assert_eq!(result, 0);
-    let result: i32 = artifact.execute_wasm_func("8u_good2", 65507)?;
-    assert_eq!(result, 0);
-    let result: i32 = artifact.execute_wasm_func("8u_good3", 65507)?;
-    assert_eq!(result, 0);
-    let result: i32 = artifact.execute_wasm_func("8u_good4", 65507)?;
-    assert_eq!(result, 0);
-    let result: i32 = artifact.execute_wasm_func("8u_good5", 65507)?;
-    assert_eq!(result, 0);
+    generate_test_cases!(&artifact, [("main", (), (), ()),]);
+    Ok(())
+}
+
+#[test]
+fn test_wasm_fib() -> anyhow::Result<()> {
+    let code = include_bytes!("suites/fib.wat");
+    build_wasm_code!(code, artifact);
+    generate_test_cases!(
+        &artifact,
+        [
+            ("fib", 0_i64, 1_i64, i64),
+            ("fib", 1_i64, 1_i64, i64),
+            ("fib", 2_i64, 2_i64, i64),
+            ("fib", 3_i64, 3_i64, i64),
+            ("fib", 4_i64, 5_i64, i64),
+            ("fib", 5_i64, 8_i64, i64),
+            ("fib", 6_i64, 13_i64, i64),
+            ("fib", 7_i64, 21_i64, i64),
+        ]
+    );
+    Ok(())
+}
+
+#[test]
+fn test_wasm_global() -> anyhow::Result<()> {
+    let code = include_bytes!("suites/global.wat");
+    build_wasm_code!(code, artifact);
+    generate_test_cases!(&artifact, [("user_entrypoint", 10, 10 + 255 + 255, i32),]);
+    Ok(())
+}
+
+#[test]
+fn test_wasm_address() -> anyhow::Result<()> {
+    let code = include_bytes!("suites/address.wat");
+    build_wasm_code!(code, artifact);
+    generate_test_cases!(
+        &artifact,
+        [
+            // i32.load_8u
+            ("8u_good1", 0, 97, i32),
+            ("8u_good2", 0, 97, i32),
+            ("8u_good3", 0, 98, i32),
+            ("8u_good4", 0, 99, i32),
+            ("8u_good5", 0, 122, i32),
+            // i32.load_8s
+            ("8s_good1", 0, 97, i32),
+            ("8s_good2", 0, 97, i32),
+            ("8s_good3", 0, 98, i32),
+            ("8s_good4", 0, 99, i32),
+            ("8s_good5", 0, 122, i32),
+            // i32.load_16u
+            ("16u_good1", 0, 25185, i32),
+            ("16u_good2", 0, 25185, i32),
+            ("16u_good3", 0, 25442, i32),
+            ("16u_good4", 0, 25699, i32),
+            ("16u_good5", 0, 122, i32),
+            // i32.load_16s
+            ("16s_good1", 0, 25185, i32),
+            ("16s_good2", 0, 25185, i32),
+            ("16s_good3", 0, 25442, i32),
+            ("16s_good4", 0, 25699, i32),
+            ("16s_good5", 0, 122, i32),
+            // i32.load
+            ("32_good1", 0, 1684234849, i32),
+            ("32_good2", 0, 1684234849, i32),
+            ("32_good3", 0, 1701077858, i32),
+            ("32_good4", 0, 1717920867, i32),
+            ("32_good5", 0, 122, i32),
+            // i32.load_8u
+            ("8u_good1", 65507, 0, i32),
+            ("8u_good2", 65507, 0, i32),
+            ("8u_good3", 65507, 0, i32),
+            ("8u_good4", 65507, 0, i32),
+            ("8u_good5", 65507, 0, i32),
+        ]
+    );
     // TODO: Out of bounds memory access error deal
     // assert!(artifact.execute_wasm_func("32_good5", 65508).is_err());
     // assert!(artifact.execute_wasm_func("8u_good3", -1).is_err());
     // assert!(artifact.execute_wasm_func("8u_bad", 0).is_err());
-    assert_eq!(result, 0);
+    Ok(())
+}
+
+#[test]
+fn test_wasm_align_read_write() -> anyhow::Result<()> {
+    let code = include_bytes!("suites/align.wat");
+    build_wasm_code!(code, artifact);
+    generate_test_cases!(
+        &artifact,
+        [
+            ("f32_align", (), 10.0_f32, f32),
+            ("f32_align_switch", 0, 10.0_f32, f32),
+            ("f32_align_switch", 1, 10.0_f32, f32),
+            ("f32_align_switch", 2, 10.0_f32, f32),
+            ("f32_align_switch", 3, 10.0_f32, f32),
+            ("f64_align_switch", 0, 10.0_f64, f64),
+            ("f64_align_switch", 1, 10.0_f64, f64),
+            ("f64_align_switch", 2, 10.0_f64, f64),
+            ("f64_align_switch", 3, 10.0_f64, f64),
+            ("f64_align_switch", 4, 10.0_f64, f64),
+            ("i32_align_switch", (0, 0), 10, i32),
+            ("i32_align_switch", (0, 1), 10, i32),
+            ("i32_align_switch", (1, 0), 10, i32),
+            ("i32_align_switch", (1, 1), 10, i32),
+            ("i32_align_switch", (2, 0), 10, i32),
+            ("i32_align_switch", (2, 1), 10, i32),
+            ("i32_align_switch", (2, 2), 10, i32),
+            ("i32_align_switch", (3, 0), 10, i32),
+            ("i32_align_switch", (3, 1), 10, i32),
+            ("i32_align_switch", (3, 2), 10, i32),
+            ("i32_align_switch", (4, 0), 10, i32),
+            ("i32_align_switch", (4, 1), 10, i32),
+            ("i32_align_switch", (4, 2), 10, i32),
+            ("i32_align_switch", (4, 4), 10, i32),
+            ("i64_align_switch", (0, 0), 10, i64),
+            ("i64_align_switch", (0, 1), 10, i64),
+            ("i64_align_switch", (1, 0), 10, i64),
+            ("i64_align_switch", (1, 1), 10, i64),
+            ("i64_align_switch", (2, 0), 10, i64),
+            ("i64_align_switch", (2, 1), 10, i64),
+            ("i64_align_switch", (2, 2), 10, i64),
+            ("i64_align_switch", (3, 0), 10, i64),
+            ("i64_align_switch", (3, 1), 10, i64),
+            ("i64_align_switch", (3, 2), 10, i64),
+            ("i64_align_switch", (4, 0), 10, i64),
+            ("i64_align_switch", (4, 1), 10, i64),
+            ("i64_align_switch", (4, 2), 10, i64),
+            ("i64_align_switch", (4, 4), 10, i64),
+            ("i64_align_switch", (5, 0), 10, i64),
+            ("i64_align_switch", (5, 1), 10, i64),
+            ("i64_align_switch", (5, 2), 10, i64),
+            ("i64_align_switch", (5, 4), 10, i64),
+            ("i64_align_switch", (6, 0), 10, i64),
+            ("i64_align_switch", (6, 1), 10, i64),
+            ("i64_align_switch", (6, 2), 10, i64),
+            ("i64_align_switch", (6, 4), 10, i64),
+            ("i64_align_switch", (6, 8), 10, i64),
+        ]
+    );
     Ok(())
 }

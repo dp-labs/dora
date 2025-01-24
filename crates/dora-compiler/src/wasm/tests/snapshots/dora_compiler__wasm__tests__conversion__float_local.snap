@@ -1,61 +1,33 @@
 ---
-source: crates/dora-compiler/src/wasm/tests/code.rs
+source: crates/dora-compiler/src/wasm/tests/conversion.rs
 expression: op
 snapshot_kind: text
 ---
 module {
-  func.func public @"type-local-i32"(%arg0: !llvm.ptr) -> i32 attributes {llvm.emit_c_interface} {
-    %c0_i32 = arith.constant 0 : i32
-    %c1_i64 = arith.constant 1 : i64
-    %0 = llvm.alloca %c1_i64 x i32 : (i64) -> !llvm.ptr
-    llvm.store %c0_i32, %0 : i32, !llvm.ptr
-    cf.br ^bb1
-  ^bb1:  // pred: ^bb0
-    %c42_i32 = arith.constant 42 : i32
-    llvm.store %c42_i32, %0 : i32, !llvm.ptr
-    %1 = llvm.load %0 : !llvm.ptr -> i32
-    cf.br ^bb2(%1 : i32)
-  ^bb2(%2: i32):  // pred: ^bb1
-    return %2 : i32
-  }
-  func.func public @"type-local-i64"(%arg0: !llvm.ptr) -> i64 attributes {llvm.emit_c_interface} {
-    %c0_i64 = arith.constant 0 : i64
-    %c1_i64 = arith.constant 1 : i64
-    %0 = llvm.alloca %c1_i64 x i64 : (i64) -> !llvm.ptr
-    llvm.store %c0_i64, %0 : i64, !llvm.ptr
-    cf.br ^bb1
-  ^bb1:  // pred: ^bb0
-    %c42_i64 = arith.constant 42 : i64
-    llvm.store %c42_i64, %0 : i64, !llvm.ptr
-    %1 = llvm.load %0 : !llvm.ptr -> i64
-    cf.br ^bb2(%1 : i64)
-  ^bb2(%2: i64):  // pred: ^bb1
-    return %2 : i64
-  }
-  func.func public @"type-local-f32"(%arg0: !llvm.ptr) -> f32 attributes {llvm.emit_c_interface} {
+  func.func public @f32_local(%arg0: !llvm.ptr) -> f32 attributes {llvm.emit_c_interface} {
     %cst = arith.constant 0.000000e+00 : f32
     %c1_i64 = arith.constant 1 : i64
     %0 = llvm.alloca %c1_i64 x f32 : (i64) -> !llvm.ptr
     llvm.store %cst, %0 : f32, !llvm.ptr
     cf.br ^bb1
   ^bb1:  // pred: ^bb0
-    %c1109917696_i32 = arith.constant 1109917696 : i32
-    %1 = arith.bitcast %c1109917696_i32 : i32 to f32
+    %c1092616192_i32 = arith.constant 1092616192 : i32
+    %1 = arith.bitcast %c1092616192_i32 : i32 to f32
     llvm.store %1, %0 : f32, !llvm.ptr
     %2 = llvm.load %0 : !llvm.ptr -> f32
     cf.br ^bb2(%2 : f32)
   ^bb2(%3: f32):  // pred: ^bb1
     return %3 : f32
   }
-  func.func public @"type-local-f64"(%arg0: !llvm.ptr) -> f64 attributes {llvm.emit_c_interface} {
+  func.func public @f64_local(%arg0: !llvm.ptr) -> f64 attributes {llvm.emit_c_interface} {
     %cst = arith.constant 0.000000e+00 : f64
     %c1_i64 = arith.constant 1 : i64
     %0 = llvm.alloca %c1_i64 x f64 : (i64) -> !llvm.ptr
     llvm.store %cst, %0 : f64, !llvm.ptr
     cf.br ^bb1
   ^bb1:  // pred: ^bb0
-    %c4631107791820423168_i64 = arith.constant 4631107791820423168 : i64
-    %1 = arith.bitcast %c4631107791820423168_i64 : i64 to f64
+    %c4621819117588971520_i64 = arith.constant 4621819117588971520 : i64
+    %1 = arith.bitcast %c4621819117588971520_i64 : i64 to f64
     llvm.store %1, %0 : f64, !llvm.ptr
     %2 = llvm.load %0 : !llvm.ptr -> f64
     cf.br ^bb2(%2 : f64)
