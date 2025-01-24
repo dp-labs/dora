@@ -495,6 +495,40 @@ impl ConversionPass<'_> {
                         arith::trunci(not_value, rewriter.i32_ty(), rewriter.get_insert_location()),
                     );
                 }
+            } else if name == dora_ir::wasm::FltOperation::name() {
+                let lhs = op.operand(0)?;
+                let rhs = op.operand(1)?;
+                debug_assert!(lhs.r#type() == rhs.r#type());
+                replace_op(
+                    op,
+                    dora_ir::dora::slt(self.ctx, rewriter.i32_ty(), lhs, rhs, op.location()).into(),
+                );
+            } else if name == dora_ir::wasm::FgtOperation::name() {
+                let lhs = op.operand(0)?;
+                let rhs = op.operand(1)?;
+                debug_assert!(lhs.r#type() == rhs.r#type());
+                replace_op(
+                    op,
+                    dora_ir::dora::sgt(self.ctx, rewriter.i32_ty(), lhs, rhs, op.location()).into(),
+                );
+            } else if name == dora_ir::wasm::FleOperation::name() {
+                let lhs = op.operand(0)?;
+                let rhs = op.operand(1)?;
+                debug_assert!(lhs.r#type() == rhs.r#type());
+                replace_op(
+                    op,
+                    dora_ir::dora::slte(self.ctx, rewriter.i32_ty(), lhs, rhs, op.location())
+                        .into(),
+                );
+            } else if name == dora_ir::wasm::FgeOperation::name() {
+                let lhs = op.operand(0)?;
+                let rhs = op.operand(1)?;
+                debug_assert!(lhs.r#type() == rhs.r#type());
+                replace_op(
+                    op,
+                    dora_ir::dora::sgte(self.ctx, rewriter.i32_ty(), lhs, rhs, op.location())
+                        .into(),
+                );
             } else if name == dora_ir::wasm::LeuOperation::name() {
                 let lhs = op.operand(0)?;
                 let rhs = op.operand(1)?;

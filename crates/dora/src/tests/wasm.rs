@@ -1,14 +1,7 @@
 //！Reference: https://github.com/WebAssembly/spec/tree/main/test/core
 
 use crate::build_wasm_artifact;
-use crate::tests::INIT_GAS;
 use crate::MemoryDB;
-use dora_primitives::Bytecode;
-use dora_primitives::SpecId;
-use dora_runtime::context::Contract;
-use dora_runtime::context::RuntimeContext;
-use dora_runtime::env::Env;
-use dora_runtime::host::DummyHost;
 use wasmer::wat2wasm;
 
 macro_rules! build_wasm_code {
@@ -45,9 +38,18 @@ macro_rules! generate_test_cases {
     };
 }
 
-// #[test]
-// TODO: fix panic on macos arm-64.
-fn _test_wasm_brainfuck_with_host_functions() {
+// TODO: fix host api calling panic on macos.
+#[test]
+#[cfg(target_os = "linux")]
+fn test_wasm_brainfuck_with_host_functions() {
+    use crate::tests::INIT_GAS;
+    use dora_primitives::Bytecode;
+    use dora_primitives::SpecId;
+    use dora_runtime::context::Contract;
+    use dora_runtime::context::RuntimeContext;
+    use dora_runtime::env::Env;
+    use dora_runtime::host::DummyHost;
+
     let code = include_bytes!("suites/brainfuck.wat");
     build_wasm_code!(code, artifact, runtime_context, gas);
     let result: i32 = artifact
@@ -198,6 +200,70 @@ fn test_wasm_align_read_write() -> anyhow::Result<()> {
             ("i64_align_switch", (6, 2), 10, i64),
             ("i64_align_switch", (6, 4), 10, i64),
             ("i64_align_switch", (6, 8), 10, i64),
+        ]
+    );
+    Ok(())
+}
+
+#[test]
+fn test_wasm_block() -> anyhow::Result<()> {
+    let code = include_bytes!("suites/block.wat");
+    build_wasm_code!(code, artifact);
+    generate_test_cases!(
+        &artifact,
+        [
+            ("empty", (), (), ()),
+            ("singular", (), 7, i32),
+            ("multi", (), 8, i32),
+            ("nested", (), 9, i32),
+            ("deep", (), 150, i32),
+            ("as-select-first", (), 1, i32),
+            ("as-select-mid", (), 2, i32),
+            ("as-select-last", (), 2, i32),
+            ("as-loop-first", (), 1, i32),
+            ("as-loop-mid", (), 1, i32),
+            ("as-loop-last", (), 1, i32),
+            ("as-if-condition", (), (), ()),
+            ("as-if-then", (), 1, i32),
+            ("as-if-else", (), 2, i32),
+            ("as-br_if-first", (), 1, i32),
+            ("as-br_if-last", (), 2, i32),
+            ("as-br_table-first", (), 1, i32),
+            ("as-br_table-last", (), 2, i32),
+            ("as-call_indirect-first", (), 1, i32),
+            ("as-call_indirect-mid", (), 2, i32),
+            ("as-call_indirect-last", (), 1, i32),
+            ("as-store-first", (), (), ()),
+            ("as-store-last", (), (), ()),
+            ("as-memory.grow-value", (), 1, i32),
+            ("as-call-value", (), 1, i32),
+            ("as-return-value", (), 1, i32),
+            ("as-drop-operand", (), (), ()),
+            ("as-br-value", (), 1, i32),
+            ("as-local.set-value", (), 1, i32),
+            ("as-local.tee-value", (), 1, i32),
+            ("as-global.set-value", (), 1, i32),
+            ("as-load-operand", (), 1, i32),
+            ("as-unary-operand", (), 0, i32),
+            ("as-binary-operand", (), 12, i32),
+            ("as-test-operand", (), 0, i32),
+            ("as-compare-operand", (), 0, i32),
+            ("as-binary-operands", (), 12, i32),
+            ("as-compare-operands", (), 0, i32),
+            ("as-mixed-operands", (), 27, i32),
+            ("break-bare", (), 19, i32),
+            ("break-value", (), 18, i32),
+            ("break-multi-value", (18, -18), 18, i32),
+            ("break-repeated", (), 18, i32),
+            ("break-inner", (), 0xF, i32),
+            ("param", (), 3, i32),
+            ("params", (), 3, i32),
+            ("params-id", (), 3, i32),
+            ("param-break", (), 3, i32),
+            ("params-break", (), 3, i32),
+            ("params-id-break", (), 3, i32),
+            ("effects", (), 1, i32),
+            ("type-use", (), (), ()),
         ]
     );
     Ok(())

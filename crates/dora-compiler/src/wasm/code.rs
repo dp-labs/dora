@@ -1844,16 +1844,16 @@ impl FunctionCodeGenerator {
                 bin_op!(builder, state, ne, f32 => i32);
             }
             Operator::F32Lt => {
-                bin_op!(builder, state, lt, f32 => i32);
+                bin_op!(builder, state, flt, f32 => i32);
             }
             Operator::F32Gt => {
-                bin_op!(builder, state, gt, f32 => i32);
+                bin_op!(builder, state, fgt, f32 => i32);
             }
             Operator::F32Le => {
-                bin_op!(builder, state, le, f32 => i32);
+                bin_op!(builder, state, fle, f32 => i32);
             }
             Operator::F32Ge => {
-                bin_op!(builder, state, ge, f32 => i32);
+                bin_op!(builder, state, fge, f32 => i32);
             }
             Operator::F64Eq => {
                 bin_op!(builder, state, eq, f64 => i32);
@@ -1862,16 +1862,16 @@ impl FunctionCodeGenerator {
                 bin_op!(builder, state, ne, f64 => i32);
             }
             Operator::F64Lt => {
-                bin_op!(builder, state, lt, f64 => i32);
+                bin_op!(builder, state, flt, f64 => i32);
             }
             Operator::F64Gt => {
-                bin_op!(builder, state, gt, f64 => i32);
+                bin_op!(builder, state, fgt, f64 => i32);
             }
             Operator::F64Le => {
-                bin_op!(builder, state, le, f64 => i32);
+                bin_op!(builder, state, fle, f64 => i32);
             }
             Operator::F64Ge => {
-                bin_op!(builder, state, ge, f64 => i32);
+                bin_op!(builder, state, fge, f64 => i32);
             }
             Operator::I32Clz => {
                 op!(builder, state, clz, i32);

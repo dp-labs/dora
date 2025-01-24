@@ -7,7 +7,7 @@ use melior::{
         arith::{self, CmpiPredicate},
         llvm, scf,
     },
-    ir::{attribute::StringAttribute, operation::OperationRef, Block, Region, ValueLike},
+    ir::{attribute::StringAttribute, operation::OperationRef, Block, Region, TypeLike, ValueLike},
     Context,
 };
 use num_bigint::BigUint;
@@ -19,13 +19,23 @@ impl ConversionPass<'_> {
 
         let ty = op.result(0)?.r#type();
 
-        let lt = rewriter.make(arith::cmpi(
-            context,
-            arith::CmpiPredicate::Ule,
-            l,
-            r,
-            location,
-        ))?;
+        let lt = if l.r#type().is_float() {
+            rewriter.make(arith::cmpf(
+                context,
+                arith::CmpfPredicate::Ole,
+                l,
+                r,
+                location,
+            ))?
+        } else {
+            rewriter.make(arith::cmpi(
+                context,
+                arith::CmpiPredicate::Ule,
+                l,
+                r,
+                location,
+            ))?
+        };
         rewriter.make(arith::extui(lt, ty, location))?;
         Ok(())
     }
@@ -34,15 +44,25 @@ impl ConversionPass<'_> {
         operands!(op, l, r);
         rewrite_ctx!(context, op, rewriter, location);
 
-        let ty = l.r#type();
+        let ty = op.result(0)?.r#type();
 
-        let gt = rewriter.make(arith::cmpi(
-            context,
-            arith::CmpiPredicate::Uge,
-            l,
-            r,
-            location,
-        ))?;
+        let gt = if l.r#type().is_float() {
+            rewriter.make(arith::cmpf(
+                context,
+                arith::CmpfPredicate::Oge,
+                l,
+                r,
+                location,
+            ))?
+        } else {
+            rewriter.make(arith::cmpi(
+                context,
+                arith::CmpiPredicate::Uge,
+                l,
+                r,
+                location,
+            ))?
+        };
         rewriter.make(arith::extui(gt, ty, location))?;
         Ok(())
     }
@@ -53,13 +73,23 @@ impl ConversionPass<'_> {
 
         let ty = op.result(0)?.r#type();
 
-        let slt = rewriter.make(arith::cmpi(
-            context,
-            arith::CmpiPredicate::Sle,
-            l,
-            r,
-            location,
-        ))?;
+        let slt = if l.r#type().is_float() {
+            rewriter.make(arith::cmpf(
+                context,
+                arith::CmpfPredicate::Ole,
+                l,
+                r,
+                location,
+            ))?
+        } else {
+            rewriter.make(arith::cmpi(
+                context,
+                arith::CmpiPredicate::Sle,
+                l,
+                r,
+                location,
+            ))?
+        };
         rewriter.make(arith::extui(slt, ty, location))?;
         Ok(())
     }
@@ -70,13 +100,23 @@ impl ConversionPass<'_> {
 
         let ty = op.result(0)?.r#type();
 
-        let sgt = rewriter.make(arith::cmpi(
-            context,
-            arith::CmpiPredicate::Sge,
-            l,
-            r,
-            location,
-        ))?;
+        let sgt = if l.r#type().is_float() {
+            rewriter.make(arith::cmpf(
+                context,
+                arith::CmpfPredicate::Oge,
+                l,
+                r,
+                location,
+            ))?
+        } else {
+            rewriter.make(arith::cmpi(
+                context,
+                arith::CmpiPredicate::Sge,
+                l,
+                r,
+                location,
+            ))?
+        };
         rewriter.make(arith::extui(sgt, ty, location))?;
         Ok(())
     }
@@ -87,13 +127,23 @@ impl ConversionPass<'_> {
 
         let ty = op.result(0)?.r#type();
 
-        let lt = rewriter.make(arith::cmpi(
-            context,
-            arith::CmpiPredicate::Ult,
-            l,
-            r,
-            location,
-        ))?;
+        let lt = if l.r#type().is_float() {
+            rewriter.make(arith::cmpf(
+                context,
+                arith::CmpfPredicate::Olt,
+                l,
+                r,
+                location,
+            ))?
+        } else {
+            rewriter.make(arith::cmpi(
+                context,
+                arith::CmpiPredicate::Ult,
+                l,
+                r,
+                location,
+            ))?
+        };
         rewriter.make(arith::extui(lt, ty, location))?;
         Ok(())
     }
@@ -102,15 +152,25 @@ impl ConversionPass<'_> {
         operands!(op, l, r);
         rewrite_ctx!(context, op, rewriter, location);
 
-        let ty = l.r#type();
+        let ty = op.result(0)?.r#type();
 
-        let gt = rewriter.make(arith::cmpi(
-            context,
-            arith::CmpiPredicate::Ugt,
-            l,
-            r,
-            location,
-        ))?;
+        let gt = if l.r#type().is_float() {
+            rewriter.make(arith::cmpf(
+                context,
+                arith::CmpfPredicate::Ogt,
+                l,
+                r,
+                location,
+            ))?
+        } else {
+            rewriter.make(arith::cmpi(
+                context,
+                arith::CmpiPredicate::Ugt,
+                l,
+                r,
+                location,
+            ))?
+        };
         rewriter.make(arith::extui(gt, ty, location))?;
         Ok(())
     }
@@ -121,13 +181,23 @@ impl ConversionPass<'_> {
 
         let ty = op.result(0)?.r#type();
 
-        let slt = rewriter.make(arith::cmpi(
-            context,
-            arith::CmpiPredicate::Slt,
-            l,
-            r,
-            location,
-        ))?;
+        let slt = if l.r#type().is_float() {
+            rewriter.make(arith::cmpf(
+                context,
+                arith::CmpfPredicate::Olt,
+                l,
+                r,
+                location,
+            ))?
+        } else {
+            rewriter.make(arith::cmpi(
+                context,
+                arith::CmpiPredicate::Slt,
+                l,
+                r,
+                location,
+            ))?
+        };
         rewriter.make(arith::extui(slt, ty, location))?;
         Ok(())
     }
@@ -138,13 +208,23 @@ impl ConversionPass<'_> {
 
         let ty = op.result(0)?.r#type();
 
-        let sgt = rewriter.make(arith::cmpi(
-            context,
-            arith::CmpiPredicate::Sgt,
-            l,
-            r,
-            location,
-        ))?;
+        let sgt = if l.r#type().is_float() {
+            rewriter.make(arith::cmpf(
+                context,
+                arith::CmpfPredicate::Ogt,
+                l,
+                r,
+                location,
+            ))?
+        } else {
+            rewriter.make(arith::cmpi(
+                context,
+                arith::CmpiPredicate::Sgt,
+                l,
+                r,
+                location,
+            ))?
+        };
         rewriter.make(arith::extui(sgt, ty, location))?;
         Ok(())
     }
@@ -155,13 +235,23 @@ impl ConversionPass<'_> {
 
         let ty = op.result(0)?.r#type();
 
-        let eq = rewriter.make(arith::cmpi(
-            context,
-            arith::CmpiPredicate::Eq,
-            l,
-            r,
-            location,
-        ))?;
+        let eq = if l.r#type().is_float() {
+            rewriter.make(arith::cmpf(
+                context,
+                arith::CmpfPredicate::Oeq,
+                l,
+                r,
+                location,
+            ))?
+        } else {
+            rewriter.make(arith::cmpi(
+                context,
+                arith::CmpiPredicate::Eq,
+                l,
+                r,
+                location,
+            ))?
+        };
         rewriter.make(arith::extui(eq, ty, location))?;
         Ok(())
     }
@@ -174,13 +264,23 @@ impl ConversionPass<'_> {
         let ret_ty = op.result(0)?.r#type();
 
         let zero = rewriter.make(rewriter.iconst(value_ty, 0))?;
-        let is_zero = rewriter.make(arith::cmpi(
-            context,
-            arith::CmpiPredicate::Eq,
-            value,
-            zero,
-            location,
-        ))?;
+        let is_zero = if value.r#type().is_float() {
+            rewriter.make(arith::cmpf(
+                context,
+                arith::CmpfPredicate::Oeq,
+                value,
+                zero,
+                location,
+            ))?
+        } else {
+            rewriter.make(arith::cmpi(
+                context,
+                arith::CmpiPredicate::Eq,
+                value,
+                zero,
+                location,
+            ))?
+        };
         rewriter.make(arith::extui(is_zero, ret_ty, location))?;
         Ok(())
     }
