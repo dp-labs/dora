@@ -46,33 +46,35 @@ module {
   func.func public @"type-f32"(%arg0: !llvm.ptr) attributes {llvm.emit_c_interface} {
     cf.br ^bb1
   ^bb1:  // pred: ^bb0
-    %cst = arith.constant 0.000000e+00 : f32
-    %c1_i32 = arith.constant 1 : i32
     %c0_i32 = arith.constant 0 : i32
-    %0 = arith.cmpi ne, %c1_i32, %c0_i32 : i32
-    cf.cond_br %0, ^bb3, ^bb4
+    %0 = arith.bitcast %c0_i32 : i32 to f32
+    %c1_i32 = arith.constant 1 : i32
+    %c0_i32_0 = arith.constant 0 : i32
+    %1 = arith.cmpi ne, %c1_i32, %c0_i32_0 : i32
+    cf.cond_br %1, ^bb3, ^bb4
   ^bb2:  // pred: ^bb3
     return
   ^bb3:  // 2 preds: ^bb1, ^bb4
     cf.br ^bb2
   ^bb4:  // pred: ^bb1
-    %1 = "wasm.neg"(%cst) : (f32) -> f32
+    %2 = "wasm.neg"(%0) : (f32) -> f32
     cf.br ^bb3
   }
   func.func public @"type-f64"(%arg0: !llvm.ptr) attributes {llvm.emit_c_interface} {
     cf.br ^bb1
   ^bb1:  // pred: ^bb0
-    %cst = arith.constant 0.000000e+00 : f64
+    %c0_i64 = arith.constant 0 : i64
+    %0 = arith.bitcast %c0_i64 : i64 to f64
     %c1_i32 = arith.constant 1 : i32
     %c0_i32 = arith.constant 0 : i32
-    %0 = arith.cmpi ne, %c1_i32, %c0_i32 : i32
-    cf.cond_br %0, ^bb3, ^bb4
+    %1 = arith.cmpi ne, %c1_i32, %c0_i32 : i32
+    cf.cond_br %1, ^bb3, ^bb4
   ^bb2:  // pred: ^bb3
     return
   ^bb3:  // 2 preds: ^bb1, ^bb4
     cf.br ^bb2
   ^bb4:  // pred: ^bb1
-    %1 = "wasm.neg"(%cst) : (f64) -> f64
+    %2 = "wasm.neg"(%0) : (f64) -> f64
     cf.br ^bb3
   }
   func.func public @"type-i32-value"(%arg0: !llvm.ptr) -> i32 attributes {llvm.emit_c_interface} {
@@ -110,34 +112,36 @@ module {
   func.func public @"type-f32-value"(%arg0: !llvm.ptr) -> f32 attributes {llvm.emit_c_interface} {
     cf.br ^bb1
   ^bb1:  // pred: ^bb0
-    %cst = arith.constant 1.07793613E+9 : f32
+    %c1077936128_i32 = arith.constant 1077936128 : i32
+    %0 = arith.bitcast %c1077936128_i32 : i32 to f32
     %c1_i32 = arith.constant 1 : i32
     %c0_i32 = arith.constant 0 : i32
-    %0 = arith.cmpi ne, %c1_i32, %c0_i32 : i32
-    cf.cond_br %0, ^bb3(%cst : f32), ^bb4(%cst : f32)
-  ^bb2(%1: f32):  // pred: ^bb3
-    return %1 : f32
-  ^bb3(%2: f32):  // 2 preds: ^bb1, ^bb4
-    cf.br ^bb2(%2 : f32)
-  ^bb4(%3: f32):  // pred: ^bb1
-    %4 = "wasm.neg"(%cst) : (f32) -> f32
-    cf.br ^bb3(%4 : f32)
+    %1 = arith.cmpi ne, %c1_i32, %c0_i32 : i32
+    cf.cond_br %1, ^bb3(%0 : f32), ^bb4(%0 : f32)
+  ^bb2(%2: f32):  // pred: ^bb3
+    return %2 : f32
+  ^bb3(%3: f32):  // 2 preds: ^bb1, ^bb4
+    cf.br ^bb2(%3 : f32)
+  ^bb4(%4: f32):  // pred: ^bb1
+    %5 = "wasm.neg"(%0) : (f32) -> f32
+    cf.br ^bb3(%5 : f32)
   }
   func.func public @"type-f64-value"(%arg0: !llvm.ptr) -> f64 attributes {llvm.emit_c_interface} {
     cf.br ^bb1
   ^bb1:  // pred: ^bb0
-    %cst = arith.constant 4.6161896180547584E+18 : f64
+    %c4616189618054758400_i64 = arith.constant 4616189618054758400 : i64
+    %0 = arith.bitcast %c4616189618054758400_i64 : i64 to f64
     %c1_i32 = arith.constant 1 : i32
     %c0_i32 = arith.constant 0 : i32
-    %0 = arith.cmpi ne, %c1_i32, %c0_i32 : i32
-    cf.cond_br %0, ^bb3(%cst : f64), ^bb4(%cst : f64)
-  ^bb2(%1: f64):  // pred: ^bb3
-    return %1 : f64
-  ^bb3(%2: f64):  // 2 preds: ^bb1, ^bb4
-    cf.br ^bb2(%2 : f64)
-  ^bb4(%3: f64):  // pred: ^bb1
-    %4 = "wasm.neg"(%cst) : (f64) -> f64
-    cf.br ^bb3(%4 : f64)
+    %1 = arith.cmpi ne, %c1_i32, %c0_i32 : i32
+    cf.cond_br %1, ^bb3(%0 : f64), ^bb4(%0 : f64)
+  ^bb2(%2: f64):  // pred: ^bb3
+    return %2 : f64
+  ^bb3(%3: f64):  // 2 preds: ^bb1, ^bb4
+    cf.br ^bb2(%3 : f64)
+  ^bb4(%4: f64):  // pred: ^bb1
+    %5 = "wasm.neg"(%0) : (f64) -> f64
+    cf.br ^bb3(%5 : f64)
   }
   func.func public @"as-block-first"(%arg0: !llvm.ptr, %arg1: i32) -> i32 attributes {llvm.emit_c_interface} {
     %c1_i64 = arith.constant 1 : i64
@@ -1169,18 +1173,19 @@ module {
   func.func public @"as-unary-operand"(%arg0: !llvm.ptr) -> f64 attributes {llvm.emit_c_interface} {
     cf.br ^bb1
   ^bb1:  // pred: ^bb0
-    %cst = arith.constant 4.6071824188000174E+18 : f64
+    %c4607182418800017408_i64 = arith.constant 4607182418800017408 : i64
+    %0 = arith.bitcast %c4607182418800017408_i64 : i64 to f64
     %c1_i32 = arith.constant 1 : i32
     %c0_i32 = arith.constant 0 : i32
-    %0 = arith.cmpi ne, %c1_i32, %c0_i32 : i32
-    cf.cond_br %0, ^bb3(%cst : f64), ^bb4(%cst : f64)
-  ^bb2(%1: f64):  // pred: ^bb3
-    return %1 : f64
-  ^bb3(%2: f64):  // 2 preds: ^bb1, ^bb4
-    cf.br ^bb2(%2 : f64)
-  ^bb4(%3: f64):  // pred: ^bb1
-    %4 = "wasm.neg"(%cst) : (f64) -> f64
-    cf.br ^bb3(%4 : f64)
+    %1 = arith.cmpi ne, %c1_i32, %c0_i32 : i32
+    cf.cond_br %1, ^bb3(%0 : f64), ^bb4(%0 : f64)
+  ^bb2(%2: f64):  // pred: ^bb3
+    return %2 : f64
+  ^bb3(%3: f64):  // 2 preds: ^bb1, ^bb4
+    cf.br ^bb2(%3 : f64)
+  ^bb4(%4: f64):  // pred: ^bb1
+    %5 = "wasm.neg"(%0) : (f64) -> f64
+    cf.br ^bb3(%5 : f64)
   }
   func.func public @"as-binary-left"(%arg0: !llvm.ptr) -> i32 attributes {llvm.emit_c_interface} {
     cf.br ^bb1

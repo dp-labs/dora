@@ -217,7 +217,7 @@ module {
     %3 = arith.extui %c0_i32 : i32 to i64
     %4 = arith.addi %3, %c0_i64 : i64
     %5 = llvm.getelementptr %2[%4] : (!llvm.ptr, i64) -> !llvm.ptr, i8
-    %6 = llvm.load %5 : !llvm.ptr -> f32
+    %6 = llvm.load %5 {alignment = 1 : i64} : !llvm.ptr -> f32
     cf.br ^bb2
   ^bb2:  // pred: ^bb1
     return
@@ -369,12 +369,13 @@ module {
     cf.br ^bb1
   ^bb1:  // pred: ^bb0
     %c0_i32 = arith.constant 0 : i32
-    %cst = arith.constant 1.06535322E+9 : f32
+    %c1065353216_i32 = arith.constant 1065353216 : i32
+    %3 = arith.bitcast %c1065353216_i32 : i32 to f32
     %c0_i64 = arith.constant 0 : i64
-    %3 = arith.extui %c0_i32 : i32 to i64
-    %4 = arith.addi %3, %c0_i64 : i64
-    %5 = llvm.getelementptr %2[%4] : (!llvm.ptr, i64) -> !llvm.ptr, i8
-    llvm.store %cst, %5 : f32, !llvm.ptr
+    %4 = arith.extui %c0_i32 : i32 to i64
+    %5 = arith.addi %4, %c0_i64 : i64
+    %6 = llvm.getelementptr %2[%5] : (!llvm.ptr, i64) -> !llvm.ptr, i8
+    llvm.store %3, %6 {alignment = 1 : i64} : f32, !llvm.ptr
     cf.br ^bb2
   ^bb2:  // pred: ^bb1
     return
@@ -386,12 +387,13 @@ module {
     cf.br ^bb1
   ^bb1:  // pred: ^bb0
     %c0_i32 = arith.constant 0 : i32
-    %cst = arith.constant 4.6071824188000174E+18 : f64
+    %c4607182418800017408_i64 = arith.constant 4607182418800017408 : i64
+    %3 = arith.bitcast %c4607182418800017408_i64 : i64 to f64
     %c0_i64 = arith.constant 0 : i64
-    %3 = arith.extui %c0_i32 : i32 to i64
-    %4 = arith.addi %3, %c0_i64 : i64
-    %5 = llvm.getelementptr %2[%4] : (!llvm.ptr, i64) -> !llvm.ptr, i8
-    llvm.store %cst, %5 : f64, !llvm.ptr
+    %4 = arith.extui %c0_i32 : i32 to i64
+    %5 = arith.addi %4, %c0_i64 : i64
+    %6 = llvm.getelementptr %2[%5] : (!llvm.ptr, i64) -> !llvm.ptr, i8
+    llvm.store %3, %6 : f64, !llvm.ptr
     cf.br ^bb2
   ^bb2:  // pred: ^bb1
     return

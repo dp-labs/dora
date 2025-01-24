@@ -121,33 +121,34 @@ module {
   ^bb2(%13: f64):  // 2 preds: ^bb3, ^bb5
     return %13 : f64
   ^bb3:  // pred: ^bb1
-    %cst = arith.constant 0.000000e+00 : f64
-    cf.br ^bb2(%cst : f64)
+    %c0_i64_3 = arith.constant 0 : i64
+    %14 = arith.bitcast %c0_i64_3 : i64 to f64
+    cf.br ^bb2(%14 : f64)
   ^bb4:  // pred: ^bb1
     cf.br ^bb5
   ^bb5:  // pred: ^bb4
     %c9_i32 = arith.constant 9 : i32
-    %c0_i64_3 = arith.constant 0 : i64
     %c0_i64_4 = arith.constant 0 : i64
-    %14 = arith.extui %c9_i32 : i32 to i64
-    %15 = arith.addi %14, %c0_i64_4 : i64
-    %16 = llvm.getelementptr %2[%15] : (!llvm.ptr, i64) -> !llvm.ptr, i8
-    llvm.store %c0_i64_3, %16 : i64, !llvm.ptr
+    %c0_i64_5 = arith.constant 0 : i64
+    %15 = arith.extui %c9_i32 : i32 to i64
+    %16 = arith.addi %15, %c0_i64_5 : i64
+    %17 = llvm.getelementptr %2[%16] : (!llvm.ptr, i64) -> !llvm.ptr, i8
+    llvm.store %c0_i64_4, %17 : i64, !llvm.ptr
     %c15_i32 = arith.constant 15 : i32
     %c16453_i32 = arith.constant 16453 : i32
-    %c0_i64_5 = arith.constant 0 : i64
-    %17 = arith.extui %c15_i32 : i32 to i64
-    %18 = arith.addi %17, %c0_i64_5 : i64
-    %19 = llvm.getelementptr %2[%18] : (!llvm.ptr, i64) -> !llvm.ptr, i8
-    %20 = arith.trunci %c16453_i32 : i32 to i16
-    llvm.store %20, %19 : i16, !llvm.ptr
-    %c9_i32_6 = arith.constant 9 : i32
-    %c0_i64_7 = arith.constant 0 : i64
-    %21 = arith.extui %c9_i32_6 : i32 to i64
-    %22 = arith.addi %21, %c0_i64_7 : i64
-    %23 = llvm.getelementptr %2[%22] : (!llvm.ptr, i64) -> !llvm.ptr, i8
-    %24 = llvm.load %23 : !llvm.ptr -> f64
-    cf.br ^bb2(%24 : f64)
+    %c0_i64_6 = arith.constant 0 : i64
+    %18 = arith.extui %c15_i32 : i32 to i64
+    %19 = arith.addi %18, %c0_i64_6 : i64
+    %20 = llvm.getelementptr %2[%19] : (!llvm.ptr, i64) -> !llvm.ptr, i8
+    %21 = arith.trunci %c16453_i32 : i32 to i16
+    llvm.store %21, %20 : i16, !llvm.ptr
+    %c9_i32_7 = arith.constant 9 : i32
+    %c0_i64_8 = arith.constant 0 : i64
+    %22 = arith.extui %c9_i32_7 : i32 to i64
+    %23 = arith.addi %22, %c0_i64_8 : i64
+    %24 = llvm.getelementptr %2[%23] : (!llvm.ptr, i64) -> !llvm.ptr, i8
+    %25 = llvm.load %24 : !llvm.ptr -> f64
+    cf.br ^bb2(%25 : f64)
   }
   func.func public @i32_load8_s(%arg0: !llvm.ptr, %arg1: i32) -> i32 attributes {llvm.emit_c_interface} {
     %c1_i64 = arith.constant 1 : i64

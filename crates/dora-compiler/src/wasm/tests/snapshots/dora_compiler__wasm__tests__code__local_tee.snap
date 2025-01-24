@@ -37,11 +37,12 @@ module {
     llvm.store %cst, %0 : f32, !llvm.ptr
     cf.br ^bb1
   ^bb1:  // pred: ^bb0
-    %cst_0 = arith.constant 0.000000e+00 : f32
-    llvm.store %cst_0, %0 : f32, !llvm.ptr
-    cf.br ^bb2(%cst_0 : f32)
-  ^bb2(%1: f32):  // pred: ^bb1
-    return %1 : f32
+    %c0_i32 = arith.constant 0 : i32
+    %1 = arith.bitcast %c0_i32 : i32 to f32
+    llvm.store %1, %0 : f32, !llvm.ptr
+    cf.br ^bb2(%1 : f32)
+  ^bb2(%2: f32):  // pred: ^bb1
+    return %2 : f32
   }
   func.func public @"type-local-f64"(%arg0: !llvm.ptr) -> f64 attributes {llvm.emit_c_interface} {
     %cst = arith.constant 0.000000e+00 : f64
@@ -50,11 +51,12 @@ module {
     llvm.store %cst, %0 : f64, !llvm.ptr
     cf.br ^bb1
   ^bb1:  // pred: ^bb0
-    %cst_0 = arith.constant 0.000000e+00 : f64
-    llvm.store %cst_0, %0 : f64, !llvm.ptr
-    cf.br ^bb2(%cst_0 : f64)
-  ^bb2(%1: f64):  // pred: ^bb1
-    return %1 : f64
+    %c0_i64 = arith.constant 0 : i64
+    %1 = arith.bitcast %c0_i64 : i64 to f64
+    llvm.store %1, %0 : f64, !llvm.ptr
+    cf.br ^bb2(%1 : f64)
+  ^bb2(%2: f64):  // pred: ^bb1
+    return %2 : f64
   }
   func.func public @"type-param-i32"(%arg0: !llvm.ptr, %arg1: i32) -> i32 attributes {llvm.emit_c_interface} {
     %c1_i64 = arith.constant 1 : i64
@@ -86,11 +88,12 @@ module {
     llvm.store %arg1, %0 : f32, !llvm.ptr
     cf.br ^bb1
   ^bb1:  // pred: ^bb0
-    %cst = arith.constant 1.0937696E+9 : f32
-    llvm.store %cst, %0 : f32, !llvm.ptr
-    cf.br ^bb2(%cst : f32)
-  ^bb2(%1: f32):  // pred: ^bb1
-    return %1 : f32
+    %c1093769626_i32 = arith.constant 1093769626 : i32
+    %1 = arith.bitcast %c1093769626_i32 : i32 to f32
+    llvm.store %1, %0 : f32, !llvm.ptr
+    cf.br ^bb2(%1 : f32)
+  ^bb2(%2: f32):  // pred: ^bb1
+    return %2 : f32
   }
   func.func public @"type-param-f64"(%arg0: !llvm.ptr, %arg1: f64) -> f64 attributes {llvm.emit_c_interface} {
     %c1_i64 = arith.constant 1 : i64
@@ -98,11 +101,12 @@ module {
     llvm.store %arg1, %0 : f64, !llvm.ptr
     cf.br ^bb1
   ^bb1:  // pred: ^bb0
-    %cst = arith.constant 4.6230576074864988E+18 : f64
-    llvm.store %cst, %0 : f64, !llvm.ptr
-    cf.br ^bb2(%cst : f64)
-  ^bb2(%1: f64):  // pred: ^bb1
-    return %1 : f64
+    %c4623057607486498406_i64 = arith.constant 4623057607486498406 : i64
+    %1 = arith.bitcast %c4623057607486498406_i64 : i64 to f64
+    llvm.store %1, %0 : f64, !llvm.ptr
+    cf.br ^bb2(%1 : f64)
+  ^bb2(%2: f64):  // pred: ^bb1
+    return %2 : f64
   }
   func.func public @"type-mixed"(%arg0: !llvm.ptr, %arg1: i64, %arg2: f32, %arg3: f64, %arg4: i32, %arg5: i32) attributes {llvm.emit_c_interface} {
     %c1_i64 = arith.constant 1 : i64
@@ -140,30 +144,34 @@ module {
     %c0_i64_9 = arith.constant 0 : i64
     llvm.store %c0_i64_9, %0 : i64, !llvm.ptr
     %9 = "wasm.eqz"(%c0_i64_9) : (i64) -> i32
-    %cst_10 = arith.constant 0.000000e+00 : f32
-    llvm.store %cst_10, %1 : f32, !llvm.ptr
-    %10 = "wasm.neg"(%cst_10) : (f32) -> f32
-    %cst_11 = arith.constant 0.000000e+00 : f64
-    llvm.store %cst_11, %2 : f64, !llvm.ptr
-    %11 = "wasm.neg"(%cst_11) : (f64) -> f64
     %c0_i32 = arith.constant 0 : i32
-    llvm.store %c0_i32, %3 : i32, !llvm.ptr
-    %12 = "wasm.eqz"(%c0_i32) : (i32) -> i32
+    %10 = arith.bitcast %c0_i32 : i32 to f32
+    llvm.store %10, %1 : f32, !llvm.ptr
+    %11 = "wasm.neg"(%10) : (f32) -> f32
+    %c0_i64_10 = arith.constant 0 : i64
+    %12 = arith.bitcast %c0_i64_10 : i64 to f64
+    llvm.store %12, %2 : f64, !llvm.ptr
+    %13 = "wasm.neg"(%12) : (f64) -> f64
+    %c0_i32_11 = arith.constant 0 : i32
+    llvm.store %c0_i32_11, %3 : i32, !llvm.ptr
+    %14 = "wasm.eqz"(%c0_i32_11) : (i32) -> i32
     %c0_i32_12 = arith.constant 0 : i32
     llvm.store %c0_i32_12, %4 : i32, !llvm.ptr
-    %13 = "wasm.eqz"(%c0_i32_12) : (i32) -> i32
-    %cst_13 = arith.constant 0.000000e+00 : f32
-    llvm.store %cst_13, %5 : f32, !llvm.ptr
-    %14 = "wasm.neg"(%cst_13) : (f32) -> f32
+    %15 = "wasm.eqz"(%c0_i32_12) : (i32) -> i32
+    %c0_i32_13 = arith.constant 0 : i32
+    %16 = arith.bitcast %c0_i32_13 : i32 to f32
+    llvm.store %16, %5 : f32, !llvm.ptr
+    %17 = "wasm.neg"(%16) : (f32) -> f32
     %c0_i64_14 = arith.constant 0 : i64
     llvm.store %c0_i64_14, %6 : i64, !llvm.ptr
-    %15 = "wasm.eqz"(%c0_i64_14) : (i64) -> i32
+    %18 = "wasm.eqz"(%c0_i64_14) : (i64) -> i32
     %c0_i64_15 = arith.constant 0 : i64
     llvm.store %c0_i64_15, %7 : i64, !llvm.ptr
-    %16 = "wasm.eqz"(%c0_i64_15) : (i64) -> i32
-    %cst_16 = arith.constant 0.000000e+00 : f64
-    llvm.store %cst_16, %8 : f64, !llvm.ptr
-    %17 = "wasm.neg"(%cst_16) : (f64) -> f64
+    %19 = "wasm.eqz"(%c0_i64_15) : (i64) -> i32
+    %c0_i64_16 = arith.constant 0 : i64
+    %20 = arith.bitcast %c0_i64_16 : i64 to f64
+    llvm.store %20, %8 : f64, !llvm.ptr
+    %21 = "wasm.neg"(%20) : (f64) -> f64
     cf.br ^bb2
   ^bb2:  // pred: ^bb1
     return
@@ -201,46 +209,49 @@ module {
     llvm.store %cst_7, %8 : f64, !llvm.ptr
     cf.br ^bb1
   ^bb1:  // pred: ^bb0
-    %cst_9 = arith.constant 3.19773747E+9 : f32
-    llvm.store %cst_9, %1 : f32, !llvm.ptr
+    %c-1097229926_i32 = arith.constant -1097229926 : i32
+    %9 = arith.bitcast %c-1097229926_i32 : i32 to f32
+    llvm.store %9, %1 : f32, !llvm.ptr
     %c40_i32 = arith.constant 40 : i32
     llvm.store %c40_i32, %3 : i32, !llvm.ptr
     %c-7_i32 = arith.constant -7 : i32
     llvm.store %c-7_i32, %4 : i32, !llvm.ptr
-    %cst_10 = arith.constant 1.08527616E+9 : f32
-    llvm.store %cst_10, %5 : f32, !llvm.ptr
+    %c1085276160_i32 = arith.constant 1085276160 : i32
+    %10 = arith.bitcast %c1085276160_i32 : i32 to f32
+    llvm.store %10, %5 : f32, !llvm.ptr
     %c6_i64 = arith.constant 6 : i64
     llvm.store %c6_i64, %6 : i64, !llvm.ptr
-    %cst_11 = arith.constant 4.6206932176821289E+18 : f64
-    llvm.store %cst_11, %8 : f64, !llvm.ptr
-    %9 = llvm.load %0 : !llvm.ptr -> i64
-    %10 = "wasm.f64_convert_i64u"(%9) : (i64) -> f64
-    %11 = llvm.load %1 : !llvm.ptr -> f32
-    %12 = "wasm.f64_promote_f32"(%11) : (f32) -> f64
-    %13 = llvm.load %2 : !llvm.ptr -> f64
-    %14 = llvm.load %3 : !llvm.ptr -> i32
-    %15 = "wasm.f64_convert_i32u"(%14) : (i32) -> f64
-    %16 = llvm.load %4 : !llvm.ptr -> i32
-    %17 = "wasm.f64_convert_i32s"(%16) : (i32) -> f64
-    %18 = llvm.load %5 : !llvm.ptr -> f32
-    %19 = "wasm.f64_promote_f32"(%18) : (f32) -> f64
-    %20 = llvm.load %6 : !llvm.ptr -> i64
-    %21 = "wasm.f64_convert_i64u"(%20) : (i64) -> f64
-    %22 = llvm.load %7 : !llvm.ptr -> i64
-    %23 = "wasm.f64_convert_i64u"(%22) : (i64) -> f64
-    %24 = llvm.load %8 : !llvm.ptr -> f64
-    %25 = "wasm.add"(%23, %24) : (f64, f64) -> f64
-    %26 = "wasm.add"(%21, %25) : (f64, f64) -> f64
-    %27 = "wasm.add"(%19, %26) : (f64, f64) -> f64
-    %28 = "wasm.add"(%17, %27) : (f64, f64) -> f64
-    %29 = "wasm.add"(%15, %28) : (f64, f64) -> f64
-    %30 = "wasm.add"(%13, %29) : (f64, f64) -> f64
-    %31 = "wasm.add"(%12, %30) : (f64, f64) -> f64
-    %32 = "wasm.add"(%10, %31) : (f64, f64) -> f64
-    %33 = "wasm.i64_trunc_f64s"(%32) : (f64) -> i64
-    cf.br ^bb2(%33 : i64)
-  ^bb2(%34: i64):  // pred: ^bb1
-    return %34 : i64
+    %c4620693217682128896_i64 = arith.constant 4620693217682128896 : i64
+    %11 = arith.bitcast %c4620693217682128896_i64 : i64 to f64
+    llvm.store %11, %8 : f64, !llvm.ptr
+    %12 = llvm.load %0 : !llvm.ptr -> i64
+    %13 = "wasm.f64_convert_i64u"(%12) : (i64) -> f64
+    %14 = llvm.load %1 : !llvm.ptr -> f32
+    %15 = "wasm.f64_promote_f32"(%14) : (f32) -> f64
+    %16 = llvm.load %2 : !llvm.ptr -> f64
+    %17 = llvm.load %3 : !llvm.ptr -> i32
+    %18 = "wasm.f64_convert_i32u"(%17) : (i32) -> f64
+    %19 = llvm.load %4 : !llvm.ptr -> i32
+    %20 = "wasm.f64_convert_i32s"(%19) : (i32) -> f64
+    %21 = llvm.load %5 : !llvm.ptr -> f32
+    %22 = "wasm.f64_promote_f32"(%21) : (f32) -> f64
+    %23 = llvm.load %6 : !llvm.ptr -> i64
+    %24 = "wasm.f64_convert_i64u"(%23) : (i64) -> f64
+    %25 = llvm.load %7 : !llvm.ptr -> i64
+    %26 = "wasm.f64_convert_i64u"(%25) : (i64) -> f64
+    %27 = llvm.load %8 : !llvm.ptr -> f64
+    %28 = "wasm.add"(%26, %27) : (f64, f64) -> f64
+    %29 = "wasm.add"(%24, %28) : (f64, f64) -> f64
+    %30 = "wasm.add"(%22, %29) : (f64, f64) -> f64
+    %31 = "wasm.add"(%20, %30) : (f64, f64) -> f64
+    %32 = "wasm.add"(%18, %31) : (f64, f64) -> f64
+    %33 = "wasm.add"(%16, %32) : (f64, f64) -> f64
+    %34 = "wasm.add"(%15, %33) : (f64, f64) -> f64
+    %35 = "wasm.add"(%13, %34) : (f64, f64) -> f64
+    %36 = "wasm.i64_trunc_f64s"(%35) : (f64) -> i64
+    cf.br ^bb2(%36 : i64)
+  ^bb2(%37: i64):  // pred: ^bb1
+    return %37 : i64
   }
   func.func public @result(%arg0: !llvm.ptr, %arg1: i64, %arg2: f32, %arg3: f64, %arg4: i32, %arg5: i32) -> f64 attributes {llvm.emit_c_interface} {
     %c1_i64 = arith.constant 1 : i64
@@ -278,39 +289,43 @@ module {
     %c1_i64_9 = arith.constant 1 : i64
     llvm.store %c1_i64_9, %0 : i64, !llvm.ptr
     %9 = "wasm.f64_convert_i64u"(%c1_i64_9) : (i64) -> f64
-    %cst_10 = arith.constant 1.07374182E+9 : f32
-    llvm.store %cst_10, %1 : f32, !llvm.ptr
-    %10 = "wasm.f64_promote_f32"(%cst_10) : (f32) -> f64
-    %cst_11 = arith.constant 4.6146133581851791E+18 : f64
-    llvm.store %cst_11, %2 : f64, !llvm.ptr
+    %c1073741824_i32 = arith.constant 1073741824 : i32
+    %10 = arith.bitcast %c1073741824_i32 : i32 to f32
+    llvm.store %10, %1 : f32, !llvm.ptr
+    %11 = "wasm.f64_promote_f32"(%10) : (f32) -> f64
+    %c4614613358185178726_i64 = arith.constant 4614613358185178726 : i64
+    %12 = arith.bitcast %c4614613358185178726_i64 : i64 to f64
+    llvm.store %12, %2 : f64, !llvm.ptr
     %c4_i32 = arith.constant 4 : i32
     llvm.store %c4_i32, %3 : i32, !llvm.ptr
-    %11 = "wasm.f64_convert_i32u"(%c4_i32) : (i32) -> f64
+    %13 = "wasm.f64_convert_i32u"(%c4_i32) : (i32) -> f64
     %c5_i32 = arith.constant 5 : i32
     llvm.store %c5_i32, %4 : i32, !llvm.ptr
-    %12 = "wasm.f64_convert_i32s"(%c5_i32) : (i32) -> f64
-    %cst_12 = arith.constant 1.08527616E+9 : f32
-    llvm.store %cst_12, %5 : f32, !llvm.ptr
-    %13 = "wasm.f64_promote_f32"(%cst_12) : (f32) -> f64
+    %14 = "wasm.f64_convert_i32s"(%c5_i32) : (i32) -> f64
+    %c1085276160_i32 = arith.constant 1085276160 : i32
+    %15 = arith.bitcast %c1085276160_i32 : i32 to f32
+    llvm.store %15, %5 : f32, !llvm.ptr
+    %16 = "wasm.f64_promote_f32"(%15) : (f32) -> f64
     %c6_i64 = arith.constant 6 : i64
     llvm.store %c6_i64, %6 : i64, !llvm.ptr
-    %14 = "wasm.f64_convert_i64u"(%c6_i64) : (i64) -> f64
-    %c0_i64_13 = arith.constant 0 : i64
-    llvm.store %c0_i64_13, %7 : i64, !llvm.ptr
-    %15 = "wasm.f64_convert_i64u"(%c0_i64_13) : (i64) -> f64
-    %cst_14 = arith.constant 4.6206932176821289E+18 : f64
-    llvm.store %cst_14, %8 : f64, !llvm.ptr
-    %16 = "wasm.add"(%15, %cst_14) : (f64, f64) -> f64
-    %17 = "wasm.add"(%14, %16) : (f64, f64) -> f64
-    %18 = "wasm.add"(%13, %17) : (f64, f64) -> f64
-    %19 = "wasm.add"(%12, %18) : (f64, f64) -> f64
-    %20 = "wasm.add"(%11, %19) : (f64, f64) -> f64
-    %21 = "wasm.add"(%cst_11, %20) : (f64, f64) -> f64
-    %22 = "wasm.add"(%10, %21) : (f64, f64) -> f64
-    %23 = "wasm.add"(%9, %22) : (f64, f64) -> f64
-    cf.br ^bb2(%23 : f64)
-  ^bb2(%24: f64):  // pred: ^bb1
-    return %24 : f64
+    %17 = "wasm.f64_convert_i64u"(%c6_i64) : (i64) -> f64
+    %c0_i64_10 = arith.constant 0 : i64
+    llvm.store %c0_i64_10, %7 : i64, !llvm.ptr
+    %18 = "wasm.f64_convert_i64u"(%c0_i64_10) : (i64) -> f64
+    %c4620693217682128896_i64 = arith.constant 4620693217682128896 : i64
+    %19 = arith.bitcast %c4620693217682128896_i64 : i64 to f64
+    llvm.store %19, %8 : f64, !llvm.ptr
+    %20 = "wasm.add"(%18, %19) : (f64, f64) -> f64
+    %21 = "wasm.add"(%17, %20) : (f64, f64) -> f64
+    %22 = "wasm.add"(%16, %21) : (f64, f64) -> f64
+    %23 = "wasm.add"(%14, %22) : (f64, f64) -> f64
+    %24 = "wasm.add"(%13, %23) : (f64, f64) -> f64
+    %25 = "wasm.add"(%12, %24) : (f64, f64) -> f64
+    %26 = "wasm.add"(%11, %25) : (f64, f64) -> f64
+    %27 = "wasm.add"(%9, %26) : (f64, f64) -> f64
+    cf.br ^bb2(%27 : f64)
+  ^bb2(%28: f64):  // pred: ^bb1
+    return %28 : f64
   }
   func.func @dummy(%arg0: !llvm.ptr) {
     cf.br ^bb1
@@ -1141,12 +1156,13 @@ module {
     llvm.store %arg1, %0 : f32, !llvm.ptr
     cf.br ^bb1
   ^bb1:  // pred: ^bb0
-    %cst = arith.constant 2.13915699E+9 : f32
-    llvm.store %cst, %0 : f32, !llvm.ptr
-    %1 = "wasm.neg"(%cst) : (f32) -> f32
-    cf.br ^bb2(%1 : f32)
-  ^bb2(%2: f32):  // pred: ^bb1
-    return %2 : f32
+    %c2139156962_i32 = arith.constant 2139156962 : i32
+    %1 = arith.bitcast %c2139156962_i32 : i32 to f32
+    llvm.store %1, %0 : f32, !llvm.ptr
+    %2 = "wasm.neg"(%1) : (f32) -> f32
+    cf.br ^bb2(%2 : f32)
+  ^bb2(%3: f32):  // pred: ^bb1
+    return %3 : f32
   }
   func.func public @"as-binary-left"(%arg0: !llvm.ptr, %arg1: i32) -> i32 attributes {llvm.emit_c_interface} {
     %c1_i64 = arith.constant 1 : i64

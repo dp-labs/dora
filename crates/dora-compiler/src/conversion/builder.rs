@@ -717,6 +717,27 @@ impl<'c, 'a> OpBuilder<'c, 'a> {
         )
     }
 
+    /// Loads a value from the specified pointer with alignment.
+    ///
+    /// # Parameters
+    /// - `ptr`: The pointer from which to load the value.
+    /// - `ty`: The type of the value to load.
+    /// - `align`: Sets an alignment.
+    ///
+    /// # Returns
+    /// An operation representing the load operation.
+    #[inline]
+    pub fn load_with_align(&self, ptr: Val<'c, 'a>, ty: Ty<'c, 'a>, align: u64) -> Op<'c, '_> {
+        llvm::load(
+            self.context(),
+            ptr,
+            ty,
+            self.intrinsics.unknown_loc,
+            LoadStoreOptions::default()
+                .align(Some(IntegerAttribute::new(self.i64_ty(), align as i64))),
+        )
+    }
+
     /// Loads a value from the specified pointer with the atomic ordering option.
     ///
     /// # Parameters
@@ -762,6 +783,27 @@ impl<'c, 'a> OpBuilder<'c, 'a> {
             ptr,
             self.intrinsics.unknown_loc,
             LoadStoreOptions::default(),
+        )
+    }
+
+    /// Stores a value at the specified pointer with alignment.
+    ///
+    /// # Parameters
+    /// - `value`: The value to store.
+    /// - `ptr`: The pointer where the value should be stored.
+    /// - `align`: Sets an alignment.
+    ///
+    /// # Returns
+    /// An operation representing the store operation.
+    #[inline]
+    pub fn store_with_align(&self, value: Val<'c, 'a>, ptr: Val<'c, 'a>, align: u64) -> Op<'c, '_> {
+        llvm::store(
+            self.context(),
+            value,
+            ptr,
+            self.intrinsics.unknown_loc,
+            LoadStoreOptions::default()
+                .align(Some(IntegerAttribute::new(self.i64_ty(), align as i64))),
         )
     }
 

@@ -1203,8 +1203,7 @@ impl FunctionCodeGenerator {
             }
             Operator::LocalGet { local_index } => {
                 let (type_value, pointer_value) = fcx.locals[local_index as usize];
-                let op = builder.load(pointer_value.to_ctx_value(), type_value);
-                let v = builder.make(op)?;
+                let v = builder.make(builder.load(pointer_value.to_ctx_value(), type_value))?;
                 state.push1(v.to_ctx_value());
             }
             Operator::LocalSet { local_index } => {
@@ -1296,7 +1295,11 @@ impl FunctionCodeGenerator {
                     region,
                     block,
                 )?;
-                let result = builder.make(builder.load(effective_address, builder.f32_ty()))?;
+                let result = builder.make(builder.load_with_align(
+                    effective_address,
+                    builder.f32_ty(),
+                    1,
+                ))?;
                 state.push1(result.to_ctx_value());
                 return Ok(block);
             }
@@ -1582,7 +1585,7 @@ impl FunctionCodeGenerator {
                     region,
                     block,
                 )?;
-                builder.create(builder.store(value, effective_address));
+                builder.create(builder.store_with_align(value, effective_address, 1));
                 return Ok(block);
             }
             Operator::F64Store { ref memarg } => {
@@ -1695,11 +1698,13 @@ impl FunctionCodeGenerator {
                 } else {
                     Default::default()
                 };
-                let f = builder
-                    .create(builder.fconst_32(bits as f32))
-                    .result(0)?
-                    .to_ctx_value();
-                state.push1_extra(f, info);
+                let bits = builder.make(builder.iconst_32(bits as i32))?;
+                let f = builder.make(arith::bitcast(
+                    bits,
+                    builder.f32_ty(),
+                    builder.get_insert_location(),
+                ))?;
+                state.push1_extra(f.to_ctx_value(), info);
             }
             Operator::F64Const { value } => {
                 let bits = value.bits();
@@ -1708,11 +1713,13 @@ impl FunctionCodeGenerator {
                 } else {
                     Default::default()
                 };
-                let f = builder
-                    .create(builder.fconst_64(bits as f64))
-                    .result(0)?
-                    .to_ctx_value();
-                state.push1_extra(f, info);
+                let bits = builder.make(builder.iconst_64(bits as i64))?;
+                let f = builder.make(arith::bitcast(
+                    bits,
+                    builder.f64_ty(),
+                    builder.get_insert_location(),
+                ))?;
+                state.push1_extra(f.to_ctx_value(), info);
             }
             /***************************
              * Reference types.

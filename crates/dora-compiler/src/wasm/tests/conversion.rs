@@ -492,6 +492,26 @@ fn fib() {
 }
 
 #[test]
+fn float_local() {
+    assert_snapshot!(
+        r#"
+(module
+  (func (export "f32_local") (result f32)
+    (local f32)
+    (local.set 0 (f32.const 10.0))
+    (local.get 0)
+  )
+  (func (export "f64_local") (result f64)
+    (local f64)
+    (local.set 0 (f64.const 10.0))
+    (local.get 0)
+  )
+)
+"#
+    );
+}
+
+#[test]
 fn align_read_write() {
     assert_snapshot!(
         r#"

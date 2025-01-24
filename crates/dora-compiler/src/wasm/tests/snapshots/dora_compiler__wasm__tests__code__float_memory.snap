@@ -43,12 +43,13 @@ module {
     cf.br ^bb1
   ^bb1:  // pred: ^bb0
     %c1_i32 = arith.constant 1 : i32
-    %cst = arith.constant 9.2199943371342479E+18 : f64
+    %c9219994337134247936_i64 = arith.constant 9219994337134247936 : i64
+    %3 = arith.bitcast %c9219994337134247936_i64 : i64 to f64
     %c0_i64 = arith.constant 0 : i64
-    %3 = arith.extui %c1_i32 : i32 to i64
-    %4 = arith.addi %3, %c0_i64 : i64
-    %5 = llvm.getelementptr %2[%4] : (!llvm.ptr, i64) -> !llvm.ptr, i8
-    llvm.store %cst, %5 : f64, !llvm.ptr
+    %4 = arith.extui %c1_i32 : i32 to i64
+    %5 = arith.addi %4, %c0_i64 : i64
+    %6 = llvm.getelementptr %2[%5] : (!llvm.ptr, i64) -> !llvm.ptr, i8
+    llvm.store %3, %6 : f64, !llvm.ptr
     cf.br ^bb2
   ^bb2:  // pred: ^bb1
     return

@@ -364,7 +364,7 @@ module {
     %6 = arith.extui %c0_i32_0 : i32 to i64
     %7 = arith.addi %6, %c0_i64 : i64
     %8 = llvm.getelementptr %3[%7] : (!llvm.ptr, i64) -> !llvm.ptr, i8
-    %9 = llvm.load %8 : !llvm.ptr -> f32
+    %9 = llvm.load %8 {alignment = 1 : i64} : !llvm.ptr -> f32
     cf.br ^bb2(%9 : f32)
   ^bb2(%10: f32):  // pred: ^bb1
     return %10 : f32
@@ -522,7 +522,7 @@ module {
     %5 = arith.extui %c0_i32 : i32 to i64
     %6 = arith.addi %5, %c0_i64 : i64
     %7 = llvm.getelementptr %3[%6] : (!llvm.ptr, i64) -> !llvm.ptr, i8
-    llvm.store %4, %7 : f32, !llvm.ptr
+    llvm.store %4, %7 {alignment = 1 : i64} : f32, !llvm.ptr
     %c0_i32_0 = arith.constant 0 : i32
     %8 = call @i32_load_little(%arg0, %c0_i32_0) : (!llvm.ptr, i32) -> i32
     %9 = "wasm.f32_reinterpret_i32"(%8) : (i32) -> f32
