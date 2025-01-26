@@ -2,6 +2,7 @@
 
 use crate::build_wasm_artifact;
 use crate::MemoryDB;
+use anyhow::Result;
 use wasmer::wat2wasm;
 
 macro_rules! build_wasm_code {
@@ -59,7 +60,7 @@ fn test_wasm_brainfuck_with_host_functions() {
 }
 
 #[test]
-fn test_wasm_sum() -> anyhow::Result<()> {
+fn test_wasm_sum() -> Result<()> {
     let code = include_bytes!("suites/sum.wat");
     build_wasm_code!(code, artifact);
     generate_test_cases!(&artifact, [("main", (), (), ()),]);
@@ -67,7 +68,7 @@ fn test_wasm_sum() -> anyhow::Result<()> {
 }
 
 #[test]
-fn test_wasm_fib() -> anyhow::Result<()> {
+fn test_wasm_fib() -> Result<()> {
     let code = include_bytes!("suites/fib.wat");
     build_wasm_code!(code, artifact);
     generate_test_cases!(
@@ -87,7 +88,7 @@ fn test_wasm_fib() -> anyhow::Result<()> {
 }
 
 #[test]
-fn test_wasm_global() -> anyhow::Result<()> {
+fn test_wasm_global() -> Result<()> {
     let code = include_bytes!("suites/global.wat");
     build_wasm_code!(code, artifact);
     generate_test_cases!(&artifact, [("user_entrypoint", 10, 10 + 255 + 255, i32),]);
@@ -95,7 +96,7 @@ fn test_wasm_global() -> anyhow::Result<()> {
 }
 
 #[test]
-fn test_wasm_address() -> anyhow::Result<()> {
+fn test_wasm_address() -> Result<()> {
     let code = include_bytes!("suites/address.wat");
     build_wasm_code!(code, artifact);
     generate_test_cases!(
@@ -147,7 +148,7 @@ fn test_wasm_address() -> anyhow::Result<()> {
 }
 
 #[test]
-fn test_wasm_align_read_write() -> anyhow::Result<()> {
+fn test_wasm_align_read_write() -> Result<()> {
     let code = include_bytes!("suites/align.wat");
     build_wasm_code!(code, artifact);
     generate_test_cases!(
@@ -208,7 +209,7 @@ fn test_wasm_align_read_write() -> anyhow::Result<()> {
 // TODO: test errors on macos.
 #[test]
 #[cfg(target_os = "linux")]
-fn test_wasm_block() -> anyhow::Result<()> {
+fn test_wasm_block() -> Result<()> {
     let code = include_bytes!("suites/block.wat");
     build_wasm_code!(code, artifact);
     generate_test_cases!(
@@ -266,6 +267,94 @@ fn test_wasm_block() -> anyhow::Result<()> {
             ("params-id-break", (), 3, i32),
             ("effects", (), 1, i32),
             ("type-use", (), (), ()),
+        ]
+    );
+    Ok(())
+}
+
+#[test]
+fn test_wasm_br() -> Result<()> {
+    let code = include_bytes!("suites/br.wat");
+    build_wasm_code!(code, artifact);
+    generate_test_cases!(
+        &artifact,
+        [
+            ("type-i32", (), (), ()),
+            ("type-i64", (), (), ()),
+            ("type-f32", (), (), ()),
+            ("type-f64", (), (), ()),
+            ("type-i32-i32", (), (), ()),
+            ("type-i64-i64", (), (), ()),
+            ("type-f32-f32", (), (), ()),
+            ("type-f64-f64", (), (), ()),
+            ("type-i32-value", (), 1_i32, i32),
+            ("type-i64-value", (), 2_i64, i64),
+            ("type-f32-value", (), 3_f32, f32),
+            ("type-f64-value", (), 4_f64, f64),
+            ("type-f64-f64-value", (), (4_f64, 5_f64), (f64, f64)),
+            ("as-block-first", (), (), ()),
+            ("as-block-mid", (), (), ()),
+            ("as-block-last", (), (), ()),
+            ("as-block-value", (), 2_i32, i32),
+            ("as-loop-first", (), (), ()),
+            ("as-loop-mid", (), (), ()),
+            ("as-loop-last", (), (), ()),
+            ("as-br-value", (), (), ()),
+            ("as-br_if-cond", (), (), ()),
+            ("as-br_if-value", (), 8_i32, i32),
+            ("as-br_if-value-cond", (), 9_i32, i32),
+            ("as-br_table-index", (), (), ()),
+            ("as-br_table-value", (), 10_i32, i32),
+            ("as-br_table-value-index", (), 11_i32, i32),
+            ("as-return-value", (), 7_i32, i32),
+            ("as-return-values", (), (2_i32, 7_i32), (i32, i32)),
+            ("as-if-cond", (), 2_i32, i32),
+            ("as-if-then", (1_i32, 6_i32), 3_i32, i32),
+            ("as-if-then", (0_i32, 6_i32), 6_i32, i32),
+            ("as-if-else", (0_i32, 6_i32), 4_i32, i32),
+            ("as-if-else", (1_i32, 6_i32), 6_i32, i32),
+            ("as-select-first", (0_i32, 6_i32), 5_i32, i32),
+            ("as-select-first", (1_i32, 6_i32), 5_i32, i32),
+            ("as-select-second", (0_i32, 6_i32), 6_i32, i32),
+            ("as-select-second", (1_i32, 6_i32), 6_i32, i32),
+            ("as-select-cond", 7_i32, (), ()),
+            ("as-select-all", 8_i32, (), ()),
+            ("as-call-first", 12_i32, (), ()),
+            ("as-call-mid", 13_i32, (), ()),
+            ("as-call-last", 14_i32, (), ()),
+            ("as-call-all", 15_i32, (), ()),
+            ("as-call_indirect-func", 20_i32, (), ()),
+            ("as-call_indirect-first", 21_i32, (), ()),
+            ("as-call_indirect-mid", 22_i32, (), ()),
+            ("as-call_indirect-last", 23_i32, (), ()),
+            ("as-call_indirect-all", 24_i32, (), ()),
+            ("as-local.set-value", 17_i32, (), ()),
+            ("as-local.tee-value", 1_i32, (), ()),
+            ("as-local.set-value", 1_i32, (), ()),
+            ("as-load-address", (), 1.7_f32, f32),
+            ("as-loadN-address", (), 30_i32, i32),
+            ("as-store-address", (), 30_i32, i32),
+            ("as-store-value", (), 31_i32, i32),
+            ("as-store-both", (), 32_i32, i32),
+            ("as-storeN-address", (), 32_i32, i32),
+            ("as-storeN-value", (), 33_i32, i32),
+            ("as-storeN-both", (), 34_i32, i32),
+            ("as-unary-operand", (), 3.4_f32, f32),
+            ("as-binary-left", (), 3_i32, i32),
+            ("as-binary-right", (), 45_i64, i64),
+            ("as-binary-both", (), 46_i32, i32),
+            ("as-test-operand", (), 44_i32, i32),
+            ("as-compare-left", (), 43_i32, i32),
+            ("as-compare-right", (), 42_i32, i32),
+            ("as-compare-both", (), 44_i32, i32),
+            ("as-convert-operand", (), 41_i32, i32),
+            ("as-memory.grow-size", (), 40_i32, i32),
+            ("nested-block-value", (), 9_i32, i32),
+            ("nested-br-value", (), 9_i32, i32),
+            ("nested-br_if-value", (), 9_i32, i32),
+            ("nested-br_if-value-cond", (), 9_i32, i32),
+            ("nested-br_table-value", (), 9_i32, i32),
+            ("nested-br_table-value-index", (), 9_i32, i32),
         ]
     );
     Ok(())

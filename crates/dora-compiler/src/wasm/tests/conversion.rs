@@ -484,6 +484,11 @@ fn block() {
 }
 
 #[test]
+fn br() {
+    assert_snapshot!(include_str!("suites/br.wat"));
+}
+
+#[test]
 fn counter_contract() {
     assert_snapshot!(include_str!("suites/counter.wat"));
 }
