@@ -460,6 +460,11 @@ fn select() {
 
 #[test]
 fn fib() {
+    assert_snapshot!(include_str!("suites/fib.wat"));
+}
+
+#[test]
+fn fib_2() {
     assert_snapshot!(include_str!("suites/fib_2.wat"));
 }
 

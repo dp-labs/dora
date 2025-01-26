@@ -68,6 +68,29 @@ fn test_wasm_sum() -> Result<()> {
 }
 
 #[test]
+fn test_wasm_fib() -> Result<()> {
+    let code = include_bytes!("../../../dora-compiler/src/wasm/tests/suites/fib.wat");
+    build_wasm_code!(code, artifact);
+    generate_test_cases!(
+        &artifact,
+        [
+            ("fib-recursive", 0_i64, 0_i64, i64),
+            ("fib-recursive", 1_i64, 1_i64, i64),
+            ("fib-recursive", 2_i64, 1_i64, i64),
+            ("fib-recursive", 5_i64, 5_i64, i64),
+            ("fib-recursive", 6_i64, 8_i64, i64),
+            ("fib-iterative", 0_i64, 0_i64, i64),
+            ("fib-iterative", 1_i64, 1_i64, i64),
+            ("fib-iterative", 2_i64, 1_i64, i64),
+            ("fib-iterative", 5_i64, 5_i64, i64),
+            ("fib-iterative", 6_i64, 8_i64, i64),
+            ("fib-iterative", 100_i64, 3314859971_i64, i64),
+        ]
+    );
+    Ok(())
+}
+
+#[test]
 fn test_wasm_fib_2() -> Result<()> {
     let code = include_bytes!("../../../dora-compiler/src/wasm/tests/suites/fib_2.wat");
     build_wasm_code!(code, artifact);
