@@ -479,6 +479,11 @@ fn complex_logic() {
 }
 
 #[test]
+fn brainfuck() {
+    assert_snapshot!(include_str!("suites/brainfuck.wat"));
+}
+
+#[test]
 fn block() {
     assert_snapshot!(include_str!("suites/block.wat"));
 }
@@ -491,4 +496,9 @@ fn br() {
 #[test]
 fn counter_contract() {
     assert_snapshot!(include_str!("suites/counter.wat"));
+}
+
+#[test]
+fn global_value() {
+    assert_snapshot!(include_str!("suites/global_value.wat"));
 }

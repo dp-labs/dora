@@ -51,7 +51,7 @@ fn test_wasm_brainfuck_with_host_functions() {
     use dora_runtime::env::Env;
     use dora_runtime::host::DummyHost;
 
-    let code = include_bytes!("suites/brainfuck.wat");
+    let code = include_bytes!("../../../dora-compiler/src/wasm/tests/suites/brainfuck.wat");
     build_wasm_code!(code, artifact, runtime_context, gas);
     let result: i32 = artifact
         .execute_wasm_func_with_context("user_entrypoint", 0, runtime_context, gas)
@@ -61,15 +61,15 @@ fn test_wasm_brainfuck_with_host_functions() {
 
 #[test]
 fn test_wasm_sum() -> Result<()> {
-    let code = include_bytes!("suites/sum.wat");
+    let code = include_bytes!("../../../dora-compiler/src/wasm/tests/suites/sum.wat");
     build_wasm_code!(code, artifact);
     generate_test_cases!(&artifact, [("main", (), (), ()),]);
     Ok(())
 }
 
 #[test]
-fn test_wasm_fib() -> Result<()> {
-    let code = include_bytes!("suites/fib.wat");
+fn test_wasm_fib_2() -> Result<()> {
+    let code = include_bytes!("../../../dora-compiler/src/wasm/tests/suites/fib_2.wat");
     build_wasm_code!(code, artifact);
     generate_test_cases!(
         &artifact,
@@ -88,8 +88,8 @@ fn test_wasm_fib() -> Result<()> {
 }
 
 #[test]
-fn test_wasm_global() -> Result<()> {
-    let code = include_bytes!("suites/global.wat");
+fn test_wasm_global_value() -> Result<()> {
+    let code = include_bytes!("../../../dora-compiler/src/wasm/tests/suites/global_value.wat");
     build_wasm_code!(code, artifact);
     generate_test_cases!(&artifact, [("user_entrypoint", 10, 10 + 255 + 255, i32),]);
     Ok(())
@@ -97,7 +97,7 @@ fn test_wasm_global() -> Result<()> {
 
 #[test]
 fn test_wasm_address() -> Result<()> {
-    let code = include_bytes!("suites/address.wat");
+    let code = include_bytes!("../../../dora-compiler/src/wasm/tests/suites/address.wat");
     build_wasm_code!(code, artifact);
     generate_test_cases!(
         &artifact,
@@ -149,7 +149,7 @@ fn test_wasm_address() -> Result<()> {
 
 #[test]
 fn test_wasm_align_read_write() -> Result<()> {
-    let code = include_bytes!("suites/align.wat");
+    let code = include_bytes!("../../../dora-compiler/src/wasm/tests/suites/align_read_write.wat");
     build_wasm_code!(code, artifact);
     generate_test_cases!(
         &artifact,
@@ -210,7 +210,7 @@ fn test_wasm_align_read_write() -> Result<()> {
 #[test]
 #[cfg(target_os = "linux")]
 fn test_wasm_block() -> Result<()> {
-    let code = include_bytes!("suites/block.wat");
+    let code = include_bytes!("../../../dora-compiler/src/wasm/tests/suites/block.wat");
     build_wasm_code!(code, artifact);
     generate_test_cases!(
         &artifact,
@@ -274,7 +274,7 @@ fn test_wasm_block() -> Result<()> {
 
 #[test]
 fn test_wasm_br() -> Result<()> {
-    let code = include_bytes!("suites/br.wat");
+    let code = include_bytes!("../../../dora-compiler/src/wasm/tests/suites/br.wat");
     build_wasm_code!(code, artifact);
     generate_test_cases!(
         &artifact,
