@@ -3,7 +3,7 @@
   (type $fib-type (func (param i32) (result i32)))
 
   ;; Recursive Fibonacci function
-  (func $fib-recursive (type $fib-type)
+  (func $fib-recursive (export "fib-recursive") (type $fib-type)
     (param $n i32)       ;; Parameter n
     (result i32)         ;; Return type
 
@@ -22,7 +22,7 @@
   )
 
   ;; Iterative Fibonacci function
-  (func $fib-iterative (type $fib-type)
+  (func $fib-iterative (export "fib-iterative") (type $fib-type)
     (param $n i32)       ;; Parameter n
     (result i32)         ;; Return type
     (local $a i32)       ;; Local variable a

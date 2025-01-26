@@ -460,6 +460,11 @@ fn select() {
 
 #[test]
 fn fib() {
+    assert_snapshot!(include_str!("suites/fib.wat"));
+}
+
+#[test]
+fn fib_2() {
     assert_snapshot!(include_str!("suites/fib_2.wat"));
 }
 
@@ -479,11 +484,26 @@ fn complex_logic() {
 }
 
 #[test]
+fn brainfuck() {
+    assert_snapshot!(include_str!("suites/brainfuck.wat"));
+}
+
+#[test]
 fn block() {
     assert_snapshot!(include_str!("suites/block.wat"));
 }
 
 #[test]
+fn br() {
+    assert_snapshot!(include_str!("suites/br.wat"));
+}
+
+#[test]
 fn counter_contract() {
     assert_snapshot!(include_str!("suites/counter.wat"));
+}
+
+#[test]
+fn global_value() {
+    assert_snapshot!(include_str!("suites/global_value.wat"));
 }
