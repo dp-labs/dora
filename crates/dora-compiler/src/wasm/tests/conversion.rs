@@ -504,6 +504,11 @@ fn br_if() {
 }
 
 #[test]
+fn br_table() {
+    assert_snapshot!(include_str!("suites/br_table.wat"));
+}
+
+#[test]
 fn counter_contract() {
     assert_snapshot!(include_str!("suites/counter.wat"));
 }
