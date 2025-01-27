@@ -666,9 +666,9 @@ fn test_wasm_call() -> Result<()> {
         &artifact,
         [
             ("type-i32", 0x132, (), ()),
-            ("type-i64", 0x164, (), ()),
+            ("type-i64", 0x164_i64, (), ()),
             ("type-f32", 0xf32_f32, (), ()),
-            ("type-f64", 0xf64_f32, (), ()),
+            ("type-f64", 0xf64_f64, (), ()),
             ("type-i32-i64", (0x132, 0x164), (), ()),
             ("type-first-i32", 32, (), ()),
             ("type-first-i64", 64, (), ()),
@@ -732,6 +732,23 @@ fn test_wasm_call() -> Result<()> {
             ("as-compare-right", 1_i32, (), ()),
             ("as-convert-operand", 1_i32, (), ()),
             ("return-from-long-argument-list", 42_i32, 42_i32, i32),
+        ]
+    );
+    Ok(())
+}
+
+#[test]
+fn test_wasm_call_indirect() -> Result<()> {
+    let code = include_bytes!("../../../dora-compiler/src/wasm/tests/suites/call_indirect.wat");
+    build_wasm_code!(code, artifact);
+    generate_test_cases!(
+        &artifact,
+        [
+            ("type-i32", (), 0x132, i32),
+            //("type-i64", (), 0x164, i64),
+            // ("type-f32", (), 0xf32 as f32, f32),
+            // ("type-f64", (), 0xf64 as f64, f64),
+            // ("type-index", (), 100, i64),
         ]
     );
     Ok(())

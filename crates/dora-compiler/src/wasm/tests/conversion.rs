@@ -82,6 +82,16 @@ fn sum_with_export_functions() {
 }
 
 #[test]
+fn i32_arith() {
+    assert_snapshot!(include_str!("suites/i32_arith.wat"));
+}
+
+#[test]
+fn i64_arith() {
+    assert_snapshot!(include_str!("suites/i64_arith.wat"));
+}
+
+#[test]
 fn and_i32() {
     assert_snapshot!(
         r#"
@@ -516,6 +526,11 @@ fn bulk() {
 #[test]
 fn call() {
     assert_snapshot!(include_str!("suites/call.wat"));
+}
+
+#[test]
+fn call_indirect() {
+    assert_snapshot!(include_str!("suites/call_indirect.wat"));
 }
 
 #[test]

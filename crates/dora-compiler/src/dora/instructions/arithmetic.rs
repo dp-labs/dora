@@ -13,8 +13,16 @@ use dora_primitives::SpecId;
 use dora_runtime::symbols;
 use dora_runtime::ExitStatusCode;
 use melior::{
-    dialect::{arith, func, ods::llvm, scf},
-    ir::{attribute::FlatSymbolRefAttribute, operation::OperationRef, Block, Region, ValueLike},
+    dialect::{
+        arith::{self, CmpfPredicate},
+        func,
+        ods::llvm,
+        scf,
+    },
+    ir::{
+        attribute::FlatSymbolRefAttribute, operation::OperationRef, Block, Region, TypeLike,
+        ValueLike,
+    },
     Context,
 };
 use num_bigint::BigInt;
@@ -23,32 +31,52 @@ impl ConversionPass<'_> {
     pub(crate) fn add(context: &Context, op: &OperationRef<'_, '_>) -> Result<()> {
         operands!(op, l, r);
         rewrite_ctx!(context, op, rewriter, location);
-        rewriter.make(arith::addi(l, r, location))?;
+        rewriter.make(if l.r#type().is_float() {
+            arith::addf(l, r, location)
+        } else {
+            arith::addi(l, r, location)
+        })?;
         Ok(())
     }
 
     pub(crate) fn mul(context: &Context, op: &OperationRef<'_, '_>) -> Result<()> {
         operands!(op, l, r);
         rewrite_ctx!(context, op, rewriter, location);
-        rewriter.make(arith::muli(l, r, location))?;
+        rewriter.make(if l.r#type().is_float() {
+            arith::mulf(l, r, location)
+        } else {
+            arith::muli(l, r, location)
+        })?;
         Ok(())
     }
 
     pub(crate) fn sub(context: &Context, op: &OperationRef<'_, '_>) -> Result<()> {
         operands!(op, l, r);
         rewrite_ctx!(context, op, rewriter, location);
-        rewriter.make(arith::subi(l, r, location))?;
+        rewriter.make(if l.r#type().is_float() {
+            arith::subf(l, r, location)
+        } else {
+            arith::subi(l, r, location)
+        })?;
         Ok(())
     }
 
     pub(crate) fn udiv(context: &Context, op: &OperationRef<'_, '_>) -> Result<()> {
         operands!(op, l, r);
         rewrite_ctx!(context, op, rewriter, location);
-        let result = rewriter.make(arith::divui(l, r, location))?;
         let ty = l.r#type();
-        let zero = rewriter.make(rewriter.iconst(ty, 0))?;
-        let is_zero = rewriter.make(rewriter.icmp(IntCC::Equal, r, zero))?;
-        rewriter.make(arith::select(is_zero, zero, result, location))?;
+        if ty.is_float() {
+            let result = rewriter.make(arith::divf(l, r, location))?;
+            let zero = rewriter.make(rewriter.fconst(ty, 0.0))?;
+            let is_zero =
+                rewriter.make(arith::cmpf(context, CmpfPredicate::Oeq, r, zero, location))?;
+            rewriter.make(arith::select(is_zero, zero, result, location))?;
+        } else {
+            let result = rewriter.make(arith::divui(l, r, location))?;
+            let zero = rewriter.make(rewriter.iconst(ty, 0))?;
+            let is_zero = rewriter.make(rewriter.icmp(IntCC::Equal, r, zero))?;
+            rewriter.make(arith::select(is_zero, zero, result, location))?;
+        }
         Ok(())
     }
 
@@ -58,8 +86,17 @@ impl ConversionPass<'_> {
 
         let ty = l.r#type();
 
-        let zero = rewriter.make(rewriter.iconst(ty, 0))?;
-        let is_zero = rewriter.make(rewriter.icmp(IntCC::Equal, r, zero))?;
+        let (zero, is_zero) = if ty.is_float() {
+            let zero = rewriter.make(rewriter.fconst(ty, 0.0))?;
+            let is_zero =
+                rewriter.make(arith::cmpf(context, CmpfPredicate::Oeq, r, zero, location))?;
+            (zero, is_zero)
+        } else {
+            let zero = rewriter.make(rewriter.iconst(ty, 0))?;
+            let is_zero = rewriter.make(rewriter.icmp(IntCC::Equal, r, zero))?;
+            (zero, is_zero)
+        };
+
         rewriter.make(scf::r#if(
             is_zero,
             &[ty],
@@ -71,28 +108,33 @@ impl ConversionPass<'_> {
                 region
             },
             {
-                // Note the sdiv overflow
+                // Note the integer sdiv overflow
                 let region = Region::new();
                 let block = region.append_block(Block::new(&[]));
                 let rewriter = Rewriter::new_with_block(context, block);
-                let ty_width = rewriter.int_ty_width(ty)?;
-                // Calculate the minimum value as -(2^(ty_width - 1)) for the given integer type
-                let min_value = rewriter
-                    .make(rewriter.iconst_bigint(ty, BigInt::from(-1) << (ty_width - 1))?)?;
-                let l_is_int_min = rewriter.make(rewriter.icmp(IntCC::Equal, l, min_value))?;
-                let r_is_neg1 = rewriter.make(rewriter.icmp_imm(IntCC::Equal, r, -1)?)?;
-                let is_sdiv_edge_case =
-                    rewriter.make(arith::andi(l_is_int_min, r_is_neg1, location))?;
-                let result = rewriter.make(arith::divsi(l, r, location))?;
-                rewriter.create(scf::r#yield(
-                    &[rewriter.make(arith::select(
-                        is_sdiv_edge_case,
-                        min_value,
-                        result,
+                if ty.is_float() {
+                    let result = rewriter.make(arith::divf(l, r, location))?;
+                    rewriter.create(scf::r#yield(&[result], location));
+                } else {
+                    let ty_width = rewriter.int_ty_width(ty)?;
+                    // Calculate the minimum value as -(2^(ty_width - 1)) for the given integer type
+                    let min_value = rewriter
+                        .make(rewriter.iconst_bigint(ty, BigInt::from(-1) << (ty_width - 1))?)?;
+                    let l_is_int_min = rewriter.make(rewriter.icmp(IntCC::Equal, l, min_value))?;
+                    let r_is_neg1 = rewriter.make(rewriter.icmp_imm(IntCC::Equal, r, -1)?)?;
+                    let is_sdiv_edge_case =
+                        rewriter.make(arith::andi(l_is_int_min, r_is_neg1, location))?;
+                    let result = rewriter.make(arith::divsi(l, r, location))?;
+                    rewriter.create(scf::r#yield(
+                        &[rewriter.make(arith::select(
+                            is_sdiv_edge_case,
+                            min_value,
+                            result,
+                            location,
+                        ))?],
                         location,
-                    ))?],
-                    location,
-                ));
+                    ));
+                }
                 region
             },
             location,
