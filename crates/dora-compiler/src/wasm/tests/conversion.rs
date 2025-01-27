@@ -514,6 +514,11 @@ fn bulk() {
 }
 
 #[test]
+fn call() {
+    assert_snapshot!(include_str!("suites/call.wat"));
+}
+
+#[test]
 fn counter_contract() {
     assert_snapshot!(include_str!("suites/counter.wat"));
 }

@@ -9,7 +9,7 @@ use dora_runtime::constants::{
     LEF32_GEQ_U32_MIN, LEF32_GEQ_U64_MIN, LEF64_GEQ_I32_MIN, LEF64_GEQ_I64_MIN, LEF64_GEQ_U32_MIN,
     LEF64_GEQ_U64_MIN,
 };
-use melior::dialect::{arith, llvm};
+use melior::dialect::{arith, llvm, ods::math};
 use melior::ir::{TypeLike, ValueLike};
 use melior::{
     dialect::DialectHandle,
@@ -690,6 +690,9 @@ impl ConversionPass<'_> {
                     )
                     .into(),
                 );
+            } else if name == dora_ir::wasm::SqrtOperation::name() {
+                let value = op.operand(0)?;
+                replace_op(op, math::sqrt(self.ctx, value, op.location()).into());
             }
         }
         Ok(())
