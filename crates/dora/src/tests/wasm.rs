@@ -745,10 +745,10 @@ fn test_wasm_call_indirect() -> Result<()> {
         &artifact,
         [
             ("type-i32", (), 0x132, i32),
-            //("type-i64", (), 0x164, i64),
-            // ("type-f32", (), 0xf32 as f32, f32),
-            // ("type-f64", (), 0xf64 as f64, f64),
-            // ("type-index", (), 100, i64),
+            ("type-i64", (), 0x164, i64),
+            ("type-f32", (), 0xf32 as f32, f32),
+            ("type-f64", (), 0xf64 as f64, f64),
+            ("type-index", (), 100, i64),
         ]
     );
     Ok(())

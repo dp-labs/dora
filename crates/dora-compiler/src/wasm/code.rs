@@ -3315,42 +3315,50 @@ impl FunctionCodeGenerator {
                 let func_ptr = builder
                     .make(builder.load(func_ptr_ptr, builder.ptr_ty()))?
                     .to_ctx_value();
-                let found_dynamic_sigindex =
-                    builder.make(builder.load(sigindex_ptr, builder.i32_ty()))?;
                 let ctx_ptr = builder
                     .make(builder.load(ctx_ptr_ptr, builder.ptr_ty()))?
                     .to_ctx_value();
 
                 let elem_not_initialized = is_zero(&builder, func_ptr)?;
+                let continue_block = region.append_block(Block::new(&[]));
+                let elem_not_initialized_block = region.append_block(Block::new(&[]));
+                builder.create(cf::cond_br(
+                    ctx,
+                    elem_not_initialized,
+                    &elem_not_initialized_block,
+                    &continue_block,
+                    &[],
+                    &[],
+                    builder.get_insert_location(),
+                ));
+                // Check if the table element is initialized.
+                {
+                    let builder = OpBuilder::new_with_block(ctx, elem_not_initialized_block);
+                    trap(&builder, TrapCode::TableAccessOutOfBounds, continue_block)?;
+                }
+                let builder = OpBuilder::new_with_block(ctx, continue_block);
+                let found_dynamic_sigindex =
+                    builder.make(builder.load(sigindex_ptr, builder.i32_ty()))?;
                 let sigindices_not_equal = builder.make(builder.icmp(
                     IntCC::NotEqual,
                     expected_dynamic_sigindex,
                     found_dynamic_sigindex,
                 ))?;
-                let initialized_and_sigindices_not_match = builder.make(arith::ori(
-                    elem_not_initialized,
-                    sigindices_not_equal,
-                    builder.get_insert_location(),
-                ))?;
                 let continue_block = region.append_block(Block::new(&[]));
                 let sigindices_notequal_block = region.append_block(Block::new(&[]));
                 builder.create(cf::cond_br(
                     ctx,
-                    initialized_and_sigindices_not_match,
+                    sigindices_not_equal,
                     &sigindices_notequal_block,
                     &continue_block,
                     &[],
                     &[],
                     builder.get_insert_location(),
                 ));
-                // Check if the table element is initialized and if the signature id is correct.
+                // Check if the signature id is correct.
                 {
                     let builder = OpBuilder::new_with_block(ctx, sigindices_notequal_block);
-                    trap(
-                        &builder,
-                        TrapCode::BadSignature,
-                        funcref_continue_deref_block,
-                    )?;
+                    trap(&builder, TrapCode::BadSignature, continue_block)?;
                 }
                 let builder = OpBuilder::new_with_block(ctx, continue_block);
                 let return_types = func_type
