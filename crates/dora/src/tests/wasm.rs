@@ -643,20 +643,16 @@ fn test_wasm_bulk() -> Result<()> {
         &artifact,
         [
             // Basic fill test.
-            ("fill", (1, 0xFF, 3), (), ()),
+            ("fill", (1_i32, 3_i32), (), ()),
             ("load8_u", 0, 0, i32),
             ("load8_u", 1, 0xFF, i32),
             ("load8_u", 2, 0xFF, i32),
             ("load8_u", 3, 0xFF, i32),
             ("load8_u", 4, 0, i32),
-            // Fill value is stored as a byte.
-            // ("fill", (0, 0xBBAA, 2), (), ()),
-            // ("load8_u", 0, 0xAA, i32),
-            // ("load8_u", 0, 0xAA, i32),
-            // // Fill all of memory
-            // ("fill", (0, 0, 0x10000), (), ()),
-            // // Succeed when writing 0 bytes at the end of the region.
-            // ("fill", (0x10000, 0, 0), (), ()),
+            // Fill all of memory
+            ("fill_all", (), (), ()),
+            // Succeed when writing 0 bytes at the end of the region.
+            ("fill_end_of_memory", (), (), ()),
         ]
     );
     Ok(())

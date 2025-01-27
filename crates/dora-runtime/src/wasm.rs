@@ -5,7 +5,6 @@ pub mod context;
 pub mod env;
 pub mod errors;
 pub mod host;
-pub mod libcalls;
 pub mod ptr;
 
 /// Define a struct `WASMInstance` to represent a WASM instance for the dora runtime.
