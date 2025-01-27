@@ -936,9 +936,9 @@ def Wasm_NearestOp : WASM_Op<"nearest"> {
 
 def Wasm_SqrtOp : WASM_Op<"sqrt"> {
     let arguments = (ins
-        AnyTypeOf<[I32, I64, F32, F64]>:$input
+        AnyTypeOf<[F32, F64]>:$input
     );
-    let results = (outs AnyTypeOf<[I32, I64, F32, F64]>:$result);
+    let results = (outs AnyTypeOf<[F32, F64]>:$result);
 }
 
 def Wasm_AbsOp : WASM_Op<"abs"> {
