@@ -509,6 +509,11 @@ fn br_table() {
 }
 
 #[test]
+fn bulk() {
+    assert_snapshot!(include_str!("suites/bulk.wat"));
+}
+
+#[test]
 fn counter_contract() {
     assert_snapshot!(include_str!("suites/counter.wat"));
 }

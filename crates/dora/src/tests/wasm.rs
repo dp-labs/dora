@@ -634,3 +634,30 @@ fn test_wasm_br_table() -> Result<()> {
     );
     Ok(())
 }
+
+#[test]
+fn test_wasm_bulk() -> Result<()> {
+    let code = include_bytes!("../../../dora-compiler/src/wasm/tests/suites/bulk.wat");
+    build_wasm_code!(code, artifact);
+    generate_test_cases!(
+        &artifact,
+        [
+            // Basic fill test.
+            ("fill", (1, 0xFF, 3), (), ()),
+            ("load8_u", 0, 0, i32),
+            ("load8_u", 1, 0xFF, i32),
+            ("load8_u", 2, 0xFF, i32),
+            ("load8_u", 3, 0xFF, i32),
+            ("load8_u", 4, 0, i32),
+            // Fill value is stored as a byte.
+            // ("fill", (0, 0xBBAA, 2), (), ()),
+            // ("load8_u", 0, 0xAA, i32),
+            // ("load8_u", 0, 0xAA, i32),
+            // // Fill all of memory
+            // ("fill", (0, 0, 0x10000), (), ()),
+            // // Succeed when writing 0 bytes at the end of the region.
+            // ("fill", (0x10000, 0, 0), (), ()),
+        ]
+    );
+    Ok(())
+}
