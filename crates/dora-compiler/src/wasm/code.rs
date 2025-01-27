@@ -2012,7 +2012,7 @@ impl FunctionCodeGenerator {
                 bin_op!(builder, state, mul, f32);
             }
             Operator::F32Div => {
-                bin_op!(builder, state, div, f32);
+                bin_op!(builder, state, divs, f32);
             }
             Operator::F32Min => {
                 bin_op!(builder, state, min, f32);
@@ -2054,7 +2054,7 @@ impl FunctionCodeGenerator {
                 bin_op!(builder, state, mul, f64);
             }
             Operator::F64Div => {
-                bin_op!(builder, state, div, f64);
+                bin_op!(builder, state, divs, f64);
             }
             Operator::F64Min => {
                 bin_op!(builder, state, min, f64);
@@ -3358,6 +3358,7 @@ impl FunctionCodeGenerator {
                     .iter()
                     .map(|ty| type_to_mlir(&backend.intrinsics, ty))
                     .collect::<Vec<Type>>();
+                // TODO: Multiple return values support
                 debug_assert!(return_types.len() <= 1);
                 let ret_ty = if !return_types.is_empty() {
                     return_types[0]

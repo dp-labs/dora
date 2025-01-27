@@ -10,7 +10,7 @@ use dora_runtime::constants::{
     LEF64_GEQ_U64_MIN,
 };
 use melior::dialect::{arith, llvm, ods::math};
-use melior::ir::{TypeLike, ValueLike};
+use melior::ir::{Operation, TypeLike, ValueLike};
 use melior::{
     dialect::DialectHandle,
     ir::{r#type::TypeId, OperationRef},
@@ -130,14 +130,6 @@ impl ConversionPass<'_> {
                 replace_op(
                     op,
                     dora_ir::dora::div(self.ctx, lhs.r#type(), lhs, rhs, op.location()).into(),
-                );
-            } else if name == dora_ir::wasm::DivSOperation::name() {
-                let lhs = op.operand(0)?;
-                let rhs = op.operand(1)?;
-                debug_assert!(lhs.r#type() == rhs.r#type());
-                replace_op(
-                    op,
-                    dora_ir::dora::sdiv(self.ctx, lhs.r#type(), lhs, rhs, op.location()).into(),
                 );
             } else if name == dora_ir::wasm::RemUOperation::name() {
                 let lhs = op.operand(0)?;
@@ -439,42 +431,19 @@ impl ConversionPass<'_> {
                 )?;
             } else if name == dora_ir::wasm::EqzOperation::name() {
                 let value = op.operand(0)?;
-                let is_i32 =
-                    value.r#type().is_integer() && rewriter.int_ty_width(value.r#type())? == 32;
                 let is_zero_op =
-                    dora_ir::dora::iszero(self.ctx, value.r#type(), value, op.location()).into();
+                    dora_ir::dora::iszero(self.ctx, op.result(0)?.r#type(), value, op.location())
+                        .into();
                 // Note: the wasm eqz operation always return i32 value.
-                if is_i32 {
-                    replace_op(op, is_zero_op);
-                } else {
-                    let is_zero_value = rewriter.make(is_zero_op)?;
-                    replace_op(
-                        op,
-                        arith::trunci(
-                            is_zero_value,
-                            rewriter.i32_ty(),
-                            rewriter.get_insert_location(),
-                        ),
-                    );
-                }
+                replace_op(op, is_zero_op);
             } else if name == dora_ir::wasm::EqOperation::name() {
                 let lhs = op.operand(0)?;
                 let rhs = op.operand(1)?;
                 debug_assert!(lhs.r#type() == rhs.r#type());
-                let is_i32 =
-                    lhs.r#type().is_integer() && rewriter.int_ty_width(lhs.r#type())? == 32;
-                let eq_op =
-                    dora_ir::dora::eq(self.ctx, lhs.r#type(), lhs, rhs, op.location()).into();
+                let ty = op.result(0)?.r#type();
+                let eq_op = dora_ir::dora::eq(self.ctx, ty, lhs, rhs, op.location()).into();
                 // Note: the wasm eq operation always return i32 value.
-                if is_i32 {
-                    replace_op(op, eq_op);
-                } else {
-                    let eq_value = rewriter.make(eq_op)?;
-                    replace_op(
-                        op,
-                        arith::trunci(eq_value, rewriter.i32_ty(), rewriter.get_insert_location()),
-                    );
-                }
+                replace_op(op, eq_op);
             } else if name == dora_ir::wasm::NeOperation::name() {
                 let lhs = op.operand(0)?;
                 let rhs = op.operand(1)?;
@@ -482,9 +451,10 @@ impl ConversionPass<'_> {
                 let eq = rewriter.make(
                     dora_ir::dora::eq(self.ctx, lhs.r#type(), lhs, rhs, op.location()).into(),
                 )?;
-                let not_op = dora_ir::dora::not(self.ctx, eq.r#type(), eq, op.location()).into();
-                let is_i32 =
-                    lhs.r#type().is_integer() && rewriter.int_ty_width(lhs.r#type())? == 32;
+                let not_op: Operation =
+                    dora_ir::dora::not(self.ctx, eq.r#type(), eq, op.location()).into();
+                let ty = not_op.result(0)?.r#type();
+                let is_i32 = ty.is_integer() && rewriter.int_ty_width(ty)? == 32;
                 // Note: the wasm ne operation always return i32 value.
                 if is_i32 {
                     replace_op(op, not_op);

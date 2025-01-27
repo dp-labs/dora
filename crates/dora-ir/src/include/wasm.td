@@ -375,25 +375,6 @@ def Wasm_MulOp : WASM_Op<"mul"> {
     }];
 }
 
-// Div Operation
-def Wasm_DivOp : WASM_Op<"div"> {
-    let summary = "multiply two operands of the same type";
-    let description = [{
-        This operation takes two operands of the same type and returns their product.
-    }];
-
-    let arguments = (ins
-        AnyTypeOf<[I32, I64, F32, F64]>:$lhs,
-        AnyTypeOf<[I32, I64, F32, F64]>:$rhs
-    );
-
-    let results = (outs AnyTypeOf<[I32, I64, F32, F64]>:$result);
-
-    let assemblyFormat = [{
-        $lhs `,` $rhs `:` type($lhs) `->` type($result)
-    }];
-}
-
 // DivS Operation
 def Wasm_DivSOp : WASM_Op<"divs"> {
     let summary = "multiply two operands of the same type";
