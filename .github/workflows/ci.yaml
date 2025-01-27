@@ -16,7 +16,10 @@ jobs:
   ubuntu-test:
     name: Ubuntu Test
     if: github.event.pull_request.draft == false
-    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        os: [ubuntu-latest, ubuntu-22.04-arm]
+    runs-on: ${{ matrix.os }}
     steps:
       - name: Checkout sources
         uses: actions/checkout@v4
