@@ -29,6 +29,9 @@ jobs:
           - build: linux-amd64
             os: ubuntu-22.04
             artifact_name: 'dora-linux-amd64'
+          - build: linux-arm64
+            os: ubuntu-22.04-arm
+            artifact_name: 'dora-linux-arm64'
           - build: macos-amd64
             os: macos-13
             artifact_name: 'dora-darwin-amd64'
@@ -112,6 +115,7 @@ jobs:
         shell: bash
         run: |
           mv artifacts/dora-linux-amd64/dora.tar.gz dora-linux-amd64.tar.gz
+          mv artifacts/dora-linux-arm64/dora.tar.gz dora-linux-arm64.tar.gz
           mv artifacts/dora-darwin-amd64/dora.tar.gz dora-darwin-amd64.tar.gz
           mv artifacts/dora-darwin-arm64/dora.tar.gz dora-darwin-arm64.tar.gz
 
@@ -124,6 +128,7 @@ jobs:
           name: ${{ env.VERSION }} Release
           files: |
             dora-linux-amd64.tar.gz
+            dora-linux-arm64.tar.gz
             dora-darwin-amd64.tar.gz
             dora-darwin-arm64.tar.gz
 

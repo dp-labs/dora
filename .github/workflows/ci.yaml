@@ -8,7 +8,8 @@ on:
     types: [synchronize, opened, reopened, converted_to_draft, ready_for_review]
 
 env:
-  LLVM_VERSION: "19"
+  LLVM_MAJOR_VERSION: "19"
+  LLVM_VERSION: "19.1.4"
   RUST_VERSION: 1.83.0
   MACOSX_DEPLOYMENT_TARGET: '12.0'
 
@@ -39,7 +40,7 @@ jobs:
           keys-asc: https://apt.llvm.org/llvm-snapshot.gpg.key
       - name: Install LLVM
         run: |
-          v=${{ env.LLVM_VERSION }}
+          v=${{ env.LLVM_MAJOR_VERSION }}
           sudo apt-get install llvm-${v} llvm-${v}-dev llvm-${v}-runtime clang-${v} clang-tools-${v} lld-${v} libpolly-${v}-dev libmlir-${v}-dev mlir-${v}-tools
           echo "LLVM_SYS_${v}0_PREFIX=/usr/lib/llvm-${v}/" >> $GITHUB_ENV
           echo "MLIR_SYS_${v}0_PREFIX=/usr/lib/llvm-${v}/" >> $GITHUB_ENV
@@ -70,7 +71,7 @@ jobs:
           components: clippy, rustfmt
       - name: Install LLVM (brew)
         run: |
-          v=${{ env.LLVM_VERSION }}
+          v=${{ env.LLVM_MAJOR_VERSION }}
           brew install "llvm@${v}"
           echo "LLVM_SYS_${v}0_PREFIX=$(brew --prefix llvm@${v})" >> $GITHUB_ENV
           echo "MLIR_SYS_${v}0_PREFIX=$(brew --prefix llvm@${v})" >> $GITHUB_ENV
@@ -81,5 +82,34 @@ jobs:
         run: cargo fmt --all -- --check
       - name: Cargo clippy
         run: cargo clippy --workspace --all-features --benches --examples --tests -- -D warnings
+      - name: Run tests
+        run: cargo test -r --workspace --all-features
+
+  windows-test:
+    name: Windows Test
+    if: github.event.pull_request.draft == false
+    runs-on: windows-latest
+    steps:
+      - name: Checkout sources
+        uses: actions/checkout@v4
+
+      - name: Install Rust toolchain
+        uses: actions-rs/toolchain@v1
+        with:
+          toolchain: ${{ env.RUST_VERSION }}
+          override: true
+          components: clippy, rustfmt
+
+      - name: Download and Install LLVM
+        run: |
+          $llvmVersion = "${{ env.LLVM_VERSION }}"
+          $llvmUrl = "https://github.com/llvm/llvm-project/releases/download/llvmorg-$llvmVersion/LLVM-$llvmVersion-win64.exe"
+          Invoke-WebRequest -Uri $llvmUrl -OutFile llvm-installer.exe
+          Start-Process -Wait -FilePath .\llvm-installer.exe -ArgumentList '/S'
+          echo "LLVM_SYS_${{ env.LLVM_MAJOR_VERSION }}0_PREFIX=C:\Program Files\LLVM" >> $env:GITHUB_ENV
+          echo "MLIR_SYS_${{ env.LLVM_MAJOR_VERSION }}0_PREFIX=C:\Program Files\LLVM" >> $env:GITHUB_ENV
+          echo "TABLEGEN_${{ env.LLVM_MAJOR_VERSION }}0_PREFIX=C:\Program Files\LLVM" >> $env:GITHUB_ENV
+          echo "PATH=C:\Program Files\LLVM\bin;$env:PATH" >> $env:GITHUB_ENV
+
       - name: Run tests
         run: cargo test -r --workspace --all-features
