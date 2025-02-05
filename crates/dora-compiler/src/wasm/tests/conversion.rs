@@ -516,6 +516,11 @@ fn f64_arith() {
 }
 
 #[test]
+fn float_exprs() {
+    assert_snapshot!(include_str!("suites/float_exprs.wat"));
+}
+
+#[test]
 fn counter_contract() {
     assert_snapshot!(include_str!("suites/counter.wat"));
 }
