@@ -496,6 +496,11 @@ fn conversions() {
 }
 
 #[test]
+fn endianness() {
+    assert_snapshot!(include_str!("suites/endianness.wat"));
+}
+
+#[test]
 fn counter_contract() {
     assert_snapshot!(include_str!("suites/counter.wat"));
 }

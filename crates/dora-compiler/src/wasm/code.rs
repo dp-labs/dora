@@ -1334,7 +1334,7 @@ impl FunctionCodeGenerator {
                     block,
                 )?;
                 let result = builder.make(builder.load(effective_address, builder.i8_ty()))?;
-                let result = builder.make(arith::extui(
+                let result = builder.make(arith::extsi(
                     result,
                     builder.i32_ty(),
                     builder.get_insert_location(),
@@ -1378,7 +1378,7 @@ impl FunctionCodeGenerator {
                     block,
                 )?;
                 let result = builder.make(builder.load(effective_address, builder.i16_ty()))?;
-                let result = builder.make(arith::extui(
+                let result = builder.make(arith::extsi(
                     result,
                     builder.i32_ty(),
                     builder.get_insert_location(),
@@ -1422,7 +1422,7 @@ impl FunctionCodeGenerator {
                     block,
                 )?;
                 let result = builder.make(builder.load(effective_address, builder.i8_ty()))?;
-                let result = builder.make(arith::extui(
+                let result = builder.make(arith::extsi(
                     result,
                     builder.i64_ty(),
                     builder.get_insert_location(),
@@ -1466,7 +1466,7 @@ impl FunctionCodeGenerator {
                     block,
                 )?;
                 let result = builder.make(builder.load(effective_address, builder.i16_ty()))?;
-                let result = builder.make(arith::extui(
+                let result = builder.make(arith::extsi(
                     result,
                     builder.i64_ty(),
                     builder.get_insert_location(),
@@ -1510,7 +1510,7 @@ impl FunctionCodeGenerator {
                     block,
                 )?;
                 let result = builder.make(builder.load(effective_address, builder.i32_ty()))?;
-                let result = builder.make(arith::extui(
+                let result = builder.make(arith::extsi(
                     result,
                     builder.i64_ty(),
                     builder.get_insert_location(),

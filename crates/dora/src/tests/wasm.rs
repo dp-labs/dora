@@ -841,3 +841,89 @@ fn test_wasm_conversions() -> Result<()> {
     );
     Ok(())
 }
+
+#[test]
+fn test_wasm_endiannes() -> Result<()> {
+    let code = include_bytes!("../../../dora-compiler/src/wasm/tests/suites/endianness.wat");
+    build_wasm_code!(code, artifact);
+    generate_test_cases!(
+        &artifact,
+        [
+            ("i32_load16_s", -1_i32, -1_i32, i32),
+            ("i32_load16_s", -4242_i32, -4242_i32, i32),
+            ("i32_load16_s", 42_i32, 42_i32, i32),
+            ("i32_load16_s", 0x3210_i32, 0x3210_i32, i32),
+            ("i32_load16_u", -1_i32, 0xFFFF_i32, i32),
+            ("i32_load16_u", -4242_i32, 61294_i32, i32),
+            ("i32_load16_u", 42_i32, 42_i32, i32),
+            ("i32_load16_u", 0xCAFE_i32, 0xCAFE_i32, i32),
+            ("i32_load", -1_i32, -1_i32, i32),
+            ("i32_load", -42424242_i32, -42424242_i32, i32),
+            ("i32_load", 42424242_i32, 42424242_i32, i32),
+            (
+                "i32_load",
+                0xABAD1DEA_u32 as i32,
+                0xABAD1DEA_u32 as i32,
+                i32
+            ),
+            ("i64_load16_s", -1_i64, -1_i64, i64),
+            ("i64_load16_s", -4242_i64, -4242_i64, i64),
+            ("i64_load16_s", 42_i64, 42_i64, i64),
+            ("i64_load16_s", 0x3210_i64, 0x3210_i64, i64),
+            ("i64_load16_u", -1_i64, 0xFFFF_i64, i64),
+            ("i64_load16_u", -4242_i64, 61294_i64, i64),
+            ("i64_load16_u", 42_i64, 42_i64, i64),
+            ("i64_load16_u", 0xCAFE_i64, 0xCAFE_i64, i64),
+            ("i64_load32_s", -1_i64, -1_i64, i64),
+            ("i64_load32_s", -42424242_i64, -42424242_i64, i64),
+            ("i64_load32_s", 42424242_i64, 42424242_i64, i64),
+            ("i64_load32_s", 0x12345678_i64, 0x12345678_i64, i64),
+            ("i64_load32_u", -1_i64, 0xFFFFFFFF_u64 as i64, i64),
+            ("i64_load32_u", -42424242_i64, 4252543054_i64, i64),
+            ("i64_load32_u", 42424242_i64, 42424242_i64, i64),
+            ("i64_load32_u", 0xABAD1DEA_i64, 0xABAD1DEA_i64, i64),
+            ("i64_load", -1_i64, -1_i64, i64),
+            ("i64_load", -42424242_i64, -42424242_i64, i64),
+            ("i64_load", 0xABAD1DEA_i64, 0xABAD1DEA_i64, i64),
+            (
+                "i64_load",
+                0xABADCAFEDEAD1DEA_u64 as i64,
+                0xABADCAFEDEAD1DEA_u64 as i64,
+                i64
+            ),
+            ("f32_load", -1_f32, -1_f32, f32),
+            ("f32_load", 1234e-5_f32, 1234e-5_f32, f32),
+            ("f32_load", 4242.4242_f32, 4242.4242_f32, f32),
+            ("f64_load", -1_f64, -1_f64, f64),
+            ("f64_load", 1234e-5_f64, 1234e-5_f64, f64),
+            ("f64_load", 4242.4242_f64, 4242.4242_f64, f64),
+            ("i32_store16", -1_i32, 0xFFFF_i32, i32),
+            ("i32_store16", -4242_i32, 61294_i32, i32),
+            ("i32_store16", 42_i32, 42_i32, i32),
+            ("i32_store16", 0xCAFE_i32, 0xCAFE_i32, i32),
+            ("i32_store", -1_i32, -1_i32, i32),
+            ("i32_store", -4242_i32, -4242_i32, i32),
+            ("i32_store", 42_i32, 42_i32, i32),
+            ("i32_store", 0x3210_i32, 0x3210_i32, i32),
+            ("i64_store16", -1_i64, 0xFFFF_i64, i64),
+            ("i64_store16", -4242_i64, 61294_i64, i64),
+            ("i64_store16", 42_i64, 42_i64, i64),
+            ("i64_store16", 0xCAFE_i64, 0xCAFE_i64, i64),
+            ("i64_store32", -1_i64, 0xFFFFFFFF_u64 as i64, i64),
+            ("i64_store32", -42424242_i64, 4252543054_i64, i64),
+            ("i64_store32", 42424242_i64, 42424242_i64, i64),
+            ("i64_store32", 0xABAD1DEA_i64, 0xABAD1DEA_i64, i64),
+            ("i64_store", -1_i64, -1_i64, i64),
+            ("i64_store", -42424242_i64, -42424242_i64, i64),
+            ("i64_store", 42424242_i64, 42424242_i64, i64),
+            ("i64_store", 0x12345678_i64, 0x12345678_i64, i64),
+            ("f32_store", -1_f32, -1_f32, f32),
+            ("f32_store", 1234e-5_f32, 1234e-5_f32, f32),
+            ("f32_store", 4242.4242_f32, 4242.4242_f32, f32),
+            ("f64_store", -1_f64, -1_f64, f64),
+            ("f64_store", 1234e-5_f64, 1234e-5_f64, f64),
+            ("f64_store", 4242.4242_f64, 4242.4242_f64, f64),
+        ]
+    );
+    Ok(())
+}

@@ -416,7 +416,7 @@ impl ConversionPass<'_> {
         let max_shift =
             rewriter.make(rewriter.iconst(ty, rewriter.int_ty_width(ty)? as i64 - 1))?;
 
-        // Compare if the shift amount (operand 0) is less than 255
+        // Compare if the shift amount (operand 0) is less than the max shift value
         let flag = rewriter.make(arith::cmpi(
             context,
             CmpiPredicate::Ule,
@@ -433,7 +433,7 @@ impl ConversionPass<'_> {
                 let block = region.append_block(Block::new(&[]));
                 let rewriter = Rewriter::new_with_block(context, block);
 
-                // if shift is less than or equal 255
+                // if shift is less than or equal the max shift value
                 let result = rewriter.make(arith::shli(value, shift, location))?;
                 rewriter.create(scf::r#yield(&[result], location));
                 region
@@ -443,7 +443,7 @@ impl ConversionPass<'_> {
                 let block = region.append_block(Block::new(&[]));
                 let rewriter = Rewriter::new_with_block(context, block);
 
-                // if shift is greater than 255
+                // if shift is greater than the max shift value
                 let result = rewriter.make(rewriter.iconst(ty, 0))?;
                 rewriter.create(scf::r#yield(&[result], location));
                 region
@@ -462,7 +462,7 @@ impl ConversionPass<'_> {
         // Define the constant max shift value
         let max_shift =
             rewriter.make(rewriter.iconst(ty, rewriter.int_ty_width(ty)? as i64 - 1))?;
-        // Compare if the shift amount (operand 0) is less than 255
+        // Compare if the shift amount (operand 0) is less than the max shift value
         let flag = rewriter.make(arith::cmpi(
             context,
             CmpiPredicate::Ule,
@@ -478,7 +478,7 @@ impl ConversionPass<'_> {
                 let block = region.append_block(Block::new(&[]));
                 let rewriter = Rewriter::new_with_block(context, block);
 
-                // if shift is less than or equal 255
+                // if shift is less than or equal the max shift value
                 let result = rewriter.make(arith::shrui(value, shift, location))?;
                 rewriter.create(scf::r#yield(&[result], location));
                 region
@@ -488,7 +488,7 @@ impl ConversionPass<'_> {
                 let block = region.append_block(Block::new(&[]));
                 let rewriter = Rewriter::new_with_block(context, block);
 
-                // if shift is greater than 255
+                // if shift is greater than the max shift value
                 let result = rewriter.make(rewriter.iconst(ty, 0))?;
                 rewriter.create(scf::r#yield(&[result], location));
                 region
