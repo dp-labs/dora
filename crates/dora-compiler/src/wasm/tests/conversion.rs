@@ -501,6 +501,11 @@ fn endianness() {
 }
 
 #[test]
+fn fac() {
+    assert_snapshot!(include_str!("suites/fac.wat"));
+}
+
+#[test]
 fn f32_arith() {
     assert_snapshot!(include_str!("suites/f32_arith.wat"));
 }

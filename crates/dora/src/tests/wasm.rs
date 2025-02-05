@@ -927,3 +927,21 @@ fn test_wasm_endiannes() -> Result<()> {
     );
     Ok(())
 }
+
+#[test]
+fn test_wasm_fac() -> Result<()> {
+    let code = include_bytes!("../../../dora-compiler/src/wasm/tests/suites/fac.wat");
+    build_wasm_code!(code, artifact);
+    generate_test_cases!(
+        &artifact,
+        [
+            ("fac-rec", 25_i64, 7034535277573963776_i64, i64),
+            ("fac-iter", 25_i64, 7034535277573963776_i64, i64),
+            ("fac-rec-named", 25_i64, 7034535277573963776_i64, i64),
+            ("fac-iter-named", 25_i64, 7034535277573963776_i64, i64),
+            ("fac-opt", 25_i64, 7034535277573963776_i64, i64),
+            ("fac-ssa", 25_i64, 7034535277573963776_i64, i64),
+        ]
+    );
+    Ok(())
+}
