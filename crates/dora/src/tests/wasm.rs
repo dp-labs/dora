@@ -1069,3 +1069,19 @@ fn test_wasm_float_literals() -> Result<()> {
     );
     Ok(())
 }
+
+#[test]
+fn test_wasm_float_memory() -> Result<()> {
+    let code = include_bytes!("../../../dora-compiler/src/wasm/tests/suites/float_memory.wat");
+    build_wasm_code!(code, artifact);
+    generate_test_cases!(
+        &artifact,
+        [
+            ("i64.load", (), 0x7ff4000000000000, i64),
+            ("reset", (), (), ()),
+            ("i64.load", (), 0x00, i64),
+            ("f64.load", (), 0x00 as f64, f64),
+        ]
+    );
+    Ok(())
+}

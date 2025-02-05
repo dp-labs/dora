@@ -526,6 +526,11 @@ fn float_literals() {
 }
 
 #[test]
+fn float_memory() {
+    assert_snapshot!(include_str!("suites/float_memory.wat"));
+}
+
+#[test]
 fn counter_contract() {
     assert_snapshot!(include_str!("suites/counter.wat"));
 }
