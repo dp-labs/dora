@@ -51,10 +51,10 @@ If you want to build from source, here are some indications:
 <details><summary>Install LLVM from source instructions</summary>
 
 ```bash
-wget https://github.com/llvm/llvm-project/releases/download/llvmorg-19.1.4/llvm-project-19.1.4.src.tar.xz
-tar xf llvm-project-19.1.4.src.tar.xz
+wget https://github.com/llvm/llvm-project/releases/download/llvmorg-19.1.5/llvm-project-19.1.5.src.tar.xz
+tar xf llvm-project-19.1.5.src.tar.xz
 
-cd llvm-project-19.1.4.src
+cd llvm-project-19.1.5.src
 mkdir build
 cd build
 
