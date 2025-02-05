@@ -126,7 +126,7 @@ module {
     cf.br ^bb1
   ^bb1:  // pred: ^bb0
     %1 = llvm.load %0 : !llvm.ptr -> f64
-    %2 = "wasm.ceil"(%1) : (f64) -> f64
+    %2 = math.ceil %1 : f64
     cf.br ^bb2(%2 : f64)
   ^bb2(%3: f64):  // pred: ^bb1
     return %3 : f64
@@ -138,7 +138,7 @@ module {
     cf.br ^bb1
   ^bb1:  // pred: ^bb0
     %1 = llvm.load %0 : !llvm.ptr -> f64
-    %2 = "wasm.floor"(%1) : (f64) -> f64
+    %2 = math.floor %1 : f64
     cf.br ^bb2(%2 : f64)
   ^bb2(%3: f64):  // pred: ^bb1
     return %3 : f64
@@ -162,7 +162,7 @@ module {
     cf.br ^bb1
   ^bb1:  // pred: ^bb0
     %1 = llvm.load %0 : !llvm.ptr -> f64
-    %2 = "wasm.nearest"(%1) : (f64) -> f64
+    %2 = math.round %1 : f64
     cf.br ^bb2(%2 : f64)
   ^bb2(%3: f64):  // pred: ^bb1
     return %3 : f64
@@ -174,7 +174,7 @@ module {
     cf.br ^bb1
   ^bb1:  // pred: ^bb0
     %1 = llvm.load %0 : !llvm.ptr -> f64
-    %2 = "wasm.abs"(%1) : (f64) -> f64
+    %2 = math.absf %1 : f64
     cf.br ^bb2(%2 : f64)
   ^bb2(%3: f64):  // pred: ^bb1
     return %3 : f64
@@ -186,7 +186,7 @@ module {
     cf.br ^bb1
   ^bb1:  // pred: ^bb0
     %1 = llvm.load %0 : !llvm.ptr -> f64
-    %2 = "wasm.neg"(%1) : (f64) -> f64
+    %2 = arith.negf %1 : f64
     cf.br ^bb2(%2 : f64)
   ^bb2(%3: f64):  // pred: ^bb1
     return %3 : f64
@@ -202,7 +202,7 @@ module {
   ^bb1:  // pred: ^bb0
     %2 = llvm.load %0 : !llvm.ptr -> f64
     %3 = llvm.load %1 : !llvm.ptr -> f64
-    %4 = "wasm.copysign"(%2, %3) : (f64, f64) -> f64
+    %4 = math.copysign %2, %3 : f64
     cf.br ^bb2(%4 : f64)
   ^bb2(%5: f64):  // pred: ^bb1
     return %5 : f64

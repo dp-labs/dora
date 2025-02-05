@@ -683,7 +683,14 @@ impl ConversionPass<'_> {
                 replace_op(op, math::ceil(self.ctx, value, op.location()).into());
             } else if name == dora_ir::wasm::AbsOperation::name() {
                 let value = op.operand(0)?;
-                replace_op(op, math::absi(self.ctx, value, op.location()).into());
+                replace_op(
+                    op,
+                    if value.r#type().is_float() {
+                        math::absf(self.ctx, value, op.location()).into()
+                    } else {
+                        math::absi(self.ctx, value, op.location()).into()
+                    },
+                );
             } else if name == dora_ir::wasm::NegOperation::name() {
                 let value = op.operand(0)?;
                 replace_op(op, arith::negf(value, op.location()));
