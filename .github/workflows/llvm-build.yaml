@@ -49,9 +49,11 @@ jobs:
         echo "llvm_install_dir=${INSTALL_DIR}" >> ${GITHUB_ENV}
 
     - name: Setup QEMU
+      if: matrix.config.target-os != 'windows'
       uses: docker/setup-qemu-action@v3
     - name: Setup Docker Buildx
       id: buildx
+      if: matrix.config.target-os != 'windows'
       uses: docker/setup-buildx-action@v3
 
     - name: Set up Python
