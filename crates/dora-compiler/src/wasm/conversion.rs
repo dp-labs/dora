@@ -10,7 +10,7 @@ use dora_runtime::constants::{
     LEF64_GEQ_U64_MIN,
 };
 use melior::dialect::{arith, llvm, ods::math};
-use melior::ir::{Operation, TypeLike, ValueLike};
+use melior::ir::{operation::OperationBuilder, Operation, TypeLike, ValueLike};
 use melior::{
     dialect::DialectHandle,
     ir::{r#type::TypeId, OperationRef},
@@ -233,7 +233,7 @@ impl ConversionPass<'_> {
                 let value = op.operand(0)?;
                 replace_op(op, arith::trunci(value, rewriter.i32_ty(), op.location()));
             } else if name == dora_ir::wasm::I32TruncF32SOperation::name()
-                || name == dora_ir::wasm::I32TruncF32UOperation::name()
+                || name == dora_ir::wasm::I32TruncF64SOperation::name()
             {
                 let value = op.operand(0)?;
                 replace_op(op, arith::fptosi(value, rewriter.i32_ty(), op.location()));
@@ -243,7 +243,7 @@ impl ConversionPass<'_> {
                 let value = op.operand(0)?;
                 replace_op(op, arith::fptoui(value, rewriter.i32_ty(), op.location()));
             } else if name == dora_ir::wasm::I64TruncF32SOperation::name()
-                || name == dora_ir::wasm::I64TruncF32UOperation::name()
+                || name == dora_ir::wasm::I64TruncF64SOperation::name()
             {
                 let value = op.operand(0)?;
                 replace_op(op, arith::fptosi(value, rewriter.i64_ty(), op.location()));
@@ -257,11 +257,28 @@ impl ConversionPass<'_> {
             {
                 let value = op.operand(0)?;
                 replace_op(op, arith::uitofp(value, rewriter.f32_ty(), op.location()));
+            } else if name == dora_ir::wasm::F64ConvertI64UOperation::name()
+                || name == dora_ir::wasm::F64ConvertI32UOperation::name()
+            {
+                let value = op.operand(0)?;
+                replace_op(op, arith::uitofp(value, rewriter.f64_ty(), op.location()));
             } else if name == dora_ir::wasm::F32ConvertI64SOperation::name()
                 || name == dora_ir::wasm::F32ConvertI32SOperation::name()
             {
                 let value = op.operand(0)?;
                 replace_op(op, arith::sitofp(value, rewriter.f32_ty(), op.location()));
+            } else if name == dora_ir::wasm::F32DemoteF64Operation::name() {
+                let value = op.operand(0)?;
+                let new_op = OperationBuilder::new("arith.truncf", op.location())
+                    .add_operands(&[value])
+                    .add_results(&[op.result(0)?.r#type()])
+                    .build()?;
+                replace_op(op, new_op);
+            } else if name == dora_ir::wasm::F64ConvertI64SOperation::name()
+                || name == dora_ir::wasm::F64ConvertI32SOperation::name()
+            {
+                let value = op.operand(0)?;
+                replace_op(op, arith::sitofp(value, rewriter.f64_ty(), op.location()));
             } else if name == dora_ir::wasm::F64PromoteF32Operation::name() {
                 let value = op.operand(0)?;
                 replace_op(op, arith::extf(value, rewriter.f64_ty(), op.location()));

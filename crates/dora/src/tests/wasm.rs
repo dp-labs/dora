@@ -754,3 +754,90 @@ fn test_wasm_call_indirect() -> Result<()> {
     );
     Ok(())
 }
+
+#[test]
+fn test_wasm_conversions() -> Result<()> {
+    let code = include_bytes!("../../../dora-compiler/src/wasm/tests/suites/conversions.wat");
+    build_wasm_code!(code, artifact);
+    generate_test_cases!(
+        &artifact,
+        [
+            ("i64.extend_i32_s", 0_i32, 0_i64, i64),
+            ("i64.extend_i32_s", 10000_i32, 10000_i64, i64),
+            ("i64.extend_i32_s", -10000_i32, -10000_i64, i64),
+            ("i64.extend_i32_s", -1_i32, -1_i64, i64),
+            (
+                "i64.extend_i32_s",
+                0x7fffffff_i32,
+                0x000000007fffffff_u64 as i64,
+                i64
+            ),
+            (
+                "i64.extend_i32_s",
+                0x80000000_u32 as i32,
+                0xffffffff80000000_u64 as i64,
+                i64
+            ),
+            ("i64.extend_i32_u", 0_i32, 0_i64, i64),
+            ("i64.extend_i32_u", 10000_i32, 10000_i64, i64),
+            ("i64.extend_i32_u", -10000_i32, 0x00000000ffffd8f0_i64, i64),
+            ("i64.extend_i32_u", -1_i32, 0xffffffff_i64, i64),
+            (
+                "i64.extend_i32_u",
+                0x7fffffff_i32,
+                0x000000007fffffff_u64 as i64,
+                i64
+            ),
+            (
+                "i64.extend_i32_u",
+                0x80000000_u32 as i32,
+                0x0000000080000000_u64 as i64,
+                i64
+            ),
+            ("i32.wrap_i64", -1_i64, -1, i32),
+            ("i32.wrap_i64", -100000_i64, -100000, i32),
+            ("i32.wrap_i64", 0x80000000_i64, 0x80000000_u32 as i32, i32),
+            (
+                "i32.wrap_i64",
+                0xffffffff7fffffff_u64 as i64,
+                0x7fffffff,
+                i32
+            ),
+            (
+                "i32.wrap_i64",
+                0xffffffff00000000_u64 as i64,
+                0x00000000,
+                i32
+            ),
+            (
+                "i32.wrap_i64",
+                0xfffffffeffffffff_u64 as i64,
+                0xffffffff_u32 as i32,
+                i32
+            ),
+            (
+                "i32.wrap_i64",
+                0xffffffff00000001_u64 as i64,
+                0x00000001,
+                i32
+            ),
+            ("i32.wrap_i64", 0_i64, 0, i32),
+            (
+                "i32.wrap_i64",
+                1311768467463790320_i64,
+                0x9abcdef0_u32 as i32,
+                i32
+            ),
+            (
+                "i32.wrap_i64",
+                0x00000000ffffffff_i64,
+                0xffffffff_u32 as i32,
+                i32
+            ),
+            ("i32.wrap_i64", 0x0000000100000000_i64, 0x00000000, i32),
+            ("i32.wrap_i64", 0x0000000100000001_i64, 0x00000001, i32),
+            // TODO: add more tests for conversions.
+        ]
+    );
+    Ok(())
+}

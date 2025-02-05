@@ -59,7 +59,7 @@ module {
     cf.br ^bb1
   ^bb1:  // pred: ^bb0
     %1 = llvm.load %0 : !llvm.ptr -> f32
-    %2 = arith.fptosi %1 : f32 to i32
+    %2 = arith.fptoui %1 : f32 to i32
     cf.br ^bb2(%2 : i32)
   ^bb2(%3: i32):  // pred: ^bb1
     return %3 : i32
@@ -71,7 +71,7 @@ module {
     cf.br ^bb1
   ^bb1:  // pred: ^bb0
     %1 = llvm.load %0 : !llvm.ptr -> f64
-    %2 = "wasm.i32_trunc_f64s"(%1) : (f64) -> i32
+    %2 = arith.fptosi %1 : f64 to i32
     cf.br ^bb2(%2 : i32)
   ^bb2(%3: i32):  // pred: ^bb1
     return %3 : i32
@@ -107,7 +107,7 @@ module {
     cf.br ^bb1
   ^bb1:  // pred: ^bb0
     %1 = llvm.load %0 : !llvm.ptr -> f32
-    %2 = arith.fptosi %1 : f32 to i64
+    %2 = arith.fptoui %1 : f32 to i64
     cf.br ^bb2(%2 : i64)
   ^bb2(%3: i64):  // pred: ^bb1
     return %3 : i64
@@ -119,7 +119,7 @@ module {
     cf.br ^bb1
   ^bb1:  // pred: ^bb0
     %1 = llvm.load %0 : !llvm.ptr -> f64
-    %2 = "wasm.i64_trunc_f64s"(%1) : (f64) -> i64
+    %2 = arith.fptosi %1 : f64 to i64
     cf.br ^bb2(%2 : i64)
   ^bb2(%3: i64):  // pred: ^bb1
     return %3 : i64
@@ -391,7 +391,7 @@ module {
     cf.br ^bb1
   ^bb1:  // pred: ^bb0
     %1 = llvm.load %0 : !llvm.ptr -> i32
-    %2 = "wasm.f64_convert_i32s"(%1) : (i32) -> f64
+    %2 = arith.sitofp %1 : i32 to f64
     cf.br ^bb2(%2 : f64)
   ^bb2(%3: f64):  // pred: ^bb1
     return %3 : f64
@@ -403,7 +403,7 @@ module {
     cf.br ^bb1
   ^bb1:  // pred: ^bb0
     %1 = llvm.load %0 : !llvm.ptr -> i64
-    %2 = "wasm.f64_convert_i64s"(%1) : (i64) -> f64
+    %2 = arith.sitofp %1 : i64 to f64
     cf.br ^bb2(%2 : f64)
   ^bb2(%3: f64):  // pred: ^bb1
     return %3 : f64
@@ -439,7 +439,7 @@ module {
     cf.br ^bb1
   ^bb1:  // pred: ^bb0
     %1 = llvm.load %0 : !llvm.ptr -> i32
-    %2 = "wasm.f64_convert_i32u"(%1) : (i32) -> f64
+    %2 = arith.uitofp %1 : i32 to f64
     cf.br ^bb2(%2 : f64)
   ^bb2(%3: f64):  // pred: ^bb1
     return %3 : f64
@@ -451,7 +451,7 @@ module {
     cf.br ^bb1
   ^bb1:  // pred: ^bb0
     %1 = llvm.load %0 : !llvm.ptr -> i64
-    %2 = "wasm.f64_convert_i64u"(%1) : (i64) -> f64
+    %2 = arith.uitofp %1 : i64 to f64
     cf.br ^bb2(%2 : f64)
   ^bb2(%3: f64):  // pred: ^bb1
     return %3 : f64
@@ -475,7 +475,7 @@ module {
     cf.br ^bb1
   ^bb1:  // pred: ^bb0
     %1 = llvm.load %0 : !llvm.ptr -> f64
-    %2 = "wasm.f32_demote_f64"(%1) : (f64) -> f32
+    %2 = arith.truncf %1 : f64 to f32
     cf.br ^bb2(%2 : f32)
   ^bb2(%3: f32):  // pred: ^bb1
     return %3 : f32
