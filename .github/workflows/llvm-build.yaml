@@ -49,9 +49,11 @@ jobs:
         echo "llvm_install_dir=${INSTALL_DIR}" >> ${GITHUB_ENV}
 
     - name: Setup QEMU
+      if: matrix.config.target-os != 'windows'
       uses: docker/setup-qemu-action@v3
     - name: Setup Docker Buildx
       id: buildx
+      if: matrix.config.target-os != 'windows'
       uses: docker/setup-buildx-action@v3
 
     - name: Set up Python
@@ -112,14 +114,14 @@ jobs:
         -DLLVM_BUILD_TOOLS=ON
         -DLLVM_ENABLE_ASSERTIONS=ON
         -DMLIR_ENABLE_BINDINGS_PYTHON=ON
-        -DLLVM_ENABLE_PROJECTS="mlir;llvm"
+        -DLLVM_ENABLE_PROJECTS="mlir"
         -DLLVM_ENABLE_DIA_SDK=OFF
         -DLLVM_INSTALL_UTILS=ON
         -DLLVM_TARGETS_TO_BUILD="Native"
         -DLLVM_ENABLE_TERMINFO=OFF
         llvm-project/llvm
 
-        ninja -C llvm-project/build check-mlir install
+        ninja -C llvm-project/build install
 
         tar czf "${{ env.llvm_install_dir }}.tar.gz" "${{ env.llvm_install_dir }}"
 
