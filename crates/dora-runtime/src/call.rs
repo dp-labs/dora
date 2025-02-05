@@ -3,15 +3,14 @@ use crate::{
     context::RuntimeContext,
     ExitStatusCode,
 };
-use dora_primitives::{Address, B256, U256};
-use revm_primitives::Bytes;
+use dora_primitives::{Address, Bytes, B256, U256};
 
 /// The kind of call-like instructions for the Host API.
 #[derive(Debug, Clone)]
 #[repr(u8)]
 pub enum CallKind {
     Call = 0,
-    CallCode = 1,
+    Callcode = 1,
     Delegatecall = 2,
     Staticcall = 3,
     ExtCall = 4,
@@ -20,6 +19,7 @@ pub enum CallKind {
     Create = 7,
     Create2 = 8,
     EofCreate = 9,
+    ReturnContract = 10,
 }
 
 impl From<CallType> for CallKind {
@@ -28,7 +28,7 @@ impl From<CallType> for CallKind {
             CallType::Call => CallKind::Call,
             CallType::Staticcall => CallKind::Staticcall,
             CallType::Delegatecall => CallKind::Delegatecall,
-            CallType::CallCode => CallKind::CallCode,
+            CallType::Callcode => CallKind::Callcode,
         }
     }
 }
@@ -67,7 +67,9 @@ pub struct CallMessage {
     /// Whether the call is a static call, or is initiated inside a static call.
     pub is_static: bool,
     /// Whether the call is initiated from EOF bytecode.
-    pub is_eof: bool,
+    pub is_eof_init: bool,
+    /// Whether the validate EOF bytecode
+    pub validate_eof: bool,
 }
 
 impl CallMessage {

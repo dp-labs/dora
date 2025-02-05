@@ -174,13 +174,13 @@ def Wasm_ImportedMemFillOp : WASM_Op<"imported_mem_fill"> {
 // Memory Size Operation
 def Wasm_MemSizeOp : WASM_Op<"mem_size"> {
     let arguments = (ins I32:$mem);
-    let results = (outs);
+    let results = (outs I32:$value);
 }
 
 // Memory Grow Operation
 def Wasm_MemGrowOp : WASM_Op<"mem_grow"> {
     let arguments = (ins I32:$delta, I32:$mem);
-    let results = (outs);
+    let results = (outs I32:$value);
 }
 
 def Wasm_ElemDropOp : WASM_Op<"elem_drop"> {
@@ -200,12 +200,12 @@ def Wasm_TableInitOp : WASM_Op<"table_init"> {
 
 def Wasm_TableGetOp : WASM_Op<"table_get"> {
     let arguments = (ins I32:$table, I32:$elem);
-    let results = (outs);
+    let results = (outs I32:$value);
 }
 
 def Wasm_ImportedTableGetOp : WASM_Op<"imported_table_get"> {
     let arguments = (ins I32:$table, I32:$elem);
-    let results = (outs);
+    let results = (outs I32:$value);
 }
 
 def Wasm_TableSetOp : WASM_Op<"table_set"> {
@@ -225,17 +225,17 @@ def Wasm_TableFillOp : WASM_Op<"table_fill"> {
 
 def Wasm_TableGrowOp : WASM_Op<"table_grow"> {
     let arguments = (ins I32:$elem, I32:$delta, I32:$tableIndex);
-    let results = (outs);
+    let results = (outs I32:$value);
 }
 
 def Wasm_ImportedTableGrowOp : WASM_Op<"imported_table_grow"> {
     let arguments = (ins I32:$elem, I32:$delta, I32:$tableIndex);
-    let results = (outs);
+    let results = (outs I32:$value);
 }
 
 def Wasm_TableSizeOp : WASM_Op<"table_size"> {
     let arguments = (ins I32:$table);
-    let results = (outs);
+    let results = (outs I32:$value);
 }
 
 def Wasm_ImportedTableSizeOp : WASM_Op<"imported_table_size"> {
@@ -358,25 +358,6 @@ def Wasm_SubOp : WASM_Op<"sub"> {
 
 // Mul Operation
 def Wasm_MulOp : WASM_Op<"mul"> {
-    let summary = "multiply two operands of the same type";
-    let description = [{
-        This operation takes two operands of the same type and returns their product.
-    }];
-
-    let arguments = (ins
-        AnyTypeOf<[I32, I64, F32, F64]>:$lhs,
-        AnyTypeOf<[I32, I64, F32, F64]>:$rhs
-    );
-
-    let results = (outs AnyTypeOf<[I32, I64, F32, F64]>:$result);
-
-    let assemblyFormat = [{
-        $lhs `,` $rhs `:` type($lhs) `->` type($result)
-    }];
-}
-
-// Div Operation
-def Wasm_DivOp : WASM_Op<"div"> {
     let summary = "multiply two operands of the same type";
     let description = [{
         This operation takes two operands of the same type and returns their product.
@@ -591,12 +572,9 @@ def Wasm_EqzOp : WASM_Op<"eqz"> {
         This operation checks if an operand of either i32 or i64 type is equal to zero.
     }];
 
-    let arguments = (ins
-        AnyTypeOf<[I32, I64]>:$lhs,
-        AnyTypeOf<[I32, I64]>:$rhs
-    );
+    let arguments = (ins AnyTypeOf<[I32, I64]>:$val);
 
-    let results = (outs AnyTypeOf<[I32, I64]>:$result);
+    let results = (outs I32:$result);
 
     let assemblyFormat = [{
         $value `:` type($value) `->` type($result)
@@ -615,7 +593,7 @@ def Wasm_EqOp : WASM_Op<"eq"> {
         AnyTypeOf<[I32, I64, F32, F64]>:$rhs
     );
 
-    let results = (outs AnyTypeOf<[I32, I64, F32, F64]>:$result);
+    let results = (outs I32:$result);
 
     let assemblyFormat = [{
         $lhs `,` $rhs `:` type($lhs) `->` type($result)
@@ -653,7 +631,7 @@ def Wasm_LtsOp : WASM_Op<"lts"> {
         AnyTypeOf<[I32, I64]>:$rhs
     );
 
-    let results = (outs AnyTypeOf<[I32, I64]>:$result);
+    let results = (outs I32:$result);
 
     let assemblyFormat = [{
         $lhs `,` $rhs `:` type($lhs) `->` type($result)
@@ -691,7 +669,7 @@ def Wasm_GtsOp : WASM_Op<"gts"> {
         AnyTypeOf<[I32, I64]>:$rhs
     );
 
-    let results = (outs AnyTypeOf<[I32, I64]>:$result);
+    let results = (outs I32:$result);
 
     let assemblyFormat = [{
         $lhs `,` $rhs `:` type($lhs) `->` type($result)
@@ -710,7 +688,7 @@ def Wasm_GtuOp : WASM_Op<"gtu"> {
         AnyTypeOf<[I32, I64]>:$rhs
     );
 
-    let results = (outs AnyTypeOf<[I32, I64]>:$result);
+    let results = (outs I32:$result);
 
     let assemblyFormat = [{
         $lhs `,` $rhs `:` type($lhs) `->` type($result)
@@ -729,7 +707,7 @@ def Wasm_LesOp : WASM_Op<"les"> {
         AnyTypeOf<[I32, I64]>:$rhs
     );
 
-    let results = (outs AnyTypeOf<[I32, I64]>:$result);
+    let results = (outs I32:$result);
 
     let assemblyFormat = [{
         $lhs `,` $rhs `:` type($lhs) `->` type($result)
@@ -748,7 +726,7 @@ def Wasm_LeuOp : WASM_Op<"leu"> {
         AnyTypeOf<[I32, I64]>:$rhs
     );
 
-    let results = (outs AnyTypeOf<[I32, I64]>:$result);
+    let results = (outs I32:$result);
 
     let assemblyFormat = [{
         $lhs `,` $rhs `:` type($lhs) `->` type($result)
@@ -767,7 +745,7 @@ def Wasm_GesOp : WASM_Op<"ges"> {
         AnyTypeOf<[I32, I64]>:$rhs
     );
 
-    let results = (outs AnyTypeOf<[I32, I64]>:$result);
+    let results = (outs I32:$result);
 
     let assemblyFormat = [{
         $lhs `,` $rhs `:` type($lhs) `->` type($result)
@@ -786,83 +764,83 @@ def Wasm_GeuOp : WASM_Op<"geu"> {
         AnyTypeOf<[I32, I64]>:$rhs
     );
 
-    let results = (outs AnyTypeOf<[I32, I64]>:$result);
+    let results = (outs I32:$result);
 
     let assemblyFormat = [{
         $lhs `,` $rhs `:` type($lhs) `->` type($result)
     }];
 }
 
-// Lt Operation
-def Wasm_LtOp : WASM_Op<"lt"> {
+// Flt Operation
+def Wasm_FltOp : WASM_Op<"flt"> {
     let summary = "Not equality comparison between two operands of the same type";
     let description = [{
         This operation compares two operands of the same type for not equality and returns the result.
     }];
 
     let arguments = (ins
-        AnyTypeOf<[I32, I64, F32, F64]>:$lhs,
-        AnyTypeOf<[I32, I64, F32, F64]>:$rhs
+        AnyTypeOf<[F32, F64]>:$lhs,
+        AnyTypeOf<[F32, F64]>:$rhs
     );
 
-    let results = (outs AnyTypeOf<[I32, I64, F32, F64]>:$result);
+    let results = (outs I32:$result);
 
     let assemblyFormat = [{
         $lhs `,` $rhs `:` type($lhs) `->` type($result)
     }];
 }
 
-// Gt Operation
-def Wasm_GtOp : WASM_Op<"gt"> {
+// Fgt Operation
+def Wasm_FgtOp : WASM_Op<"fgt"> {
     let summary = "Not equality comparison between two operands of the same type";
     let description = [{
         This operation compares two operands of the same type for not equality and returns the result.
     }];
 
     let arguments = (ins
-        AnyTypeOf<[I32, I64, F32, F64]>:$lhs,
-        AnyTypeOf<[I32, I64, F32, F64]>:$rhs
+        AnyTypeOf<[F32, F64]>:$lhs,
+        AnyTypeOf<[F32, F64]>:$rhs
     );
 
-    let results = (outs AnyTypeOf<[I32, I64, F32, F64]>:$result);
+    let results = (outs I32:$result);
 
     let assemblyFormat = [{
         $lhs `,` $rhs `:` type($lhs) `->` type($result)
     }];
 }
 
-// Le Operation
-def Wasm_LeOp : WASM_Op<"le"> {
+// Fle Operation
+def Wasm_FleOp : WASM_Op<"fle"> {
     let summary = "Not equality comparison between two operands of the same type";
     let description = [{
         This operation compares two operands of the same type for not equality and returns the result.
     }];
 
     let arguments = (ins
-        AnyTypeOf<[I32, I64, F32, F64]>:$lhs,
-        AnyTypeOf<[I32, I64, F32, F64]>:$rhs
+        AnyTypeOf<[F32, F64]>:$lhs,
+        AnyTypeOf<[F32, F64]>:$rhs
     );
 
-    let results = (outs AnyTypeOf<[I32, I64, F32, F64]>:$result);
+    let results = (outs I32:$result);
 
     let assemblyFormat = [{
         $lhs `,` $rhs `:` type($lhs) `->` type($result)
     }];
 }
 
-// Ge Operation
-def Wasm_GeOp : WASM_Op<"ge"> {
+// Fge Operation
+def Wasm_FgeOp : WASM_Op<"fge"> {
     let summary = "Not equality comparison between two operands of the same type";
     let description = [{
         This operation compares two operands of the same type for not equality and returns the result.
     }];
 
     let arguments = (ins
-        AnyTypeOf<[I32, I64, F32, F64]>:$lhs,
-        AnyTypeOf<[I32, I64, F32, F64]>:$rhs
+        AnyTypeOf<[F32, F64]>:$lhs,
+        AnyTypeOf<[F32, F64]>:$rhs
     );
 
-    let results = (outs AnyTypeOf<[I32, I64, F32, F64]>:$result);
+    let results = (outs I32:$result);
 
     let assemblyFormat = [{
         $lhs `,` $rhs `:` type($lhs) `->` type($result)
@@ -939,9 +917,9 @@ def Wasm_NearestOp : WASM_Op<"nearest"> {
 
 def Wasm_SqrtOp : WASM_Op<"sqrt"> {
     let arguments = (ins
-        AnyTypeOf<[I32, I64, F32, F64]>:$input
+        AnyTypeOf<[F32, F64]>:$input
     );
-    let results = (outs AnyTypeOf<[I32, I64, F32, F64]>:$result);
+    let results = (outs AnyTypeOf<[F32, F64]>:$result);
 }
 
 def Wasm_AbsOp : WASM_Op<"abs"> {

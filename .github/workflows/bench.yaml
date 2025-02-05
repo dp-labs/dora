@@ -5,10 +5,11 @@ on:
     branches: [main]
   pull_request:
     branches: ["**"]
+    types: [synchronize, opened, reopened, converted_to_draft, ready_for_review]
 
 env:
   LLVM_VERSION: "19"
-  RUST_VERSION: 1.82.0
+  RUST_VERSION: 1.83.0
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -17,6 +18,7 @@ concurrency:
 jobs:
   bench:
     name: Benchmark Test
+    if: github.event.pull_request.draft == false
     runs-on: ubuntu-latest
     steps:
       - name: Checkout sources

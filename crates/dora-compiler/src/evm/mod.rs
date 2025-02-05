@@ -1,18 +1,15 @@
 use dora_primitives::SpecId;
 use dora_runtime::constants::env::DORA_TRACING;
-use dora_runtime::constants::STACK_SIZE_GLOBAL;
-use dora_runtime::{constants::STACK_PTR_GLOBAL, ExitStatusCode};
+use dora_runtime::ExitStatusCode;
 use dora_runtime::{
-    constants::{
-        CALLDATA_PTR_GLOBAL, CALLDATA_SIZE_GLOBAL, GAS_COUNTER_GLOBAL, MAIN_ENTRYPOINT,
-        MAX_STACK_SIZE, MEMORY_PTR_GLOBAL, MEMORY_SIZE_GLOBAL,
-    },
-    symbols,
+    constants::{MAIN_ENTRYPOINT, MAX_STACK_SIZE},
+    symbols as runtime_symbols,
 };
+use melior::dialect::llvm::AllocaOptions;
 use melior::{
     dialect::{
         arith, cf, func,
-        llvm::{self, attributes::Linkage, AllocaOptions, LoadStoreOptions},
+        llvm::{self, LoadStoreOptions},
     },
     ir::{
         attribute::{FlatSymbolRefAttribute, IntegerAttribute, StringAttribute, TypeAttribute},
@@ -25,6 +22,8 @@ use melior::{
 use num_bigint::BigUint;
 use program::{stack_io, stack_section_input};
 use revmc::{op_info_map, OpcodeInfo};
+use rustc_hash::FxHashMap;
+use std::collections::hash_map::Entry;
 use std::collections::BTreeMap;
 
 use crate::backend::IntCC;
@@ -34,20 +33,21 @@ use crate::errors::{Error as CompileError, Result};
 use crate::evm::program::Operation;
 use crate::intrinsics::Intrinsics;
 use crate::module::Module as MLIRModule;
-use crate::symbols as symbols_ctx;
+use crate::value::ToContextValue;
 use crate::Compiler;
 pub mod backend;
 pub(crate) mod conversion;
 pub(crate) mod instructions;
 pub mod pass;
 pub mod program;
+pub(crate) mod symbols;
 pub use conversion::ConversionPass;
 pub use program::Program;
 
 #[cfg(test)]
 mod tests;
 
-/// The `EVMCompiler` struct provides a compiler for translating EVM (Ethereum Virtual Machine) bytecode
+/// The [`EVMCompiler`] struct provides a compiler for translating EVM (Ethereum Virtual Machine) bytecode
 /// into MLIR (Multi-Level Intermediate Representation) operations. It encapsulates the MLIR context and
 /// EVM-specific intrinsic types required during compilation.
 ///
@@ -59,7 +59,7 @@ mod tests;
 ///   the compilation process. These types are necessary to generate correct MLIR operations for EVM instructions.
 ///
 /// # Purpose:
-/// The `EVMCompiler` serves as the main entry point for compiling EVM bytecode into MLIR-based representations.
+/// The [`EVMCompiler`] serves as the main entry point for compiling EVM bytecode into MLIR-based representations.
 /// It relies on the provided context (`ctx`) to manage the lifetime and validity of MLIR operations, and uses
 /// intrinsic types (`intrinsics`) to map EVM constructs into the appropriate MLIR types. This struct simplifies
 /// the process of working with MLIR when targeting EVM execution models.
@@ -83,18 +83,16 @@ mod tests;
 ///   intermediate representation during compilation.
 /// - The `intrinsics` field provides easy access to the basic types (e.g., integer, float, and index types)
 ///   necessary for compiling EVM operations.
-/// - The `EVMCompiler` simplifies the process of generating MLIR operations from EVM bytecode by abstracting
+/// - The [`EVMCompiler`] simplifies the process of generating MLIR operations from EVM bytecode by abstracting
 ///   away the details of managing the context and intrinsic types.
 pub struct EVMCompiler<'c> {
     /// The MLIR context used for generating operations and managing their lifetime. It encapsulates the state
     /// of the MLIR infrastructure, including types, modules, and operations. This context is tied to the
     /// lifetime `'c` of the EVMCompiler.
     pub ctx: &'c Context,
-
     /// The intrinsic types specific to the EVM execution model, such as integer and floating-point types.
     /// These are used to translate EVM operations into the corresponding MLIR types during compilation.
     pub intrinsics: Intrinsics<'c>,
-
     /// Check for stack overflow or underflow errors. Note that there is no need to check for EOF Bytecode,
     /// as stack operations are statically determined at compile time.
     pub stack_bound_checks: bool,
@@ -138,19 +136,124 @@ impl<'c> Compiler for EVMCompiler<'c> {
 }
 
 impl<'c> EVMCompiler<'c> {
-    /// Creates a new instance of `EVMCompiler`.
+    /// Creates a new instance of [`EVMCompiler`].
     ///
     /// # Parameters
     /// * `ctx` - A reference to the context in which the compiler operates.
     ///
     /// # Returns
-    /// A new instance of `EVMCompiler`.
+    /// A new instance of [`EVMCompiler`].
     pub fn new(ctx: &'c Context) -> Self {
         Self {
             intrinsics: Intrinsics::declare(ctx),
             ctx,
             stack_bound_checks: true,
         }
+    }
+
+    /// Generates operation functions for the EVM compiler.
+    ///
+    /// This function iterates over the operations in the given program and creates a new MLIR function
+    /// for each unique opcode that is not a jump instruction (Jump, JumpI, JumpF). The generated functions
+    /// are stored in a hash map with the opcode as the key.
+    ///
+    /// The generated function has the following signature:
+    /// - Parameters: RuntimeContext*, Gas counter ptr, Stack pointer, Stack size pointer, Stack top pointer
+    /// - Return type: i8
+    ///
+    /// The function body is generated by the `EVMCompiler::generate_code_for_op` method, which translates
+    /// the EVM operation into MLIR operations.
+    ///
+    /// # Arguments
+    ///
+    /// * `context` - A reference to the MLIR context.
+    /// * `intrinsics` - A reference to the intrinsics used by the compiler.
+    /// * `program` - A reference to the EVM program being compiled.
+    /// * `options` - A reference to the compiler options.
+    ///
+    /// # Returns
+    ///
+    /// A [`Result`] containing a hash map of operation functions, where each key is an opcode and the value
+    /// is the corresponding MLIR function. If an error occurs during function generation, the `Err` variant
+    /// is returned.
+    pub fn generate_op_functions(
+        context: &'c Context,
+        intrinsics: &'c Intrinsics,
+        program: &Program,
+        options: &<EVMCompiler<'c> as Compiler>::Options,
+    ) -> Result<FxHashMap<usize, melior::ir::Operation<'c>>> {
+        let location = intrinsics.unknown_loc;
+        let mut op_funcs: FxHashMap<usize, melior::ir::Operation> = FxHashMap::default();
+        for (i, op) in program.operations.iter().enumerate() {
+            if matches!(
+                op,
+                Operation::Jump
+                    | Operation::JumpI
+                    | Operation::JumpF(_)
+                    | Operation::CallF(_)
+                    | Operation::Push(_)
+                    | Operation::PC { .. }
+            ) {
+                continue;
+            }
+            let opcode = op.opcode();
+            if let Entry::Vacant(e) = op_funcs.entry(opcode) {
+                let op_symbol = format!("op{}", opcode);
+                let op_func = func::func(
+                    &context.mlir_context,
+                    StringAttribute::new(&context.mlir_context, &op_symbol),
+                    TypeAttribute::new(
+                        FunctionType::new(
+                            &context.mlir_context,
+                            &[
+                                // RuntimeContext
+                                intrinsics.ptr_ty,
+                                // Gas counter ptr
+                                intrinsics.ptr_ty,
+                                // Stack pointer
+                                intrinsics.ptr_ty,
+                                // Stack size pointer
+                                intrinsics.ptr_ty,
+                                // Stack top pointer
+                                intrinsics.ptr_ty,
+                            ],
+                            &[intrinsics.i8_ty],
+                        )
+                        .into(),
+                    ),
+                    Region::new(),
+                    &[(
+                        Identifier::new(&context.mlir_context, "sym_visibility"),
+                        StringAttribute::new(&context.mlir_context, "private").into(),
+                    )],
+                    location,
+                );
+                let op_func_region = op_func.region(0)?;
+                let setup_block = op_func_region.append_block(Block::new(&[]));
+                let mut ctx =
+                    CtxType::new_op_func_ctx(context, &op_func_region, &setup_block, program)?;
+                let (start_block, end_block) =
+                    EVMCompiler::generate_code_for_op(&mut ctx, &op_func_region, i, op, options)?;
+                setup_block.append_operation(cf::br(&start_block, &[], location));
+                let return_block = op_func_region.append_block(Block::new(&[]));
+                end_block.append_operation(cf::br(&return_block, &[], location));
+                let reason = return_block
+                    .append_operation(arith::constant(
+                        &context.mlir_context,
+                        IntegerAttribute::new(
+                            intrinsics.i8_ty,
+                            ExitStatusCode::Continue.to_u8() as i64,
+                        )
+                        .into(),
+                        location,
+                    ))
+                    .result(0)?
+                    .into();
+                return_block.append_operation(func::r#return(&[reason], location));
+                e.insert(op_func);
+            }
+        }
+        Ok(op_funcs)
     }
 
     /// Generates blocks for the specified target [`Operation`].
@@ -164,11 +267,12 @@ impl<'c> EVMCompiler<'c> {
     /// * `op` - The operation to generate code for.
     ///
     /// # Returns
-    /// A `Result` containing a tuple of `BlockRef` representing the starting and last blocks.
+    /// A [`Result`] containing a tuple of [`BlockRef`] representing the starting and last blocks.
     pub fn generate_code_for_op(
         ctx: &mut CtxType<'c>,
         region: &'c Region<'c>,
-        op: Operation,
+        index: usize,
+        op: &Operation,
         options: &<EVMCompiler<'c> as Compiler>::Options,
     ) -> Result<(BlockRef<'c, 'c>, BlockRef<'c, 'c>)> {
         let op_infos = op_info_map(unsafe {
@@ -177,149 +281,159 @@ impl<'c> EVMCompiler<'c> {
             )
         });
         let op_info = op_infos[op.opcode()];
+        // Single operation function does not contains multiple operation blocks
+        let start_block = if ctx.operation_blocks.is_empty() {
+            region.append_block(Block::new(&[]))
+        } else {
+            ctx.operation_blocks[index]
+        };
 
         // Note: make opcode not found as the runtime halt error,
         // because normal opcodes still consumes GAS during runtime.
         if op_info.is_unknown() || op_info.is_disabled() {
-            return Self::invalid_with_error_code(ctx, region, ExitStatusCode::OpcodeNotFound);
+            return Self::invalid_with_error_code(
+                ctx,
+                region,
+                start_block,
+                ExitStatusCode::OpcodeNotFound,
+            );
         }
 
-        let (mut block_start, block_end) = match &op {
-            // Arithmetic instructions
-            Operation::Add => EVMCompiler::add(ctx, region),
-            Operation::Mul => EVMCompiler::mul(ctx, region),
-            Operation::Sub => EVMCompiler::sub(ctx, region),
-            Operation::Div => EVMCompiler::udiv(ctx, region),
-            Operation::SDiv => EVMCompiler::sdiv(ctx, region),
-            Operation::Mod => EVMCompiler::umod(ctx, region),
-            Operation::SMod => EVMCompiler::smod(ctx, region),
-            Operation::AddMod => EVMCompiler::addmod(ctx, region),
-            Operation::MulMod => EVMCompiler::mulmod(ctx, region),
-            Operation::Exp => EVMCompiler::exp(ctx, region),
-            Operation::SignExtend => EVMCompiler::signextend(ctx, region),
-            // Bitwise instructions
-            Operation::Lt => EVMCompiler::lt(ctx, region),
-            Operation::Gt => EVMCompiler::gt(ctx, region),
-            Operation::Slt => EVMCompiler::slt(ctx, region),
-            Operation::Sgt => EVMCompiler::sgt(ctx, region),
-            Operation::Eq => EVMCompiler::eq(ctx, region),
-            Operation::IsZero => EVMCompiler::iszero(ctx, region),
-            Operation::And => EVMCompiler::and(ctx, region),
-            Operation::Or => EVMCompiler::or(ctx, region),
-            Operation::Xor => EVMCompiler::xor(ctx, region),
-            Operation::Not => EVMCompiler::not(ctx, region),
-            Operation::Byte => EVMCompiler::byte(ctx, region),
-            Operation::Shl => EVMCompiler::shl(ctx, region),
-            Operation::Shr => EVMCompiler::shr(ctx, region),
-            Operation::Sar => EVMCompiler::sar(ctx, region),
-            // System instructions
-            Operation::Keccak256 => EVMCompiler::keccak256(ctx, region),
-            Operation::Address => EVMCompiler::address(ctx, region),
-            Operation::Caller => EVMCompiler::caller(ctx, region),
-            Operation::CallValue => EVMCompiler::callvalue(ctx, region),
-            Operation::CalldataLoad => EVMCompiler::calldataload(ctx, region),
-            Operation::CalldataSize => EVMCompiler::calldatasize(ctx, region),
-            Operation::CalldataCopy => EVMCompiler::calldatacopy(ctx, region),
-            Operation::DataLoad => EVMCompiler::dataload(ctx, region),
-            Operation::DataLoadN(x) => EVMCompiler::dataloadn(ctx, region, *x),
-            Operation::DataSize => EVMCompiler::datasize(ctx, region),
-            Operation::DataCopy => EVMCompiler::datacopy(ctx, region),
-            Operation::CodeSize => EVMCompiler::codesize(ctx, region),
-            Operation::CodeCopy => EVMCompiler::codecopy(ctx, region),
-            Operation::ExtCodeCopy => EVMCompiler::extcodecopy(ctx, region),
-            Operation::ReturndataLoad => EVMCompiler::returndataload(ctx, region),
-            Operation::ReturndataSize => EVMCompiler::returndatasize(ctx, region),
-            Operation::ReturndataCopy => EVMCompiler::returndatacopy(ctx, region),
-            Operation::Gas => EVMCompiler::gas(ctx, region),
-            // Host env instructions
-            Operation::GasPrice => EVMCompiler::gasprice(ctx, region),
-            Operation::Coinbase => EVMCompiler::coinbase(ctx, region),
-            Operation::Origin => EVMCompiler::origin(ctx, region),
-            Operation::Timestamp => EVMCompiler::timestamp(ctx, region),
-            Operation::Number => EVMCompiler::number(ctx, region),
-            Operation::Prevrandao => EVMCompiler::prevrandao(ctx, region),
-            Operation::GasLimit => EVMCompiler::gaslimit(ctx, region),
-            Operation::Chainid => EVMCompiler::chainid(ctx, region),
-            Operation::BaseFee => EVMCompiler::basefee(ctx, region),
-            Operation::BlobBaseFee => EVMCompiler::blobbasefee(ctx, region),
-            Operation::BlobHash => EVMCompiler::blobhash(ctx, region),
-            // Host instructions
-            Operation::Balance => EVMCompiler::balance(ctx, region),
-            Operation::SelfBalance => EVMCompiler::selfbalance(ctx, region),
-            Operation::ExtCodeSize => EVMCompiler::extcodesize(ctx, region),
-            Operation::ExtCodeHash => EVMCompiler::extcodehash(ctx, region),
-            Operation::BlockHash => EVMCompiler::blockhash(ctx, region),
-            Operation::SLoad => EVMCompiler::sload(ctx, region),
-            Operation::SStore => EVMCompiler::sstore(ctx, region),
-            Operation::TLoad => EVMCompiler::tload(ctx, region),
-            Operation::TStore => EVMCompiler::tstore(ctx, region),
-            Operation::Log(x) => EVMCompiler::log(ctx, region, *x),
-            Operation::SelfDestruct => EVMCompiler::selfdestruct(ctx, region),
-            // Stack instructions
-            Operation::Push0 => EVMCompiler::push(ctx, region, BigUint::ZERO),
-            Operation::Push((_, x)) => EVMCompiler::push(ctx, region, (*x).clone()),
-            Operation::Pop => EVMCompiler::pop(ctx, region),
-            Operation::Dup(n) => EVMCompiler::dup(ctx, region, (*n).into()),
-            Operation::DupN(x) => EVMCompiler::dupn(ctx, region, *x),
-            Operation::Swap(n) => EVMCompiler::swap(ctx, region, (*n).into()),
-            Operation::SwapN(x) => EVMCompiler::swapn(ctx, region, *x),
-            Operation::Exchange(x) => EVMCompiler::exchange(ctx, region, *x),
-            // Control instructions
-            Operation::Jump => EVMCompiler::jump(ctx, region),
-            Operation::JumpI => EVMCompiler::jumpi(ctx, region),
-            Operation::JumpF(x) => EVMCompiler::jumpf(ctx, region, *x),
-            Operation::RJump(x) => EVMCompiler::rjump(ctx, region, *x),
-            Operation::RJumpI(x) => EVMCompiler::rjumpi(ctx, region, *x),
-            Operation::RJumpV((x1, x2)) => EVMCompiler::rjumpv(ctx, region, *x1, (*x2).clone()),
-            Operation::PC { pc } => EVMCompiler::pc(ctx, region, *pc),
-            Operation::Jumpdest { pc } => EVMCompiler::jumpdest(ctx, region, *pc),
-            Operation::Revert => EVMCompiler::revert(ctx, region),
-            Operation::Stop => EVMCompiler::stop(ctx, region),
-            Operation::Invalid => EVMCompiler::invalid(ctx, region),
-            // Memory instructions
-            Operation::MLoad => EVMCompiler::mload(ctx, region),
-            Operation::MStore => EVMCompiler::mstore(ctx, region),
-            Operation::MStore8 => EVMCompiler::mstore8(ctx, region),
-            Operation::MSize => EVMCompiler::msize(ctx, region),
-            Operation::MCopy => EVMCompiler::mcopy(ctx, region),
-            // Contract instructions
-            Operation::Create => EVMCompiler::create(ctx, region),
-            Operation::Create2 => EVMCompiler::create2(ctx, region),
-            Operation::EofCreate(x) => EVMCompiler::eofcreate(ctx, region, *x),
-            Operation::ReturnContract(x) => EVMCompiler::returncontract(ctx, region, *x),
-            Operation::Call => EVMCompiler::call(ctx, region),
-            Operation::CallF(x) => EVMCompiler::callf(ctx, region, *x),
-            Operation::RetF => EVMCompiler::retf(ctx, region),
-            Operation::CallCode => EVMCompiler::callcode(ctx, region),
-            Operation::Delegatecall => EVMCompiler::delegatecall(ctx, region),
-            Operation::Staticcall => EVMCompiler::staticcall(ctx, region),
-            Operation::Return => EVMCompiler::creturn(ctx, region),
-            Operation::ExtCall => EVMCompiler::extcall(ctx, region),
-            Operation::ExtDelegatecall => EVMCompiler::extdelegatecall(ctx, region),
-            Operation::ExtStaticcall => EVMCompiler::extstaticcall(ctx, region),
-        }?;
+        let mut op_start_block = start_block;
 
-        // FIXME : alter below hardcoded line with eof checks in Program in the future
-        let is_eof = false;
-        // Stack overflow/underflow check.
-        if !is_eof && options.stack_bound_checks {
-            block_start = Self::stack_bound_checks_block(ctx, region, block_start, &op)?;
-        }
         // Static gas metering needs to be done before stack checking.
         if options.gas_metering {
-            block_start = Self::gas_metering_block(ctx, region, block_start, &op, &op_info)?;
+            op_start_block = Self::gas_metering_block(ctx, region, op_start_block, op, &op_info)?;
         }
-        // Register the jump dest block.
-        if let Operation::Jumpdest { pc } = op {
-            ctx.register_jump_destination(pc, block_start);
+
+        // Stack overflow/underflow check.
+        if !ctx.program.is_eof() && options.stack_bound_checks {
+            op_start_block = Self::stack_bound_checks_block(ctx, region, op_start_block, op)?;
         }
-        Ok((block_start, block_end))
+
+        let (_op_start_block, op_end_block) = match &op {
+            // Arithmetic instructions
+            Operation::Add => EVMCompiler::add(ctx, op_start_block),
+            Operation::Mul => EVMCompiler::mul(ctx, op_start_block),
+            Operation::Sub => EVMCompiler::sub(ctx, op_start_block),
+            Operation::Div => EVMCompiler::udiv(ctx, op_start_block),
+            Operation::SDiv => EVMCompiler::sdiv(ctx, op_start_block),
+            Operation::Mod => EVMCompiler::umod(ctx, op_start_block),
+            Operation::SMod => EVMCompiler::smod(ctx, op_start_block),
+            Operation::AddMod => EVMCompiler::addmod(ctx, op_start_block),
+            Operation::MulMod => EVMCompiler::mulmod(ctx, op_start_block),
+            Operation::Exp => EVMCompiler::exp(ctx, op_start_block),
+            Operation::SignExtend => EVMCompiler::signextend(ctx, op_start_block),
+            // Bitwise instructions
+            Operation::Lt => EVMCompiler::lt(ctx, op_start_block),
+            Operation::Gt => EVMCompiler::gt(ctx, op_start_block),
+            Operation::Slt => EVMCompiler::slt(ctx, op_start_block),
+            Operation::Sgt => EVMCompiler::sgt(ctx, op_start_block),
+            Operation::Eq => EVMCompiler::eq(ctx, op_start_block),
+            Operation::IsZero => EVMCompiler::iszero(ctx, op_start_block),
+            Operation::And => EVMCompiler::and(ctx, op_start_block),
+            Operation::Or => EVMCompiler::or(ctx, op_start_block),
+            Operation::Xor => EVMCompiler::xor(ctx, op_start_block),
+            Operation::Not => EVMCompiler::not(ctx, op_start_block),
+            Operation::Byte => EVMCompiler::byte(ctx, op_start_block),
+            Operation::Shl => EVMCompiler::shl(ctx, op_start_block),
+            Operation::Shr => EVMCompiler::shr(ctx, op_start_block),
+            Operation::Sar => EVMCompiler::sar(ctx, op_start_block),
+            // System instructions
+            Operation::Keccak256 => EVMCompiler::keccak256(ctx, op_start_block),
+            Operation::Address => EVMCompiler::address(ctx, op_start_block),
+            Operation::Caller => EVMCompiler::caller(ctx, op_start_block),
+            Operation::CallValue => EVMCompiler::callvalue(ctx, op_start_block),
+            Operation::CalldataLoad => EVMCompiler::calldataload(ctx, op_start_block),
+            Operation::CalldataSize => EVMCompiler::calldatasize(ctx, op_start_block),
+            Operation::CalldataCopy => EVMCompiler::calldatacopy(ctx, op_start_block),
+            Operation::DataLoad => EVMCompiler::dataload(ctx, op_start_block),
+            Operation::DataLoadN(x) => EVMCompiler::dataloadn(ctx, op_start_block, *x),
+            Operation::DataSize => EVMCompiler::datasize(ctx, op_start_block),
+            Operation::DataCopy => EVMCompiler::datacopy(ctx, op_start_block),
+            Operation::CodeSize => EVMCompiler::codesize(ctx, op_start_block),
+            Operation::CodeCopy => EVMCompiler::codecopy(ctx, op_start_block),
+            Operation::ExtCodeCopy => EVMCompiler::extcodecopy(ctx, op_start_block),
+            Operation::ReturndataLoad => EVMCompiler::returndataload(ctx, op_start_block),
+            Operation::ReturndataSize => EVMCompiler::returndatasize(ctx, op_start_block),
+            Operation::ReturndataCopy => EVMCompiler::returndatacopy(ctx, op_start_block),
+            Operation::Gas => EVMCompiler::gas(ctx, op_start_block),
+            // Host env instructions
+            Operation::GasPrice => EVMCompiler::gasprice(ctx, op_start_block),
+            Operation::Coinbase => EVMCompiler::coinbase(ctx, op_start_block),
+            Operation::Origin => EVMCompiler::origin(ctx, op_start_block),
+            Operation::Timestamp => EVMCompiler::timestamp(ctx, op_start_block),
+            Operation::Number => EVMCompiler::number(ctx, op_start_block),
+            Operation::Prevrandao => EVMCompiler::prevrandao(ctx, op_start_block),
+            Operation::GasLimit => EVMCompiler::gaslimit(ctx, op_start_block),
+            Operation::Chainid => EVMCompiler::chainid(ctx, op_start_block),
+            Operation::BaseFee => EVMCompiler::basefee(ctx, op_start_block),
+            Operation::BlobBaseFee => EVMCompiler::blobbasefee(ctx, op_start_block),
+            Operation::BlobHash => EVMCompiler::blobhash(ctx, op_start_block),
+            // Host instructions
+            Operation::Balance => EVMCompiler::balance(ctx, op_start_block),
+            Operation::SelfBalance => EVMCompiler::selfbalance(ctx, op_start_block),
+            Operation::ExtCodeSize => EVMCompiler::extcodesize(ctx, op_start_block),
+            Operation::ExtCodeHash => EVMCompiler::extcodehash(ctx, op_start_block),
+            Operation::BlockHash => EVMCompiler::blockhash(ctx, op_start_block),
+            Operation::SLoad => EVMCompiler::sload(ctx, op_start_block),
+            Operation::SStore => EVMCompiler::sstore(ctx, op_start_block),
+            Operation::TLoad => EVMCompiler::tload(ctx, op_start_block),
+            Operation::TStore => EVMCompiler::tstore(ctx, op_start_block),
+            Operation::Log(x) => EVMCompiler::log(ctx, op_start_block, *x),
+            Operation::Selfdestruct => EVMCompiler::selfdestruct(ctx, region, op_start_block),
+            // Stack instructions
+            Operation::Push0 => EVMCompiler::push(ctx, op_start_block, BigUint::ZERO),
+            Operation::Push((_, x)) => EVMCompiler::push(ctx, op_start_block, (*x).clone()),
+            Operation::Pop => EVMCompiler::pop(ctx, op_start_block),
+            Operation::Dup(n) => EVMCompiler::dup(ctx, op_start_block, (*n).into()),
+            Operation::DupN(x) => EVMCompiler::dupn(ctx, op_start_block, *x),
+            Operation::Swap(n) => EVMCompiler::swap(ctx, op_start_block, (*n).into()),
+            Operation::SwapN(x) => EVMCompiler::swapn(ctx, op_start_block, *x),
+            Operation::Exchange(x) => EVMCompiler::exchange(ctx, op_start_block, *x),
+            // Control instructions
+            Operation::Jump => EVMCompiler::jump(ctx, region, op_start_block),
+            Operation::JumpI => EVMCompiler::jumpi(ctx, region, op_start_block),
+            Operation::RJump(x) => EVMCompiler::rjump(ctx, region, op_start_block, *x),
+            Operation::RJumpI(x) => EVMCompiler::rjumpi(ctx, region, op_start_block, *x),
+            Operation::RJumpV((x1, x2)) => {
+                EVMCompiler::rjumpv(ctx, region, op_start_block, *x1, (*x2).clone())
+            }
+            Operation::CallF(x) => EVMCompiler::callf(ctx, region, op_start_block, *x),
+            Operation::RetF => EVMCompiler::retf(ctx, op_start_block),
+            Operation::JumpF(x) => EVMCompiler::jumpf(ctx, region, op_start_block, *x),
+            Operation::PC { pc } => EVMCompiler::pc(ctx, op_start_block, *pc),
+            Operation::Jumpdest { pc } => EVMCompiler::jumpdest(ctx, op_start_block, *pc),
+            Operation::Revert => EVMCompiler::revert(ctx, region, op_start_block),
+            Operation::Stop => EVMCompiler::stop(ctx, region, op_start_block),
+            Operation::Invalid => EVMCompiler::invalid(ctx, region, op_start_block),
+            // Memory instructions
+            Operation::MLoad => EVMCompiler::mload(ctx, op_start_block),
+            Operation::MStore => EVMCompiler::mstore(ctx, op_start_block),
+            Operation::MStore8 => EVMCompiler::mstore8(ctx, op_start_block),
+            Operation::MSize => EVMCompiler::msize(ctx, op_start_block),
+            Operation::MCopy => EVMCompiler::mcopy(ctx, op_start_block),
+            // Contract instructions
+            Operation::Create => EVMCompiler::create(ctx, op_start_block),
+            Operation::Create2 => EVMCompiler::create2(ctx, op_start_block),
+            Operation::EofCreate(x) => EVMCompiler::eofcreate(ctx, op_start_block, *x),
+            Operation::ReturnContract(x) => EVMCompiler::returncontract(ctx, op_start_block, *x),
+            Operation::Call => EVMCompiler::call(ctx, op_start_block),
+            Operation::Callcode => EVMCompiler::callcode(ctx, op_start_block),
+            Operation::Delegatecall => EVMCompiler::delegatecall(ctx, op_start_block),
+            Operation::Staticcall => EVMCompiler::staticcall(ctx, op_start_block),
+            Operation::Return => EVMCompiler::creturn(ctx, region, op_start_block),
+            Operation::ExtCall => EVMCompiler::extcall(ctx, op_start_block),
+            Operation::ExtDelegatecall => EVMCompiler::extdelegatecall(ctx, op_start_block),
+            Operation::ExtStaticcall => EVMCompiler::extstaticcall(ctx, op_start_block),
+        }?;
+        Ok((start_block, op_end_block))
     }
 
     fn stack_bound_checks_block<'r>(
         ctx: &mut CtxType<'c>,
         region: &'r Region<'c>,
-        block_start: BlockRef<'r, 'c>,
+        stack_check_block: BlockRef<'r, 'c>,
         op: &Operation,
     ) -> Result<BlockRef<'r, 'c>> {
         let (i, o) = stack_io(op);
@@ -327,13 +441,12 @@ impl<'c> EVMCompiler<'c> {
         let diff = o as i64 - i as i64;
         let may_underflow = section_input > 0;
         let may_overflow = diff > 0;
-        let stack_check_block = region.append_block(Block::new(&[]));
+        let end_block = region.append_block(Block::new(&[]));
         let builder = OpBuilder::new_with_block(ctx.context, stack_check_block);
+        let uint64 = builder.i64_ty();
         let location = builder.get_insert_location();
-        let stack_size_ptr =
-            builder.make(builder.addressof(STACK_SIZE_GLOBAL, builder.ptr_ty()))?;
         let stack_max_size = builder.make(builder.iconst_64(MAX_STACK_SIZE as i64))?;
-        let size_before = builder.make(builder.load(stack_size_ptr, builder.intrinsics.i64_ty))?;
+        let size_before = builder.make(builder.load(ctx.values.stack_size_ptr, uint64))?;
         let size_after = builder.make(arith::addi(
             size_before,
             builder.make(builder.iconst_64(diff))?,
@@ -341,14 +454,14 @@ impl<'c> EVMCompiler<'c> {
         ))?;
         // Check potential underflow/overflow
         if may_underflow && may_overflow {
+            // Update the stack length for this operation.
+            builder.create(builder.store(size_after, ctx.values.stack_size_ptr));
             // Check underflow
             let i = builder.make(builder.iconst_64(section_input as i64))?;
             let underflow = builder.make(builder.icmp(IntCC::UnsignedLessThan, size_before, i))?;
             // Check overflow
             let overflow =
                 builder.make(builder.icmp(IntCC::UnsignedLessThan, stack_max_size, size_after))?;
-            // Update the stack length for this operation.
-            builder.create(builder.store(size_after, stack_size_ptr));
             // Whether revert
             let revert = builder.make(arith::xori(underflow, overflow, location))?;
             let code =
@@ -357,16 +470,16 @@ impl<'c> EVMCompiler<'c> {
                 ctx.context,
                 revert,
                 &ctx.revert_block,
-                &block_start,
-                &[],
+                &end_block,
                 &[code],
+                &[],
                 location,
             ));
         } else if may_underflow {
+            // Update the stack length for this operation.
+            builder.create(builder.store(size_after, ctx.values.stack_size_ptr));
             // Whether revert (or underflow)
             let i = builder.make(builder.iconst_64(section_input as i64))?;
-            // Update the stack length for this operation.
-            builder.create(builder.store(size_after, stack_size_ptr));
 
             let revert = builder.make(builder.icmp(IntCC::UnsignedLessThan, size_before, i))?;
 
@@ -376,87 +489,76 @@ impl<'c> EVMCompiler<'c> {
                 ctx.context,
                 revert,
                 &ctx.revert_block,
-                &block_start,
-                &[],
+                &end_block,
                 &[code],
+                &[],
                 location,
             ));
         } else if may_overflow {
             // Update the stack length for this operation.
-            builder.create(builder.store(size_after, stack_size_ptr));
+            builder.create(builder.store(size_after, ctx.values.stack_size_ptr));
             // Whether revert (or overflow)
             let revert =
                 builder.make(builder.icmp(IntCC::UnsignedLessThan, stack_max_size, size_after))?;
-
             let code =
                 builder.make(builder.iconst_8(ExitStatusCode::StackOverflow.to_u8() as i8))?;
             builder.create(cf::cond_br(
                 ctx.context,
                 revert,
                 &ctx.revert_block,
-                &block_start,
-                &[],
+                &end_block,
                 &[code],
+                &[],
                 location,
             ));
         } else {
             // Update the stack length for this operation.
-            builder.create(builder.store(size_after, stack_size_ptr));
-            builder.create(cf::br(&block_start, &[], location));
+            builder.create(builder.store(size_after, ctx.values.stack_size_ptr));
+            builder.create(cf::br(&end_block, &[], location));
         }
-        Ok(stack_check_block)
+        Ok(end_block)
     }
 
     fn gas_metering_block<'r>(
         ctx: &mut CtxType<'c>,
         region: &'r Region<'c>,
-        block_start: BlockRef<'r, 'c>,
+        gas_check_block: BlockRef<'r, 'c>,
         op: &Operation,
         op_info: &OpcodeInfo,
     ) -> Result<BlockRef<'r, 'c>> {
         let base_gas = op_info.base_gas();
-        let gas_check_block = region.append_block(Block::new(&[]));
+        let end_block = region.append_block(Block::new(&[]));
         let update_gas_remaining_block = region.append_block(Block::new(&[]));
         let builder = OpBuilder::new_with_block(ctx.context, gas_check_block);
+        let uint8 = builder.i8_ty();
+        let uint64 = builder.i64_ty();
         let location = builder.get_insert_location();
         // Get address of gas counter global
-        let gas_counter_ptr =
-            builder.make(builder.addressof(GAS_COUNTER_GLOBAL, builder.ptr_ty()))?;
-        let gas_counter = builder.make(builder.load(gas_counter_ptr, builder.intrinsics.i64_ty))?;
+        let gas_counter = builder.make(builder.load(ctx.values.gas_counter_ptr, uint64))?;
         let gas_value = builder.make(builder.iconst_64(base_gas as i64))?;
         if std::env::var(DORA_TRACING).is_ok() {
             let opcode = builder
-                .create(builder.iconst(builder.intrinsics.i8_ty, op.opcode() as i64))
+                .create(builder.iconst(uint8, op.opcode() as i64))
                 .result(0)?
                 .into();
-            // Get address of stack pointer global
-            let stack_ptr_ptr =
-                builder.make(builder.addressof(STACK_PTR_GLOBAL, builder.ptr_ty()))?;
-            // Load stack pointer
-            let stack_ptr = builder.make(builder.load(stack_ptr_ptr, builder.ptr_ty()))?;
-            let stack_size_ptr =
-                builder.make(builder.addressof(STACK_SIZE_GLOBAL, builder.ptr_ty()))?;
-            let stack_size =
-                builder.make(builder.load(stack_size_ptr, builder.intrinsics.i64_ty))?;
-
             builder.create(func::call(
                 builder.context(),
-                FlatSymbolRefAttribute::new(builder.context(), symbols::TRACING),
+                FlatSymbolRefAttribute::new(builder.context(), runtime_symbols::TRACING),
                 &[
                     ctx.values.syscall_ctx,
                     opcode,
                     gas_counter,
-                    stack_ptr,
-                    stack_size,
+                    ctx.values.stack_ptr,
+                    ctx.values.stack_size_ptr,
                 ],
                 &[],
                 builder.get_insert_location(),
             ));
         } else {
-            // FIXME: insert an empty FFI interface to prevent inline optimization of gas registers.
+            // FIXME : Insert an empty FFI interface to prevent inline optimization of gas registers
             builder.create(func::call(
                 builder.context(),
-                FlatSymbolRefAttribute::new(builder.context(), symbols::NOP),
+                FlatSymbolRefAttribute::new(builder.context(), runtime_symbols::NOP),
                 &[],
                 &[],
                 builder.get_insert_location(),
@@ -483,12 +585,12 @@ impl<'c> EVMCompiler<'c> {
         builder.create(llvm::store(
             builder.context(),
             new_gas_counter,
-            gas_counter_ptr,
+            ctx.values.gas_counter_ptr,
             location,
             LoadStoreOptions::default(),
         ));
-        builder.create(cf::br(&block_start, &[], location));
-        Ok(gas_check_block)
+        builder.create(cf::br(&end_block, &[], location));
+        Ok(end_block)
     }
 
     fn compile_module(
@@ -498,6 +600,8 @@ impl<'c> EVMCompiler<'c> {
         options: &<EVMCompiler<'c> as Compiler>::Options,
     ) -> Result<()> {
         let context = &self.ctx.mlir_context;
+        let uint8 = self.intrinsics.i8_ty;
+        let ptr_type = self.intrinsics.ptr_ty;
         let location = self.intrinsics.unknown_loc;
         // Build the main function
         let main_func = func::func(
@@ -506,8 +610,14 @@ impl<'c> EVMCompiler<'c> {
             TypeAttribute::new(
                 FunctionType::new(
                     context,
-                    &[self.intrinsics.ptr_ty, self.intrinsics.i64_ty],
-                    &[self.intrinsics.i8_ty],
+                    &[
+                        // RuntimeContext
+                        ptr_type, // Gas counter ptr
+                        ptr_type, // Stack pointer
+                        ptr_type, // Stack size pointer
+                        ptr_type,
+                    ],
+                    &[uint8],
                 )
                 .into(),
             ),
@@ -522,28 +632,162 @@ impl<'c> EVMCompiler<'c> {
                     Attribute::unit(context),
                 ),
             ],
-            self.intrinsics.unknown_loc,
+            location,
         );
 
         let main_region = main_func.region(0)?;
-
         let setup_block = main_region.append_block(Block::new(&[]));
 
-        let mut ctx = CtxType::new(self.ctx, module, &main_region, &setup_block, program)?;
+        let mut ctx =
+            CtxType::new_main_func_ctx(self.ctx, module, &main_region, &setup_block, program)?;
         let mut last_block = setup_block;
-        // Generate code for the program
-        for op in &ctx.program.operations {
-            let (block_start, block_end) =
-                EVMCompiler::generate_code_for_op(&mut ctx, &main_region, op.clone(), options)?;
-            last_block.append_operation(cf::br(&block_start, &[], location));
-            last_block = block_end;
+        // Generate all opcode with the inline mode.
+        if options.inline {
+            // Generate code for the program
+            for (i, op) in ctx.program.operations.iter().enumerate() {
+                let (start_block, end_block) =
+                    EVMCompiler::generate_code_for_op(&mut ctx, &main_region, i, op, options)?;
+                // Register the jump dest block.
+                if let Operation::Jumpdest { pc } = op {
+                    ctx.register_jump_destination(*pc, start_block);
+                }
+                last_block.append_operation(cf::br(&start_block, &[], location));
+                last_block = end_block;
+            }
+            let return_block = main_region.append_block(Block::new(&[]));
+            EVMCompiler::return_empty_result(&ctx, return_block, ExitStatusCode::Stop)?;
+            last_block.append_operation(cf::br(&return_block, &[], location));
+        } else {
+            // Generate opcode functions for the program
+            let op_funcs =
+                EVMCompiler::generate_op_functions(self.ctx, &self.intrinsics, program, options)?;
+            let mut result = last_block
+                .append_operation(arith::constant(
+                    context,
+                    IntegerAttribute::new(uint8, ExitStatusCode::Continue.to_u8() as i64).into(),
+                    location,
+                ))
+                .result(0)?
+                .into();
+            let continue_code: Value<'_, '_> = last_block
+                .append_operation(arith::constant(
+                    context,
+                    IntegerAttribute::new(uint8, ExitStatusCode::Continue.to_u8() as i64).into(),
+                    location,
+                ))
+                .result(0)?
+                .into();
+            let continue_code = continue_code.to_ctx_value();
+            // Generate code for the program
+            for (i, op) in ctx.program.operations.iter().enumerate() {
+                let op_symbol = format!("op{}", op.opcode());
+                if matches!(
+                    op,
+                    Operation::Jump
+                        | Operation::JumpI
+                        | Operation::JumpF(_)
+                        | Operation::CallF(_)
+                        | Operation::Push(_)
+                        | Operation::PC { .. }
+                ) {
+                    let (start_block, end_block) =
+                        EVMCompiler::generate_code_for_op(&mut ctx, &main_region, i, op, options)?;
+                    let is_stop = last_block
+                        .append_operation(arith::cmpi(
+                            context,
+                            arith::CmpiPredicate::Ne,
+                            result,
+                            continue_code,
+                            location,
+                        ))
+                        .result(0)?
+                        .into();
+                    last_block.append_operation(cf::cond_br(
+                        context,
+                        is_stop,
+                        &ctx.revert_block,
+                        &start_block,
+                        &[result],
+                        &[],
+                        location,
+                    ));
+                    let builder = OpBuilder::new_with_block(context, end_block);
+                    result = builder
+                        .make(builder.iconst_8(ExitStatusCode::Continue.to_u8() as i8))?
+                        .to_ctx_value();
+                    last_block = end_block;
+                } else {
+                    let start_block = ctx.operation_blocks[i];
+                    let builder = OpBuilder::new_with_block(context, start_block);
+                    let is_stop = last_block
+                        .append_operation(arith::cmpi(
+                            context,
+                            arith::CmpiPredicate::Ne,
+                            result,
+                            continue_code,
+                            location,
+                        ))
+                        .result(0)?
+                        .into();
+                    last_block.append_operation(cf::cond_br(
+                        context,
+                        is_stop,
+                        &ctx.stop_block,
+                        &start_block,
+                        &[result],
+                        &[],
+                        location,
+                    ));
+                    result = builder
+                        .make(func::call(
+                            context,
+                            FlatSymbolRefAttribute::new(context, &op_symbol),
+                            &[
+                                ctx.values.syscall_ctx,
+                                ctx.values.gas_counter_ptr,
+                                ctx.values.stack_ptr,
+                                ctx.values.stack_size_ptr,
+                                ctx.values.stack_top_ptr,
+                            ],
+                            &[uint8],
+                            location,
+                        ))?
+                        .to_ctx_value();
+                    last_block = start_block;
+                    // Register the jump dest block.
+                    if let Operation::Jumpdest { pc } = op {
+                        ctx.register_jump_destination(*pc, start_block);
+                    }
+                }
+            }
+            let return_block = main_region.append_block(Block::new(&[]));
+            EVMCompiler::return_empty_result(&ctx, return_block, ExitStatusCode::Stop)?;
+            let is_stop = last_block
+                .append_operation(arith::cmpi(
+                    context,
+                    arith::CmpiPredicate::Ne,
+                    result,
+                    continue_code,
+                    location,
+                ))
+                .result(0)?
+                .into();
+            last_block.append_operation(cf::cond_br(
+                context,
+                is_stop,
+                &ctx.stop_block,
+                &return_block,
+                &[result],
+                &[],
+                location,
+            ));
+            for (_, op_func) in op_funcs {
+                module.body().append_operation(op_func);
+            }
         }
         // Deal jump operations
         ctx.populate_jumptable()?;
-        let return_block = main_region.append_block(Block::new(&[]));
-        last_block.append_operation(cf::br(&return_block, &[], location));
-        EVMCompiler::return_empty_result(&ctx, return_block, ExitStatusCode::Stop)?;
-        module.body().append_operation(main_func.clone());
+        module.body().append_operation(main_func);
         Ok(())
     }
 
@@ -553,19 +797,19 @@ impl<'c> EVMCompiler<'c> {
         code: ExitStatusCode,
     ) -> Result<()> {
         let builder = OpBuilder::new_with_block(ctx.context, block);
+        let uint8 = builder.i8_ty();
+        let uint64 = builder.i64_ty();
         let zero = builder.create(builder.iconst_64(0)).result(0)?.into();
         let reason = builder
-            .create(builder.iconst(builder.intrinsics.i8_ty, code.to_u8() as i64))
+            .create(builder.iconst(uint8, code.to_u8() as i64))
             .result(0)?
             .into();
 
-        let gas_counter_ptr =
-            builder.make(builder.addressof(GAS_COUNTER_GLOBAL, builder.ptr_ty()))?;
-        let gas_counter = builder.make(builder.load(gas_counter_ptr, builder.intrinsics.i64_ty))?;
+        let gas_counter = builder.make(builder.load(ctx.values.gas_counter_ptr, uint64))?;
 
         builder.create(func::call(
             builder.context(),
-            FlatSymbolRefAttribute::new(builder.context(), symbols::WRITE_RESULT),
+            FlatSymbolRefAttribute::new(builder.context(), runtime_symbols::WRITE_RESULT),
             &[ctx.values.syscall_ctx, zero, zero, gas_counter, reason],
             &[],
             builder.get_insert_location(),
@@ -583,24 +827,68 @@ pub struct CompileOptions {
     ///
     /// Information was obtained from the [Ethereum Execution Specifications](https://github.com/ethereum/execution-specs)
     pub spec_id: SpecId,
+    /// A flag indicating whether to do validation for possible eof bytecode before compilation.
+    pub validate_eof: bool,
     /// A flag indicating whether to perform gas metering during compilation.
     pub gas_metering: bool,
     /// Check for stack overflow or underflow errors. Note that there is no need to check for EOF Bytecode,
     /// as stack operations are statically determined at compile time.
     pub stack_bound_checks: bool,
+    /// Use common op functions instead of inlining everything
+    pub inline: bool,
 }
 
 impl Default for CompileOptions {
     fn default() -> Self {
         Self {
             spec_id: SpecId::CANCUN,
+            validate_eof: true,
             gas_metering: true,
             stack_bound_checks: true,
+            inline: false,
         }
     }
 }
 
-/// The `CtxType` struct holds the necessary context and data structures for managing
+/// The [`CtxValues`] struct encapsulates values specific to the EVM context, such as those used for
+/// system calls and gas management during execution.
+///
+/// # Fields:
+/// - `syscall_ctx`: A value representing the context for system calls, used to interact with
+///   external environments during EVM execution.
+/// - `remaining_gas`: A value representing the remaining gas for the current execution, which
+///   controls the computational cost within the EVM execution model.
+///
+/// # Purpose:
+/// [`CtxValues`] simplifies the management of context-specific values during the execution of EVM bytecode.
+/// It abstracts the remaining gas and system call context, making it easier to access and manage these
+/// values within the MLIR execution framework.
+///
+/// # Example Usage:
+/// ```no_check
+/// let ctx_values = CtxValues {
+///     syscall_ctx: syscall_value,
+///     remaining_gas: gas_value,
+/// };
+/// ```
+///
+/// # Notes:
+/// - These values are integral to tracking the state of system calls and remaining gas during execution.
+#[derive(Debug)]
+pub struct CtxValues<'c> {
+    /// The system call context value used during EVM execution.
+    pub syscall_ctx: Value<'c, 'c>,
+    /// The gas counter pointer used during EVM execution and it's type is a `*mut u64`.
+    pub gas_counter_ptr: Value<'c, 'c>,
+    /// The address of the global stack pointer and it's type is a `*mut Stack`
+    pub stack_ptr: Value<'c, 'c>,
+    /// The address of the global stack top pointer and it's type is a `*mut *mut Stack`
+    pub stack_top_ptr: Value<'c, 'c>,
+    /// The address of the global stack size and it's type is a `*mut u64`.
+    pub stack_size_ptr: Value<'c, 'c>,
+}
+
+/// The [`CtxType`] struct holds the necessary context and data structures for managing
 /// the execution environment when compiling or interpreting EVM (Ethereum Virtual Machine)
 /// bytecode using MLIR. It encapsulates references to essential components like the MLIR context,
 /// the program being executed, values, and blocks for control flow management.
@@ -619,7 +907,7 @@ impl Default for CompileOptions {
 ///   blocks in MLIR.
 ///
 /// # Purpose:
-/// The `CtxType` struct acts as the primary context for managing the execution of EVM bytecode.
+/// The [`CtxType`] struct acts as the primary context for managing the execution of EVM bytecode.
 /// It provides a unified structure that encapsulates control flow blocks and essential values,
 /// facilitating smooth execution and handling of jumps, exceptions, and system calls.
 ///
@@ -639,61 +927,30 @@ impl Default for CompileOptions {
 /// ```
 ///
 /// # Notes:
-/// - `CtxType` is integral for managing the flow of execution in the context of EVM bytecode,
+/// - [`CtxType`] is integral for managing the flow of execution in the context of EVM bytecode,
 ///   particularly handling jumps, system calls, and reverts efficiently within the MLIR infrastructure.
 #[derive(Debug)]
 pub struct CtxType<'c> {
     /// The MLIR context used for managing types, operations, and modules.
     pub context: &'c MLIRContext,
-
     /// The program being executed or compiled in this context.
     pub program: &'c Program,
-
     /// A set of values relevant to the context of EVM execution, such as the remaining gas and syscall context.
     pub values: CtxValues<'c>,
-
     /// The block used to handle reverts (errors or exceptions) in the EVM execution model.
     pub revert_block: BlockRef<'c, 'c>,
-
+    /// The block used to handle stop logic with a return code in the EVM execution model.
+    pub stop_block: BlockRef<'c, 'c>,
     /// The block used to handle jump table operations in the EVM bytecode.
     pub jumptable_block: BlockRef<'c, 'c>,
-
     /// A map from jump destination indices in EVM to their corresponding blocks in MLIR.
     pub jumpdest_blocks: BTreeMap<usize, BlockRef<'c, 'c>>,
-}
-
-/// The `CtxValues` struct encapsulates values specific to the EVM context, such as those used for
-/// system calls and gas management during execution.
-///
-/// # Fields:
-/// - `syscall_ctx`: A value representing the context for system calls, used to interact with
-///   external environments during EVM execution.
-/// - `remaining_gas`: A value representing the remaining gas for the current execution, which
-///   controls the computational cost within the EVM execution model.
-///
-/// # Purpose:
-/// `CtxValues` simplifies the management of context-specific values during the execution of EVM bytecode.
-/// It abstracts the remaining gas and system call context, making it easier to access and manage these
-/// values within the MLIR execution framework.
-///
-/// # Example Usage:
-/// ```no_check
-/// let ctx_values = CtxValues {
-///     syscall_ctx: syscall_value,
-///     remaining_gas: gas_value,
-/// };
-/// ```
-///
-/// # Notes:
-/// - These values are integral to tracking the state of system calls and remaining gas during execution.
-#[derive(Debug)]
-pub struct CtxValues<'c> {
-    /// The system call context value used during EVM execution.
-    pub syscall_ctx: Value<'c, 'c>,
+    /// A vector that holds all basic start block of operations.
+    pub operation_blocks: Vec<BlockRef<'c, 'c>>,
 }
 
 impl<'c> CtxType<'c> {
-    /// Creates a new instance of `CtxType` with the specified parameters.
+    /// Creates a new instance of [`CtxType`] with the specified parameters.
     ///
     /// This constructor initializes the context for code generation, setting up
     /// the necessary components such as syscall context, initial gas, and symbol
@@ -707,9 +964,9 @@ impl<'c> CtxType<'c> {
     /// * `program` - A reference to the program being compiled.
     ///
     /// # Returns
-    /// A `Result<Self>` containing the new `CtxType` instance on success, or an
+    /// A [`Result<Self>`] containing the new [`CtxType`] instance on success, or an
     /// error if the initialization fails.
-    pub fn new(
+    pub fn new_main_func_ctx(
         context: &'c Context,
         module: &'c Module,
         region: &'c Region,
@@ -717,29 +974,101 @@ impl<'c> CtxType<'c> {
         program: &'c Program,
     ) -> Result<Self> {
         let intrinsics = Intrinsics::declare(context);
-        let location = Location::unknown(&context.mlir_context);
+        let builder = OpBuilder::new(&context.mlir_context);
+
+        let uint256 = builder.i256_ty();
+        let ptr_type = builder.ptr_ty();
+        let location = builder.unknown_loc();
+
         let syscall_ctx = block.add_argument(intrinsics.ptr_ty, location);
-        let initial_gas = block.add_argument(intrinsics.i64_ty, location);
-        let op_builder = OpBuilder::new(&context.mlir_context);
+        let gas_counter_ptr = block.add_argument(intrinsics.ptr_ty, location);
+        let stack_ptr = block.add_argument(intrinsics.ptr_ty, location);
+        let stack_size_ptr = block.add_argument(intrinsics.ptr_ty, location);
 
-        SetupBuilder::new(&context.mlir_context, module, block, &op_builder)
-            .stack()?
-            .memory()?
-            .calldata(syscall_ctx)?
-            .gas_counter(initial_gas)?
-            .declare_symbols()?;
+        SetupBuilder::new(&context.mlir_context, module).declare_symbols()?;
 
-        let revert_block = region.append_block(revert_block(&context.mlir_context, syscall_ctx)?);
-        let uint256 = op_builder.intrinsics.i256_ty;
+        let array_size = block
+            .append_operation(builder.iconst_64(0))
+            .result(0)?
+            .into();
+        let stack_top_ptr = block
+            .append_operation(llvm::alloca(
+                &context.mlir_context,
+                array_size,
+                builder.ptr_ty(),
+                location,
+                AllocaOptions::new().elem_type(Some(TypeAttribute::new(ptr_type))),
+            ))
+            .result(0)?
+            .into();
+        block.append_operation(builder.store(stack_ptr, stack_top_ptr));
+
+        let revert_block = region.append_block(revert_block(
+            &context.mlir_context,
+            syscall_ctx,
+            gas_counter_ptr,
+        )?);
         let jumptable_block = region.append_block(Block::new(&[(uint256, location)]));
-
+        let return_block = region.append_block(return_block(&context.mlir_context)?);
+        let mut operation_blocks = vec![];
+        for _ in 0..program.operations.len() {
+            operation_blocks.push(region.append_block(Block::new(&[])));
+        }
         Ok(CtxType {
             context: &context.mlir_context,
             program,
-            values: CtxValues { syscall_ctx },
+            values: CtxValues {
+                syscall_ctx,
+                gas_counter_ptr,
+                stack_ptr,
+                stack_top_ptr,
+                stack_size_ptr,
+            },
             revert_block,
+            stop_block: return_block,
             jumptable_block,
             jumpdest_blocks: Default::default(),
+            operation_blocks,
+        })
+    }
+
+    /// Creates a new instance of `CtxType` with the specified parameters for the op function
+    pub fn new_op_func_ctx(
+        context: &'c Context,
+        region: &'c Region,
+        block: &'c Block<'c>,
+        program: &'c Program,
+    ) -> Result<Self> {
+        let intrinsics = Intrinsics::declare(context);
+        let location = Location::unknown(&context.mlir_context);
+        let syscall_ctx = block.add_argument(intrinsics.ptr_ty, location);
+        let gas_counter_ptr = block.add_argument(intrinsics.ptr_ty, location);
+        let stack_ptr = block.add_argument(intrinsics.ptr_ty, location);
+        let stack_size_ptr = block.add_argument(intrinsics.ptr_ty, location);
+        let stack_top_ptr = block.add_argument(intrinsics.ptr_ty, location);
+        let revert_block = region.append_block(revert_block(
+            &context.mlir_context,
+            syscall_ctx,
+            gas_counter_ptr,
+        )?);
+        let return_block = region.append_block(return_block(&context.mlir_context)?);
+        Ok(CtxType {
+            context: &context.mlir_context,
+            program,
+            values: CtxValues {
+                syscall_ctx,
+                gas_counter_ptr,
+                stack_ptr,
+                stack_top_ptr,
+                stack_size_ptr,
+            },
+            revert_block,
+            stop_block: return_block,
+            // Note that we perform jump processing at all calls to the op function rather than within
+            // the op function itself, so this is an impossible situation.
+            jumptable_block: revert_block,
+            jumpdest_blocks: Default::default(),
+            operation_blocks: Default::default(),
         })
     }
 
@@ -859,9 +1188,15 @@ impl<'c> CtxType<'c> {
 /// - Creation of a reason constant based on the exit status code for errors.
 /// - A call to `WRITE_RESULT` with the syscall context and error information.
 /// - A return operation that provides the reason for the revert.
-pub fn revert_block<'c>(context: &'c MLIRContext, syscall_ctx: Value<'c, 'c>) -> Result<Block<'c>> {
+pub fn revert_block<'c>(
+    context: &'c MLIRContext,
+    syscall_ctx: Value<'c, 'c>,
+    gas_counter_ptr: Value<'c, 'c>,
+) -> Result<Block<'c>> {
     let builder = OpBuilder::new(context);
-    let block = Block::new(&[(builder.intrinsics.i8_ty, builder.unknown_loc())]);
+    let uint8 = builder.i8_ty();
+    let uint64 = builder.i64_ty();
+    let block = Block::new(&[(uint8, builder.unknown_loc())]);
     let location = builder.unknown_loc();
 
     let zero = block
@@ -870,18 +1205,14 @@ pub fn revert_block<'c>(context: &'c MLIRContext, syscall_ctx: Value<'c, 'c>) ->
         .into();
     let reason = block.argument(0)?.into();
 
-    let gas_counter_ptr = block
-        .append_operation(builder.addressof(GAS_COUNTER_GLOBAL, builder.ptr_ty()))
-        .result(0)?
-        .into();
     let gas_counter = block
-        .append_operation(builder.load(gas_counter_ptr, builder.intrinsics.i64_ty))
+        .append_operation(builder.load(gas_counter_ptr, uint64))
         .result(0)?
         .into();
 
     block.append_operation(func::call(
         context,
-        FlatSymbolRefAttribute::new(context, symbols::WRITE_RESULT),
+        FlatSymbolRefAttribute::new(context, runtime_symbols::WRITE_RESULT),
         &[syscall_ctx, zero, zero, gas_counter, reason],
         &[],
         location,
@@ -890,19 +1221,30 @@ pub fn revert_block<'c>(context: &'c MLIRContext, syscall_ctx: Value<'c, 'c>) ->
     Ok(block)
 }
 
-/// The `SetupBuilder` struct is used to initialize and set up the execution environment within MLIR.
+/// Creates a return block that handles return codes.
+pub fn return_block(context: &MLIRContext) -> Result<Block<'_>> {
+    let builder = OpBuilder::new(context);
+    let uint8 = builder.i8_ty();
+    let block = Block::new(&[(uint8, builder.unknown_loc())]);
+    let location = builder.unknown_loc();
+    let reason = block.argument(0)?.into();
+    block.append_operation(func::r#return(&[reason], location));
+    Ok(block)
+}
+
+/// The [`SetupBuilder`] struct is used to initialize and set up the execution environment within MLIR.
 /// It encapsulates the MLIR context, module, block, and an operation builder used to generate
 /// the necessary operations for the execution of EVM bytecode.
 ///
 /// # Fields:
-/// - `context`: A reference to the `MLIRContext` that manages types, operations, and modules.
-/// - `module`: A reference to the `Module` that contains the operations generated during execution.
-/// - `block`: A reference to the `Block` in which operations are being generated.
-/// - `builder`: A reference to the `OpBuilder` that creates MLIR operations.
+/// - `context`: A reference to the [`MLIRContext`] that manages types, operations, and modules.
+/// - `module`: A reference to the [`Module`] that contains the operations generated during execution.
+/// - `block`: A reference to the [`Block`] in which operations are being generated.
+/// - `builder`: A reference to the [`OpBuilder`] that creates MLIR operations.
 /// - `location`: The location information used for debugging purposes when generating MLIR operations.
 ///
 /// # Purpose:
-/// The `SetupBuilder` is responsible for setting up the initial environment and generating the operations
+/// The [`SetupBuilder`] is responsible for setting up the initial environment and generating the operations
 /// necessary for the execution of EVM bytecode within MLIR. It provides a convenient way to manage
 /// the context, module, and builder required for operation generation.
 ///
@@ -918,27 +1260,17 @@ pub fn revert_block<'c>(context: &'c MLIRContext, syscall_ctx: Value<'c, 'c>) ->
 /// ```
 ///
 /// # Notes:
-/// - The `SetupBuilder` simplifies the process of setting up and managing the necessary components
+/// - The [`SetupBuilder`] simplifies the process of setting up and managing the necessary components
 ///   for generating and executing MLIR operations.
 pub struct SetupBuilder<'c> {
     /// The MLIR context used for managing types, operations, and modules.
     context: &'c MLIRContext,
-
     /// The module that contains the operations generated during execution.
     module: &'c Module<'c>,
-
-    /// The block in which operations are generated.
-    block: &'c Block<'c>,
-
-    /// The operation builder used to create MLIR operations.
-    builder: &'c OpBuilder<'c, 'c>,
-
-    /// The location information used for debugging purposes.
-    location: Location<'c>,
 }
 
 impl<'c> SetupBuilder<'c> {
-    /// Creates a new instance of `SetupBuilder`.
+    /// Creates a new instance of [`SetupBuilder`].
     ///
     /// # Parameters
     /// * `context` - A reference to the MLIR context for operation creation.
@@ -947,129 +1279,9 @@ impl<'c> SetupBuilder<'c> {
     /// * `op_builder` - A reference to the operation builder used for creating operations.
     ///
     /// # Returns
-    /// A new instance of `SetupBuilder`.
-    pub fn new(
-        context: &'c MLIRContext,
-        module: &'c Module<'c>,
-        block: &'c Block<'c>,
-        op_builder: &'c OpBuilder<'c, 'c>,
-    ) -> Self {
-        Self {
-            context,
-            module,
-            block,
-            builder: op_builder,
-            location: Location::unknown(context),
-        }
-    }
-
-    /// Declares and allocates a global stack pointer.
-    ///
-    /// This method initializes the stack pointer used in the execution context.
-    ///
-    /// # Returns
-    /// A reference to `self` for method chaining.
-    ///
-    /// # Errors
-    /// Returns an error if global declarations or stack allocation fails.
-    pub fn stack(&self) -> Result<&Self> {
-        let ptr_type = self.builder.intrinsics.ptr_ty;
-        self.declare_globals(&[STACK_PTR_GLOBAL], ptr_type)?
-            .allocate_stack()?;
-        self.declare_globals(&[STACK_SIZE_GLOBAL], self.builder.intrinsics.i64_ty)?;
-        let zero = self.constant(0)?;
-        self.initialize_global(STACK_SIZE_GLOBAL, ptr_type, zero)?;
-
-        Ok(self)
-    }
-
-    /// Declares globals for memory pointer and size, and initializes the memory size to zero.
-    ///
-    /// This method sets up the memory structure required for EVM execution.
-    ///
-    /// # Returns
-    /// A reference to `self` for method chaining.
-    ///
-    /// # Errors
-    /// Returns an error if global declarations or initialization fails.
-    pub fn memory(&self) -> Result<&Self> {
-        let ptr_type = self.builder.intrinsics.ptr_ty;
-        let uint64 = self.builder.intrinsics.i64_ty;
-        self.declare_globals(&[MEMORY_PTR_GLOBAL], ptr_type)?;
-        self.declare_globals(&[MEMORY_SIZE_GLOBAL], uint64)?;
-        let zero = self.constant(0)?;
-        self.initialize_global(MEMORY_SIZE_GLOBAL, ptr_type, zero)?;
-
-        Ok(self)
-    }
-
-    /// Declares globals for calldata pointer and size, retrieves their values from the syscall context,
-    /// and stores them in the globals.
-    ///
-    /// This method sets up the calldata structure for EVM execution.
-    ///
-    /// # Parameters
-    /// * `syscall_ctx` - The value representing the syscall context used to retrieve calldata information.
-    ///
-    /// # Returns
-    /// A reference to `self` for method chaining.
-    ///
-    /// # Errors
-    /// Returns an error if global declarations or data retrieval fails.
-    pub fn calldata(&self, syscall_ctx: Value<'c, 'c>) -> Result<&Self> {
-        let ptr_type = self.builder.intrinsics.ptr_ty;
-        let uint64 = self.builder.intrinsics.i64_ty;
-        self.declare_globals(&[CALLDATA_PTR_GLOBAL], ptr_type)?;
-        self.declare_globals(&[CALLDATA_SIZE_GLOBAL], uint64)?;
-
-        let calldata_ptr = self
-            .block
-            .append_operation(func::call(
-                self.context,
-                FlatSymbolRefAttribute::new(self.context, symbols::CALLDATA),
-                &[syscall_ctx],
-                &[ptr_type],
-                self.location,
-            ))
-            .result(0)?
-            .into();
-        self.store_to_global(CALLDATA_PTR_GLOBAL, calldata_ptr)?;
-
-        let calldata_size = self
-            .block
-            .append_operation(func::call(
-                self.context,
-                FlatSymbolRefAttribute::new(self.context, symbols::CALLDATA_SIZE),
-                &[syscall_ctx],
-                &[uint64],
-                self.location,
-            ))
-            .result(0)?
-            .into();
-        self.store_to_global(CALLDATA_SIZE_GLOBAL, calldata_size)?;
-
-        Ok(self)
-    }
-
-    /// Declares a global for the gas counter and initializes it with the provided initial gas value.
-    ///
-    /// This method sets up the gas tracking mechanism for EVM execution.
-    ///
-    /// # Parameters
-    /// * `initial_gas` - The value representing the initial amount of gas available for execution.
-    ///
-    /// # Returns
-    /// A reference to `self` for method chaining.
-    ///
-    /// # Errors
-    /// Returns an error if global declarations or initialization fails.
-    pub fn gas_counter(&self, initial_gas: Value<'c, 'c>) -> Result<&Self> {
-        let uint64 = self.builder.intrinsics.i64_ty;
-
-        self.declare_globals(&[GAS_COUNTER_GLOBAL], uint64)?
-            .store_to_global(GAS_COUNTER_GLOBAL, initial_gas)?;
-
-        Ok(self)
+    /// A new instance of [`SetupBuilder`].
+    pub fn new(context: &'c MLIRContext, module: &'c Module<'c>) -> Self {
+        Self { context, module }
     }
 
     /// Declares the necessary symbols within the module.
@@ -1077,104 +1289,13 @@ impl<'c> SetupBuilder<'c> {
     /// This method sets up the symbol context for further operations.
     ///
     /// # Returns
-    /// A reference to `self` for method chaining.
+    /// A reference to [`self`] for method chaining.
     ///
     /// # Errors
     /// Returns an error if symbol declaration fails.
+    #[inline]
     pub fn declare_symbols(&self) -> Result<&Self> {
-        symbols_ctx::declare_symbols(self.context, self.module);
-        Ok(self)
-    }
-
-    fn constant(&self, integer: i64) -> Result<Value> {
-        let uint64 = self.builder.intrinsics.i64_ty;
-        let constant = self
-            .block
-            .append_operation(arith::constant(
-                self.context,
-                IntegerAttribute::new(uint64, integer).into(),
-                self.location,
-            ))
-            .result(0)?
-            .into();
-
-        Ok(constant)
-    }
-
-    fn declare_globals(&self, globals: &[&str], ty: melior::ir::Type) -> Result<&Self> {
-        let body = self.module.body();
-        for global in globals {
-            body.append_operation(self.builder.global(global, ty, Linkage::Internal));
-        }
-        Ok(self)
-    }
-
-    fn initialize_global(
-        &self,
-        global: &str,
-        ty: melior::ir::Type,
-        initial_value: Value<'c, 'c>,
-    ) -> Result<&Self> {
-        let global_ptr = self
-            .block
-            .append_operation(self.builder.addressof(global, ty))
-            .result(0)?
-            .into();
-
-        self.block.append_operation(llvm::store(
-            self.context,
-            initial_value,
-            global_ptr,
-            self.location,
-            LoadStoreOptions::default(),
-        ));
-        Ok(self)
-    }
-
-    fn store_to_global(&self, global: &str, value: Value<'c, 'c>) -> Result<&Self> {
-        let global_ptr = self
-            .block
-            .append_operation(self.builder.addressof(global, self.builder.ptr_ty()))
-            .result(0)?;
-
-        self.block.append_operation(llvm::store(
-            self.context,
-            value,
-            global_ptr.into(),
-            self.location,
-            LoadStoreOptions::default(),
-        ));
-        Ok(self)
-    }
-
-    fn allocate_stack(&self) -> Result<&Self> {
-        let ptr_type = self.builder.intrinsics.ptr_ty;
-        let uint256 = self.builder.intrinsics.i256_ty;
-
-        let stack_size = self
-            .block
-            .append_operation(arith::constant(
-                self.context,
-                IntegerAttribute::new(uint256, MAX_STACK_SIZE as i64).into(),
-                self.location,
-            ))
-            .result(0)?
-            .into();
-
-        let stack_baseptr = self
-            .block
-            .append_operation(llvm::alloca(
-                self.context,
-                stack_size,
-                ptr_type,
-                self.location,
-                AllocaOptions::new().elem_type(Some(TypeAttribute::new(uint256))),
-            ))
-            .result(0)?
-            .into();
-
-        self.store_to_global(STACK_PTR_GLOBAL, stack_baseptr)?;
-
+        symbols::declare_symbols(self.context, self.module);
         Ok(self)
     }
 }

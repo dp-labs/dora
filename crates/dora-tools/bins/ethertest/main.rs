@@ -12,9 +12,19 @@ use alloy_rlp::RlpMaxEncodedLen;
 use anyhow::Result;
 use clap::{Args, Parser, Subcommand};
 use dora::call_frame;
+use dora_primitives::alloy_primitives::Parity;
+use dora_primitives::calc_excess_blob_gas;
+use dora_primitives::keccak256;
 use dora_primitives::spec::SpecId;
 use dora_primitives::spec::SpecName;
+use dora_primitives::Authorization;
+use dora_primitives::AuthorizationList;
+use dora_primitives::Bytecode;
 use dora_primitives::Bytes;
+use dora_primitives::EvmStorageSlot;
+use dora_primitives::RecoveredAuthority;
+use dora_primitives::RecoveredAuthorization;
+use dora_primitives::Signature;
 use dora_primitives::{Address, B256, U256};
 use dora_runtime::account::Account;
 use dora_runtime::as_u64_saturated;
@@ -23,21 +33,13 @@ use dora_runtime::context::VMContext;
 use dora_runtime::db::{Database, MemoryDB};
 use dora_runtime::env::Env;
 use dora_runtime::env::TxKind;
+use dora_runtime::executor::RUNTIME_STACK_SIZE;
 use dora_runtime::handler::Handler;
 use dora_runtime::transaction::TransactionType;
 use dora_runtime::vm::VM;
 use hash_db::Hasher;
 use indicatif::{ProgressBar, ProgressDrawTarget};
 use plain_hasher::PlainHasher;
-use revm_primitives::alloy_primitives::Parity;
-use revm_primitives::calc_excess_blob_gas;
-use revm_primitives::keccak256;
-use revm_primitives::Authorization;
-use revm_primitives::AuthorizationList;
-use revm_primitives::EvmStorageSlot;
-use revm_primitives::RecoveredAuthority;
-use revm_primitives::RecoveredAuthorization;
-use revm_primitives::Signature;
 use serde::de::Visitor;
 use serde::{de, Deserialize, Serialize};
 use std::fmt;
@@ -88,7 +90,7 @@ pub struct Test {
     #[serde(default, rename = "_info")]
     pub info: Option<serde_json::Value>,
     env: TestEnv,
-    transaction: Transaction,
+    transaction: TestTransaction,
     pre: HashMap<Address, TestAccountInfo>,
     post: BTreeMap<SpecName, Vec<PostStateTest>>,
     #[serde(default)]
@@ -116,7 +118,7 @@ struct TestEnv {
 
 #[derive(Debug, Default, PartialEq, Eq, Deserialize)]
 #[serde(rename_all = "camelCase")]
-struct Transaction {
+struct TestTransaction {
     pub data: Vec<DeserializeBytes>,
     pub gas_limit: Vec<U256>,
     pub gas_price: Option<U256>,
@@ -130,14 +132,14 @@ struct Transaction {
     pub max_fee_per_gas: Option<U256>,
     pub max_priority_fee_per_gas: Option<U256>,
     #[serde(default)]
-    pub access_lists: Vec<Option<AccessList>>,
+    pub access_lists: Vec<Option<TestAccessList>>,
     pub authorization_list: Option<Vec<TestAuthorization>>,
     #[serde(default)]
     pub blob_versioned_hashes: Vec<B256>,
     pub max_fee_per_blob_gas: Option<U256>,
 }
 
-impl Transaction {
+impl TestTransaction {
     pub fn tx_type(&self, access_list_index: usize) -> Option<TransactionType> {
         let mut tx_type = TransactionType::Legacy;
 
@@ -173,12 +175,12 @@ impl Transaction {
 
 #[derive(Debug, PartialEq, Eq, Serialize, Deserialize, Clone)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
-pub struct AccessListItem {
+pub struct TestAccessListItem {
     pub address: Address,
     pub storage_keys: Vec<B256>,
 }
 
-pub type AccessList = Vec<AccessListItem>;
+pub type TestAccessList = Vec<TestAccessListItem>;
 
 #[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
@@ -282,11 +284,11 @@ pub enum TestErrorKind {
 }
 
 fn log_rlp_hash(logs: &[Log]) -> B256 {
-    let logs: Vec<revm_primitives::Log> = logs
+    let logs: Vec<dora_primitives::Log> = logs
         .iter()
-        .map(|l| revm_primitives::Log {
+        .map(|l| dora_primitives::Log {
             address: l.address,
-            data: revm_primitives::LogData::new_unchecked(
+            data: dora_primitives::LogData::new_unchecked(
                 l.data.topics.clone(),
                 l.data.data.clone().into(),
             ),
@@ -294,7 +296,7 @@ fn log_rlp_hash(logs: &[Log]) -> B256 {
         .collect();
     let mut out = Vec::with_capacity(alloy_rlp::list_length(&logs));
     alloy_rlp::encode_list(&logs, &mut out);
-    B256::from_slice(revm_primitives::keccak256(&out).as_slice())
+    B256::from_slice(dora_primitives::keccak256(&out).as_slice())
 }
 
 pub fn state_merkle_trie_root<'a>(
@@ -483,11 +485,6 @@ fn should_skip(path: &Path) -> bool {
         | "create_collision_storage.json"
     ) ||// Temporarily skip EOF test suites: https://github.com/dp-labs/dora/issues/5
         path_str.contains("stEOF")
-        // Temporarily skip stack overflow error test suites: https://github.com/dp-labs/dora/issues/139
-        || path_str.contains("Pyspecs/cancun/eip1153_tstore/run_until_out_of_gas.json")
-        || path_str.contains("stSystemOperationsTest/ABAcalls1.json")
-        || path_str.contains("stSystemOperationsTest/ABAcalls2.json")
-        || path_str.contains("stSystemOperationsTest/CallRecursiveBomb0_OOG_atMaxCallDepth.json")
 }
 
 fn execute_test(path: &Path) -> Result<(), TestError> {
@@ -508,7 +505,10 @@ fn execute_test(path: &Path) -> Result<(), TestError> {
         // Mapping account into
         let mut db = MemoryDB::new();
         for (address, account_info) in suite.pre.iter() {
-            db = db.with_contract(address.to_owned(), account_info.code.0.clone());
+            db = db.with_contract(
+                address.to_owned(),
+                Bytecode::new(account_info.code.0.clone()),
+            );
             db.set_account(
                 address.to_owned(),
                 account_info.nonce,
@@ -521,10 +521,7 @@ fn execute_test(path: &Path) -> Result<(), TestError> {
             // Constantinople was immediately extended by Petersburg.
             // There isn't any production Constantinople transaction
             // so we don't support it and skip right to Petersburg.
-            if spec_name == &SpecName::Constantinople
-                || spec_name == &SpecName::Osaka
-                || spec_name == &SpecName::Prague
-            {
+            if spec_name == &SpecName::Constantinople {
                 continue;
             }
             let spec_id = spec_name.to_spec_id();
@@ -844,15 +841,19 @@ fn main() -> Result<()> {
                 let tests = find_all_json_tests(path);
                 let pb = ProgressBar::new(tests.len() as u64);
                 pb.set_draw_target(ProgressDrawTarget::stdout());
-
-                for test_path in tests {
-                    match execute_test(&test_path) {
-                        Ok(_) => pb.inc(1),
-                        Err(e) => error!("Test failed: {:?}", e),
-                    }
-                }
-
-                pb.finish_with_message("All tests completed");
+                let builder = std::thread::Builder::new().stack_size(RUNTIME_STACK_SIZE);
+                let handle = builder
+                    .spawn(move || {
+                        for test_path in tests {
+                            match execute_test(&test_path) {
+                                Ok(_) => pb.inc(1),
+                                Err(e) => error!("Test failed: {:?}", e),
+                            }
+                        }
+                        pb.finish_with_message("All tests completed");
+                    })
+                    .unwrap();
+                handle.join().unwrap();
             }
             Ok(())
         }

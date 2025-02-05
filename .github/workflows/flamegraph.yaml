@@ -1,0 +1,62 @@
+name: Flame Graph
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: ["**"]
+    types: [synchronize, opened, reopened, converted_to_draft, ready_for_review]
+
+env:
+  LLVM_VERSION: "19"
+  RUST_VERSION: 1.83.0
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  bench:
+    name: Benchmark Test
+    if: github.event.pull_request.draft == false
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout sources
+        uses: actions/checkout@v4
+
+      - name: Install Rust toolchain
+        uses: actions-rs/toolchain@v1
+        with:
+          toolchain: ${{ env.RUST_VERSION }}
+          override: true
+          components: clippy, rustfmt
+
+      - name: Add LLVM deb repository
+        uses: myci-actions/add-deb-repo@11
+        with:
+          repo: deb http://apt.llvm.org/jammy/ llvm-toolchain-jammy-19 main
+          repo-name: llvm-repo
+          keys-asc: https://apt.llvm.org/llvm-snapshot.gpg.key
+      - name: Install LLVM
+        run: |
+          v=${{ env.LLVM_VERSION }}
+          sudo apt-get install llvm-${v} llvm-${v}-dev llvm-${v}-runtime clang-${v} clang-tools-${v} lld-${v} libpolly-${v}-dev libmlir-${v}-dev mlir-${v}-tools
+          echo "LLVM_SYS_${v}0_PREFIX=/usr/lib/llvm-${v}/" >> $GITHUB_ENV
+          echo "MLIR_SYS_${v}0_PREFIX=/usr/lib/llvm-${v}/" >> $GITHUB_ENV
+          echo "TABLEGEN_${v}0_PREFIX=/usr/lib/llvm-${v}/" >> $GITHUB_ENV
+          echo "PATH=/usr/lib/llvm-${v}/bin:$PATH" >> $GITHUB_ENV
+
+      - name: Show Flame Graph
+        run: |
+          echo 0 | sudo tee /proc/sys/kernel/kptr_restrict
+          echo -1 | sudo tee /proc/sys/kernel/perf_event_paranoid
+          sudo apt install linux-tools-common linux-tools-generic linux-tools-`uname -r`
+          cargo install flamegraph
+          CARGO_PROFILE_RELEASE_DEBUG=true cargo flamegraph --no-inline -o flamegraph.svg -p dora-cli -- run --hex-file examples/erc20/contract.hex --calldata 0xa9059cbb000000000000000000000000123400000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+
+      - name: Upload Flame Graph
+        uses: actions/upload-artifact@v4
+        with:
+          name: flamegraph
+          path: flamegraph.svg
+          if-no-files-found: error

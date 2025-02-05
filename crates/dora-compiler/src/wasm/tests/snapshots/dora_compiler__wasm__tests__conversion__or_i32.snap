@@ -1,0 +1,52 @@
+---
+source: crates/dora-compiler/src/wasm/tests/conversion.rs
+expression: op
+snapshot_kind: text
+---
+module {
+  func.func public @or(%arg0: !llvm.ptr, %arg1: i32, %arg2: i32) -> i32 attributes {llvm.emit_c_interface} {
+    %c1_i64 = arith.constant 1 : i64
+    %0 = llvm.alloca %c1_i64 x i32 : (i64) -> !llvm.ptr
+    llvm.store %arg1, %0 : i32, !llvm.ptr
+    %c1_i64_0 = arith.constant 1 : i64
+    %1 = llvm.alloca %c1_i64_0 x i32 : (i64) -> !llvm.ptr
+    llvm.store %arg2, %1 : i32, !llvm.ptr
+    cf.br ^bb1
+  ^bb1:  // pred: ^bb0
+    %2 = llvm.load %0 : !llvm.ptr -> i32
+    %3 = llvm.load %1 : !llvm.ptr -> i32
+    %4 = arith.ori %2, %3 : i32
+    cf.br ^bb2(%4 : i32)
+  ^bb2(%5: i32):  // pred: ^bb1
+    return %5 : i32
+  }
+  func.func private @dora_fn_wasm_table_init(!llvm.ptr, i32, i32, i32, i32, i32)
+  func.func private @dora_fn_wasm_table_copy(!llvm.ptr, i32, i32, i32, i32, i32)
+  func.func private @dora_fn_wasm_table_fill(!llvm.ptr, i32, i32, !llvm.ptr, i32)
+  func.func private @dora_fn_wasm_table_size(!llvm.ptr, i32) -> i32
+  func.func private @dora_fn_wasm_table_get(!llvm.ptr, i32, i32) -> !llvm.ptr
+  func.func private @dora_fn_wasm_table_set(!llvm.ptr, i32, i32, !llvm.ptr)
+  func.func private @dora_fn_wasm_table_grow(!llvm.ptr, !llvm.ptr, i32, i32) -> i32
+  func.func private @dora_fn_wasm_imported_table_size(!llvm.ptr, i32) -> i32
+  func.func private @dora_fn_wasm_imported_table_get(!llvm.ptr, i32, i32) -> !llvm.ptr
+  func.func private @dora_fn_wasm_imported_table_grow(!llvm.ptr, !llvm.ptr, i32, i32) -> i32
+  func.func private @dora_fn_wasm_memory_init(!llvm.ptr, i32, i32, i32, i32, i32)
+  func.func private @dora_fn_wasm_memory_size(!llvm.ptr, i32) -> i32
+  func.func private @dora_fn_wasm_memory_grow(!llvm.ptr, i32, i32) -> i32
+  func.func private @dora_fn_wasm_memory_copy(!llvm.ptr, i32, i32, i32, i32)
+  func.func private @dora_fn_wasm_memory_fill(!llvm.ptr, i32, i32, i32, i32)
+  func.func private @dora_fn_wasm_memory_notify(!llvm.ptr, i32, i32, i32) -> i32
+  func.func private @dora_fn_wasm_memory_wait32(!llvm.ptr, i32, i32, i32, i64) -> i32
+  func.func private @dora_fn_wasm_memory_wait64(!llvm.ptr, i32, i32, i64, i64) -> i32
+  func.func private @dora_fn_wasm_imported_memory_size(!llvm.ptr, i32) -> i32
+  func.func private @dora_fn_wasm_imported_memory_grow(!llvm.ptr, i32, i32) -> i32
+  func.func private @dora_fn_wasm_imported_memory_copy(!llvm.ptr, i32, i32, i32, i32)
+  func.func private @dora_fn_wasm_imported_memory_fill(!llvm.ptr, i32, i32, i32, i32)
+  func.func private @dora_fn_wasm_imported_memory_notify(!llvm.ptr, i32, i32, i32) -> i32
+  func.func private @dora_fn_wasm_imported_memory_wait32(!llvm.ptr, i32, i32, i32, i64) -> i32
+  func.func private @dora_fn_wasm_imported_memory_wait64(!llvm.ptr, i32, i32, i64, i64) -> i32
+  func.func private @dora_fn_wasm_func_ref(!llvm.ptr, i32) -> !llvm.ptr
+  func.func private @dora_fn_wasm_data_drop(!llvm.ptr, i32)
+  func.func private @dora_fn_wasm_elem_drop(!llvm.ptr, i32)
+  func.func private @dora_fn_wasm_raise_trap(i32)
+}

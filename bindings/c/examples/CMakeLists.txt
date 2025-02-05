@@ -34,6 +34,8 @@ include(GNUInstallDirs)
 
 set(include_dir ${CMAKE_CURRENT_SOURCE_DIR}/include)
 
+set(CMAKE_CXX_FLAGS "${CMAKE_C_FLAGS} -std=c++17")
+
 # INSTALL
 # Get cargo target dir using cargo locate-project
 # We should do this because the target dir is different for development and release
@@ -43,11 +45,8 @@ execute_process(COMMAND cargo locate-project --workspace --message-format plain
 string(REGEX REPLACE "/Cargo.toml\n$" "/target" CARGO_TARGET_DIR "${CARGO_TARGET_DIR}")
 set(CARGO_MANIFEST ${PROJECT_SOURCE_DIR}/Cargo.toml)
 set(DORA_C_HEADER_FILE ${PROJECT_SOURCE_DIR}/bindings/c/include/dora.h)
-set(DORA_C_LIB ${CARGO_TARGET_DIR}/release/${CMAKE_STATIC_LIBRARY_PREFIX}dora_c${CMAKE_STATIC_LIBRARY_SUFFIX})
+set(DORA_C_LIB ${CARGO_TARGET_DIR}/release/${CMAKE_SHARED_LIBRARY_PREFIX}dora_c${CMAKE_SHARED_LIBRARY_SUFFIX})
 set(DORA_C_INCLUDE_DIR ${PROJECT_SOURCE_DIR} ../include)
-
-execute_process(COMMAND llvm-config --libdir
-    OUTPUT_VARIABLE LLVM_LIBRARY_DIRS OUTPUT_STRIP_TRAILING_WHITESPACE)
 
 add_custom_command(
     OUTPUT ${DORA_C_LIB}
@@ -57,12 +56,9 @@ add_custom_command(
 )
 
 add_executable(dora-c-example example.c example_host.cpp)
-link_directories(${LLVM_LIBRARY_DIRS})
 target_include_directories(dora-c-example PUBLIC ${DORA_C_INCLUDE_DIR})
 target_link_libraries(dora-c-example PUBLIC ${DORA_C_LIB})
 target_link_libraries(dora-c-example PUBLIC evmc)
-target_link_libraries(dora-c-example PRIVATE ${LLVM_LIBS})
-target_link_libraries(dora-c-example PRIVATE LLVM-19)
 if(WIN32)
     target_link_libraries(dora-c-example PRIVATE userenv ws2_32 bcrypt)
 endif()

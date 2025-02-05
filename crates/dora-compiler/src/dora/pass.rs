@@ -1,20 +1,21 @@
 use super::{conversion, storage};
 use crate::errors::Result;
 use dora_primitives::SpecId;
+use dora_runtime::constants::gas_cost::MAX_CODE_SIZE;
 use melior::{ir::Module as MLIRModule, Context};
 
 /// Options for configuring a pass, including program-related settings.
 ///
 /// This struct contains various configuration options that are used during pass execution.
-/// Currently, it includes the `program_code_size`, which specifies the size of the program's code.
+/// Currently, it includes the `code_size`, which specifies the size of the program's code.
 ///
 /// # Fields
 ///
-/// - `program_code_size`: The size of the program code, in bytes.
+/// - `code_size`: The size of the program code, in bytes.
 #[derive(Debug)]
 pub struct PassOptions {
     pub spec_id: SpecId,
-    pub program_code_size: u32,
+    pub code_size: u32,
     pub limit_contract_code_size: Option<usize>,
 }
 
@@ -22,7 +23,7 @@ impl Default for PassOptions {
     fn default() -> Self {
         Self {
             spec_id: SpecId::CANCUN,
-            program_code_size: Default::default(),
+            code_size: Default::default(),
             limit_contract_code_size: Default::default(),
         }
     }
@@ -48,15 +49,15 @@ impl Default for PassOptions {
 /// # Example
 ///
 /// ```no_check
-/// let opts = PassOptions { program_code_size: 1024 };
+/// let opts = PassOptions { code_size: 1024 };
 /// run(&context, &mut mlir_module, &opts)?;
 /// ```
 pub fn run(ctx: &Context, module: &mut MLIRModule, opts: &PassOptions) -> Result<()> {
     let mut conversion_pass = conversion::ConversionPass {
         ctx,
-        program_code_size: opts.program_code_size,
+        code_size: opts.code_size,
         spec_id: opts.spec_id,
-        limit_contract_code_size: opts.limit_contract_code_size,
+        limit_contract_code_size: opts.limit_contract_code_size.unwrap_or(MAX_CODE_SIZE),
     };
     conversion_pass.run(module.as_operation())
 }

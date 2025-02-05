@@ -1,4 +1,4 @@
-use crate::backend::{IntCC, TypeMethods};
+use crate::backend::{AtomicOrdering, IntCC, TypeMethods};
 use crate::errors::{CompileError, Result};
 use crate::intrinsics::Intrinsics;
 use crate::value::{IntoContextOperation, ToContextValue};
@@ -7,7 +7,7 @@ use dora_ir::IRTypes;
 use melior::dialect::arith::CmpiPredicate;
 use melior::dialect::llvm::attributes::Linkage;
 use melior::dialect::llvm::r#type::r#struct;
-use melior::dialect::llvm::LoadStoreOptions;
+use melior::dialect::llvm::{AllocaOptions, LoadStoreOptions};
 use melior::dialect::{arith, func, llvm};
 use melior::ir::attribute::{
     DenseI32ArrayAttribute, FlatSymbolRefAttribute, FloatAttribute, IntegerAttribute,
@@ -21,7 +21,7 @@ use melior::ir::{
 };
 use melior::Context as MLIRContext;
 use mlir_sys::{mlirIntegerTypeGetWidth, mlirOperationGetBlock, mlirOperationGetLocation};
-use num_bigint::BigUint;
+use num_bigint::{BigInt, BigUint};
 
 /// The `OpBuilder` struct is responsible for constructing operations within an MLIR context.
 /// It manages the current insertion point within a block, allowing the user to define and insert
@@ -164,7 +164,7 @@ impl<'c, 'a> OpBuilder<'c, 'a> {
     }
 }
 
-impl<'c, 'a> IRTypes for OpBuilder<'c, 'a> {
+impl<'c> IRTypes for OpBuilder<'c, '_> {
     type Type = Type<'c>;
     type Value = Value<'c, 'c>;
     type Region = Region<'c>;
@@ -193,22 +193,106 @@ impl<'c, 'a> OpBuilder<'c, 'a> {
         self.ctx
     }
 
-    /// Returns the unknown location intrinsic, used when no specific source location is available.
+    /// Returns the `boolean` type intrinsic, representing a 1-bit unsigned integer.
     #[inline]
-    pub fn unknown_loc(&self) -> Location<'c> {
-        self.intrinsics.unknown_loc
+    pub fn i1_ty(&self) -> Type<'c> {
+        self.intrinsics.i1_ty
+    }
+
+    /// Returns the `i2` type intrinsic, representing a 2-bit unsigned integer.
+    #[inline]
+    pub fn i2_ty(&self) -> Type<'c> {
+        self.intrinsics.i2_ty
+    }
+
+    /// Returns the `i4` type intrinsic, representing a 4-bit unsigned integer.
+    #[inline]
+    pub fn i4_ty(&self) -> Type<'c> {
+        self.intrinsics.i4_ty
+    }
+
+    /// Returns the `i8` integer type intrinsic, representing a 8-bit unsigned integer.
+    #[inline]
+    pub fn i8_ty(&self) -> Type<'c> {
+        self.intrinsics.i8_ty
+    }
+
+    /// Returns the `i16` integer type intrinsic, representing a 16-bit unsigned integer.
+    #[inline]
+    pub fn i16_ty(&self) -> Type<'c> {
+        self.intrinsics.i16_ty
+    }
+
+    /// Returns the `i32` integer type intrinsic, representing a 32-bit unsigned integer.
+    #[inline]
+    pub fn i32_ty(&self) -> Type<'c> {
+        self.intrinsics.i32_ty
+    }
+
+    /// Returns the `i64` integer type intrinsic, representing a 64-bit unsigned integer.
+    #[inline]
+    pub fn i64_ty(&self) -> Type<'c> {
+        self.intrinsics.i64_ty
+    }
+
+    /// Returns the `i128` integer type intrinsic, representing a 128-bit unsigned integer.
+    #[inline]
+    pub fn i128_ty(&self) -> Type<'c> {
+        self.intrinsics.i128_ty
     }
 
     /// Returns the `i256` integer type intrinsic, representing a 256-bit unsigned integer.
     #[inline]
-    pub fn uint256_ty(&self) -> Type<'c> {
+    pub fn i256_ty(&self) -> Type<'c> {
         self.intrinsics.i256_ty
+    }
+
+    /// Returns the `i257` integer type intrinsic, representing a 257-bit unsigned integer.
+    #[inline]
+    pub fn i257_ty(&self) -> Type<'c> {
+        self.intrinsics.i257_ty
+    }
+
+    /// Returns the index type intrinsic.
+    #[inline]
+    pub fn index_ty(&self) -> Type<'c> {
+        self.intrinsics.index_ty
+    }
+
+    /// Returns the usize type intrinsic.
+    #[inline]
+    pub fn usize_ty(&self) -> Type<'c> {
+        self.intrinsics.index_ty
+    }
+
+    /// Returns the isize type intrinsic.
+    #[inline]
+    pub fn isize_ty(&self) -> Type<'c> {
+        self.intrinsics.index_ty
+    }
+
+    /// Returns the f32 type intrinsic.
+    #[inline]
+    pub fn f32_ty(&self) -> Type<'c> {
+        self.intrinsics.f32_ty
+    }
+
+    /// Returns the f64 type intrinsic.
+    #[inline]
+    pub fn f64_ty(&self) -> Type<'c> {
+        self.intrinsics.f64_ty
     }
 
     /// Returns the pointer type intrinsic.
     #[inline]
     pub fn ptr_ty(&self) -> Type<'c> {
         self.intrinsics.ptr_ty
+    }
+
+    /// Returns the unknown location intrinsic, used when no specific source location is available.
+    #[inline]
+    pub fn unknown_loc(&self) -> Location<'c> {
+        self.intrinsics.unknown_loc
     }
 
     /// Returns the width of the specified integer type. If the type is not an integer, an error is returned.
@@ -226,6 +310,12 @@ impl<'c, 'a> OpBuilder<'c, 'a> {
                 "type is not a integer type".to_string(),
             ))
         }
+    }
+
+    /// Returns the specified integer type with bits.
+    #[inline]
+    pub fn int_ty(&self, bits: u32) -> Ty<'c, '_> {
+        IntegerType::new(self.context(), bits).into()
     }
 
     /// Creates an `i32` integer attribute with the specified value.
@@ -301,7 +391,7 @@ impl<'c, 'a> OpBuilder<'c, 'a> {
         arith::constant(
             self.context(),
             IntegerAttribute::new(ty, if value { 1 } else { 0 }).into(),
-            self.unknown_loc(),
+            self.intrinsics.unknown_loc,
         )
     }
 
@@ -330,8 +420,46 @@ impl<'c, 'a> OpBuilder<'c, 'a> {
         arith::constant(
             self.context(),
             IntegerAttribute::new(ty, value).into(),
-            self.unknown_loc(),
+            self.intrinsics.unknown_loc,
         )
+    }
+
+    /// Creates an integer constant operation with the specified type and biguint value.
+    ///
+    /// # Parameters
+    /// - `ty`: The type of the integer.
+    /// - `value`: The integer value.
+    ///
+    /// # Returns
+    /// An integer constant operation.
+    #[inline]
+    pub fn iconst_biguint(&self, ty: Ty<'c, 'a>, value: BigUint) -> Result<Op<'c, '_>> {
+        Ok(arith::constant(
+            self.context(),
+            Attribute::parse(self.context(), &format!("{value} : {ty}")).ok_or(
+                CompileError::Codegen(format!("can't parse value {value} to {ty}")),
+            )?,
+            self.intrinsics.unknown_loc,
+        ))
+    }
+
+    /// Creates an integer constant operation with the specified type and bigint value.
+    ///
+    /// # Parameters
+    /// - `ty`: The type of the integer.
+    /// - `value`: The integer value.
+    ///
+    /// # Returns
+    /// An integer constant operation.
+    #[inline]
+    pub fn iconst_bigint(&self, ty: Ty<'c, 'a>, value: BigInt) -> Result<Op<'c, '_>> {
+        Ok(arith::constant(
+            self.context(),
+            Attribute::parse(self.context(), &format!("{value} : {ty}")).ok_or(
+                CompileError::Codegen(format!("can't parse value {value} to {ty}")),
+            )?,
+            self.intrinsics.unknown_loc,
+        ))
     }
 
     /// Creates an unsigned integer constant operation with the specified type and value.
@@ -347,7 +475,7 @@ impl<'c, 'a> OpBuilder<'c, 'a> {
         arith::constant(
             self.context(),
             IntegerAttribute::new(ty, value as i64).into(),
-            self.unknown_loc(),
+            self.intrinsics.unknown_loc,
         )
     }
 
@@ -361,6 +489,18 @@ impl<'c, 'a> OpBuilder<'c, 'a> {
     #[inline]
     pub fn iconst_8(&self, value: i8) -> Op<'c, '_> {
         self.iconst(self.intrinsics.i8_ty, value as i64)
+    }
+
+    /// Creates an 16-bit integer constant operation with the specified value.
+    ///
+    /// # Parameters
+    /// - `value`: The 16-bit integer value.
+    ///
+    /// # Returns
+    /// An integer constant operation of type `i16`.
+    #[inline]
+    pub fn iconst_16(&self, value: i16) -> Op<'c, '_> {
+        self.iconst(self.intrinsics.i16_ty, value as i64)
     }
 
     /// Creates a 32-bit integer constant operation with the specified value.
@@ -401,7 +541,7 @@ impl<'c, 'a> OpBuilder<'c, 'a> {
             Attribute::parse(self.context(), &format!("{} : i256", value)).ok_or(
                 CompileError::Codegen(format!("can't parse value {value} to i256")),
             )?,
-            self.unknown_loc(),
+            self.intrinsics.unknown_loc,
         ))
     }
 
@@ -416,7 +556,7 @@ impl<'c, 'a> OpBuilder<'c, 'a> {
             Attribute::parse(self.context(), "-57896044618658097711785492504343953926634992332820282019728792003956564819968 : i256").ok_or(
                 CompileError::Codegen("can't parse the i256 min value".to_string()),
             )?,
-            self.unknown_loc(),
+            self.intrinsics.unknown_loc,
         ))
     }
 
@@ -457,7 +597,7 @@ impl<'c, 'a> OpBuilder<'c, 'a> {
         arith::constant(
             self.context(),
             FloatAttribute::new(self.context(), ty, value).into(),
-            self.unknown_loc(),
+            self.intrinsics.unknown_loc,
         )
     }
 
@@ -505,7 +645,7 @@ impl<'c, 'a> OpBuilder<'c, 'a> {
     /// An operation representing the return statement.
     #[inline]
     pub fn ret(&mut self, values: &[Val<'c, 'a>]) -> Op<'c, '_> {
-        func::r#return(values, self.unknown_loc())
+        func::r#return(values, self.intrinsics.unknown_loc)
     }
 
     /// Compares two integer values based on the specified condition.
@@ -535,7 +675,7 @@ impl<'c, 'a> OpBuilder<'c, 'a> {
             IntCC::UnsignedLessThan => CmpiPredicate::Ult,
             IntCC::UnsignedLessThanOrEqual => CmpiPredicate::Ule,
         };
-        arith::cmpi(self.context(), pred, lhs, rhs, self.unknown_loc())
+        arith::cmpi(self.context(), pred, lhs, rhs, self.intrinsics.unknown_loc)
     }
 
     /// Compares an integer value against an immediate value based on the specified condition.
@@ -572,9 +712,59 @@ impl<'c, 'a> OpBuilder<'c, 'a> {
             self.context(),
             ptr,
             ty,
-            self.unknown_loc(),
+            self.intrinsics.unknown_loc,
             LoadStoreOptions::default(),
         )
+    }
+
+    /// Loads a value from the specified pointer with alignment.
+    ///
+    /// # Parameters
+    /// - `ptr`: The pointer from which to load the value.
+    /// - `ty`: The type of the value to load.
+    /// - `align`: Sets an alignment.
+    ///
+    /// # Returns
+    /// An operation representing the load operation.
+    #[inline]
+    pub fn load_with_align(&self, ptr: Val<'c, 'a>, ty: Ty<'c, 'a>, align: u64) -> Op<'c, '_> {
+        llvm::load(
+            self.context(),
+            ptr,
+            ty,
+            self.intrinsics.unknown_loc,
+            LoadStoreOptions::default()
+                .align(Some(IntegerAttribute::new(self.i64_ty(), align as i64))),
+        )
+    }
+
+    /// Loads a value from the specified pointer with the atomic ordering option.
+    ///
+    /// # Parameters
+    /// - `ptr`: The pointer from which to load the value.
+    /// - `ty`: The type of the value to load.
+    /// - `order`: The atomic order of the load op.
+    ///
+    /// # Returns
+    /// An operation representing the load operation.
+    pub fn load_with_ordering(
+        &self,
+        ptr: Val<'c, 'a>,
+        ty: Ty<'c, 'a>,
+        order: AtomicOrdering,
+    ) -> Op<'c, '_> {
+        let mut load_op = llvm::load(
+            self.context(),
+            ptr,
+            ty,
+            self.intrinsics.unknown_loc,
+            LoadStoreOptions::default(),
+        );
+        load_op.set_attribute(
+            "ordering",
+            StringAttribute::new(self.context(), &order.attr_str()).into(),
+        );
+        load_op
     }
 
     /// Stores a value at the specified pointer.
@@ -591,8 +781,126 @@ impl<'c, 'a> OpBuilder<'c, 'a> {
             self.context(),
             value,
             ptr,
-            self.unknown_loc(),
+            self.intrinsics.unknown_loc,
             LoadStoreOptions::default(),
+        )
+    }
+
+    /// Stores a value at the specified pointer with alignment.
+    ///
+    /// # Parameters
+    /// - `value`: The value to store.
+    /// - `ptr`: The pointer where the value should be stored.
+    /// - `align`: Sets an alignment.
+    ///
+    /// # Returns
+    /// An operation representing the store operation.
+    #[inline]
+    pub fn store_with_align(&self, value: Val<'c, 'a>, ptr: Val<'c, 'a>, align: u64) -> Op<'c, '_> {
+        llvm::store(
+            self.context(),
+            value,
+            ptr,
+            self.intrinsics.unknown_loc,
+            LoadStoreOptions::default()
+                .align(Some(IntegerAttribute::new(self.i64_ty(), align as i64))),
+        )
+    }
+
+    /// Stores a value at the specified pointer  with the atomic ordering option.
+    ///
+    /// # Parameters
+    /// - `value`: The value to store.
+    /// - `ptr`: The pointer where the value should be stored.
+    /// - `order`: The atomic order of the load op.
+    ///
+    /// # Returns
+    /// An operation representing the store operation.
+    pub fn store_with_ordering(
+        &self,
+        value: Val<'c, 'a>,
+        ptr: Val<'c, 'a>,
+        order: AtomicOrdering,
+    ) -> Op<'c, '_> {
+        let mut store_op = llvm::store(
+            self.context(),
+            value,
+            ptr,
+            self.intrinsics.unknown_loc,
+            LoadStoreOptions::default(),
+        );
+        store_op.set_attribute(
+            "ordering",
+            StringAttribute::new(self.context(), &order.attr_str()).into(),
+        );
+        store_op
+    }
+
+    /// Creates an operation to allocate memory on the stack for a specified type.
+    ///
+    /// # Parameters
+    /// - `ty`: The type of the memory block to allocate.
+    ///
+    /// # Returns
+    /// An operation representing the memory allocation.
+    pub fn alloca(&self, ty: Ty<'c, 'a>) -> Result<Op<'c, '_>> {
+        let array_size = self.make(self.iconst_64(1))?;
+        Ok(llvm::alloca(
+            self.context(),
+            array_size,
+            self.ptr_ty(),
+            self.unknown_loc(),
+            AllocaOptions::new().elem_type(Some(TypeAttribute::new(ty))),
+        ))
+    }
+
+    /// Creates a `llvm.getelementptr` operation.
+    ///
+    /// # Parameters
+    /// - `ptr`: The base pointer (`Val`) from which the field's offset is computed.
+    /// - `offset`: The byte offset of the field relative to the base pointer.
+    /// - `element_type`: The element type of the field value due to the offset.
+    /// - `result_type`: The expected type of the field value to be loaded.
+    #[inline]
+    pub fn gep(
+        &self,
+        ptr: Val<'c, 'a>,
+        offset: usize,
+        element_type: Type<'c>,
+        result_type: Type<'c>,
+    ) -> Op<'c, '_> {
+        llvm::get_element_ptr(
+            self.context(),
+            ptr,
+            DenseI32ArrayAttribute::new(self.context(), &[offset as i32]),
+            element_type,
+            result_type,
+            self.get_insert_location(),
+        )
+    }
+
+    /// Creates a `llvm.getelementptr` operation.
+    ///
+    /// # Parameters
+    /// - `ptr`: The base pointer (`Val`) from which the field's offset is computed.
+    /// - `indices`: The dynamic indices of the field relative to the base pointer.
+    /// - `element_type`: The element type of the field value due to the offset.
+    /// - `result_type`: The expected type of the field value to be loaded.
+    #[inline]
+    pub fn gep_dynamic<const N: usize>(
+        &self,
+        ptr: Val<'c, 'a>,
+        indices: &[Val<'c, '_>; N],
+        element_type: Type<'c>,
+        result_type: Type<'c>,
+    ) -> Op<'c, '_> {
+        llvm::get_element_ptr_dynamic(
+            self.context(),
+            ptr,
+            indices,
+            element_type,
+            result_type,
+            self.get_insert_location(),
         )
     }
 
@@ -629,7 +937,7 @@ impl<'c, 'a> OpBuilder<'c, 'a> {
             ptr,
             DenseI32ArrayAttribute::new(self.context(), &[offset as i32]),
             self.intrinsics.i8_ty,
-            self.ptr_ty(),
+            self.intrinsics.ptr_ty,
             self.get_insert_location(),
         ))?;
         Ok(self
@@ -653,7 +961,7 @@ impl<'c, 'a> OpBuilder<'c, 'a> {
     /// An operation representing the address of the specified global variable.
     pub fn addressof(&self, name: &str, ty: Ty<'c, 'a>) -> Op<'c, '_> {
         let context = self.context();
-        OperationBuilder::new("llvm.mlir.addressof", self.unknown_loc())
+        OperationBuilder::new("llvm.mlir.addressof", self.intrinsics.unknown_loc)
             .add_attributes(&[(
                 Identifier::new(context, "global_name"),
                 FlatSymbolRefAttribute::new(context, name).into(),
@@ -661,6 +969,50 @@ impl<'c, 'a> OpBuilder<'c, 'a> {
             .add_results(&[ty])
             .build()
             .expect("valid operation")
+    }
+
+    /// Creates an operation to perform an indirect function call.
+    ///
+    /// This function generates an MLIR operation (`llvm.call`) to call a function indirectly
+    /// through a function pointer. The function type, function pointer, and arguments are
+    /// provided as inputs.
+    ///
+    /// # Parameters
+    /// - `func_ty`: The type of the function being called, including its argument and result types.
+    /// - `func_ptr`: The function pointer (of type `!llvm.ptr`) used for the indirect call.
+    /// - `args`: A slice of values representing the arguments to pass to the function.
+    ///
+    /// # Returns
+    /// An operation representing the indirect function call.
+    ///
+    /// # Errors
+    /// Returns an error if the operation cannot be built (e.g., due to invalid inputs).
+    ///
+    /// # Reference
+    /// For more details, see the MLIR documentation on `llvm.call`:
+    /// https://mlir.llvm.org/docs/Dialects/LLVM/#llvmcall-llvmcallop
+    pub fn indirect_call(
+        &self,
+        ret_ty: Type<'c>,
+        func_ptr: Val<'c, 'a>,
+        args: &[Val<'c, 'a>],
+    ) -> Result<Op<'c, '_>> {
+        let context = self.context();
+        // Reference: https://mlir.llvm.org/docs/Dialects/LLVM/#llvmcall-llvmcallop
+        // For indirect calls, the callee is of !llvm.ptr type and is stored as the first value in callee_operands
+        let args = std::iter::once(func_ptr)
+            .chain(args.iter().copied())
+            .collect::<Vec<Value<'_, '_>>>();
+        Ok(
+            OperationBuilder::new("llvm.call", self.intrinsics.unknown_loc)
+                .add_attributes(&[(
+                    Identifier::new(context, "var_callee_type"),
+                    TypeAttribute::new(llvm::r#type::function(ret_ty, &[], true)).into(),
+                )])
+                .add_operands(&args)
+                .add_results(&[ret_ty])
+                .build()?,
+        )
     }
 
     /// Creates a global variable with the specified name, type, and linkage.
@@ -679,7 +1031,7 @@ impl<'c, 'a> OpBuilder<'c, 'a> {
         linkage: Linkage,
     ) -> melior::ir::Operation<'c> {
         let context = self.context();
-        OperationBuilder::new("llvm.mlir.global", self.unknown_loc())
+        OperationBuilder::new("llvm.mlir.global", self.intrinsics.unknown_loc)
             .add_regions([Region::new()])
             .add_attributes(&[
                 (
@@ -744,7 +1096,7 @@ impl<'c, 'a> OpBuilder<'c, 'a> {
         if let Some(insert_point) = self.insert_point {
             unsafe { Location::from_raw(mlirOperationGetLocation(insert_point.to_raw())) }
         } else {
-            self.unknown_loc()
+            self.intrinsics.unknown_loc
         }
     }
 

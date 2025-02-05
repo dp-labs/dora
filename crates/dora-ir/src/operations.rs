@@ -15,9 +15,21 @@ pub enum Operation {
     MulMod = 0x09,
     Exp = 0x0A,
     SignExtend = 0x0B,
+    /// Unsigned `<=`.
+    Lte = 0x0C,
+    /// Unsigned `>=`.
+    Gte = 0x0D,
+    /// Signed `<=`.
+    Slte = 0x0E,
+    /// Signed `>=`.
+    Sgte = 0x0F,
+    /// Unsigned `<`.
     Lt = 0x10,
+    /// Unsigned `>`.
     Gt = 0x11,
+    /// Signed `<`.
     Slt = 0x12,
+    /// Signed `>`.
     Sgt = 0x13,
     Eq = 0x14,
     IsZero = 0x15,
@@ -29,7 +41,13 @@ pub enum Operation {
     Shl = 0x1B,
     Shr = 0x1C,
     Sar = 0x1D,
+    Rotl = 0x1E,
+    Rotr = 0x1F,
     Keccak256 = 0x20,
+    Clz = 0x21,
+    Ctz = 0x22,
+    Popcnt = 0x23,
+    Select = 0x24,
     Address = 0x30,
     Balance = 0x31,
     Origin = 0x32,
@@ -82,7 +100,7 @@ pub enum Operation {
     ReturnContract = 0xEE,
     Create = 0xF0,
     Call = 0xF1,
-    CallCode = 0xF2,
+    Callcode = 0xF2,
     Return = 0xF3,
     Delegatecall = 0xF4,
     Create2 = 0xF5,
@@ -93,7 +111,7 @@ pub enum Operation {
     ExtStaticcall = 0xFB,
     Revert = 0xFD,
     Invalid = 0xFE,
-    SelfDestruct = 0xFF,
+    Selfdestruct = 0xFF,
 }
 
 impl Operation {
@@ -111,6 +129,10 @@ impl Operation {
             Operation::MulMod => dora::MulModOperation::name(),
             Operation::Exp => dora::ExpOperation::name(),
             Operation::SignExtend => dora::SignExtendOperation::name(),
+            Operation::Lte => dora::LteOperation::name(),
+            Operation::Gte => dora::GteOperation::name(),
+            Operation::Slte => dora::SlteOperation::name(),
+            Operation::Sgte => dora::SgteOperation::name(),
             Operation::Lt => dora::LtOperation::name(),
             Operation::Gt => dora::GtOperation::name(),
             Operation::Slt => dora::SltOperation::name(),
@@ -125,6 +147,12 @@ impl Operation {
             Operation::Shl => dora::ShlOperation::name(),
             Operation::Shr => dora::ShrOperation::name(),
             Operation::Sar => dora::SarOperation::name(),
+            Operation::Rotl => dora::RotlOperation::name(),
+            Operation::Rotr => dora::RotrOperation::name(),
+            Operation::Clz => dora::ClzOperation::name(),
+            Operation::Ctz => dora::CtzOperation::name(),
+            Operation::Popcnt => dora::PopcntOperation::name(),
+            Operation::Select => dora::SelectOperation::name(),
             Operation::Keccak256 => dora::Keccak256Operation::name(),
             Operation::Address => dora::AddressOperation::name(),
             Operation::Balance => dora::BalanceOperation::name(),
@@ -178,7 +206,7 @@ impl Operation {
             Operation::ReturnContract => dora::ReturnContractOperation::name(),
             Operation::Create => dora::CreateOperation::name(),
             Operation::Call => dora::CallOperation::name(),
-            Operation::CallCode => dora::CallCodeOperation::name(),
+            Operation::Callcode => dora::CallcodeOperation::name(),
             Operation::Return => dora::ReturnOperation::name(),
             Operation::Delegatecall => dora::DelegatecallOperation::name(),
             Operation::Create2 => dora::Create2Operation::name(),
@@ -189,7 +217,7 @@ impl Operation {
             Operation::ExtStaticcall => dora::ExtStaticcallOperation::name(),
             Operation::Revert => dora::RevertOperation::name(),
             Operation::Invalid => dora::InvalidOperation::name(),
-            Operation::SelfDestruct => dora::SelfDestructOperation::name(),
+            Operation::Selfdestruct => dora::SelfdestructOperation::name(),
         }
     }
 
@@ -219,6 +247,10 @@ impl TryFrom<&str> for Operation {
             x if x == dora::MulModOperation::name() => Ok(Operation::MulMod),
             x if x == dora::ExpOperation::name() => Ok(Operation::Exp),
             x if x == dora::SignExtendOperation::name() => Ok(Operation::SignExtend),
+            x if x == dora::LteOperation::name() => Ok(Operation::Lte),
+            x if x == dora::GteOperation::name() => Ok(Operation::Gte),
+            x if x == dora::SlteOperation::name() => Ok(Operation::Slte),
+            x if x == dora::SgteOperation::name() => Ok(Operation::Sgte),
             x if x == dora::LtOperation::name() => Ok(Operation::Lt),
             x if x == dora::GtOperation::name() => Ok(Operation::Gt),
             x if x == dora::SltOperation::name() => Ok(Operation::Slt),
@@ -233,6 +265,12 @@ impl TryFrom<&str> for Operation {
             x if x == dora::ShlOperation::name() => Ok(Operation::Shl),
             x if x == dora::ShrOperation::name() => Ok(Operation::Shr),
             x if x == dora::SarOperation::name() => Ok(Operation::Sar),
+            x if x == dora::RotlOperation::name() => Ok(Operation::Rotl),
+            x if x == dora::RotrOperation::name() => Ok(Operation::Rotr),
+            x if x == dora::ClzOperation::name() => Ok(Operation::Clz),
+            x if x == dora::CtzOperation::name() => Ok(Operation::Ctz),
+            x if x == dora::PopcntOperation::name() => Ok(Operation::Popcnt),
+            x if x == dora::SelectOperation::name() => Ok(Operation::Select),
             x if x == dora::Keccak256Operation::name() => Ok(Operation::Keccak256),
             x if x == dora::AddressOperation::name() => Ok(Operation::Address),
             x if x == dora::BalanceOperation::name() => Ok(Operation::Balance),
@@ -286,7 +324,7 @@ impl TryFrom<&str> for Operation {
             x if x == dora::ReturnContractOperation::name() => Ok(Operation::ReturnContract),
             x if x == dora::CreateOperation::name() => Ok(Operation::Create),
             x if x == dora::CallOperation::name() => Ok(Operation::Call),
-            x if x == dora::CallCodeOperation::name() => Ok(Operation::CallCode),
+            x if x == dora::CallcodeOperation::name() => Ok(Operation::Callcode),
             x if x == dora::ReturnOperation::name() => Ok(Operation::Return),
             x if x == dora::DelegatecallOperation::name() => Ok(Operation::Delegatecall),
             x if x == dora::Create2Operation::name() => Ok(Operation::Create2),
@@ -297,7 +335,7 @@ impl TryFrom<&str> for Operation {
             x if x == dora::ExtStaticcallOperation::name() => Ok(Operation::ExtStaticcall),
             x if x == dora::RevertOperation::name() => Ok(Operation::Revert),
             x if x == dora::InvalidOperation::name() => Ok(Operation::Invalid),
-            x if x == dora::SelfDestructOperation::name() => Ok(Operation::SelfDestruct),
+            x if x == dora::SelfdestructOperation::name() => Ok(Operation::Selfdestruct),
             _ => Err(()),
         }
     }

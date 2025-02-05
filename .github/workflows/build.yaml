@@ -9,30 +9,19 @@ on:
   pull_request:
     branches:
       - main
+    types: [synchronize, opened, reopened, converted_to_draft, ready_for_review]
   workflow_dispatch:
 
 env:
   LLVM_VERSION: "19"
-  RUST_VERSION: 1.82.0
+  RUST_VERSION: 1.83.0
   MACOSX_DEPLOYMENT_TARGET: '12.0'
 
 jobs:
-  setup:
-    name: Set up
-    runs-on: ubuntu-latest
-    steps:
-      - name: Set up env vars
-        id: setup
-        shell: bash
-        run: |
-          VERSION=${GITHUB_REF/refs\/tags\//}
-          echo "VERSION=${VERSION}" >> $GITHUB_OUTPUT
-          echo $VERSION
-
   build:
     name: Build on ${{ matrix.build }}
+    if: github.event.pull_request.draft == false
     runs-on: ${{ matrix.os }}
-    needs: setup
     strategy:
       fail-fast: false
       matrix:
@@ -40,6 +29,9 @@ jobs:
           - build: linux-amd64
             os: ubuntu-22.04
             artifact_name: 'dora-linux-amd64'
+          - build: linux-arm64
+            os: ubuntu-22.04-arm
+            artifact_name: 'dora-linux-arm64'
           - build: macos-amd64
             os: macos-13
             artifact_name: 'dora-darwin-amd64'
@@ -102,54 +94,43 @@ jobs:
           retention-days: 2
 
   release:
-    needs: [setup, build]
+    needs: [build]
+    if: startsWith(github.ref, 'refs/tags/')
     runs-on: ubuntu-latest
-    if: "startsWith(github.ref, 'refs/tags/')"
     steps:
+      - uses: actions/checkout@v4
+      - name: Set up version env
+        id: setup
+        shell: bash
+        run: |
+          VERSION=${GITHUB_REF/refs\/tags\//}
+          echo "VERSION=${VERSION}" >> $GITHUB_ENV
+          echo $VERSION
       - name: Download the Artifacts
         uses: actions/download-artifact@v4
         with:
           path: artifacts
+
+      - name: Prepare Artifacts
+        shell: bash
+        run: |
+          mv artifacts/dora-linux-amd64/dora.tar.gz dora-linux-amd64.tar.gz
+          mv artifacts/dora-linux-arm64/dora.tar.gz dora-linux-arm64.tar.gz
+          mv artifacts/dora-darwin-amd64/dora.tar.gz dora-darwin-amd64.tar.gz
+          mv artifacts/dora-darwin-arm64/dora.tar.gz dora-darwin-arm64.tar.gz
+
       - name: Create Release
-        id: create_release
-        uses: actions/create-release@v1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        uses: softprops/action-gh-release@v2
         with:
-          tag_name: ${{ needs.setup.outputs.VERSION }}
-          release_name: Release ${{ needs.setup.outputs.VERSION }}
-          draft: true
-          prerelease: false
-
-      - name: Upload Release Asset Linux amd64
-        uses: actions/upload-release-asset@v1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          upload_url: ${{ steps.create_release.outputs.upload_url }}
-          asset_path: artifacts/dora-linux-amd64/dora.tar.gz
-          asset_name: dora-linux-amd64.tar.gz
-          asset_content_type: application/gzip
-
-      - name: Upload Release Asset Mac amd64
-        uses: actions/upload-release-asset@v1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          upload_url: ${{ steps.create_release.outputs.upload_url }}
-          asset_path: artifacts/dora-darwin-amd64/dora.tar.gz
-          asset_name: dora-darwin-amd64.tar.gz
-          asset_content_type: application/gzip
-
-      - name: Upload Release Asset Mac arm64
-        uses: actions/upload-release-asset@v1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          upload_url: ${{ steps.create_release.outputs.upload_url }}
-          asset_path: artifacts/dora-darwin-arm64/dora.tar.gz
-          asset_name: dora-darwin-arm64.tar.gz
-          asset_content_type: application/gzip
+          tag_name: ${{ env.VERSION }}
+          token: ${{ secrets.DEPLOY_ACCESS_TOKEN }}
+          generate_release_notes: true
+          name: ${{ env.VERSION }} Release
+          files: |
+            dora-linux-amd64.tar.gz
+            dora-linux-arm64.tar.gz
+            dora-darwin-amd64.tar.gz
+            dora-darwin-arm64.tar.gz
 
       - name: Setup QEMU
         uses: docker/setup-qemu-action@v3
@@ -171,7 +152,9 @@ jobs:
             ghcr.io/dp-labs/dora
 
       - name: Extract dora binary to dist
-        run: tar -xf artifacts/dora-darwin-arm64/dora.tar.gz -C dist/
+        run: |
+          mkdir dist
+          tar -xf dora-linux-amd64.tar.gz -C dist/
 
       - name: Build and push Docker image
         uses: docker/build-push-action@v6

@@ -1,25 +1,12 @@
-use crate::backend::IntCC;
 use crate::dora::gas::{memory_gas_cost, num_words};
-use crate::{
-    arith_constant,
-    conversion::{builder::OpBuilder, rewriter::Rewriter},
-    create_var,
-    errors::Result,
-    store_var,
-};
-use crate::{check_op_oog, check_runtime_error, gas_or_fail, if_here, maybe_revert_here};
+use crate::{check_op_oog, check_runtime_error, gas_or_fail, if_here};
+use crate::{conversion::rewriter::Rewriter, create_var, errors::Result, store_var};
 use block::BlockArgument;
-use dora_runtime::constants;
-use dora_runtime::constants::GAS_COUNTER_GLOBAL;
 use dora_runtime::symbols;
 use dora_runtime::ExitStatusCode;
 use melior::dialect::arith::CmpiPredicate;
 use melior::{
-    dialect::{
-        arith, cf, func,
-        llvm::{self, AllocaOptions, LoadStoreOptions},
-        scf,
-    },
+    dialect::{arith, func, llvm::LoadStoreOptions},
     ir::{
         attribute::{FlatSymbolRefAttribute, IntegerAttribute, TypeAttribute},
         r#type::IntegerType,
@@ -55,6 +42,7 @@ pub(crate) fn resize_memory<'c>(
     op: &OperationRef<'c, 'c>,
     rewriter: &'c Rewriter,
     syscall_ctx: BlockArgument<'c, 'c>,
+    gas_counter_ptr: Value<'c, 'c>,
     offset: Value<'c, 'c>,
     len: Value<'c, 'c>,
 ) -> Result<()> {
@@ -68,14 +56,12 @@ pub(crate) fn resize_memory<'c>(
     let rounded_required_size =
         rewriter.make(arith::muli(required_size_words, contant_32, location))?;
     // Load memory size
-    let memory_size_ptr =
-        rewriter.make(rewriter.addressof(constants::MEMORY_SIZE_GLOBAL, rewriter.ptr_ty()))?;
-    let memory_size = rewriter.make(llvm::load(
+    let memory_size = rewriter.make(func::call(
         context,
-        memory_size_ptr,
-        rewriter.intrinsics.i64_ty,
+        FlatSymbolRefAttribute::new(context, symbols::MEMORY_SIZE),
+        &[syscall_ctx.into()],
+        &[rewriter.intrinsics.i64_ty],
         location,
-        LoadStoreOptions::default(),
     ))?;
     let memory_size_words = num_words(&rewriter, memory_size, location)?;
     let rounded_memory_size =
@@ -92,7 +78,7 @@ pub(crate) fn resize_memory<'c>(
         let memory_cost_before = memory_gas_cost(&rewriter, memory_size_words)?;
         let memory_cost_after = memory_gas_cost(&rewriter, required_size_words)?;
         let gas = rewriter.make(arith::subi(memory_cost_after, memory_cost_before, location))?;
-        gas_or_fail!(op, rewriter, gas);
+        gas_or_fail!(op, rewriter, gas, gas_counter_ptr);
         let rewriter = Rewriter::new_with_op(context, *op);
         let result_ptr = rewriter.make(func::call(
             context,
@@ -101,39 +87,13 @@ pub(crate) fn resize_memory<'c>(
             &[ptr_type],
             location,
         ))?;
-        let new_memory_ptr = rewriter.get_field_value(
-            result_ptr,
-            offset_of!(dora_runtime::context::RuntimeResult<*mut u8>, value),
-            ptr_type,
-        )?;
         let error = rewriter.get_field_value(
             result_ptr,
-            offset_of!(dora_runtime::context::RuntimeResult<*mut u8>, error),
+            offset_of!(dora_runtime::context::RuntimeResult<()>, error),
             rewriter.intrinsics.i8_ty,
         )?;
         // Check the runtime memory resize halt error
         check_runtime_error!(op, rewriter, error);
-        let rewriter = Rewriter::new_with_op(context, *op);
-        // Load memory ptr
-        let memory_ptr_ptr =
-            rewriter.make(rewriter.addressof(constants::MEMORY_PTR_GLOBAL, ptr_type))?;
-        rewriter.create(llvm::store(
-            context,
-            new_memory_ptr,
-            memory_ptr_ptr,
-            location,
-            LoadStoreOptions::default(),
-        ));
-        // Load memory size
-        let memory_size_ptr =
-            rewriter.make(rewriter.addressof(constants::MEMORY_SIZE_GLOBAL, ptr_type))?;
-        rewriter.create(llvm::store(
-            context,
-            rounded_required_size,
-            memory_size_ptr,
-            location,
-            LoadStoreOptions::default(),
-        ));
     });
     Ok(())
 }

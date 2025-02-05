@@ -7,10 +7,12 @@ use crate::call::{CallKind, CallMessage, CallResult};
 use crate::result::EVMError;
 use crate::{context::Log, env::Env};
 
-/// The `Host` trait defines the interface for interacting with the Dora runtime environment.
+/// The [`Host`] trait defines the interface for interacting with the Dora runtime environment.
+///
 /// It includes methods for account management, storage operations, balance inquiries,
-/// code retrieval, logging, and access status tracking. Implementing this trait allows
-/// a host to provide the necessary functionalities during contract execution.
+/// code retrieval, logging, and access status tracking.
+///
+/// Implementing this trait allows a host to provide the necessary functionalities during contract execution.
 pub trait Host {
     /// Returns a reference to the environment.
     fn env(&self) -> &Env;
@@ -52,7 +54,7 @@ pub trait Host {
         &mut self,
         addr: Address,
         target: Address,
-    ) -> Option<StateLoad<SelfDestructResult>>;
+    ) -> Option<StateLoad<SelfdestructResult>>;
 
     /// Get the block hash of the given block `number`.
     fn block_hash(&mut self, number: u64) -> Option<Bytes32>;
@@ -69,6 +71,12 @@ pub trait Host {
 pub enum SStoreResult {
     Slot(SStoreSlot),
     Status(SStoreStatus),
+}
+
+impl Default for SStoreResult {
+    fn default() -> Self {
+        Self::Slot(SStoreSlot::default())
+    }
 }
 
 /// Result of a `set_storage` action.
@@ -126,7 +134,7 @@ pub enum SStoreStatus {
 
 /// Result of a `selfdestruct` action.
 #[derive(Clone, Debug, Default, PartialEq, Eq, Hash)]
-pub struct SelfDestructResult {
+pub struct SelfdestructResult {
     pub had_value: bool,
     pub target_exists: bool,
     pub previously_destroyed: bool,
@@ -340,7 +348,7 @@ impl Host for DummyHost {
         &mut self,
         _addr: Address,
         _target: Address,
-    ) -> Option<StateLoad<SelfDestructResult>> {
+    ) -> Option<StateLoad<SelfdestructResult>> {
         Some(Default::default())
     }
 
@@ -361,16 +369,17 @@ impl Host for DummyHost {
 
     fn call(&mut self, msg: CallMessage) -> Result<CallResult, EVMError> {
         Ok(match msg.kind {
-            CallKind::Call
-            | CallKind::CallCode
+            CallKind::EofCreate
+            | CallKind::ReturnContract
+            | CallKind::Call
+            | CallKind::Callcode
             | CallKind::Delegatecall
             | CallKind::Staticcall
             | CallKind::Create
             | CallKind::Create2 => CallResult::new_with_gas_limit(msg.gas_limit),
-            CallKind::ExtCall
-            | CallKind::ExtStaticcall
-            | CallKind::ExtDelegatecall
-            | CallKind::EofCreate => unimplemented!("{:?}", msg.kind),
+            CallKind::ExtCall | CallKind::ExtStaticcall | CallKind::ExtDelegatecall => {
+                unimplemented!("{:?}", msg.kind)
+            }
         })
     }
 }

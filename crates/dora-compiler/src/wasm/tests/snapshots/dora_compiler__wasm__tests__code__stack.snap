@@ -1,0 +1,308 @@
+---
+source: crates/dora-compiler/src/wasm/tests/code.rs
+expression: op
+snapshot_kind: text
+---
+module {
+  func.func public @"fac-expr"(%arg0: !llvm.ptr, %arg1: i64) -> i64 attributes {llvm.emit_c_interface} {
+    %c1_i64 = arith.constant 1 : i64
+    %0 = llvm.alloca %c1_i64 x i64 : (i64) -> !llvm.ptr
+    llvm.store %arg1, %0 : i64, !llvm.ptr
+    %c0_i64 = arith.constant 0 : i64
+    %c1_i64_0 = arith.constant 1 : i64
+    %1 = llvm.alloca %c1_i64_0 x i64 : (i64) -> !llvm.ptr
+    llvm.store %c0_i64, %1 : i64, !llvm.ptr
+    %c1_i64_1 = arith.constant 1 : i64
+    %2 = llvm.alloca %c1_i64_1 x i64 : (i64) -> !llvm.ptr
+    llvm.store %c0_i64, %2 : i64, !llvm.ptr
+    cf.br ^bb1
+  ^bb1:  // pred: ^bb0
+    %3 = llvm.load %0 : !llvm.ptr -> i64
+    llvm.store %3, %1 : i64, !llvm.ptr
+    %c1_i64_2 = arith.constant 1 : i64
+    llvm.store %c1_i64_2, %2 : i64, !llvm.ptr
+    cf.br ^bb5
+  ^bb2(%4: i64):  // pred: ^bb3
+    return %4 : i64
+  ^bb3:  // 2 preds: ^bb4, ^bb6
+    %5 = llvm.load %2 : !llvm.ptr -> i64
+    cf.br ^bb2(%5 : i64)
+  ^bb4:  // no predecessors
+    cf.br ^bb3
+  ^bb5:  // 2 preds: ^bb1, ^bb8
+    %6 = llvm.load %1 : !llvm.ptr -> i64
+    %c0_i64_3 = arith.constant 0 : i64
+    %7 = "wasm.eq"(%6, %c0_i64_3) : (i64, i64) -> i32
+    %c0_i32 = arith.constant 0 : i32
+    %8 = arith.cmpi ne, %7, %c0_i32 : i32
+    cf.cond_br %8, ^bb6, ^bb7
+  ^bb6:  // pred: ^bb5
+    cf.br ^bb3
+  ^bb7:  // pred: ^bb5
+    %9 = llvm.load %1 : !llvm.ptr -> i64
+    %10 = llvm.load %2 : !llvm.ptr -> i64
+    %11 = "wasm.mul"(%9, %10) : (i64, i64) -> i64
+    llvm.store %11, %2 : i64, !llvm.ptr
+    %12 = llvm.load %1 : !llvm.ptr -> i64
+    %c1_i64_4 = arith.constant 1 : i64
+    %13 = "wasm.sub"(%12, %c1_i64_4) : (i64, i64) -> i64
+    llvm.store %13, %1 : i64, !llvm.ptr
+    cf.br ^bb8
+  ^bb8:  // pred: ^bb7
+    cf.br ^bb5
+  }
+  func.func public @"fac-stack"(%arg0: !llvm.ptr, %arg1: i64) -> i64 attributes {llvm.emit_c_interface} {
+    %c1_i64 = arith.constant 1 : i64
+    %0 = llvm.alloca %c1_i64 x i64 : (i64) -> !llvm.ptr
+    llvm.store %arg1, %0 : i64, !llvm.ptr
+    %c0_i64 = arith.constant 0 : i64
+    %c1_i64_0 = arith.constant 1 : i64
+    %1 = llvm.alloca %c1_i64_0 x i64 : (i64) -> !llvm.ptr
+    llvm.store %c0_i64, %1 : i64, !llvm.ptr
+    %c1_i64_1 = arith.constant 1 : i64
+    %2 = llvm.alloca %c1_i64_1 x i64 : (i64) -> !llvm.ptr
+    llvm.store %c0_i64, %2 : i64, !llvm.ptr
+    cf.br ^bb1
+  ^bb1:  // pred: ^bb0
+    %3 = llvm.load %0 : !llvm.ptr -> i64
+    llvm.store %3, %1 : i64, !llvm.ptr
+    %c1_i64_2 = arith.constant 1 : i64
+    llvm.store %c1_i64_2, %2 : i64, !llvm.ptr
+    cf.br ^bb5
+  ^bb2(%4: i64):  // pred: ^bb3
+    return %4 : i64
+  ^bb3:  // 2 preds: ^bb4, ^bb6
+    %5 = llvm.load %2 : !llvm.ptr -> i64
+    cf.br ^bb2(%5 : i64)
+  ^bb4:  // no predecessors
+    cf.br ^bb3
+  ^bb5:  // 2 preds: ^bb1, ^bb8
+    %6 = llvm.load %1 : !llvm.ptr -> i64
+    %c0_i64_3 = arith.constant 0 : i64
+    %7 = "wasm.eq"(%6, %c0_i64_3) : (i64, i64) -> i32
+    %c0_i32 = arith.constant 0 : i32
+    %8 = arith.cmpi ne, %7, %c0_i32 : i32
+    cf.cond_br %8, ^bb6, ^bb7
+  ^bb6:  // pred: ^bb5
+    cf.br ^bb3
+  ^bb7:  // pred: ^bb5
+    %9 = llvm.load %1 : !llvm.ptr -> i64
+    %10 = llvm.load %2 : !llvm.ptr -> i64
+    %11 = "wasm.mul"(%9, %10) : (i64, i64) -> i64
+    llvm.store %11, %2 : i64, !llvm.ptr
+    %12 = llvm.load %1 : !llvm.ptr -> i64
+    %c1_i64_4 = arith.constant 1 : i64
+    %13 = "wasm.sub"(%12, %c1_i64_4) : (i64, i64) -> i64
+    llvm.store %13, %1 : i64, !llvm.ptr
+    cf.br ^bb8
+  ^bb8:  // pred: ^bb7
+    cf.br ^bb5
+  }
+  func.func public @"fac-stack-raw"(%arg0: !llvm.ptr, %arg1: i64) -> i64 attributes {llvm.emit_c_interface} {
+    %c1_i64 = arith.constant 1 : i64
+    %0 = llvm.alloca %c1_i64 x i64 : (i64) -> !llvm.ptr
+    llvm.store %arg1, %0 : i64, !llvm.ptr
+    %c0_i64 = arith.constant 0 : i64
+    %c1_i64_0 = arith.constant 1 : i64
+    %1 = llvm.alloca %c1_i64_0 x i64 : (i64) -> !llvm.ptr
+    llvm.store %c0_i64, %1 : i64, !llvm.ptr
+    %c1_i64_1 = arith.constant 1 : i64
+    %2 = llvm.alloca %c1_i64_1 x i64 : (i64) -> !llvm.ptr
+    llvm.store %c0_i64, %2 : i64, !llvm.ptr
+    cf.br ^bb1
+  ^bb1:  // pred: ^bb0
+    %3 = llvm.load %0 : !llvm.ptr -> i64
+    llvm.store %3, %1 : i64, !llvm.ptr
+    %c1_i64_2 = arith.constant 1 : i64
+    llvm.store %c1_i64_2, %2 : i64, !llvm.ptr
+    cf.br ^bb5
+  ^bb2(%4: i64):  // pred: ^bb3
+    return %4 : i64
+  ^bb3:  // 2 preds: ^bb4, ^bb6
+    %5 = llvm.load %2 : !llvm.ptr -> i64
+    cf.br ^bb2(%5 : i64)
+  ^bb4:  // no predecessors
+    cf.br ^bb3
+  ^bb5:  // 2 preds: ^bb1, ^bb8
+    %6 = llvm.load %1 : !llvm.ptr -> i64
+    %c0_i64_3 = arith.constant 0 : i64
+    %7 = "wasm.eq"(%6, %c0_i64_3) : (i64, i64) -> i32
+    %c0_i32 = arith.constant 0 : i32
+    %8 = arith.cmpi ne, %7, %c0_i32 : i32
+    cf.cond_br %8, ^bb6, ^bb7
+  ^bb6:  // pred: ^bb5
+    cf.br ^bb3
+  ^bb7:  // pred: ^bb5
+    %9 = llvm.load %1 : !llvm.ptr -> i64
+    %10 = llvm.load %2 : !llvm.ptr -> i64
+    %11 = "wasm.mul"(%9, %10) : (i64, i64) -> i64
+    llvm.store %11, %2 : i64, !llvm.ptr
+    %12 = llvm.load %1 : !llvm.ptr -> i64
+    %c1_i64_4 = arith.constant 1 : i64
+    %13 = "wasm.sub"(%12, %c1_i64_4) : (i64, i64) -> i64
+    llvm.store %13, %1 : i64, !llvm.ptr
+    cf.br ^bb8
+  ^bb8:  // pred: ^bb7
+    cf.br ^bb5
+  }
+  func.func public @"fac-mixed"(%arg0: !llvm.ptr, %arg1: i64) -> i64 attributes {llvm.emit_c_interface} {
+    %c1_i64 = arith.constant 1 : i64
+    %0 = llvm.alloca %c1_i64 x i64 : (i64) -> !llvm.ptr
+    llvm.store %arg1, %0 : i64, !llvm.ptr
+    %c0_i64 = arith.constant 0 : i64
+    %c1_i64_0 = arith.constant 1 : i64
+    %1 = llvm.alloca %c1_i64_0 x i64 : (i64) -> !llvm.ptr
+    llvm.store %c0_i64, %1 : i64, !llvm.ptr
+    %c1_i64_1 = arith.constant 1 : i64
+    %2 = llvm.alloca %c1_i64_1 x i64 : (i64) -> !llvm.ptr
+    llvm.store %c0_i64, %2 : i64, !llvm.ptr
+    cf.br ^bb1
+  ^bb1:  // pred: ^bb0
+    %3 = llvm.load %0 : !llvm.ptr -> i64
+    llvm.store %3, %1 : i64, !llvm.ptr
+    %c1_i64_2 = arith.constant 1 : i64
+    llvm.store %c1_i64_2, %2 : i64, !llvm.ptr
+    cf.br ^bb5
+  ^bb2(%4: i64):  // pred: ^bb3
+    return %4 : i64
+  ^bb3:  // 2 preds: ^bb4, ^bb6
+    %5 = llvm.load %2 : !llvm.ptr -> i64
+    cf.br ^bb2(%5 : i64)
+  ^bb4:  // no predecessors
+    cf.br ^bb3
+  ^bb5:  // 2 preds: ^bb1, ^bb8
+    %6 = llvm.load %1 : !llvm.ptr -> i64
+    %c0_i64_3 = arith.constant 0 : i64
+    %7 = "wasm.eq"(%6, %c0_i64_3) : (i64, i64) -> i32
+    %c0_i32 = arith.constant 0 : i32
+    %8 = arith.cmpi ne, %7, %c0_i32 : i32
+    cf.cond_br %8, ^bb6, ^bb7
+  ^bb6:  // pred: ^bb5
+    cf.br ^bb3
+  ^bb7:  // pred: ^bb5
+    %9 = llvm.load %1 : !llvm.ptr -> i64
+    %10 = llvm.load %2 : !llvm.ptr -> i64
+    %11 = "wasm.mul"(%9, %10) : (i64, i64) -> i64
+    llvm.store %11, %2 : i64, !llvm.ptr
+    %12 = llvm.load %1 : !llvm.ptr -> i64
+    %c1_i64_4 = arith.constant 1 : i64
+    %13 = "wasm.sub"(%12, %c1_i64_4) : (i64, i64) -> i64
+    llvm.store %13, %1 : i64, !llvm.ptr
+    cf.br ^bb8
+  ^bb8:  // pred: ^bb7
+    cf.br ^bb5
+  }
+  func.func public @"fac-mixed-raw"(%arg0: !llvm.ptr, %arg1: i64) -> i64 attributes {llvm.emit_c_interface} {
+    %c1_i64 = arith.constant 1 : i64
+    %0 = llvm.alloca %c1_i64 x i64 : (i64) -> !llvm.ptr
+    llvm.store %arg1, %0 : i64, !llvm.ptr
+    %c0_i64 = arith.constant 0 : i64
+    %c1_i64_0 = arith.constant 1 : i64
+    %1 = llvm.alloca %c1_i64_0 x i64 : (i64) -> !llvm.ptr
+    llvm.store %c0_i64, %1 : i64, !llvm.ptr
+    %c1_i64_1 = arith.constant 1 : i64
+    %2 = llvm.alloca %c1_i64_1 x i64 : (i64) -> !llvm.ptr
+    llvm.store %c0_i64, %2 : i64, !llvm.ptr
+    cf.br ^bb1
+  ^bb1:  // pred: ^bb0
+    %3 = llvm.load %0 : !llvm.ptr -> i64
+    llvm.store %3, %1 : i64, !llvm.ptr
+    %c1_i64_2 = arith.constant 1 : i64
+    llvm.store %c1_i64_2, %2 : i64, !llvm.ptr
+    cf.br ^bb5
+  ^bb2(%4: i64):  // pred: ^bb3
+    return %4 : i64
+  ^bb3:  // 2 preds: ^bb4, ^bb6
+    %5 = llvm.load %2 : !llvm.ptr -> i64
+    cf.br ^bb2(%5 : i64)
+  ^bb4:  // no predecessors
+    cf.br ^bb3
+  ^bb5:  // 2 preds: ^bb1, ^bb8
+    %6 = llvm.load %1 : !llvm.ptr -> i64
+    %c0_i64_3 = arith.constant 0 : i64
+    %7 = "wasm.eq"(%6, %c0_i64_3) : (i64, i64) -> i32
+    %c0_i32 = arith.constant 0 : i32
+    %8 = arith.cmpi ne, %7, %c0_i32 : i32
+    cf.cond_br %8, ^bb6, ^bb7
+  ^bb6:  // pred: ^bb5
+    cf.br ^bb3
+  ^bb7:  // pred: ^bb5
+    %9 = llvm.load %1 : !llvm.ptr -> i64
+    %10 = llvm.load %2 : !llvm.ptr -> i64
+    %11 = "wasm.mul"(%9, %10) : (i64, i64) -> i64
+    llvm.store %11, %2 : i64, !llvm.ptr
+    %12 = llvm.load %1 : !llvm.ptr -> i64
+    %c1_i64_4 = arith.constant 1 : i64
+    %13 = "wasm.sub"(%12, %c1_i64_4) : (i64, i64) -> i64
+    llvm.store %13, %1 : i64, !llvm.ptr
+    cf.br ^bb8
+  ^bb8:  // pred: ^bb7
+    cf.br ^bb5
+  }
+  func.func @add_one_to_global(%arg0: !llvm.ptr) -> i32 {
+    %c0_i32 = arith.constant 0 : i32
+    %c1_i64 = arith.constant 1 : i64
+    %0 = llvm.alloca %c1_i64 x i32 : (i64) -> !llvm.ptr
+    llvm.store %c0_i32, %0 : i32, !llvm.ptr
+    %1 = llvm.getelementptr %arg0[16] : (!llvm.ptr) -> !llvm.ptr, i8
+    %2 = llvm.load %1 : !llvm.ptr -> !llvm.ptr
+    cf.br ^bb1
+  ^bb1:  // pred: ^bb0
+    %c1_i32 = arith.constant 1 : i32
+    %3 = llvm.load %2 : !llvm.ptr -> i32
+    %4 = "wasm.add"(%c1_i32, %3) : (i32, i32) -> i32
+    llvm.store %4, %2 : i32, !llvm.ptr
+    %5 = llvm.load %2 : !llvm.ptr -> i32
+    cf.br ^bb2(%5 : i32)
+  ^bb2(%6: i32):  // pred: ^bb1
+    return %6 : i32
+  }
+  func.func @add_one_to_global_and_drop(%arg0: !llvm.ptr) {
+    cf.br ^bb1
+  ^bb1:  // pred: ^bb0
+    %0 = call @add_one_to_global(%arg0) : (!llvm.ptr) -> i32
+    cf.br ^bb2
+  ^bb2:  // pred: ^bb1
+    return
+  }
+  func.func public @"not-quite-a-tree"(%arg0: !llvm.ptr) -> i32 attributes {llvm.emit_c_interface} {
+    cf.br ^bb1
+  ^bb1:  // pred: ^bb0
+    %0 = call @add_one_to_global(%arg0) : (!llvm.ptr) -> i32
+    %1 = call @add_one_to_global(%arg0) : (!llvm.ptr) -> i32
+    call @add_one_to_global_and_drop(%arg0) : (!llvm.ptr) -> ()
+    %2 = "wasm.add"(%0, %1) : (i32, i32) -> i32
+    cf.br ^bb2(%2 : i32)
+  ^bb2(%3: i32):  // pred: ^bb1
+    return %3 : i32
+  }
+  func.func private @dora_fn_wasm_table_init(!llvm.ptr, i32, i32, i32, i32, i32)
+  func.func private @dora_fn_wasm_table_copy(!llvm.ptr, i32, i32, i32, i32, i32)
+  func.func private @dora_fn_wasm_table_fill(!llvm.ptr, i32, i32, !llvm.ptr, i32)
+  func.func private @dora_fn_wasm_table_size(!llvm.ptr, i32) -> i32
+  func.func private @dora_fn_wasm_table_get(!llvm.ptr, i32, i32) -> !llvm.ptr
+  func.func private @dora_fn_wasm_table_set(!llvm.ptr, i32, i32, !llvm.ptr)
+  func.func private @dora_fn_wasm_table_grow(!llvm.ptr, !llvm.ptr, i32, i32) -> i32
+  func.func private @dora_fn_wasm_imported_table_size(!llvm.ptr, i32) -> i32
+  func.func private @dora_fn_wasm_imported_table_get(!llvm.ptr, i32, i32) -> !llvm.ptr
+  func.func private @dora_fn_wasm_imported_table_grow(!llvm.ptr, !llvm.ptr, i32, i32) -> i32
+  func.func private @dora_fn_wasm_memory_init(!llvm.ptr, i32, i32, i32, i32, i32)
+  func.func private @dora_fn_wasm_memory_size(!llvm.ptr, i32) -> i32
+  func.func private @dora_fn_wasm_memory_grow(!llvm.ptr, i32, i32) -> i32
+  func.func private @dora_fn_wasm_memory_copy(!llvm.ptr, i32, i32, i32, i32)
+  func.func private @dora_fn_wasm_memory_fill(!llvm.ptr, i32, i32, i32, i32)
+  func.func private @dora_fn_wasm_memory_notify(!llvm.ptr, i32, i32, i32) -> i32
+  func.func private @dora_fn_wasm_memory_wait32(!llvm.ptr, i32, i32, i32, i64) -> i32
+  func.func private @dora_fn_wasm_memory_wait64(!llvm.ptr, i32, i32, i64, i64) -> i32
+  func.func private @dora_fn_wasm_imported_memory_size(!llvm.ptr, i32) -> i32
+  func.func private @dora_fn_wasm_imported_memory_grow(!llvm.ptr, i32, i32) -> i32
+  func.func private @dora_fn_wasm_imported_memory_copy(!llvm.ptr, i32, i32, i32, i32)
+  func.func private @dora_fn_wasm_imported_memory_fill(!llvm.ptr, i32, i32, i32, i32)
+  func.func private @dora_fn_wasm_imported_memory_notify(!llvm.ptr, i32, i32, i32) -> i32
+  func.func private @dora_fn_wasm_imported_memory_wait32(!llvm.ptr, i32, i32, i32, i64) -> i32
+  func.func private @dora_fn_wasm_imported_memory_wait64(!llvm.ptr, i32, i32, i64, i64) -> i32
+  func.func private @dora_fn_wasm_func_ref(!llvm.ptr, i32) -> !llvm.ptr
+  func.func private @dora_fn_wasm_data_drop(!llvm.ptr, i32)
+  func.func private @dora_fn_wasm_elem_drop(!llvm.ptr, i32)
+  func.func private @dora_fn_wasm_raise_trap(i32)
+}

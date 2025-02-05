@@ -18,7 +18,9 @@ pub struct Frame {
     /// Whether the call is a static call, or is initiated inside a static call.
     pub is_static: bool,
     /// Whether the call is initiated from EOF bytecode.
-    pub is_eof: bool,
+    pub is_eof_init: bool,
+    /// Whether validate EOF bytecode.
+    pub validate_eof: bool,
 }
 
 pub type CallFrameHandle<'a, DB> =

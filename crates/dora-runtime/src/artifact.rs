@@ -1,9 +1,13 @@
-use std::fmt::Debug;
-
 use crate::{
-    context::{MainFunc, RuntimeContext},
-    executor::Executor,
+    context::{Contract, EVMMainFunc, RuntimeContext, Stack, WASMMainFunc},
+    executor::{ExecuteKind, Executor},
+    host::DummyHost,
+    wasm::context::set_runtime_context,
 };
+use anyhow::{anyhow, Result};
+use dora_primitives::SpecId;
+use std::fmt::Debug;
+use wasmer_vm::VMContext;
 
 /// Artifact represents an abstraction of a compilation product for EVM/WASM bytecode.
 /// This versatile concept can be implemented in various forms, including intermediate
@@ -35,7 +39,13 @@ pub trait Artifact: Default + Debug + Clone {
     ///
     /// # Returns
     /// A u8 value, typically representing an execution status or error code.
-    fn execute(&self, runtime_context: &mut RuntimeContext, initial_gas: u64) -> u8;
+    fn execute(
+        &self,
+        runtime_context: &mut RuntimeContext,
+        initial_gas: &mut u64,
+        stack: &mut Stack,
+        stack_size: &mut u64,
+    ) -> u8;
 }
 
 /// A memory artifact that represents a compiled symbol as a raw pointer.
@@ -43,13 +53,10 @@ pub trait Artifact: Default + Debug + Clone {
 /// of compiled bytecode.
 #[derive(Default, Debug, Clone)]
 pub struct SymbolArtifact {
-    /// The raw pointer to the entry point of the compiled symbol.
-    /// This pointer represents the memory address where the compiled code begins.
-    entry_ptr: usize,
     /// An instance of the Executor that produced this artifact.
     /// This field ensures that the Executor is kept alive as long as the SymbolArtifact exists,
     /// preventing the compiled code from being deallocated prematurely from the memory.
-    _executor: Executor,
+    executor: Executor,
 }
 
 impl Artifact for SymbolArtifact {
@@ -64,10 +71,7 @@ impl Artifact for SymbolArtifact {
     /// A new SymbolArtifact instance.
     #[inline]
     fn new(executor: Executor) -> Self {
-        Self {
-            entry_ptr: executor.get_main_entrypoint_ptr() as usize,
-            _executor: executor,
-        }
+        Self { executor }
     }
 
     /// Executes the compiled code represented by this artifact.
@@ -87,9 +91,102 @@ impl Artifact for SymbolArtifact {
     /// It assumes that the stored entry_ptr is valid and points to a correctly compiled
     /// function matching the MainFunc<DB> signature. Incorrect use could lead to undefined behavior.
     #[inline]
-    fn execute(&self, runtime_context: &mut RuntimeContext, initial_gas: u64) -> u8 {
-        let ptr = self.entry_ptr as *mut ();
-        let func: MainFunc = unsafe { std::mem::transmute(ptr) };
-        func(runtime_context, initial_gas)
+    fn execute(
+        &self,
+        runtime_context: &mut RuntimeContext,
+        initial_gas: &mut u64,
+        stack: &mut Stack,
+        stack_size: &mut u64,
+    ) -> u8 {
+        let ptr = self.executor.get_main_entrypoint_ptr();
+        match &self.executor.kind {
+            ExecuteKind::EVM => {
+                let func: EVMMainFunc = unsafe { std::mem::transmute(ptr) };
+                func(runtime_context, initial_gas, stack, stack_size)
+            }
+            ExecuteKind::WASM(vm_inst) => {
+                let func: WASMMainFunc = unsafe { std::mem::transmute(ptr) };
+                func(vm_inst.read().vmctx_ptr());
+                0
+            }
+        }
+    }
+}
+
+impl SymbolArtifact {
+    /// Executes a WASM function by name with the given arguments.
+    ///
+    /// # Arguments
+    /// * `name` - The name of the WASM function to execute.
+    /// * `args` - The arguments to pass to the WASM function.
+    ///
+    /// # Returns
+    /// * `Result<Ret>` - The result of the WASM function execution, or an error if the function fails.
+    ///
+    /// # Safety
+    /// This function uses `unsafe` to transmute a function pointer, which is inherently unsafe.
+    /// Ensure that the function pointer is valid and that the arguments and return types match the expected types.
+    #[inline]
+    pub fn execute_wasm_func<Args, Ret>(&self, name: &str, args: Args) -> Result<Ret>
+    where
+        Args: Sized,
+        Ret: Sized,
+    {
+        let mut host = DummyHost::default();
+        self.execute_wasm_func_with_context(
+            name,
+            args,
+            RuntimeContext::new(
+                Contract::default(),
+                1,
+                false,
+                false,
+                &mut host,
+                SpecId::default(),
+            ),
+            u64::MAX,
+        )
+    }
+
+    /// Executes the WASM compiled code represented by this artifact.
+    ///
+    /// This method demonstrates the primary advantage of the SymbolArtifact:
+    /// direct execution of pre-compiled code without any additional compilation step.
+    ///
+    /// # Arguments
+    /// * `name` - The name of the WASM function to execute.
+    /// * `args` - The arguments to pass to the WASM function.
+    /// * `runtime_context` - The runtime context to use during execution.
+    /// * `initial_gas` - The initial gas limit for execution (currently unused).
+    ///
+    /// # Returns
+    /// * `Result<Ret>` - The result of the WASM function execution, or an error if the function fails.
+    ///
+    /// # Safety
+    /// This function uses `unsafe` to transmute a function pointer, which is inherently unsafe.
+    /// Ensure that the function pointer is valid and that the arguments and return types match the expected types.
+    pub fn execute_wasm_func_with_context<Args, Ret>(
+        &self,
+        name: &str,
+        args: Args,
+        runtime_context: RuntimeContext,
+        // TODO: gas meter.
+        _initial_gas: u64,
+    ) -> Result<Ret>
+    where
+        Args: Sized,
+        Ret: Sized,
+    {
+        let func_ptr = self.executor.lookup(name);
+        match &self.executor.kind {
+            ExecuteKind::EVM => Err(anyhow!(
+                "The compiled code kind is EVM, and it's not WASM kind"
+            )),
+            ExecuteKind::WASM(vm_inst) => set_runtime_context(runtime_context, || {
+                let func: fn(*mut VMContext, Args) -> Ret =
+                    unsafe { std::mem::transmute(func_ptr) };
+                Ok(func(vm_inst.read().vmctx_ptr(), args))
+            }),
+        }
     }
 }

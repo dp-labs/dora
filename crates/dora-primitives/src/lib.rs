@@ -1,11 +1,152 @@
-pub use revm_primitives::{
-    address, b256, uint, Address, Bytes, PrecompileOutput, SpecId, B256, U256,
-};
+use std::sync::Arc;
 
-pub type Bytecode = Bytes;
+pub use revm_primitives::{
+    address, alloy_primitives, b256, calc_blob_gasprice, calc_excess_blob_gas, eip7702,
+    eof::{Eof, EofBody, TypesSection},
+    fixed_bytes,
+    hex::{FromHex, ToHexExt},
+    keccak256, uint, Address, Authorization, AuthorizationList, Bytecode as EVMBytecode, Bytes,
+    EvmStorageSlot, FixedBytes, Log, LogData, Precompile, PrecompileErrors, PrecompileOutput,
+    RecoveredAuthority, RecoveredAuthorization, Signature, SpecId, B256, EOF_MAGIC_BYTES,
+    GAS_PER_BLOB, I256, KECCAK_EMPTY, U256,
+};
 
 pub mod config;
 pub mod spec;
+
+/// WASM magic number `\0asm` in array form.
+pub const WASM_MAGIC_BYTES: [u8; 4] = [0x00, 0x61, 0x73, 0x6D];
+
+/// Universal bytecode definition for EVM, WASM, etc.
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub enum Bytecode {
+    EVM(EVMBytecode),
+    WASM(Bytes),
+}
+
+impl Bytecode {
+    /// New a [Bytecode] according to the magic start bytes
+    pub fn new(bytecode: Bytes) -> Self {
+        if bytecode.starts_with(&WASM_MAGIC_BYTES) {
+            Bytecode::WASM(bytecode)
+        } else {
+            Bytecode::EVM(EVMBytecode::new_raw(bytecode))
+        }
+    }
+
+    /// New default EVM [Bytecode].
+    #[inline]
+    pub fn new_evm_default() -> Self {
+        Bytecode::EVM(EVMBytecode::default())
+    }
+
+    /// New default EVM [Bytecode].
+    #[inline]
+    pub fn new_wasm_default() -> Self {
+        Bytecode::WASM(Bytes::default())
+    }
+
+    /// Creates an empty EVM [Bytecode].
+    #[inline]
+    pub fn empty() -> Self {
+        Self::new(Bytes::default())
+    }
+
+    /// Returns a reference to the bytecode.
+    ///
+    /// In case of EOF EVM bytecode, this will be the first code section.
+    #[inline]
+    pub fn bytecode(&self) -> &Bytes {
+        match self {
+            Bytecode::EVM(bytecode) => bytecode.bytecode(),
+            Bytecode::WASM(bytes) => bytes,
+        }
+    }
+
+    /// Returns the cloned bytes.
+    #[inline]
+    pub fn bytes(&self) -> Bytes {
+        match self {
+            Bytecode::EVM(bytecode) => bytecode.bytes(),
+            Bytecode::WASM(bytes) => bytes.clone(),
+        }
+    }
+
+    /// Returns reference to the EOF if bytecode is EOF.
+    #[inline]
+    pub fn eof(&self) -> Option<&Arc<Eof>> {
+        match self {
+            Bytecode::EVM(bytecode) => bytecode.eof(),
+            Bytecode::WASM(_) => None,
+        }
+    }
+
+    /// Returns true if bytecode is EOF.
+    #[inline]
+    pub const fn is_eof(&self) -> bool {
+        match self {
+            Bytecode::EVM(bytecode) => bytecode.is_eof(),
+            Bytecode::WASM(_) => false,
+        }
+    }
+
+    /// Returns true if bytecode is EIP-7702.
+    #[inline]
+    pub const fn is_eip7702(&self) -> bool {
+        match self {
+            Bytecode::EVM(bytecode) => bytecode.is_eip7702(),
+            Bytecode::WASM(_) => false,
+        }
+    }
+
+    /// Returns the original bytecode as a byte slice.
+    #[inline]
+    pub fn original_byte_slice(&self) -> &[u8] {
+        match self {
+            Bytecode::EVM(bytecode) => bytecode.original_byte_slice(),
+            Bytecode::WASM(bytes) => bytes,
+        }
+    }
+
+    /// Returns the length of the original bytes.
+    #[inline]
+    pub fn len(&self) -> usize {
+        self.original_byte_slice().len()
+    }
+
+    /// Returns whether the bytecode is empty.
+    #[inline]
+    pub fn is_empty(&self) -> bool {
+        self.len() == 0
+    }
+
+    /// Calculate hash of the bytecode.
+    pub fn hash_slow(&self) -> B256 {
+        if self.is_empty() {
+            KECCAK_EMPTY
+        } else {
+            keccak256(self.original_byte_slice())
+        }
+    }
+
+    /// Whether is EVM bytecode.
+    #[inline]
+    pub fn is_evm(&self) -> bool {
+        matches!(self, Self::EVM(_))
+    }
+
+    /// Whether is WASM bytecode.
+    #[inline]
+    pub fn is_wasm(&self) -> bool {
+        matches!(self, Self::WASM(_))
+    }
+}
+
+impl Default for Bytecode {
+    fn default() -> Self {
+        Self::empty()
+    }
+}
 
 /// A fixed size array of 32 bytes for storing 256-bit EVM values.
 ///

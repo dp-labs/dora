@@ -4,20 +4,23 @@ use std::fmt;
 use crate::account::{Account, EMPTY_CODE_HASH_BYTES};
 use crate::call::{CallKind, CallMessage, CallResult};
 use crate::constants::env::DORA_TRACING;
-use crate::constants::{gas_cost, CallType, BLOCK_HASH_HISTORY, CALL_STACK_LIMIT, MAX_STACK_SIZE};
+use crate::constants::gas_cost::MIN_CALLEE_GAS;
+use crate::constants::{
+    gas_cost, CallType, ExtCallType, BLOCK_HASH_HISTORY, CALL_STACK_LIMIT, MAX_STACK_SIZE,
+};
 use crate::db::{Database, DatabaseError};
 use crate::env::{CfgEnv, Env};
 use crate::executor::ExecutionEngine;
 use crate::handler::{Frame, Handler};
-use crate::host::{AccountLoad, CodeLoad, Host, SStoreResult, SelfDestructResult, StateLoad};
+use crate::host::{AccountLoad, CodeLoad, Host, SStoreResult, SelfdestructResult, StateLoad};
 use crate::journaled_state::{JournalCheckpoint, JournalEntry, JournaledState};
 use crate::result::EVMError;
 use crate::{gas, symbols, ExitStatusCode};
 use dora_primitives::spec::SpecId;
-use dora_primitives::{Address, Bytecode, Bytes, Bytes32, B256, U256};
+use dora_primitives::{
+    keccak256, Address, Bytecode, Bytes, Bytes32, Precompile, PrecompileErrors, B256, U256,
+};
 use revm_precompile::{PrecompileSpecId, Precompiles};
-use revm_primitives::{keccak256, Precompile, PrecompileErrors};
-use sha3::{Digest, Keccak256};
 
 /// Converts a `U256` value to a `u64`, saturating to `MAX` if the value is too large.
 #[macro_export]
@@ -35,7 +38,7 @@ macro_rules! as_u64_saturated {
     };
 }
 
-/// Converts a `U256` value to a `usize`, saturating to `MAX` if the value is too large.
+/// Converts a [U256] value to a [usize], saturating to [MAX][usize] if the value is too large.
 #[macro_export]
 macro_rules! as_usize_saturated {
     ($v:expr) => {
@@ -43,8 +46,32 @@ macro_rules! as_usize_saturated {
     };
 }
 
-/// Function type for the main entrypoint of the generated code.
-pub type MainFunc = extern "C" fn(&mut RuntimeContext, initial_gas: u64) -> u8;
+#[repr(C)]
+pub struct Stack([Bytes32; MAX_STACK_SIZE]);
+
+impl Stack {
+    #[inline]
+    pub const fn new() -> Self {
+        Self([Bytes32::ZERO; MAX_STACK_SIZE])
+    }
+}
+
+impl Default for Stack {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+/// Function type for the EVM main entrypoint of the generated code.
+pub type EVMMainFunc = extern "C" fn(
+    *mut RuntimeContext,
+    initial_gas: *mut u64,
+    stack: *mut Stack,
+    stack_size: *mut u64,
+) -> u8;
+
+/// Function type for the EVM main entrypoint of the generated code.
+pub type WASMMainFunc = extern "C" fn(*mut wasmer_vm::VMContext);
 
 /// The main context for smart contract execution environment.
 pub struct VMContext<'a, DB: Database> {
@@ -293,7 +320,12 @@ impl<'a, DB: Database> VMContext<'a, DB> {
     pub fn code(&mut self, address: Address) -> Result<CodeLoad<Bytes>, DB::Error> {
         let acc = self.journaled_state.load_code(address, &mut self.db)?;
         Ok(CodeLoad::new_not_delegated(
-            acc.info.code.as_ref().cloned().unwrap_or_else(Bytes::new),
+            acc.info
+                .code
+                .as_ref()
+                .cloned()
+                .unwrap_or_else(Bytecode::empty)
+                .bytes(),
             acc.is_cold,
         ))
     }
@@ -352,7 +384,7 @@ impl<'a, DB: Database> VMContext<'a, DB> {
         &mut self,
         address: Address,
         target: Address,
-    ) -> Result<StateLoad<SelfDestructResult>, DB::Error> {
+    ) -> Result<StateLoad<SelfdestructResult>, DB::Error> {
         self.journaled_state
             .selfdestruct(address, target, &mut self.db)
     }
@@ -416,7 +448,7 @@ impl<'a, DB: Database> VMContext<'a, DB> {
             ));
         }
         match msg.kind {
-            CallKind::Call | CallKind::CallCode | CallKind::Delegatecall | CallKind::Staticcall => {
+            CallKind::Call | CallKind::Callcode | CallKind::Delegatecall | CallKind::Staticcall => {
                 // Make account warm and loaded
                 let _ = self
                     .journaled_state
@@ -477,12 +509,169 @@ impl<'a, DB: Database> VMContext<'a, DB> {
                         contract,
                         gas_limit: msg.gas_limit,
                         is_static: msg.is_static,
-                        is_eof: msg.is_eof,
+                        is_eof_init: msg.is_eof_init,
+                        validate_eof: msg.validate_eof,
                         depth: self.journaled_state.depth(),
                     })?;
                     self.call_return(&call_result.status, checkpoint);
                     Ok(call_result)
                 }
+            }
+            CallKind::ExtCall | CallKind::ExtStaticcall | CallKind::ExtDelegatecall => {
+                // Make account warm and loaded
+                let _ = self
+                    .journaled_state
+                    .load_account_delegated(msg.code_address, &mut self.db);
+                let checkpoint = self.journaled_state.checkpoint();
+                if matches!(msg.kind, CallKind::ExtDelegatecall) {
+                    // Create the checkpont for the sub call.
+                    if msg.value.is_zero() {
+                        self.load_account(msg.recipient)
+                            .map_err(|_| EVMError::Database(DatabaseError))?;
+                        self.journaled_state.touch(&msg.recipient);
+                    } else {
+                        // Transfer value from caller to called account. As value get transferred
+                        // target gets touched.
+                        if let Some(status) = self
+                            .journaled_state
+                            .transfer(&msg.caller, &msg.recipient, msg.value, &mut self.db)
+                            .map_err(|_| EVMError::Database(DatabaseError))?
+                        {
+                            self.journaled_state.checkpoint_revert(checkpoint);
+                            return Ok(CallResult::new_with_gas_limit_and_status(
+                                msg.gas_limit,
+                                status,
+                            ));
+                        }
+                    }
+                }
+                if let Some(call_result) =
+                    self.call_precompile(msg.code_address, &msg.input.clone(), msg.gas_limit)?
+                {
+                    if call_result.status.is_ok() {
+                        self.journaled_state.checkpoint_commit();
+                    } else {
+                        self.journaled_state.checkpoint_revert(checkpoint);
+                    }
+                    Ok(call_result)
+                } else {
+                    let account = self
+                        .journaled_state
+                        .load_code(msg.code_address, &mut self.db)
+                        .map_err(|_| EVMError::Database(DatabaseError))?;
+                    let code_hash = account.info.code_hash;
+                    let bytecode = account.info.code.clone().unwrap_or_default();
+                    if bytecode.is_empty() {
+                        self.journaled_state.checkpoint_commit();
+                        return Ok(CallResult::new_with_gas_limit_and_status(
+                            msg.gas_limit,
+                            ExitStatusCode::Stop,
+                        ));
+                    }
+                    let contract = Contract::new_with_call_message(
+                        &msg,
+                        msg.input.clone(),
+                        bytecode,
+                        Some(code_hash),
+                    );
+                    let call_result = self.call_frame(Frame {
+                        contract,
+                        gas_limit: msg.gas_limit,
+                        is_static: msg.is_static,
+                        is_eof_init: msg.is_eof_init,
+                        validate_eof: msg.validate_eof,
+                        depth: self.journaled_state.depth(),
+                    })?;
+                    self.call_return(&call_result.status, checkpoint);
+                    Ok(call_result)
+                }
+            }
+            CallKind::EofCreate => {
+                // Fetch balance of caller.
+                let caller_balance = self
+                    .balance(msg.caller)
+                    .map_err(|_| EVMError::Database(DatabaseError))?;
+                // Check if caller has enough balance to send to the created contract.
+                if caller_balance.data < msg.value {
+                    return Ok(CallResult::new_with_gas_limit_and_status(
+                        msg.gas_limit,
+                        ExitStatusCode::OutOfFunds,
+                    ));
+                }
+                // Increase nonce of caller and check if it overflows
+                let old_nonce;
+                if let Some(nonce) = self.journaled_state.inc_nonce(msg.caller) {
+                    old_nonce = nonce - 1;
+                } else {
+                    return Ok(CallResult::new_with_gas_limit_and_status(
+                        msg.gas_limit,
+                        ExitStatusCode::NonceOverflow,
+                    ));
+                }
+                // Created address
+                let mut init_code_hash = B256::ZERO;
+                let created_address = match msg.salt {
+                    Some(s) => {
+                        init_code_hash = keccak256(&msg.input);
+                        msg.caller.create2(s.0, init_code_hash)
+                    }
+                    _ => msg.caller.create(old_nonce),
+                };
+                // Created address is not allowed to be a precompile.
+                if self.is_precompile_address(&created_address) {
+                    return Ok(CallResult::new_with_gas_limit_and_status(
+                        msg.gas_limit,
+                        ExitStatusCode::CreateCollision,
+                    ));
+                }
+                // Warm load account.
+                self.load_account(created_address)
+                    .map_err(|_| EVMError::Database(DatabaseError))?;
+                // Create account, transfer funds and make the journal checkpoint.
+                let checkpoint = match self.journaled_state.create_account_checkpoint(
+                    msg.caller,
+                    created_address,
+                    msg.value,
+                    self.spec_id(),
+                ) {
+                    Ok(checkpoint) => checkpoint,
+                    Err(status) => {
+                        return Ok(CallResult::new_with_gas_limit_and_status(
+                            msg.gas_limit,
+                            status,
+                        ));
+                    }
+                };
+
+                let contract = Contract {
+                    input: Bytes::new(),
+                    code: Bytecode::new(msg.input.clone()),
+                    hash: Some(init_code_hash),
+                    target_address: created_address,
+                    code_address: created_address,
+                    caller: msg.caller,
+                    call_value: msg.value,
+                };
+                let mut call_result = self.call_frame(Frame {
+                    contract,
+                    gas_limit: msg.gas_limit,
+                    is_static: msg.is_static,
+                    is_eof_init: msg.is_eof_init,
+                    validate_eof: msg.validate_eof,
+                    depth: self.journaled_state.depth(),
+                })?;
+                self.create_return(&mut call_result, created_address, checkpoint);
+                Ok(call_result)
+            }
+            CallKind::ReturnContract => {
+                self.journaled_state.checkpoint_commit();
+
+                // Eof bytecode is going to be hashed.
+                self.journaled_state.set_code(msg.recipient, msg.input);
+                Ok(CallResult::new_with_gas_limit_and_status(
+                    msg.gas_limit,
+                    ExitStatusCode::Return,
+                ))
             }
             CallKind::Create | CallKind::Create2 => {
                 // Fetch balance of caller.
@@ -543,7 +732,7 @@ impl<'a, DB: Database> VMContext<'a, DB> {
 
                 let contract = Contract {
                     input: Bytes::new(),
-                    code: msg.input.clone(),
+                    code: Bytecode::new(msg.input.clone()),
                     hash: Some(init_code_hash),
                     target_address: created_address,
                     code_address: created_address,
@@ -554,16 +743,13 @@ impl<'a, DB: Database> VMContext<'a, DB> {
                     contract,
                     gas_limit: msg.gas_limit,
                     is_static: msg.is_static,
-                    is_eof: msg.is_eof,
+                    is_eof_init: msg.is_eof_init,
+                    validate_eof: msg.validate_eof,
                     depth: self.journaled_state.depth(),
                 })?;
                 self.create_return(&mut call_result, created_address, checkpoint);
                 Ok(call_result)
             }
-            CallKind::ExtCall
-            | CallKind::ExtStaticcall
-            | CallKind::ExtDelegatecall
-            | CallKind::EofCreate => unimplemented!("{:?}", msg.kind),
         }
     }
 
@@ -596,7 +782,7 @@ impl<'a, DB: Database> VMContext<'a, DB> {
         }
         let spec_id = self.spec_id();
         // Host error if present on execution
-        // if ok, check contract creation limit and calculate gas deduction on output len.
+        // If ok, check contract creation limit and calculate gas deduction on output len.
         //
         // EIP-3541: Reject new contract code starting with the 0xEF byte
         if spec_id.is_enabled_in(SpecId::LONDON) && result.output.first() == Some(&0xEF) {
@@ -616,10 +802,10 @@ impl<'a, DB: Database> VMContext<'a, DB> {
         }
         let gas_for_code = result.output.len() as u64 * gas_cost::CODEDEPOSIT;
         if !result.record_cost(gas_for_code) {
-            // record code deposit gas cost and check if we are out of gas.
+            // Record code deposit gas cost and check if we are out of gas.
             // EIP-2 point 3: If contract creation does not have enough gas to pay for the
             // final gas fee for adding the contract code to the state, the contract
-            //  creation fails (i.e. goes out-of-gas) rather than leaving an empty contract.
+            // creation fails (i.e. goes out-of-gas) rather than leaving an empty contract.
             if spec_id.is_enabled_in(SpecId::HOMESTEAD) {
                 self.journaled_state.checkpoint_revert(journal_checkpoint);
                 result.status = ExitStatusCode::OutOfGas;
@@ -628,7 +814,7 @@ impl<'a, DB: Database> VMContext<'a, DB> {
                 result.output = Bytes::new();
             }
         }
-        // if we have enough gas we can commit changes.
+        // If we have enough gas we can commit changes.
         self.journaled_state.checkpoint_commit();
 
         // Set the code to the journaled state.
@@ -639,7 +825,7 @@ impl<'a, DB: Database> VMContext<'a, DB> {
     }
 }
 
-impl<'a, DB: Database> Host for VMContext<'a, DB> {
+impl<DB: Database> Host for VMContext<'_, DB> {
     #[inline]
     fn env(&self) -> &Env {
         &self.env
@@ -703,7 +889,7 @@ impl<'a, DB: Database> Host for VMContext<'a, DB> {
         &mut self,
         addr: Address,
         target: Address,
-    ) -> Option<StateLoad<SelfDestructResult>> {
+    ) -> Option<StateLoad<SelfdestructResult>> {
         self.journaled_state
             .selfdestruct(addr, target, &mut self.db)
             .ok()
@@ -736,8 +922,10 @@ impl<'a, DB: Database> Host for VMContext<'a, DB> {
 
 /// The internal execution context, which holds the memory, gas, and program state during contract execution.
 ///
-/// This struct contains critical data used to manage the execution environment of smart contracts
-/// or other EVM-related programs. It tracks the execution memory, return data, remaining gas, logs, and exit status.
+/// [`InnerContext`] contains critical data used to manage the execution environment of smart contracts
+/// or other EVM-related programs.
+///
+/// It tracks the execution memory, return data, remaining gas, logs, and exit status.
 ///
 /// # Fields:
 /// - `memory`: A vector representing the contract's memory during execution.
@@ -746,21 +934,12 @@ impl<'a, DB: Database> Host for VMContext<'a, DB> {
 /// - `gas_remaining`: The amount of gas remaining for execution, if applicable.
 /// - `gas_refund`: The amount of gas to be refunded after execution.
 /// - `exit_status`: Optional status code indicating the exit condition of the execution (e.g., success, revert).
-/// - `logs`: A vector of logs generated during the execution.
-///
-/// # Example Usage:
-/// ```no_check
-/// let inner_context = InnerContext {
-///     memory: vec![0; 1024],
-///     returndata: None,
-///     program: vec![0x60, 0x0A, 0x60, 0x00],  // Sample bytecode
-///     gas_remaining: Some(100000),
-///     gas_refunded: 0,
-///     exit_status: None,
-///     logs: Vec::new(),
-/// };
+/// - `depth`: The depth of the call stack.
+/// - `is_static`: A boolean flag indicating whether the context is static.
+/// - `is_eof_init`: A boolean flag indicating whether the context is EOF init.
+/// - `spec_id`: The EVM spec ID from [SpecId].
 /// ```
-#[derive(Debug, Default)]
+#[derive(Debug, Default, Clone)]
 pub struct InnerContext {
     /// Represents the mutable, byte-addressable memory used during contract execution.
     /// This memory is accessible by smart contracts for reading and writing data.
@@ -777,12 +956,14 @@ pub struct InnerContext {
     gas_refunded: i64,
     /// The exit status code of the VM execution.
     exit_status: Option<ExitStatusCode>,
+    /// The instruction result buffer.
+    result: RuntimeResult<u64>,
     /// Depth in the call stack.
     pub depth: usize,
     /// Whether the context is static.
     pub is_static: bool,
     /// Whether the context is EOF init.
-    pub is_eof: bool,
+    pub is_eof_init: bool,
     /// VM spec id
     pub spec_id: SpecId,
 }
@@ -797,6 +978,9 @@ pub struct RuntimeContext<'a> {
     pub contract: Contract,
     pub host: &'a mut dyn Host,
 }
+
+unsafe impl Send for RuntimeContext<'_> {}
+unsafe impl Sync for RuntimeContext<'_> {}
 
 /// VM contract information.
 #[derive(Clone, Debug, Default)]
@@ -943,12 +1127,14 @@ pub struct Log {
 
 /// A generic struct to represent the result of a runtime function call.
 #[repr(C)]
+#[derive(Debug, Clone, Default)]
 pub struct RuntimeResult<T> {
     /// The error, if any, encountered during execution.
     pub error: u8,
     /// The gas consumed during the execution of the function call.
     pub gas_used: u64,
     /// The result value of the function call. None indicates no value returned.
+    /// Note: make sure the value is defined at the last of the structure.
     pub value: T,
 }
 
@@ -986,7 +1172,7 @@ impl<T> RuntimeResult<T> {
 
 /// Accessors for managing and retrieving execution results in a runtime context.
 impl<'a> RuntimeContext<'a> {
-    /// Creates a new `RuntimeContext` with the given environment, journal, and call frame.
+    /// Creates a new [`RuntimeContext`] with the given environment, journal, and call frame.
     ///
     /// # Parameters
     ///
@@ -996,18 +1182,18 @@ impl<'a> RuntimeContext<'a> {
     ///
     /// # Returns
     ///
-    /// - A new `RuntimeContext` instance initialized with the provided values.
+    /// - A new [`RuntimeContext`] instance initialized with the provided values.
     ///
     /// # Example
     ///
-    /// ```no_check
+    /// ```ignore
     /// let context = RuntimeContext::new(env, journal, call_frame);
     /// ```
     pub fn new(
         contract: Contract,
         depth: usize,
         is_static: bool,
-        is_eof: bool,
+        is_eof_init: bool,
         host: &'a mut dyn Host,
         spec_id: SpecId,
     ) -> Self {
@@ -1017,7 +1203,7 @@ impl<'a> RuntimeContext<'a> {
                 depth,
                 memory: Vec::with_capacity(4 * 1024),
                 is_static,
-                is_eof,
+                is_eof_init,
                 ..Default::default()
             },
             host,
@@ -1027,7 +1213,8 @@ impl<'a> RuntimeContext<'a> {
 
     /// Retrieves the return data produced during execution.
     ///
-    /// If return data exists, this function will return a slice containing the data. Otherwise, it returns an empty slice.
+    /// If return data exists, this function will return a slice containing the data.
+    /// Otherwise, it returns an empty slice.
     ///
     /// # Returns
     ///
@@ -1035,7 +1222,7 @@ impl<'a> RuntimeContext<'a> {
     ///
     /// # Example
     ///
-    /// ```no_check
+    /// ```ignore
     /// let returndata = context.return_values();
     /// ```
     #[inline]
@@ -1047,6 +1234,12 @@ impl<'a> RuntimeContext<'a> {
     #[inline]
     pub fn return_bytes(&self) -> Bytes {
         self.inner.returndata.to_vec().into()
+    }
+
+    /// Retrieves the return data size produced during execution.
+    #[inline]
+    pub fn return_data_size(&self) -> usize {
+        self.inner.returndata.len()
     }
 
     /// Retrieves the memory used during execution.
@@ -1084,20 +1277,19 @@ impl<'a> RuntimeContext<'a> {
 }
 
 // System call functions
-impl<'a> RuntimeContext<'a> {
-    pub(crate) extern "C" fn nop() {}
+impl RuntimeContext<'_> {
+    extern "C" fn nop() {}
 
-    pub(crate) extern "C" fn tracing(
+    extern "C" fn tracing(
         &mut self,
         op: u8,
         gas: u64,
-        stack_top_ptr: *mut Bytes32,
-        stack_size: u64,
+        stack_ptr: *mut Bytes32,
+        stack_size_ptr: *mut u64,
     ) {
-        let stack = unsafe {
-            let stack_bottom_ptr = stack_top_ptr.sub(stack_size as usize);
-            Vec::<Bytes32>::from_raw_parts(stack_bottom_ptr, stack_size as usize, MAX_STACK_SIZE)
-        };
+        let stack_size = unsafe { *stack_size_ptr } as usize;
+        let stack =
+            unsafe { Vec::<Bytes32>::from_raw_parts(stack_ptr, stack_size, MAX_STACK_SIZE) };
         let nano_seconds = if let Ok(duration_since_epoch) =
             std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH)
         {
@@ -1130,7 +1322,7 @@ impl<'a> RuntimeContext<'a> {
         stack.leak();
     }
 
-    pub extern "C" fn write_result(
+    extern "C" fn write_result(
         &mut self,
         offset: u64,
         bytes_len: u64,
@@ -1146,36 +1338,40 @@ impl<'a> RuntimeContext<'a> {
         self.inner.exit_status = Some(ExitStatusCode::from_u8(execution_result));
     }
 
-    pub extern "C" fn returndata_size(&mut self) -> u64 {
+    extern "C" fn returndata(&mut self) -> *mut u8 {
+        self.inner.returndata.as_ptr() as _
+    }
+
+    extern "C" fn returndata_size(&mut self) -> u64 {
         self.inner.returndata.len() as u64
     }
 
-    pub extern "C" fn returndata_copy(
+    extern "C" fn returndata_copy(
         &mut self,
         memory_offset: u64,
         data_offset: &Bytes32,
         size: u64,
-    ) -> *mut RuntimeResult<()> {
+    ) -> *const RuntimeResult<()> {
         let data_offset = as_usize_saturated!(data_offset.to_u256());
         let memory_offset = memory_offset as usize;
         let size = size as usize;
         let (data_end, overflow) = data_offset.overflowing_add(size);
         // Check bounds
         if overflow || data_end > self.inner.returndata.len() {
-            return Box::into_raw(Box::new(RuntimeResult::error(
-                ExitStatusCode::OutOfOffset.to_u8(),
-                (),
-            )));
+            self.inner.result.error = ExitStatusCode::OutOfOffset.to_u8();
+            return unsafe {
+                &*(&self.inner.result as *const RuntimeResult<u64> as *const RuntimeResult<()>)
+            };
         }
         // Copy calldata to memory
         if size != 0 {
             self.inner.memory[memory_offset..memory_offset + size]
                 .copy_from_slice(&self.inner.returndata[data_offset..data_end]);
         }
-        Box::into_raw(Box::new(RuntimeResult::success(())))
+        unsafe { &*(&self.inner.result as *const RuntimeResult<u64> as *const RuntimeResult<()>) }
     }
 
-    pub extern "C" fn call(
+    extern "C" fn call(
         &mut self,
         local_gas_limit: &Bytes32,
         call_to_address: &Bytes32,
@@ -1186,7 +1382,7 @@ impl<'a> RuntimeContext<'a> {
         ret_size: u64,
         original_remaining_gas: u64,
         call_type: u8,
-    ) -> *mut RuntimeResult<u8> {
+    ) -> *const RuntimeResult<u64> {
         let args_offset = args_offset as usize;
         let args_size = args_size as usize;
         let call_type =
@@ -1196,10 +1392,9 @@ impl<'a> RuntimeContext<'a> {
         let mut account_load = match self.host.load_account_delegated(to) {
             Some(account_load) => account_load,
             None => {
-                return Box::into_raw(Box::new(RuntimeResult::error(
-                    ExitStatusCode::FatalExternalError.to_u8(),
-                    0,
-                )));
+                self.inner.result.error = ExitStatusCode::FatalExternalError.to_u8();
+                self.inner.result.value = 0;
+                return &self.inner.result as _;
             }
         };
         if call_type != CallType::Call {
@@ -1210,10 +1405,9 @@ impl<'a> RuntimeContext<'a> {
         // original_gas - gas_cost
         let (gas_remaining, overflow) = original_remaining_gas.overflowing_sub(gas_cost);
         if overflow {
-            return Box::into_raw(Box::new(RuntimeResult::error(
-                ExitStatusCode::OutOfGas.to_u8(),
-                1,
-            )));
+            self.inner.result.error = ExitStatusCode::OutOfGas.to_u8();
+            self.inner.result.value = 1;
+            return &self.inner.result as _;
         }
         let local_gas_limit = as_u64_saturated!(local_gas_limit.to_u256());
         // EIP-150: Gas cost changes for IO-heavy operations
@@ -1226,16 +1420,16 @@ impl<'a> RuntimeContext<'a> {
         // original_gas - gas_cost - gas_limit
         let (gas_remaining, overflow) = gas_remaining.overflowing_sub(gas_limit);
         if overflow {
-            return Box::into_raw(Box::new(RuntimeResult::error(
-                ExitStatusCode::OutOfGas.to_u8(),
-                1,
-            )));
+            self.inner.result.error = ExitStatusCode::OutOfGas.to_u8();
+            self.inner.result.value = 1;
+            return &self.inner.result as _;
         }
         // Add call stipend if there is value to be transferred.
-        if matches!(call_type, CallType::Call | CallType::CallCode) && transfers_value {
+        if matches!(call_type, CallType::Call | CallType::Callcode) && transfers_value {
             gas_limit = gas_limit.saturating_add(gas_cost::CALL_STIPEND);
         }
         let call_msg = CallMessage {
+            kind: call_type.into(),
             input: if args_size != 0 {
                 self.inner.memory[args_offset..args_offset + args_size]
                     .to_vec()
@@ -1243,7 +1437,6 @@ impl<'a> RuntimeContext<'a> {
             } else {
                 Bytes::new()
             },
-            kind: call_type.into(),
             value: if call_type == CallType::Delegatecall {
                 self.contract.call_value
             } else {
@@ -1257,14 +1450,15 @@ impl<'a> RuntimeContext<'a> {
                 self.contract.target_address
             },
             salt: None,
-            recipient: if matches!(call_type, CallType::Delegatecall | CallType::CallCode) {
+            recipient: if matches!(call_type, CallType::Delegatecall | CallType::Callcode) {
                 self.contract.target_address
             } else {
                 to
             },
             code_address: to,
             is_static: self.inner.is_static || call_type == CallType::Staticcall,
-            is_eof: false,
+            is_eof_init: false,
+            validate_eof: true,
         };
         if std::env::var(DORA_TRACING).is_ok() {
             println!("info: sub call msg {:?}", call_msg);
@@ -1287,25 +1481,137 @@ impl<'a> RuntimeContext<'a> {
             // Copy call output to the memory.
             self.inner.memory[ret_offset..ret_offset + target_len]
                 .copy_from_slice(&self.inner.returndata[..target_len]);
-            Box::into_raw(Box::new(RuntimeResult::success_with_gas(
-                1,
-                original_remaining_gas - gas_remaining,
-            )))
+            self.inner.result.value = 1;
+            self.inner.result.gas_used = original_remaining_gas - gas_remaining;
         } else if call_result.status.is_revert() {
             let gas_remaining = gas_remaining + call_result.gas_remaining;
             // Copy call output to the memory.
             self.inner.memory[ret_offset..ret_offset + target_len]
                 .copy_from_slice(&self.inner.returndata[..target_len]);
-            Box::into_raw(Box::new(RuntimeResult::success_with_gas(
-                0,
-                original_remaining_gas - gas_remaining,
-            )))
+            self.inner.result.value = 0;
+            self.inner.result.gas_used = original_remaining_gas - gas_remaining;
         } else {
-            Box::into_raw(Box::new(RuntimeResult::success_with_gas(
-                0,
-                original_remaining_gas - gas_remaining,
-            )))
+            self.inner.result.value = 0;
+            self.inner.result.gas_used = original_remaining_gas - gas_remaining;
         }
+        &self.inner.result as _
+    }
+
+    extern "C" fn extcall(
+        &mut self,
+        call_to_address: &Bytes32,
+        value_to_transfer: &Bytes32,
+        input_offset: u64,
+        input_size: u64,
+        original_remaining_gas: u64,
+        call_type: u8,
+    ) -> *const RuntimeResult<u64> {
+        let input_offset = input_offset as usize;
+        let input_size = input_size as usize;
+        let call_type = ExtCallType::try_from(call_type)
+            .expect("Error while parsing ExtCallType on call syscall");
+        let to = Address::from(call_to_address);
+        // Load account and calculate gas cost.
+        let mut account_load = match self.host.load_account_delegated(to) {
+            Some(account_load) => account_load,
+            None => {
+                self.inner.result.error = ExitStatusCode::FatalExternalError.to_u8();
+                self.inner.result.value = 0;
+                return &self.inner.result as _;
+            }
+        };
+        if call_type != ExtCallType::Call {
+            account_load.is_empty = false;
+        }
+        let transfers_value = !value_to_transfer.as_u256().is_zero();
+        let gas_cost = gas::call_cost(self.inner.spec_id, transfers_value, account_load);
+        // original_gas - gas_cost
+        let (gas_remaining, overflow) = original_remaining_gas.overflowing_sub(gas_cost);
+        if overflow {
+            self.inner.result.error = ExitStatusCode::OutOfGas.to_u8();
+            self.inner.result.value = 1;
+            return &self.inner.result as _;
+        }
+        // Calculate the gas available to callee as caller’s
+        // remaining gas reduced by max(ceil(gas/64), MIN_RETAINED_GAS) (MIN_RETAINED_GAS is 5000).
+        let gas_reduce = (gas_remaining / 64).max(5000);
+        let gas_limit = gas_remaining.saturating_sub(gas_reduce);
+
+        self.inner.returndata.clear();
+
+        // The MIN_CALLEE_GAS rule is a replacement for stipend:
+        // it simplifies the reasoning about the gas costs and is
+        // applied uniformly for all introduced EXT*CALL instructions.
+        //
+        // If Gas available to callee is less than MIN_CALLEE_GAS trigger light failure (Same as Revert).
+        if gas_limit < MIN_CALLEE_GAS {
+            // Push 1 to stack to indicate that call light failed.
+            // It is safe to ignore stack overflow error as we already popped multiple values from stack.
+            self.inner.result.error = ExitStatusCode::OutOfGas.to_u8();
+            self.inner.result.value = 1;
+            return &self.inner.result as _;
+        }
+
+        let (gas_remaining, _) = gas_remaining.overflowing_sub(gas_limit);
+
+        let call_msg = CallMessage {
+            kind: call_type.into(),
+            input: if input_size != 0 {
+                self.inner.memory[input_offset..input_offset + input_size]
+                    .to_vec()
+                    .into()
+            } else {
+                Bytes::new()
+            },
+            value: if call_type == ExtCallType::Delegatecall {
+                self.contract.call_value
+            } else {
+                value_to_transfer.to_u256()
+            },
+            depth: self.inner.depth as u32,
+            gas_limit,
+            caller: if call_type == ExtCallType::Delegatecall {
+                self.contract.caller
+            } else {
+                self.contract.target_address
+            },
+            salt: None,
+            recipient: if call_type == ExtCallType::Delegatecall {
+                self.contract.target_address
+            } else {
+                to
+            },
+            code_address: to,
+            is_static: self.inner.is_static || call_type == ExtCallType::Staticcall,
+            is_eof_init: true,
+            validate_eof: true,
+        };
+        if std::env::var(DORA_TRACING).is_ok() {
+            println!("info: sub call msg {:?}", call_msg);
+        }
+        let call_result = self
+            .host
+            .call(call_msg)
+            .unwrap_or_else(|_| CallResult::new_with_gas_limit(gas_limit));
+        if std::env::var(DORA_TRACING).is_ok() {
+            println!("info: sub call ret {:?}", call_result);
+        }
+        self.inner.returndata = call_result.output.to_vec();
+        // Check the error message.
+        if call_result.status.is_ok() {
+            let gas_remaining = gas_remaining + call_result.gas_remaining;
+            self.inner.gas_refunded += call_result.gas_refunded;
+            self.inner.result.value = 0;
+            self.inner.result.gas_used = original_remaining_gas - gas_remaining;
+        } else if call_result.status.is_revert() {
+            let gas_remaining = gas_remaining + call_result.gas_remaining;
+            self.inner.result.value = 1;
+            self.inner.result.gas_used = original_remaining_gas - gas_remaining;
+        } else {
+            self.inner.result.value = 2;
+            self.inner.result.gas_used = original_remaining_gas - gas_remaining;
+        }
+        &self.inner.result as _
     }
 
     fn memory_set_data(
@@ -1321,7 +1627,7 @@ impl<'a> RuntimeContext<'a> {
         }
         let data_end = min(data_offset + len, data.len());
         let data_len = data_end - data_offset;
-        debug_assert!(data_offset < data.len() && data_end <= data.len());
+        debug_assert!(data_offset <= data.len() && data_end <= data.len());
         let data = unsafe { data.get_unchecked(data_offset..data_end) };
         self.memory_slice_mut(memory_offset, data_len)
             .copy_from_slice(data);
@@ -1335,48 +1641,50 @@ impl<'a> RuntimeContext<'a> {
         &mut self.inner.memory[offset..end]
     }
 
-    pub extern "C" fn store_in_selfbalance_ptr(
+    extern "C" fn store_in_selfbalance_ptr(
         &mut self,
         balance: &mut Bytes32,
-    ) -> *mut RuntimeResult<()> {
+    ) -> *const RuntimeResult<()> {
         match self.host.balance(self.contract.target_address) {
             Some(state) => {
                 *balance = state.data;
-                Box::into_raw(Box::new(RuntimeResult::success(())))
+                unsafe {
+                    &*(&self.inner.result as *const RuntimeResult<u64> as *const RuntimeResult<()>)
+                }
             }
-            None => Box::into_raw(Box::new(RuntimeResult::error(
-                ExitStatusCode::FatalExternalError.to_u8(),
-                (),
-            ))),
+            None => {
+                self.inner.result.error = ExitStatusCode::FatalExternalError.to_u8();
+                unsafe {
+                    &*(&self.inner.result as *const RuntimeResult<u64> as *const RuntimeResult<()>)
+                }
+            }
         }
     }
 
-    pub extern "C" fn ctx_is_static(&mut self) -> u8 {
+    extern "C" fn ctx_is_static(&mut self) -> u8 {
         self.inner.is_static as u8
     }
 
-    pub extern "C" fn exp(&mut self, base: &Bytes32, exponent_ptr: &mut Bytes32) {
+    extern "C" fn exp(&mut self, base: &Bytes32, exponent_ptr: &mut Bytes32) {
         let exponent = exponent_ptr.to_u256();
         *exponent_ptr = base.to_u256().pow(exponent).into();
     }
 
-    pub extern "C" fn keccak256_hasher(&mut self, offset: u64, size: u64, hash_ptr: &mut Bytes32) {
+    extern "C" fn keccak256_hasher(&mut self, offset: u64, size: u64, hash_ptr: &mut Bytes32) {
         if size == 0 {
             *hash_ptr = Bytes32::from_be_bytes(EMPTY_CODE_HASH_BYTES);
         } else {
             let data = &self.inner.memory[offset as usize..offset as usize + size as usize];
-            let mut hasher = Keccak256::new();
-            hasher.update(data);
-            let result = hasher.finalize();
+            let result = keccak256(data);
             *hash_ptr = Bytes32::from_be_bytes(result.into());
         }
     }
 
-    pub extern "C" fn callvalue(&self, value: &mut Bytes32) {
+    extern "C" fn callvalue(&self, value: &mut Bytes32) {
         *value = self.contract.call_value.into();
     }
 
-    pub extern "C" fn store_in_blobbasefee_ptr(&self, value: &mut Bytes32) {
+    extern "C" fn store_in_blobbasefee_ptr(&self, value: &mut Bytes32) {
         *value = self
             .host
             .env()
@@ -1388,67 +1696,31 @@ impl<'a> RuntimeContext<'a> {
             .into();
     }
 
-    pub extern "C" fn caller(&self, value: &mut Bytes32) {
+    extern "C" fn caller(&self, value: &mut Bytes32) {
         value.copy_from(&self.contract.caller);
     }
 
-    pub extern "C" fn store_in_gaslimit_ptr(&self, value: &mut Bytes32) {
+    extern "C" fn store_in_gaslimit_ptr(&self, value: &mut Bytes32) {
         *value = self.host.env().block.gas_limit.into();
     }
 
-    pub extern "C" fn store_in_gasprice_ptr(&self, value: &mut Bytes32) {
+    extern "C" fn store_in_gasprice_ptr(&self, value: &mut Bytes32) {
         *value = self.host.env().tx.gas_price.into();
     }
 
-    pub extern "C" fn chainid(&self) -> u64 {
+    extern "C" fn chainid(&self) -> u64 {
         self.host.env().cfg.chain_id
     }
 
-    pub extern "C" fn calldata(&mut self) -> *mut u8 {
+    extern "C" fn calldata(&mut self) -> *mut u8 {
         self.contract.input.as_ptr() as _
     }
 
-    pub extern "C" fn calldata_size(&self) -> u64 {
+    extern "C" fn calldata_size(&self) -> u64 {
         self.contract.input.len() as u64
     }
 
-    pub extern "C" fn origin(&self, address: &mut Bytes32) {
-        address.copy_from(&self.host.env().tx.caller);
-    }
-
-    pub extern "C" fn extend_memory(&mut self, new_size: u64) -> *mut RuntimeResult<*mut u8> {
-        // Note the overflow on the 32-bit machine for the max memory e.g., 4GB
-        let new_size = new_size as usize;
-        if new_size <= self.inner.memory.len() {
-            return Box::into_raw(Box::new(RuntimeResult::success(
-                self.inner.memory.as_mut_ptr() as _,
-            )));
-        }
-        // Check the memory usage bound
-        match self
-            .inner
-            .memory
-            .try_reserve(new_size - self.inner.memory.len())
-        {
-            Ok(()) => {
-                self.inner.memory.resize(new_size, 0);
-                Box::into_raw(Box::new(RuntimeResult::success(
-                    self.inner.memory.as_mut_ptr() as _,
-                )))
-            }
-            Err(_) => Box::into_raw(Box::new(RuntimeResult::error(
-                ExitStatusCode::MemoryLimitOOG.to_u8(),
-                std::ptr::null_mut(),
-            ))),
-        }
-    }
-
-    pub extern "C" fn calldata_copy(
-        &mut self,
-        memory_offset: u64,
-        data_offset: &Bytes32,
-        size: u64,
-    ) {
+    extern "C" fn calldata_copy(&mut self, memory_offset: u64, data_offset: &Bytes32, size: u64) {
         let size = size as usize;
         if size != 0 {
             let data_offset = as_usize_saturated!(data_offset.to_u256());
@@ -1462,7 +1734,71 @@ impl<'a> RuntimeContext<'a> {
         }
     }
 
-    pub extern "C" fn code_copy(&mut self, code_offset: &Bytes32, size: u64, memory_offset: u64) {
+    extern "C" fn data_section(&mut self) -> *mut u8 {
+        self.contract.code.eof().expect("eof").data().as_ptr() as _
+    }
+
+    extern "C" fn data_section_size(&self) -> u64 {
+        self.contract.code.eof().expect("eof").header.data_size as u64
+    }
+
+    extern "C" fn data_section_copy(
+        &mut self,
+        memory_offset: u64,
+        data_offset: &Bytes32,
+        size: u64,
+    ) {
+        let size = size as usize;
+        if size != 0 {
+            let data_offset = as_usize_saturated!(data_offset.to_u256());
+            let memory_offset = memory_offset as usize;
+            let eof_data = self.contract.code.eof().expect("eof").data().to_vec();
+            self.memory_set_data(memory_offset, data_offset, size, &eof_data);
+        }
+    }
+
+    extern "C" fn origin(&self, address: &mut Bytes32) {
+        address.copy_from(&self.host.env().tx.caller);
+    }
+
+    extern "C" fn memory_ptr(&mut self) -> *mut u8 {
+        self.inner.memory.as_mut_ptr() as _
+    }
+
+    extern "C" fn memory_size(&mut self) -> u64 {
+        self.inner.memory.len() as _
+    }
+
+    extern "C" fn extend_memory(&mut self, new_size: u64) -> *const RuntimeResult<()> {
+        // Note the overflow on the 32-bit machine for the max memory e.g., 4GB
+        let new_size = new_size as usize;
+        if new_size <= self.inner.memory.len() {
+            return unsafe {
+                &*(&self.inner.result as *const RuntimeResult<u64> as *const RuntimeResult<()>)
+            };
+        }
+        // Check the memory usage bound
+        match self
+            .inner
+            .memory
+            .try_reserve(new_size - self.inner.memory.len())
+        {
+            Ok(()) => {
+                self.inner.memory.resize(new_size, 0);
+                unsafe {
+                    &*(&self.inner.result as *const RuntimeResult<u64> as *const RuntimeResult<()>)
+                }
+            }
+            Err(_) => {
+                self.inner.result.error = ExitStatusCode::MemoryLimitOOG.to_u8();
+                unsafe {
+                    &*(&self.inner.result as *const RuntimeResult<u64> as *const RuntimeResult<()>)
+                }
+            }
+        }
+    }
+
+    extern "C" fn code_copy(&mut self, memory_offset: u64, code_offset: &Bytes32, size: u64) {
         let size = size as usize;
         if size != 0 {
             let code_offset =
@@ -1472,42 +1808,44 @@ impl<'a> RuntimeContext<'a> {
                 memory_offset,
                 code_offset,
                 size,
-                &self.contract.code.clone(),
+                &self.contract.code.bytecode().clone(),
             );
         }
     }
 
-    pub extern "C" fn sload(
+    extern "C" fn sload(
         &mut self,
         stg_key: &Bytes32,
         stg_value: &mut Bytes32,
-    ) -> *mut RuntimeResult<()> {
+    ) -> *const RuntimeResult<()> {
         let result = match self.host.sload(self.contract.target_address, *stg_key) {
             Some(result) => result,
             None => {
-                return Box::into_raw(Box::new(RuntimeResult::error(
-                    ExitStatusCode::FatalExternalError.to_u8(),
-                    (),
-                )))
+                self.inner.result.error = ExitStatusCode::FatalExternalError.to_u8();
+                return unsafe {
+                    &*(&self.inner.result as *const RuntimeResult<u64> as *const RuntimeResult<()>)
+                };
             }
         };
         *stg_value = result.data;
 
         let gas_cost = gas::sload_cost(self.inner.spec_id, result.is_cold);
-        Box::into_raw(Box::new(RuntimeResult::success_with_gas((), gas_cost)))
+
+        self.inner.result.gas_used = gas_cost;
+        unsafe { &*(&self.inner.result as *const RuntimeResult<u64> as *const RuntimeResult<()>) }
     }
 
-    pub extern "C" fn sstore(
+    extern "C" fn sstore(
         &mut self,
         stg_key: &Bytes32,
         stg_value: &Bytes32,
         gas_remaining: u64,
-    ) -> *mut RuntimeResult<()> {
+    ) -> *const RuntimeResult<()> {
         if self.inner.is_static {
-            return Box::into_raw(Box::new(RuntimeResult::error(
-                ExitStatusCode::StateChangeDuringStaticcall.to_u8(),
-                (),
-            )));
+            self.inner.result.error = ExitStatusCode::StateChangeDuringStaticcall.to_u8();
+            return unsafe {
+                &*(&self.inner.result as *const RuntimeResult<u64> as *const RuntimeResult<()>)
+            };
         }
         let mut result = match self
             .host
@@ -1515,10 +1853,10 @@ impl<'a> RuntimeContext<'a> {
         {
             Some(result) => result,
             None => {
-                return Box::into_raw(Box::new(RuntimeResult::error(
-                    ExitStatusCode::FatalExternalError.to_u8(),
-                    (),
-                )))
+                self.inner.result.error = ExitStatusCode::FatalExternalError.to_u8();
+                return unsafe {
+                    &*(&self.inner.result as *const RuntimeResult<u64> as *const RuntimeResult<()>)
+                };
             }
         };
         if let SStoreResult::Slot(slot) = &mut result.data {
@@ -1532,30 +1870,24 @@ impl<'a> RuntimeContext<'a> {
             result.is_cold,
         ) {
             Some(gas_cost) => {
-                self.inner.gas_refunded += gas::sstore_refund(self.inner.spec_id, &result.data);
-                Box::into_raw(Box::new(RuntimeResult::success_with_gas((), gas_cost)))
+                self.inner.result.gas_used = gas_cost;
             }
-            None => Box::into_raw(Box::new(RuntimeResult::error(
-                ExitStatusCode::OutOfGas.to_u8(),
-                (),
-            ))),
+            None => {
+                self.inner.result.error = ExitStatusCode::OutOfGas.to_u8();
+            }
         }
+        unsafe { &*(&self.inner.result as *const RuntimeResult<u64> as *const RuntimeResult<()>) }
     }
 
-    pub extern "C" fn append_log(&mut self, offset: u64, size: u64) {
+    extern "C" fn append_log(&mut self, offset: u64, size: u64) {
         self.create_log(offset, size, vec![]);
     }
 
-    pub extern "C" fn append_log_with_one_topic(
-        &mut self,
-        offset: u64,
-        size: u64,
-        topic: &Bytes32,
-    ) {
+    extern "C" fn append_log_with_one_topic(&mut self, offset: u64, size: u64, topic: &Bytes32) {
         self.create_log(offset, size, vec![topic.to_b256()]);
     }
 
-    pub extern "C" fn append_log_with_two_topics(
+    extern "C" fn append_log_with_two_topics(
         &mut self,
         offset: u64,
         size: u64,
@@ -1565,7 +1897,7 @@ impl<'a> RuntimeContext<'a> {
         self.create_log(offset, size, vec![topic1.to_b256(), topic2.to_b256()]);
     }
 
-    pub extern "C" fn append_log_with_three_topics(
+    extern "C" fn append_log_with_three_topics(
         &mut self,
         offset: u64,
         size: u64,
@@ -1580,7 +1912,7 @@ impl<'a> RuntimeContext<'a> {
         );
     }
 
-    pub extern "C" fn append_log_with_four_topics(
+    extern "C" fn append_log_with_four_topics(
         &mut self,
         offset: u64,
         size: u64,
@@ -1601,22 +1933,20 @@ impl<'a> RuntimeContext<'a> {
         );
     }
 
-    pub extern "C" fn block_number(&self, number: &mut Bytes32) {
+    extern "C" fn block_number(&self, number: &mut Bytes32) {
         *number = self.host.env().block.number.into();
     }
 
-    pub extern "C" fn block_hash(&mut self, number: &mut Bytes32) -> *mut RuntimeResult<()> {
-        let hash = match self.host.block_hash(as_u64_saturated!(number.as_u256())) {
-            Some(hash) => hash,
+    extern "C" fn block_hash(&mut self, number: &mut Bytes32) -> *const RuntimeResult<()> {
+        match self.host.block_hash(as_u64_saturated!(number.as_u256())) {
+            Some(hash) => {
+                *number = hash;
+            }
             None => {
-                return Box::into_raw(Box::new(RuntimeResult::error(
-                    ExitStatusCode::FatalExternalError.to_u8(),
-                    (),
-                )))
+                self.inner.result.error = ExitStatusCode::FatalExternalError.to_u8();
             }
         };
-        *number = hash;
-        Box::into_raw(Box::new(RuntimeResult::success(())))
+        unsafe { &*(&self.inner.result as *const RuntimeResult<u64> as *const RuntimeResult<()>) }
     }
 
     fn create_log(&mut self, offset: u64, size: u64, topics: Vec<B256>) {
@@ -1633,33 +1963,27 @@ impl<'a> RuntimeContext<'a> {
         });
     }
 
-    pub extern "C" fn extcodesize(&mut self, address: &Bytes32) -> *mut RuntimeResult<u64> {
+    extern "C" fn extcodesize(&mut self, address: &Bytes32) -> *const RuntimeResult<u64> {
         let (code, load) = match self.host.code(address.to_address()) {
             Some(code_load) => code_load.into_components(),
             None => {
-                return Box::into_raw(Box::new(RuntimeResult::error(
-                    ExitStatusCode::FatalExternalError.to_u8(),
-                    0,
-                )))
+                self.inner.result.error = ExitStatusCode::FatalExternalError.to_u8();
+                return &self.inner.result as _;
             }
         };
         let size = code.len();
-
         let gas_cost = gas::extcodesize_gas_cost(self.inner.spec_id, load);
 
-        Box::into_raw(Box::new(RuntimeResult {
-            gas_used: gas_cost,
-            error: 0,
-            value: size as u64,
-        }))
+        self.inner.result.value = size as u64;
+        self.inner.result.gas_used = gas_cost;
+        &self.inner.result as _
     }
 
-    #[allow(clippy::clone_on_copy)]
-    pub extern "C" fn address(&mut self) -> *mut u8 {
+    extern "C" fn address(&mut self) -> *mut u8 {
         self.contract.target_address.as_ptr() as *mut u8
     }
 
-    pub extern "C" fn prevrandao(&self, prevrandao: &mut Bytes32) {
+    extern "C" fn prevrandao(&self, prevrandao: &mut Bytes32) {
         let env = self.host.env();
         *prevrandao = if self.inner.spec_id.is_enabled_in(SpecId::MERGE) {
             let randao = env.block.prevrandao.unwrap_or_default();
@@ -1669,41 +1993,38 @@ impl<'a> RuntimeContext<'a> {
         };
     }
 
-    pub extern "C" fn coinbase(&self) -> *mut u8 {
+    extern "C" fn coinbase(&self) -> *mut u8 {
         self.host.env().block.coinbase.as_ptr() as *mut u8
     }
 
-    pub extern "C" fn store_in_timestamp_ptr(&self, value: &mut Bytes32) {
+    extern "C" fn store_in_timestamp_ptr(&self, value: &mut Bytes32) {
         *value = Bytes32::from(self.host.env().block.timestamp);
     }
 
-    pub extern "C" fn store_in_basefee_ptr(&self, basefee: &mut Bytes32) {
+    extern "C" fn store_in_basefee_ptr(&self, basefee: &mut Bytes32) {
         *basefee = Bytes32::from(&self.host.env().block.basefee);
     }
 
     /// This function reads an address pointer and set the balance of the address to the same pointer
-    pub extern "C" fn store_in_balance(&mut self, address: &mut Bytes32) -> *mut RuntimeResult<()> {
+    extern "C" fn store_in_balance(&mut self, address: &mut Bytes32) -> *const RuntimeResult<()> {
         let addr = address.to_address();
         let result = match self.host.balance(addr) {
             Some(result) => result,
             None => {
-                return Box::into_raw(Box::new(RuntimeResult::error(
-                    ExitStatusCode::FatalExternalError.to_u8(),
-                    (),
-                )))
+                self.inner.result.error = ExitStatusCode::FatalExternalError.to_u8();
+                return unsafe {
+                    &*(&self.inner.result as *const RuntimeResult<u64> as *const RuntimeResult<()>)
+                };
             }
         };
         *address = result.data;
         let gas_cost = gas::balance_gas_cost(self.inner.spec_id, result.is_cold);
 
-        Box::into_raw(Box::new(RuntimeResult {
-            gas_used: gas_cost,
-            error: 0,
-            value: (),
-        }))
+        self.inner.result.gas_used = gas_cost;
+        unsafe { &*(&self.inner.result as *const RuntimeResult<u64> as *const RuntimeResult<()>) }
     }
 
-    pub extern "C" fn blob_hash(&mut self, index: &mut Bytes32) {
+    extern "C" fn blob_hash(&mut self, index: &mut Bytes32) {
         // Check if the high 12 bytes are zero, indicating a valid usize-compatible index
         if index.slice()[0..12] != [0u8; 12] {
             *index = Bytes32::default();
@@ -1722,21 +2043,21 @@ impl<'a> RuntimeContext<'a> {
             .unwrap_or_default();
     }
 
-    pub extern "C" fn ext_code_copy(
+    extern "C" fn ext_code_copy(
         &mut self,
         address_value: &Bytes32,
         code_offset: &Bytes32,
         size: u64,
         memory_offset: u64,
-    ) -> *mut RuntimeResult<()> {
+    ) -> *const RuntimeResult<()> {
         let addr = address_value.to_address();
         let (code, load) = match self.host.code(addr) {
             Some(code_load) => code_load.into_components(),
             None => {
-                return Box::into_raw(Box::new(RuntimeResult::error(
-                    ExitStatusCode::FatalExternalError.to_u8(),
-                    (),
-                )))
+                self.inner.result.error = ExitStatusCode::FatalExternalError.to_u8();
+                return unsafe {
+                    &*(&self.inner.result as *const RuntimeResult<u64> as *const RuntimeResult<()>)
+                };
             }
         };
         let code_offset = as_usize_saturated!(code_offset.to_u256());
@@ -1747,28 +2068,27 @@ impl<'a> RuntimeContext<'a> {
             self.memory_set_data(memory_offset, code_offset, size, &code);
         }
         let gas_cost = gas::extcodecopy_gas_cost(self.inner.spec_id, load);
-        Box::into_raw(Box::new(RuntimeResult::success_with_gas((), gas_cost)))
+
+        self.inner.result.gas_used = gas_cost;
+        unsafe { &*(&self.inner.result as *const RuntimeResult<u64> as *const RuntimeResult<()>) }
     }
 
-    pub extern "C" fn ext_code_hash(&mut self, address: &mut Bytes32) -> *mut RuntimeResult<()> {
+    extern "C" fn ext_code_hash(&mut self, address: &mut Bytes32) -> *const RuntimeResult<()> {
         let addr = Address::from(address as &Bytes32);
         let (hash, load) = match self.host.code_hash(addr) {
             Some(code_load) => code_load.into_components(),
             None => {
-                return Box::into_raw(Box::new(RuntimeResult::error(
-                    ExitStatusCode::FatalExternalError.to_u8(),
-                    (),
-                )))
+                self.inner.result.error = ExitStatusCode::FatalExternalError.to_u8();
+                return unsafe {
+                    &*(&self.inner.result as *const RuntimeResult<u64> as *const RuntimeResult<()>)
+                };
             }
         };
         *address = hash;
         let gas_cost = gas::extcodehash_gas_cost(self.inner.spec_id, load);
 
-        Box::into_raw(Box::new(RuntimeResult {
-            gas_used: gas_cost,
-            error: 0,
-            value: (),
-        }))
+        self.inner.result.gas_used = gas_cost;
+        unsafe { &*(&self.inner.result as *const RuntimeResult<u64> as *const RuntimeResult<()>) }
     }
 
     fn create_aux(
@@ -1778,7 +2098,7 @@ impl<'a> RuntimeContext<'a> {
         value: &mut Bytes32,
         original_remaining_gas: u64,
         salt: Option<&Bytes32>,
-    ) -> *mut RuntimeResult<u8> {
+    ) -> *const RuntimeResult<()> {
         let offset = offset as usize;
         let size = size as usize;
         let memory_len = self.inner.memory.len();
@@ -1796,19 +2116,19 @@ impl<'a> RuntimeContext<'a> {
         // Original remainning gas - sub call gas limit
         let (gas_remaining, overflow) = original_remaining_gas.overflowing_sub(gas_limit);
         if overflow {
-            return Box::into_raw(Box::new(RuntimeResult::error(
-                ExitStatusCode::OutOfGas.to_u8(),
-                1,
-            )));
+            self.inner.result.error = ExitStatusCode::OutOfGas.to_u8();
+            return unsafe {
+                &*(&self.inner.result as *const RuntimeResult<u64> as *const RuntimeResult<()>)
+            };
         }
 
         let call_msg = CallMessage {
-            input: bytecode.into(),
             kind: if salt.is_some() {
                 CallKind::Create2
             } else {
                 CallKind::Create
             },
+            input: bytecode.into(),
             value: value.to_u256(),
             depth: self.inner.depth as u32,
             gas_limit,
@@ -1817,15 +2137,16 @@ impl<'a> RuntimeContext<'a> {
             recipient: Address::default(),
             code_address: Address::default(),
             is_static: self.inner.is_static,
-            is_eof: false,
+            is_eof_init: false,
+            validate_eof: true,
         };
         let call_result = match self.host.call(call_msg) {
             Ok(result) => result,
             Err(_) => {
-                return Box::into_raw(Box::new(RuntimeResult::error(
-                    ExitStatusCode::FatalExternalError.to_u8(),
-                    0,
-                )))
+                self.inner.result.error = ExitStatusCode::FatalExternalError.to_u8();
+                return unsafe {
+                    &*(&self.inner.result as *const RuntimeResult<u64> as *const RuntimeResult<()>)
+                };
             }
         };
         self.inner.returndata = if call_result.status.is_revert() {
@@ -1838,6 +2159,128 @@ impl<'a> RuntimeContext<'a> {
         if call_result.status.is_ok() {
             // Set created address to the value.
             value.copy_from(&call_result.create_address.unwrap_or_default());
+            let gas_remaining = gas_remaining + call_result.gas_remaining;
+            self.inner.gas_refunded += call_result.gas_refunded;
+            self.inner.result.gas_used = original_remaining_gas - gas_remaining;
+        } else if call_result.status.is_revert() {
+            *value = Bytes32::ZERO;
+            let gas_remaining = gas_remaining + call_result.gas_remaining;
+            self.inner.result.gas_used = original_remaining_gas - gas_remaining;
+        } else {
+            *value = Bytes32::ZERO;
+            self.inner.result.gas_used = original_remaining_gas - gas_remaining;
+        }
+        unsafe { &*(&self.inner.result as *const RuntimeResult<u64> as *const RuntimeResult<()>) }
+    }
+
+    extern "C" fn eofcreate(
+        &mut self,
+        initcontainer_index: u8,
+        input_size: u64,
+        input_offset: u64,
+        value: &mut Bytes32,
+        original_remaining_gas: u64,
+        salt: &Bytes32,
+    ) -> *const RuntimeResult<u64> {
+        let container_index = initcontainer_index as usize;
+        let data_size = input_size as usize;
+        let data_offset = input_offset as usize;
+
+        let container = self
+            .contract
+            .code
+            .eof()
+            .expect("eof")
+            .body
+            .container_section
+            .get(container_index)
+            .expect("valid container")
+            .clone();
+        let bytecode = Bytecode::new(container);
+        if !bytecode.eof().expect("eof").body.is_data_filled {
+            // Should be always false as it is verified by eof verification.
+            panic!("Panic if data section is not full");
+        }
+        let memory_len = self.inner.memory.len();
+        let available_size = memory_len - data_offset;
+        let actual_size = data_size.min(available_size);
+        let input = if data_size == 0 {
+            vec![]
+        } else {
+            self.inner.memory[data_offset..data_offset + actual_size].to_vec()
+        };
+
+        // Deduct gas for container execution
+        let mut gas_limit = original_remaining_gas;
+        if self.inner.spec_id.is_enabled_in(SpecId::TANGERINE) {
+            gas_limit -= gas_limit / 64;
+        }
+        // Original remainning gas - sub call gas limit
+        let (gas_remaining, overflow) = original_remaining_gas.overflowing_sub(gas_limit);
+        if overflow {
+            return Box::into_raw(Box::new(RuntimeResult::error(
+                ExitStatusCode::OutOfGas.to_u8(),
+                1,
+            )));
+        }
+
+        let call_msg = CallMessage {
+            kind: CallKind::EofCreate,
+            input: bytecode.bytes(),
+            value: value.to_u256(),
+            depth: self.inner.depth as u32,
+            gas_limit,
+            caller: self.contract.target_address,
+            salt: Some(salt.to_b256()),
+            recipient: Address::default(),
+            code_address: Address::default(),
+            is_static: self.inner.is_static,
+            is_eof_init: true,
+            validate_eof: true,
+        };
+        let call_result = match self.host.call(call_msg) {
+            Ok(result) => result,
+            Err(_) => {
+                return Box::into_raw(Box::new(RuntimeResult::error(
+                    ExitStatusCode::FatalExternalError.to_u8(),
+                    0,
+                )))
+            }
+        };
+        // Populate returndata if execution reverted
+        self.inner.returndata = if call_result.status.is_revert() {
+            call_result.output.to_vec()
+        } else {
+            Vec::new()
+        };
+
+        // Check the error message.
+        if call_result.status.is_ok() {
+            let new_address = call_result.create_address.unwrap_or_default();
+            // Call ReturnContract with the new address
+            let call_msg = CallMessage {
+                kind: CallKind::ReturnContract,
+                input: input.into(),
+                value: value.to_u256(),
+                depth: self.inner.depth as u32,
+                gas_limit: call_result.gas_remaining,
+                caller: self.contract.target_address,
+                salt: Some(salt.to_b256()),
+                recipient: new_address,
+                code_address: new_address,
+                is_static: self.inner.is_static,
+                is_eof_init: true,
+                validate_eof: true,
+            };
+            if self.host.call(call_msg).is_err() {
+                return Box::into_raw(Box::new(RuntimeResult::error(
+                    ExitStatusCode::FatalExternalError.to_u8(),
+                    0,
+                )));
+            }
+
+            // Set created address to the value.
+            value.copy_from(&new_address);
             let gas_remaining = gas_remaining + call_result.gas_remaining;
             self.inner.gas_refunded += call_result.gas_refunded;
             Box::into_raw(Box::new(RuntimeResult::success_with_gas(
@@ -1860,31 +2303,122 @@ impl<'a> RuntimeContext<'a> {
         }
     }
 
-    pub extern "C" fn create(
+    extern "C" fn returncontract(
+        &mut self,
+        deploy_container_index: u8,
+        aux_data_size: u64,
+        aux_data_offset: u64,
+        max_code_size: usize,
+        remaining_gas: u64,
+        execution_result: u8,
+    ) -> *const RuntimeResult<u64> {
+        // Check if returncontract is in EOF init
+        if !self.inner.is_eof_init {
+            return Box::into_raw(Box::new(RuntimeResult::error(
+                ExitStatusCode::ReturnContractInNotInitEOF.to_u8(),
+                1,
+            )));
+        }
+
+        let container_index = deploy_container_index as usize;
+        let data_size = aux_data_size as usize;
+        let data_offset = aux_data_offset as usize;
+
+        let container = self
+            .contract
+            .code
+            .eof()
+            .expect("eof")
+            .body
+            .container_section
+            .get(container_index)
+            .expect("valid container")
+            .clone();
+        let bytecode_header = Bytecode::new(container.clone())
+            .eof()
+            .expect("eof")
+            .header
+            .clone();
+        let static_aux_size = bytecode_header.eof_size() - container.len();
+
+        let memory_len = self.inner.memory.len();
+        let available_size = memory_len - data_offset;
+        let actual_size = data_size.min(available_size);
+        let mut output = container.to_vec();
+        if data_size != 0 {
+            output.extend_from_slice(&self.inner.memory[data_offset..data_offset + actual_size]);
+        }
+
+        // `data_size - static_aux_size` give us current data `container` size.
+        // And with `aux_slice` len we can calculate new data size.
+        let new_data_size = bytecode_header.data_size as usize - static_aux_size + data_size;
+        if new_data_size > max_code_size {
+            // Aux data is too big
+            return Box::into_raw(Box::new(RuntimeResult::error(
+                ExitStatusCode::EofAuxDataOverflow.to_u8(),
+                1,
+            )));
+        }
+        if new_data_size < bytecode_header.data_size as usize {
+            // Aux data is too small
+            return Box::into_raw(Box::new(RuntimeResult::error(
+                ExitStatusCode::EofAuxDataTooSmall.to_u8(),
+                1,
+            )));
+        }
+        let new_data_size = (new_data_size as u16).to_be_bytes();
+        // Set new data size in eof bytes as we know exact index.
+        output[bytecode_header.data_size_raw_i()..][..2].clone_from_slice(&new_data_size);
+        let output: Bytes = output.into();
+
+        let call_msg = CallMessage {
+            kind: CallKind::ReturnContract,
+            input: output,
+            value: self.contract.call_value,
+            depth: self.inner.depth as u32,
+            gas_limit: remaining_gas,
+            caller: self.contract.caller,
+            salt: None,
+            recipient: self.contract.target_address,
+            code_address: Address::default(),
+            is_static: self.inner.is_static,
+            is_eof_init: true,
+            validate_eof: true,
+        };
+        match self.host.call(call_msg) {
+            Ok(_) => {
+                self.inner.exit_status = Some(ExitStatusCode::from_u8(execution_result));
+                &self.inner.result
+            }
+            Err(_) => Box::into_raw(Box::new(RuntimeResult::error(
+                ExitStatusCode::FatalExternalError.to_u8(),
+                0,
+            ))),
+        }
+    }
+
+    extern "C" fn create(
         &mut self,
         size: u64,
         offset: u64,
         value: &mut Bytes32,
         remaining_gas: u64,
-    ) -> *mut RuntimeResult<u8> {
+    ) -> *const RuntimeResult<()> {
         self.create_aux(size, offset, value, remaining_gas, None)
     }
 
-    pub extern "C" fn create2(
+    extern "C" fn create2(
         &mut self,
         size: u64,
         offset: u64,
         value: &mut Bytes32,
         remaining_gas: u64,
         salt: &Bytes32,
-    ) -> *mut RuntimeResult<u8> {
+    ) -> *const RuntimeResult<()> {
         self.create_aux(size, offset, value, remaining_gas, Some(salt))
     }
 
-    pub extern "C" fn selfdestruct(
-        &mut self,
-        receiver_address: &Bytes32,
-    ) -> *mut RuntimeResult<u64> {
+    extern "C" fn selfdestruct(&mut self, receiver_address: &Bytes32) -> *const RuntimeResult<u64> {
         let receiver_address = Address::from(receiver_address);
         let result = match self
             .host
@@ -1892,30 +2426,26 @@ impl<'a> RuntimeContext<'a> {
         {
             Some(result) => result,
             None => {
-                return Box::into_raw(Box::new(RuntimeResult::error(
-                    ExitStatusCode::FatalExternalError.to_u8(),
-                    0,
-                )))
+                self.inner.result.error = ExitStatusCode::FatalExternalError.to_u8();
+                return &self.inner.result as _;
             }
         };
         // EIP-3529: Reduction in refunds
         if !self.inner.spec_id.is_enabled_in(SpecId::LONDON) && !result.previously_destroyed {
             self.inner.gas_refunded += gas_cost::SELFDESTRUCT;
         }
+        let gas_cost = gas::selfdestruct_cost(self.inner.spec_id, &result);
 
-        Box::into_raw(Box::new(RuntimeResult {
-            error: 0,
-            gas_used: gas::selfdestruct_cost(self.inner.spec_id, &result),
-            value: 0,
-        }))
+        self.inner.result.gas_used = gas_cost;
+        &self.inner.result as _
     }
 
-    pub extern "C" fn tload(&mut self, stg_key: &Bytes32, stg_value: &mut Bytes32) {
+    extern "C" fn tload(&mut self, stg_key: &Bytes32, stg_value: &mut Bytes32) {
         let result = self.host.tload(self.contract.target_address, *stg_key);
         *stg_value = result;
     }
 
-    pub extern "C" fn tstore(&mut self, stg_key: &Bytes32, stg_value: &mut Bytes32) {
+    extern "C" fn tstore(&mut self, stg_key: &Bytes32, stg_value: &mut Bytes32) {
         self.host
             .tstore(self.contract.target_address, *stg_key, *stg_value);
     }
@@ -1923,9 +2453,9 @@ impl<'a> RuntimeContext<'a> {
 
 type SymbolSignature = (&'static str, *const fn() -> ());
 
-impl<'a> RuntimeContext<'a> {
+impl RuntimeContext<'_> {
     /// Registers all the syscalls as symbols in the execution engine.
-    pub fn register_symbols(engine: &ExecutionEngine) {
+    pub fn register_evm_symbols(engine: &ExecutionEngine) {
         unsafe {
             // Global variables and syscalls with corresponding function signatures
             let symbols_and_signatures: &[SymbolSignature] = &[
@@ -1950,6 +2480,11 @@ impl<'a> RuntimeContext<'a> {
                     symbols::EXTEND_MEMORY,
                     RuntimeContext::extend_memory as *const _,
                 ),
+                (symbols::MEMORY_PTR, RuntimeContext::memory_ptr as *const _),
+                (
+                    symbols::MEMORY_SIZE,
+                    RuntimeContext::memory_size as *const _,
+                ),
                 (symbols::SLOAD, RuntimeContext::sload as *const _),
                 (symbols::SSTORE, RuntimeContext::sstore as *const _),
                 (symbols::APPEND_LOG, RuntimeContext::append_log as *const _),
@@ -1969,7 +2504,6 @@ impl<'a> RuntimeContext<'a> {
                     symbols::APPEND_LOG_FOUR_TOPICS,
                     RuntimeContext::append_log_with_four_topics as *const _,
                 ),
-                (symbols::CALL, RuntimeContext::call as *const _),
                 (symbols::CALLDATA, RuntimeContext::calldata as *const _),
                 (
                     symbols::CALLDATA_SIZE,
@@ -1978,6 +2512,18 @@ impl<'a> RuntimeContext<'a> {
                 (
                     symbols::CALLDATA_COPY,
                     RuntimeContext::calldata_copy as *const _,
+                ),
+                (
+                    symbols::DATA_SECTION,
+                    RuntimeContext::data_section as *const _,
+                ),
+                (
+                    symbols::DATA_SECTION_SIZE,
+                    RuntimeContext::data_section_size as *const _,
+                ),
+                (
+                    symbols::DATA_SECTION_COPY,
+                    RuntimeContext::data_section_copy as *const _,
                 ),
                 (symbols::CODE_COPY, RuntimeContext::code_copy as *const _),
                 (symbols::ORIGIN, RuntimeContext::origin as *const _),
@@ -2033,8 +2579,16 @@ impl<'a> RuntimeContext<'a> {
                     symbols::EXT_CODE_HASH,
                     RuntimeContext::ext_code_hash as *const _,
                 ),
+                (symbols::EOFCREATE, RuntimeContext::eofcreate as *const _),
+                (
+                    symbols::RETURNCONTRACT,
+                    RuntimeContext::returncontract as *const _,
+                ),
                 (symbols::CREATE, RuntimeContext::create as *const _),
                 (symbols::CREATE2, RuntimeContext::create2 as *const _),
+                (symbols::CALL, RuntimeContext::call as *const _),
+                (symbols::EXTCALL, RuntimeContext::extcall as *const _),
+                (symbols::RETURNDATA, RuntimeContext::returndata as *const _),
                 (
                     symbols::RETURNDATA_SIZE,
                     RuntimeContext::returndata_size as *const _,
@@ -2049,6 +2603,138 @@ impl<'a> RuntimeContext<'a> {
                 ),
                 (symbols::TLOAD, RuntimeContext::tload as *const _),
                 (symbols::TSTORE, RuntimeContext::tstore as *const _),
+            ];
+
+            for (symbol, signature) in symbols_and_signatures {
+                engine.register_symbol(symbol, *signature as *mut ());
+            }
+        }
+    }
+
+    /// Registers all WASM libcalls as symbols in the execution engine.
+    pub fn register_wasm_symbols(engine: &ExecutionEngine) {
+        unsafe {
+            let symbols_and_signatures: &[SymbolSignature] = &[
+                (
+                    symbols::wasm::TABLE_INIT,
+                    wasmer_vm::libcalls::wasmer_vm_table_init as *const _,
+                ),
+                (
+                    symbols::wasm::TABLE_COPY,
+                    wasmer_vm::libcalls::wasmer_vm_table_copy as *const _,
+                ),
+                (
+                    symbols::wasm::TABLE_FILL,
+                    wasmer_vm::libcalls::wasmer_vm_table_fill as *const _,
+                ),
+                (
+                    symbols::wasm::TABLE_SIZE,
+                    wasmer_vm::libcalls::wasmer_vm_table_size as *const _,
+                ),
+                (
+                    symbols::wasm::TABLE_GET,
+                    wasmer_vm::libcalls::wasmer_vm_table_get as *const _,
+                ),
+                (
+                    symbols::wasm::TABLE_SET,
+                    wasmer_vm::libcalls::wasmer_vm_table_set as *const _,
+                ),
+                (
+                    symbols::wasm::TABLE_GROW,
+                    wasmer_vm::libcalls::wasmer_vm_table_grow as *const _,
+                ),
+                (
+                    symbols::wasm::IMPORTED_TABLE_SIZE,
+                    wasmer_vm::libcalls::wasmer_vm_imported_table_size as *const _,
+                ),
+                (
+                    symbols::wasm::IMPORTED_TABLE_GET,
+                    wasmer_vm::libcalls::wasmer_vm_imported_table_get as *const _,
+                ),
+                (
+                    symbols::wasm::IMPORTED_TABLE_SET,
+                    wasmer_vm::libcalls::wasmer_vm_imported_table_set as *const _,
+                ),
+                (
+                    symbols::wasm::IMPORTED_TABLE_GROW,
+                    wasmer_vm::libcalls::wasmer_vm_imported_table_grow as *const _,
+                ),
+                (
+                    symbols::wasm::MEMORY_INIT,
+                    wasmer_vm::libcalls::wasmer_vm_memory32_init as *const _,
+                ),
+                (
+                    symbols::wasm::MEMORY_SIZE,
+                    wasmer_vm::libcalls::wasmer_vm_memory32_size as *const _,
+                ),
+                (
+                    symbols::wasm::MEMORY_GROW,
+                    wasmer_vm::libcalls::wasmer_vm_memory32_grow as *const _,
+                ),
+                (
+                    symbols::wasm::MEMORY_COPY,
+                    wasmer_vm::libcalls::wasmer_vm_memory32_copy as *const _,
+                ),
+                (
+                    symbols::wasm::MEMORY_FILL,
+                    wasmer_vm::libcalls::wasmer_vm_memory32_fill as *const _,
+                ),
+                (
+                    symbols::wasm::MEMORY_NOTIFY,
+                    wasmer_vm::libcalls::wasmer_vm_memory32_atomic_notify as *const _,
+                ),
+                (
+                    symbols::wasm::MEMORY_WAIT32,
+                    wasmer_vm::libcalls::wasmer_vm_memory32_atomic_wait32 as *const _,
+                ),
+                (
+                    symbols::wasm::MEMORY_WAIT64,
+                    wasmer_vm::libcalls::wasmer_vm_memory32_atomic_wait64 as *const _,
+                ),
+                (
+                    symbols::wasm::IMPORTED_MEMORY_SIZE,
+                    wasmer_vm::libcalls::wasmer_vm_imported_memory32_size as *const _,
+                ),
+                (
+                    symbols::wasm::IMPORTED_MEMORY_GROW,
+                    wasmer_vm::libcalls::wasmer_vm_imported_memory32_grow as *const _,
+                ),
+                (
+                    symbols::wasm::IMPORTED_MEMORY_COPY,
+                    wasmer_vm::libcalls::wasmer_vm_imported_memory32_copy as *const _,
+                ),
+                (
+                    symbols::wasm::IMPORTED_MEMORY_FILL,
+                    wasmer_vm::libcalls::wasmer_vm_imported_memory32_fill as *const _,
+                ),
+                (
+                    symbols::wasm::IMPORTED_MEMORY_NOTIFY,
+                    wasmer_vm::libcalls::wasmer_vm_imported_memory32_atomic_notify as *const _,
+                ),
+                (
+                    symbols::wasm::IMPORTED_MEMORY_WAIT32,
+                    wasmer_vm::libcalls::wasmer_vm_imported_memory32_atomic_wait32 as *const _,
+                ),
+                (
+                    symbols::wasm::IMPORTED_MEMORY_WAIT64,
+                    wasmer_vm::libcalls::wasmer_vm_imported_memory32_atomic_wait64 as *const _,
+                ),
+                (
+                    symbols::wasm::FUNC_REF,
+                    wasmer_vm::libcalls::wasmer_vm_func_ref as *const _,
+                ),
+                (
+                    symbols::wasm::DATA_DROP,
+                    wasmer_vm::libcalls::wasmer_vm_data_drop as *const _,
+                ),
+                (
+                    symbols::wasm::ELEM_DROP,
+                    wasmer_vm::libcalls::wasmer_vm_elem_drop as *const _,
+                ),
+                (
+                    symbols::wasm::RAISE_TRAP,
+                    wasmer_vm::libcalls::wasmer_vm_raise_trap as *const _,
+                ),
             ];
 
             for (symbol, signature) in symbols_and_signatures {

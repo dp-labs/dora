@@ -1,6 +1,6 @@
 use crate::{conversion::walker::walk_operation, errors::Result, value::IntoContextOperation};
 use dora_primitives::SpecId;
-use dora_runtime::constants::CallType;
+use dora_runtime::constants::{CallType, ExtCallType};
 use melior::{
     dialect::DialectHandle,
     ir::{r#type::TypeId, OperationRef},
@@ -17,11 +17,11 @@ static PASS: PassId = PassId;
 /// Dora IR (Intermediate Representation) operations and transforming them into equivalent LLVM/MLIR instructions.
 ///
 /// # Fields:
-/// - `program_code_size`: The size of the program's bytecode, typically measured in bytes.
+/// - `code_size`: The size of the program's bytecode, typically measured in bytes.
 ///
 /// # Example Usage:
 /// ```no_check
-/// let mut conversion_pass = ConversionPass { program_code_size: 512 };
+/// let mut conversion_pass = ConversionPass { code_size: 512 };
 /// conversion_pass.run(operation_ref).expect("Conversion failed");
 /// ```
 ///
@@ -35,12 +35,12 @@ pub struct ConversionPass<'c> {
     /// A reference to the MLIR context, which manages global state and resources required for MLIR operations.
     pub ctx: &'c Context,
     /// The size of the program's bytecode (in bytes).
-    pub program_code_size: u32,
+    pub code_size: u32,
     pub spec_id: SpecId,
-    pub limit_contract_code_size: Option<usize>,
+    pub limit_contract_code_size: usize,
 }
 
-impl<'c> ConversionPass<'c> {
+impl ConversionPass<'_> {
     /// Runs the conversion pass on a given operation, walking through the operations in the program
     /// and transforming specific Dora IR operations to their LLVM/MLIR equivalents.
     ///
@@ -97,6 +97,14 @@ impl<'c> ConversionPass<'c> {
                 Self::exp(context, op, &self.spec_id)?
             } else if name == "dora.signextend" {
                 Self::signextend(context, op)?
+            } else if name == "dora.lte" {
+                Self::lte(context, op)?
+            } else if name == "dora.gte" {
+                Self::gte(context, op)?
+            } else if name == "dora.slte" {
+                Self::slte(context, op)?
+            } else if name == "dora.sgte" {
+                Self::sgte(context, op)?
             } else if name == "dora.lt" {
                 Self::lt(context, op)?
             } else if name == "dora.gt" {
@@ -105,6 +113,8 @@ impl<'c> ConversionPass<'c> {
                 Self::slt(context, op)?
             } else if name == "dora.sgt" {
                 Self::sgt(context, op)?
+            } else if name == "dora.select" {
+                Self::select(context, op)?
             } else if name == "dora.eq" {
                 Self::eq(context, op)?
             } else if name == "dora.iszero" {
@@ -125,6 +135,16 @@ impl<'c> ConversionPass<'c> {
                 Self::shr(context, op)?
             } else if name == "dora.sar" {
                 Self::sar(context, op)?
+            } else if name == "dora.rotl" {
+                Self::rotl(context, op)?
+            } else if name == "dora.rotr" {
+                Self::rotr(context, op)?
+            } else if name == "dora.clz" {
+                Self::clz(context, op)?
+            } else if name == "dora.ctz" {
+                Self::ctz(context, op)?
+            } else if name == "dora.popcnt" {
+                Self::popcnt(context, op)?
             } else if name == "dora.keccak256" {
                 Self::keccak256(context, op)?
             } else if name == "dora.address" {
@@ -144,7 +164,7 @@ impl<'c> ConversionPass<'c> {
             } else if name == "dora.calldatacopy" {
                 Self::calldatacopy(context, op)?
             } else if name == "dora.codesize" {
-                Self::codesize(context, op, self.program_code_size)?
+                Self::codesize(context, op, self.code_size)?
             } else if name == "dora.codecopy" {
                 Self::codecopy(context, op)?
             } else if name == "dora.gasprice" {
@@ -153,6 +173,8 @@ impl<'c> ConversionPass<'c> {
                 Self::extcodesize(context, op)?
             } else if name == "dora.extcodecopy" {
                 Self::extcodecopy(context, op)?
+            } else if name == "dora.returndataload" {
+                Self::returndataload(context, op)?
             } else if name == "dora.returndatasize" {
                 Self::returndatasize(context, op)?
             } else if name == "dora.returndatacopy" {
@@ -211,6 +233,17 @@ impl<'c> ConversionPass<'c> {
                 Self::log(context, op, 3)?;
             } else if name == "dora.log4" {
                 Self::log(context, op, 4)?;
+            } else if name == "dora.dataload" || name == "dora.dataloadn" {
+                // Optimize code by merging the same two LLVM/MLIR codes
+                Self::dataload(context, op)?;
+            } else if name == "dora.datasize" {
+                Self::datasize(context, op)?;
+            } else if name == "dora.datacopy" {
+                Self::datacopy(context, op)?;
+            } else if name == "dora.eofcreate" {
+                Self::eofcreate(context, op, self.limit_contract_code_size)?;
+            } else if name == "dora.returncontract" {
+                Self::returncontract(context, op, self.limit_contract_code_size)?;
             } else if name == "dora.create" {
                 Self::create(
                     context,
@@ -230,13 +263,19 @@ impl<'c> ConversionPass<'c> {
             } else if name == "dora.call" {
                 Self::call(context, op, CallType::Call)?;
             } else if name == "dora.callcode" {
-                Self::call(context, op, CallType::CallCode)?;
+                Self::call(context, op, CallType::Callcode)?;
             } else if name == "dora.return" {
                 Self::creturn(context, op)?;
             } else if name == "dora.delegatecall" {
                 Self::call(context, op, CallType::Delegatecall)?;
             } else if name == "dora.staticcall" {
                 Self::call(context, op, CallType::Staticcall)?;
+            } else if name == "dora.extcall" {
+                Self::extcall(context, op, ExtCallType::Call)?;
+            } else if name == "dora.extdelegatecall" {
+                Self::extcall(context, op, ExtCallType::Delegatecall)?;
+            } else if name == "dora.extstaticcall" {
+                Self::extcall(context, op, ExtCallType::Staticcall)?;
             } else if name == "dora.revert" {
                 Self::revert(context, op)?;
             } else if name == "dora.invalid" {
@@ -266,7 +305,7 @@ impl<'c> RunExternalPass<'c> for ConversionPass<'c> {
     }
 }
 
-impl<'c> ConversionPass<'c> {
+impl ConversionPass<'_> {
     pub fn into_pass(self) -> Pass {
         create_external(
             self,

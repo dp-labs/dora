@@ -1,5 +1,8 @@
+#![allow(clippy::arc_with_non_send_sync)]
+
 use crate::constants::MAIN_ENTRYPOINT;
-use crate::context::{MainFunc, RuntimeContext};
+use crate::context::{EVMMainFunc, RuntimeContext, Stack, WASMMainFunc};
+use crate::wasm::WASMInstance;
 use dora_primitives::config::OptimizationLevel;
 use melior::ir::Module;
 use melior::StringRef;
@@ -7,17 +10,21 @@ use mlir_sys::{
     mlirExecutionEngineCreate, mlirExecutionEngineDestroy, mlirExecutionEngineLookup,
     mlirExecutionEngineRegisterSymbol, MlirExecutionEngine,
 };
+use parking_lot::RwLock;
 use std::fmt::Debug;
-use std::rc::Rc;
+use std::sync::Arc;
 
-/// A struct that wraps around the MLIR-based execution engine for executing compiled EVM code.
+/// The stack size at runtime, used for recursive program execution to prevent stack overflow
+pub const RUNTIME_STACK_SIZE: usize = 64 * 1024 * 1024;
+
+/// A struct that wraps around the MLIR-based execution engine for executing compiled EVM and WASM code.
 ///
 /// The `Executor` is responsible for managing the execution engine and invoking the main entry point of the compiled
 /// code. It serves as the core execution unit, executing the EVM bytecode compiled via MLIR within the provided
 /// `RuntimeContext`.
 ///
 /// # Fields:
-/// - `engine`: An instance of `ExecutionEngine`, used to execute the compiled EVM bytecode.
+/// - `engine`: An instance of `ExecutionEngine`, used to execute the compiled EVM and WASM bytecode.
 ///
 /// # Example Usage:
 /// ```no_check
@@ -27,6 +34,24 @@ use std::rc::Rc;
 #[derive(Default, Debug, Clone)]
 pub struct Executor {
     engine: ExecutionEngine,
+    pub(crate) kind: ExecuteKind,
+}
+
+/// Runtime engine execute kind including EVM, WASM, etc.
+#[derive(Default, Debug, Clone)]
+pub enum ExecuteKind {
+    #[default]
+    EVM,
+    WASM(Arc<RwLock<WASMInstance>>),
+}
+
+unsafe impl Send for ExecuteKind {}
+unsafe impl Sync for ExecuteKind {}
+
+impl ExecuteKind {
+    pub fn new_wasm(instance: WASMInstance) -> ExecuteKind {
+        ExecuteKind::WASM(Arc::new(RwLock::new(instance)))
+    }
 }
 
 impl Executor {
@@ -48,10 +73,13 @@ impl Executor {
     /// ```no_check
     /// let executor = Executor::new(&module, &runtime_ctx, OptimizationLevel::Aggressive);
     /// ```
-    pub fn new(module: &Module, opt_level: OptimizationLevel) -> Self {
+    pub fn new(module: &Module, opt_level: OptimizationLevel, kind: ExecuteKind) -> Self {
         let engine = ExecutionEngine::new(module, opt_level as usize, &[], false);
-        RuntimeContext::register_symbols(&engine);
-        Self { engine }
+        match kind {
+            ExecuteKind::EVM => RuntimeContext::register_evm_symbols(&engine),
+            ExecuteKind::WASM(_) => RuntimeContext::register_wasm_symbols(&engine),
+        }
+        Self { engine, kind }
     }
 
     /// Executes the main entry point of the compiled EVM code.
@@ -71,28 +99,60 @@ impl Executor {
     /// ```no_check
     /// let result_code = executor.execute(&mut runtime_ctx, initial_gas);
     /// ```
-    pub fn execute(&self, context: &mut RuntimeContext, initial_gas: u64) -> u8 {
-        let main_fn = self.get_main_entrypoint();
-        main_fn(context, initial_gas)
+    pub fn execute(
+        &self,
+        context: &mut RuntimeContext,
+        initial_gas: &mut u64,
+        stack: &mut Stack,
+        stack_size: &mut u64,
+    ) -> u8 {
+        match &self.kind {
+            ExecuteKind::EVM => {
+                let main_fn = self.get_evm_main_entrypoint();
+                main_fn(context, initial_gas, stack, stack_size)
+            }
+            ExecuteKind::WASM(vm_inst) => {
+                let main_fn = self.get_wasm_main_entrypoint();
+                main_fn(vm_inst.read().vmctx_ptr());
+                0
+            }
+        }
     }
 
-    /// Retrieves the main entry point function from the execution engine.
+    /// Retrieves the EVM main entry point function from the execution engine.
     ///
     /// This function constructs the main entry point's symbol name in the format `_mlir_ciface_<MAIN_ENTRYPOINT>`
     /// and looks it up in the execution engine. It then converts the function pointer into the expected function
-    /// signature (`MainFunc`).
+    /// signature (`EVMMainFunc`).
     ///
     /// # Returns:
-    /// - `MainFunc`: A function pointer to the main entry point of the compiled module.
+    /// - `EVMMainFunc`: A function pointer to the main entry point of the compiled module.
     ///
     /// # Safety:
-    /// The function pointer is assumed to be valid and to conform to the expected signature of `MainFunc`.
+    /// The function pointer is assumed to be valid and to conform to the expected signature of `EVMMainFunc`.
+    pub fn get_evm_main_entrypoint(&self) -> EVMMainFunc {
+        let fptr = self.get_main_entrypoint_ptr();
+        // SAFETY: We're assuming the function pointer is valid and matches the MainFunc signature.
+        unsafe { std::mem::transmute(fptr) }
+    }
+
+    /// Retrieves the WASM main entry point function from the execution engine.
+    ///
+    /// This function constructs the main entry point's symbol name in the format `_mlir_ciface_<MAIN_ENTRYPOINT>`
+    /// and looks it up in the execution engine. It then converts the function pointer into the expected function
+    /// signature (`WASMMainFunc`).
+    ///
+    /// # Returns:
+    /// - `WASMMainFunc`: A function pointer to the main entry point of the compiled module.
+    ///
+    /// # Safety:
+    /// The function pointer is assumed to be valid and to conform to the expected signature of `WASMMainFunc`.
     ///
     /// # Example Usage:
     /// ```no_check
     /// let main_fn = executor.get_main_entrypoint();
     /// ```
-    pub fn get_main_entrypoint(&self) -> MainFunc {
+    pub fn get_wasm_main_entrypoint(&self) -> WASMMainFunc {
         let fptr = self.get_main_entrypoint_ptr();
         // SAFETY: We're assuming the function pointer is valid and matches the MainFunc signature.
         unsafe { std::mem::transmute(fptr) }
@@ -103,18 +163,27 @@ impl Executor {
         let function_name = format!("_mlir_ciface_{MAIN_ENTRYPOINT}");
         self.engine.lookup(&function_name)
     }
+
+    /// Searches a symbol in a module and returns a pointer to it.
+    #[inline]
+    pub fn lookup(&self, name: &str) -> *mut () {
+        self.engine.lookup(name)
+    }
 }
 
 /// A shared reference execution engine for the artifact cache.
 #[derive(Debug)]
 pub struct ExecutionEngine {
-    raw: Rc<MlirExecutionEngine>,
+    raw: Arc<MlirExecutionEngine>,
 }
+
+unsafe impl Send for ExecutionEngine {}
+unsafe impl Sync for ExecutionEngine {}
 
 impl Clone for ExecutionEngine {
     fn clone(&self) -> Self {
         ExecutionEngine {
-            raw: Rc::clone(&self.raw),
+            raw: Arc::clone(&self.raw),
         }
     }
 }
@@ -122,7 +191,7 @@ impl Clone for ExecutionEngine {
 impl Default for ExecutionEngine {
     fn default() -> Self {
         Self {
-            raw: Rc::new(MlirExecutionEngine {
+            raw: Arc::new(MlirExecutionEngine {
                 ptr: std::ptr::null_mut(),
             }),
         }
@@ -139,7 +208,7 @@ impl ExecutionEngine {
     ) -> Self {
         Self {
             raw: unsafe {
-                Rc::new(mlirExecutionEngineCreate(
+                Arc::new(mlirExecutionEngineCreate(
                     module.to_raw(),
                     optimization_level as i32,
                     shared_library_paths.len() as i32,
@@ -175,7 +244,7 @@ impl ExecutionEngine {
 
 impl Drop for ExecutionEngine {
     fn drop(&mut self) {
-        if Rc::strong_count(&self.raw) == 1 {
+        if Arc::strong_count(&self.raw) == 1 {
             unsafe { mlirExecutionEngineDestroy(*self.raw) }
         }
     }

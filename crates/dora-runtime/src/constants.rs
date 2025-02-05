@@ -3,18 +3,9 @@ use thiserror::Error;
 pub const MAX_STACK_SIZE: usize = 1024;
 pub const CALL_STACK_LIMIT: usize = 1024;
 
-// Global pointers and constants
-pub const GAS_COUNTER_GLOBAL: &str = "dora_global_gas_counter";
-pub const CODE_PTR_GLOBAL: &str = "dora_global_code_ptr_global";
-pub const STACK_PTR_GLOBAL: &str = "dora_global_stack_ptr";
-pub const STACK_SIZE_GLOBAL: &str = "dora_global_stack_length";
-pub const MEMORY_PTR_GLOBAL: &str = "dora_global_memory_ptr";
-pub const MEMORY_SIZE_GLOBAL: &str = "dora_global_memory_size";
-pub const CALLDATA_PTR_GLOBAL: &str = "dora_global_calldata_ptr";
-pub const CALLDATA_SIZE_GLOBAL: &str = "dora_global_calldata_size";
+/// MLIR main entry point name.
 pub const MAIN_ENTRYPOINT: &str = "main";
-
-// Versioning and blob constants
+/// Versioning and blob constants
 pub const VERSIONED_HASH_VERSION_KZG: u8 = 0x01;
 /// Target number of the blob per block.
 pub const TARGET_BLOB_NUMBER_PER_BLOCK: u64 = 3;
@@ -129,7 +120,6 @@ pub mod gas_cost {
 
     pub const SSTORE_MIN_REMAINING_GAS: i64 = 2_300;
     pub const CREATE: i64 = 32_000;
-    pub const CREATE2: i64 = 32_000;
 
     pub const TLOAD: i64 = 100;
     pub const TSTORE: i64 = 100;
@@ -323,7 +313,7 @@ pub enum CallType {
     /// `DELEGATECALL`.
     Delegatecall,
     /// `CALLCODE`.
-    CallCode,
+    Callcode,
 }
 
 /// The kind of a `EXT*CALL` instruction.
@@ -350,7 +340,7 @@ impl TryFrom<u8> for CallType {
             x if x == CallType::Call as u8 => Ok(CallType::Call),
             x if x == CallType::Staticcall as u8 => Ok(CallType::Staticcall),
             x if x == CallType::Delegatecall as u8 => Ok(CallType::Delegatecall),
-            x if x == CallType::CallCode as u8 => Ok(CallType::CallCode),
+            x if x == CallType::Callcode as u8 => Ok(CallType::Callcode),
             _ => Err(CallTypeParseError),
         }
     }

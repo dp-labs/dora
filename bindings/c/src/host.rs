@@ -7,7 +7,7 @@ use dora::runtime::call::{CallMessage, CallResult};
 use dora::runtime::context::Log;
 use dora::runtime::env::{BlobExcessGasAndPrice, BlockEnv, CfgEnv, Env, TxEnv};
 use dora::runtime::host::{
-    AccountLoad, CodeLoad, Host, SStoreResult, SStoreStatus, SelfDestructResult, StateLoad,
+    AccountLoad, CodeLoad, Host, SStoreResult, SStoreStatus, SelfdestructResult, StateLoad,
 };
 use dora::runtime::result::EVMError;
 use evmc_sys::{evmc_access_status, evmc_address, evmc_bytes32, evmc_storage_status};
@@ -68,7 +68,7 @@ impl<'a> EvmcDelegateHost<'a> {
     }
 }
 
-impl<'a> Host for EvmcDelegateHost<'a> {
+impl Host for EvmcDelegateHost<'_> {
     #[inline]
     fn env(&self) -> &Env {
         &self.env
@@ -82,14 +82,14 @@ impl<'a> Host for EvmcDelegateHost<'a> {
     fn sload(&mut self, addr: Address, key: Bytes32) -> Option<StateLoad<Bytes32>> {
         unsafe {
             let addr = transmute::<Address, evmc_address>(addr);
-            let key = transmute::<Bytes32, evmc_bytes32>(key);
+            let key = transmute::<Bytes32, evmc_bytes32>(key.to_be());
             let is_cold = matches!(
                 self.context.access_storage(&addr, &key),
                 evmc_access_status::EVMC_ACCESS_COLD
             );
             let result = self.context.get_storage(&addr, &key);
             Some(StateLoad::new(
-                transmute::<evmc_bytes32, Bytes32>(result),
+                Bytes32::from_be_bytes(result.bytes),
                 is_cold,
             ))
         }
@@ -103,8 +103,8 @@ impl<'a> Host for EvmcDelegateHost<'a> {
     ) -> Option<StateLoad<SStoreResult>> {
         unsafe {
             let addr = transmute::<Address, evmc_address>(addr);
-            let key = transmute::<Bytes32, evmc_bytes32>(key);
-            let value = transmute::<Bytes32, evmc_bytes32>(value);
+            let key = transmute::<Bytes32, evmc_bytes32>(key.to_be());
+            let value = transmute::<Bytes32, evmc_bytes32>(value.to_be());
             let is_cold = matches!(
                 self.context.access_storage(&addr, &key),
                 evmc_access_status::EVMC_ACCESS_COLD
@@ -120,7 +120,7 @@ impl<'a> Host for EvmcDelegateHost<'a> {
     fn tload(&mut self, addr: Address, key: Bytes32) -> Bytes32 {
         unsafe {
             let addr = transmute::<Address, evmc_address>(addr);
-            let key = transmute::<Bytes32, evmc_bytes32>(key);
+            let key = transmute::<Bytes32, evmc_bytes32>(key.to_be());
             let result = self.context.get_storage(&addr, &key);
             Bytes32::from_be_bytes(result.bytes)
         }
@@ -129,8 +129,8 @@ impl<'a> Host for EvmcDelegateHost<'a> {
     fn tstore(&mut self, addr: Address, key: Bytes32, value: Bytes32) {
         unsafe {
             let addr = transmute::<Address, evmc_address>(addr);
-            let key = transmute::<Bytes32, evmc_bytes32>(key);
-            let value = transmute::<Bytes32, evmc_bytes32>(value);
+            let key = transmute::<Bytes32, evmc_bytes32>(key.to_be());
+            let value = transmute::<Bytes32, evmc_bytes32>(value.to_be());
             self.context.set_storage(&addr, &key, &value);
         }
     }
@@ -185,7 +185,7 @@ impl<'a> Host for EvmcDelegateHost<'a> {
         &mut self,
         addr: Address,
         target: Address,
-    ) -> Option<StateLoad<SelfDestructResult>> {
+    ) -> Option<StateLoad<SelfdestructResult>> {
         unsafe {
             let addr = transmute::<Address, evmc_address>(addr);
             let target = transmute::<Address, evmc_address>(target);
@@ -198,7 +198,7 @@ impl<'a> Host for EvmcDelegateHost<'a> {
             let target_exists = self.context.account_exists(&target);
             let first_registerd = self.context.selfdestruct(&addr, &target);
             Some(StateLoad::new(
-                SelfDestructResult {
+                SelfdestructResult {
                     had_value,
                     target_exists,
                     previously_destroyed: !first_registerd,

@@ -3,7 +3,7 @@ use crate::conversion::builder::OpBuilder;
 use crate::errors::{CompileError, Result};
 use crate::value::ToContextValue;
 use dora_ir::IRTypes;
-use dora_runtime::constants::{MAX_STACK_SIZE, STACK_PTR_GLOBAL};
+use dora_runtime::constants::MAX_STACK_SIZE;
 use melior::dialect::arith::CmpiPredicate;
 use melior::dialect::llvm::LoadStoreOptions;
 use melior::dialect::{arith, cf, func, llvm};
@@ -73,14 +73,14 @@ impl<'a, 'c> std::ops::Deref for EVMBuilder<'a, 'c> {
     }
 }
 
-impl<'a, 'c> std::ops::DerefMut for EVMBuilder<'a, 'c> {
+impl std::ops::DerefMut for EVMBuilder<'_, '_> {
     #[inline]
     fn deref_mut(&mut self) -> &mut Self::Target {
         &mut self.builder
     }
 }
 
-impl<'a, 'c> IRTypes for EVMBuilder<'a, 'c> {
+impl<'a> IRTypes for EVMBuilder<'a, '_> {
     type Type = Type<'a>;
     type Value = Value<'a, 'a>;
     type Region = Region<'a>;
@@ -88,7 +88,7 @@ impl<'a, 'c> IRTypes for EVMBuilder<'a, 'c> {
     type Operation = OperationRef<'a, 'a>;
 }
 
-impl<'a, 'c> TypeMethods for EVMBuilder<'a, 'c> {
+impl TypeMethods for EVMBuilder<'_, '_> {
     fn type_ptr(&self) -> Self::Type {
         self.builder.ptr_ty()
     }
@@ -98,12 +98,12 @@ impl<'a, 'c> TypeMethods for EVMBuilder<'a, 'c> {
     }
 }
 
-impl<'a, 'c> crate::backend::Builder for EVMBuilder<'a, 'c> {
+impl crate::backend::Builder for EVMBuilder<'_, '_> {
     fn bool_const(&mut self, value: bool) -> Result<Self::Value> {
-        let ty = self.intrinsics.i1_ty;
+        let uint1 = self.i1_ty();
         let op = self.builder.create(arith::constant(
             self.context(),
-            IntegerAttribute::new(ty, if value { 1 } else { 0 }).into(),
+            IntegerAttribute::new(uint1, if value { 1 } else { 0 }).into(),
             self.location(),
         ));
         Ok(op.result(0)?.to_ctx_value())
@@ -127,12 +127,20 @@ impl<'a, 'c> crate::backend::Builder for EVMBuilder<'a, 'c> {
         Ok(op.result(0)?.to_ctx_value())
     }
 
+    fn iconst_8(&mut self, value: i8) -> Result<Self::Value> {
+        self.iconst(self.i8_ty(), value as i64)
+    }
+
+    fn iconst_16(&mut self, value: i16) -> Result<Self::Value> {
+        self.iconst(self.i16_ty(), value as i64)
+    }
+
     fn iconst_32(&mut self, value: i32) -> Result<Self::Value> {
-        self.iconst(self.intrinsics.i32_ty, value as i64)
+        self.iconst(self.i32_ty(), value as i64)
     }
 
     fn iconst_64(&mut self, value: i64) -> Result<Self::Value> {
-        self.iconst(self.intrinsics.i64_ty, value)
+        self.iconst(self.i64_ty(), value)
     }
 
     fn iconst_256(&mut self, value: BigUint) -> Result<Self::Value> {
@@ -156,53 +164,54 @@ impl<'a, 'c> crate::backend::Builder for EVMBuilder<'a, 'c> {
     }
 
     fn fconst_32(&mut self, value: f32) -> Result<Self::Value> {
-        self.fconst(self.intrinsics.f32_ty, value as f64)
+        self.fconst(self.i32_ty(), value as f64)
     }
 
     fn fconst_64(&mut self, value: f64) -> Result<Self::Value> {
-        self.fconst(self.intrinsics.f64_ty, value)
+        self.fconst(self.i64_ty(), value)
     }
 
     fn stack_push(&mut self, value: Self::Value) -> Result<()> {
         let value = unsafe { Value::from_raw(value.to_raw()) };
-
         let builder = &self.builder;
-        // Get address of stack pointer global
-        let stack_ptr_ptr = builder.make(builder.addressof(STACK_PTR_GLOBAL, builder.ptr_ty()))?;
+
+        let uint256 = builder.i256_ty();
+        let ptr_type = builder.ptr_ty();
+
         // Load stack pointer
-        let stack_ptr = builder.make(builder.load(stack_ptr_ptr, builder.ptr_ty()))?;
+        let stack_ptr = builder.make(builder.load(self.ctx.values.stack_top_ptr, ptr_type))?;
         builder.create(builder.store(value, stack_ptr));
         // Increment stack pointer
         let new_stack_ptr = builder.make(llvm::get_element_ptr(
             builder.context(),
             stack_ptr,
             DenseI32ArrayAttribute::new(builder.context(), &[1]),
-            builder.intrinsics.i256_ty,
-            builder.ptr_ty(),
+            uint256,
+            ptr_type,
             builder.get_insert_location(),
         ))?;
-        builder.create(builder.store(new_stack_ptr, stack_ptr_ptr));
-
+        builder.create(builder.store(new_stack_ptr, self.ctx.values.stack_top_ptr));
         Ok(())
     }
 
     fn stack_pop(&mut self) -> Result<Self::Value> {
         let builder = &self.builder;
-        // Get address of stack pointer global
-        let stack_ptr_ptr = builder.make(builder.addressof(STACK_PTR_GLOBAL, builder.ptr_ty()))?;
+
+        let uint256 = builder.i256_ty();
+        let ptr_type = builder.ptr_ty();
+
         // Load stack pointer
-        let stack_ptr = builder.make(builder.load(stack_ptr_ptr, builder.ptr_ty()))?;
-        // Decrement stack pointer
+        let stack_ptr = builder.make(builder.load(self.ctx.values.stack_top_ptr, ptr_type))?;
         let old_stack_ptr = builder.make(llvm::get_element_ptr(
             builder.context(),
             stack_ptr,
             DenseI32ArrayAttribute::new(builder.context(), &[-1]),
-            builder.intrinsics.i256_ty,
-            builder.ptr_ty(),
+            uint256,
+            ptr_type,
             builder.get_insert_location(),
         ))?;
-        let value = builder.make(builder.load(old_stack_ptr, builder.intrinsics.i256_ty))?;
-        builder.create(builder.store(old_stack_ptr, stack_ptr_ptr));
+        let value = builder.make(builder.load(old_stack_ptr, uint256))?;
+        builder.create(builder.store(old_stack_ptr, self.ctx.values.stack_top_ptr));
         Ok(unsafe { Value::from_raw(value.to_raw()) })
     }
 
@@ -212,41 +221,46 @@ impl<'a, 'c> crate::backend::Builder for EVMBuilder<'a, 'c> {
     }
 
     fn stack_peek_nth(&mut self, n: usize) -> Result<Self::Value> {
-        debug_assert!(n < MAX_STACK_SIZE);
-
+        if !self.ctx.program.is_eof() {
+            debug_assert!(n < MAX_STACK_SIZE);
+        }
         let builder = &self.builder;
-        // Get address of stack pointer global
-        let stack_ptr_ptr = builder.make(builder.addressof(STACK_PTR_GLOBAL, builder.ptr_ty()))?;
+
+        let uint256 = builder.i256_ty();
+        let ptr_type = builder.ptr_ty();
+
         // Load stack pointer
-        let stack_ptr = builder.make(builder.load(stack_ptr_ptr, builder.ptr_ty()))?;
+        let stack_ptr = builder.make(builder.load(self.ctx.values.stack_top_ptr, ptr_type))?;
         // n-th stack pointer
         let nth_stack_ptr = builder.make(llvm::get_element_ptr(
             builder.context(),
             stack_ptr,
             DenseI32ArrayAttribute::new(builder.context(), &[-(n as i32)]),
-            builder.intrinsics.i256_ty,
-            builder.ptr_ty(),
+            uint256,
+            ptr_type,
             builder.get_insert_location(),
         ))?;
-        let value = builder.make(builder.load(nth_stack_ptr, builder.intrinsics.i256_ty))?;
+        let value = builder.make(builder.load(nth_stack_ptr, uint256))?;
         Ok(unsafe { Value::from_raw(value.to_raw()) })
     }
 
     fn stack_exchange(&mut self, n: usize, m: usize) -> Result<()> {
         let n = n + 1;
-        let m = m + 1;
+        let m = n + m;
         let builder = &self.builder;
-        // Get address of stack pointer global
-        let stack_ptr_ptr = builder.make(builder.addressof(STACK_PTR_GLOBAL, builder.ptr_ty()))?;
+
+        let uint256 = builder.i256_ty();
+        let ptr_type = builder.ptr_ty();
+
         // Load stack pointer
-        let stack_ptr = builder.make(builder.load(stack_ptr_ptr, builder.ptr_ty()))?;
+        let stack_ptr = builder.make(builder.load(self.ctx.values.stack_top_ptr, ptr_type))?;
         // n-th stack pointer
         let nth_stack_ptr = builder.make(llvm::get_element_ptr(
             builder.context(),
             stack_ptr,
             DenseI32ArrayAttribute::new(builder.context(), &[-(n as i32)]),
-            builder.intrinsics.i256_ty,
-            builder.ptr_ty(),
+            uint256,
+            ptr_type,
             builder.get_insert_location(),
         ))?;
         // m-th stack pointer
@@ -254,12 +268,12 @@ impl<'a, 'c> crate::backend::Builder for EVMBuilder<'a, 'c> {
             builder.context(),
             stack_ptr,
             DenseI32ArrayAttribute::new(builder.context(), &[-(m as i32)]),
-            builder.intrinsics.i256_ty,
-            builder.ptr_ty(),
+            uint256,
+            ptr_type,
             builder.get_insert_location(),
         ))?;
-        let n_value = builder.make(builder.load(nth_stack_ptr, builder.intrinsics.i256_ty))?;
-        let m_value = builder.make(builder.load(mth_stack_ptr, builder.intrinsics.i256_ty))?;
+        let n_value = builder.make(builder.load(nth_stack_ptr, uint256))?;
+        let m_value = builder.make(builder.load(mth_stack_ptr, uint256))?;
         builder.create(builder.store(n_value, mth_stack_ptr));
         builder.create(builder.store(m_value, nth_stack_ptr));
         Ok(())
@@ -412,6 +426,13 @@ impl<'a, 'c> crate::backend::Builder for EVMBuilder<'a, 'c> {
         let op = self
             .builder
             .create(arith::select(cond, then_value, else_value, self.location()));
+        Ok(op.result(0)?.to_ctx_value())
+    }
+
+    fn iadd(&mut self, lhs: Self::Value, rhs: Self::Value) -> Result<Self::Value> {
+        let op = self.builder.create(
+            dora_ir::evm::add(self.context(), self.uint256_ty(), lhs, rhs, self.location()).into(),
+        );
         Ok(op.result(0)?.to_ctx_value())
     }
 
@@ -725,16 +746,9 @@ impl<'a, 'c> crate::backend::Builder for EVMBuilder<'a, 'c> {
     fn unreachable(&mut self) {
         self.builder.create(llvm::unreachable(self.location()));
     }
-
-    fn iadd(&mut self, lhs: Self::Value, rhs: Self::Value) -> Result<Self::Value> {
-        let op = self.builder.create(
-            dora_ir::evm::add(self.context(), self.uint256_ty(), lhs, rhs, self.location()).into(),
-        );
-        Ok(op.result(0)?.to_ctx_value())
-    }
 }
 
-impl<'a, 'c> crate::backend::EVMBuilder for EVMBuilder<'a, 'c> {
+impl crate::backend::EVMBuilder for EVMBuilder<'_, '_> {
     fn keccak256(&mut self, start: Self::Value, length: Self::Value) -> Result<Self::Value> {
         let op = self.builder.create(
             dora_ir::evm::keccak_256(

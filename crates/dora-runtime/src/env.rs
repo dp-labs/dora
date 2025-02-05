@@ -17,8 +17,9 @@ use super::constants::{
     MAX_BLOB_NUMBER_PER_BLOCK, VERSIONED_HASH_VERSION_KZG,
 };
 use super::result::InvalidTransaction;
-use dora_primitives::{Address, Bytes, B256, U256};
-use revm_primitives::{calc_blob_gasprice, AuthorizationList, SpecId, GAS_PER_BLOB};
+use dora_primitives::{
+    calc_blob_gasprice, Address, AuthorizationList, Bytes, SpecId, B256, GAS_PER_BLOB, U256,
+};
 
 /// Represents the execution environment for the EVM, including block, transaction, and EVM configuration.
 ///
@@ -335,7 +336,7 @@ impl CfgEnv {
 pub struct BlockEnv {
     /// The number of ancestor blocks of this block (block height).
     pub number: U256,
-    /// Coinbase or miner or address that created and signed the block.
+    /// Coinbase or miner address that created and signed the block.
     pub coinbase: Address,
     /// The timestamp of the block in seconds since the UNIX epoch.
     pub timestamp: U256,

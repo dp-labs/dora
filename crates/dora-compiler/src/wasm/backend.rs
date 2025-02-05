@@ -1,11 +1,18 @@
 use dora_ir::IRTypes;
-use melior::dialect::arith::{self, CmpfPredicate, CmpiPredicate};
-use melior::ir::{
-    r#type::IntegerType, BlockRef, OperationRef, Region, Type, TypeLike, Value, ValueLike,
+use dora_runtime::symbols;
+use melior::dialect::{
+    arith::{self, CmpfPredicate, CmpiPredicate},
+    cf, func,
 };
+use melior::ir::{
+    attribute::FlatSymbolRefAttribute, r#type::IntegerType, BlockRef, OperationRef, Region, Type,
+    TypeLike, Value, ValueLike,
+};
+use wasmer_types::TrapCode;
 
 use crate::errors::Result;
 use crate::value::ToContextValue;
+use crate::{backend::IntCC, conversion::rewriter::Rewriter};
 use crate::{backend::TypeMethods, context::Context, conversion::builder::OpBuilder, state::State};
 
 use super::intrinsics::WASMIntrinsics;
@@ -37,12 +44,11 @@ use super::intrinsics::WASMIntrinsics;
 pub struct WASMBuilder<'c, 'a> {
     /// A mutable reference to the WASM backend containing the context and state.
     pub backend: &'a mut WASMBackend<'c>,
-
     /// The builder used to generate operations within the WASM execution context.
     pub builder: OpBuilder<'c, 'a>,
 }
 
-impl<'c, 'a> std::ops::Deref for WASMBuilder<'c, 'a> {
+impl<'c> std::ops::Deref for WASMBuilder<'c, '_> {
     type Target = WASMBackend<'c>;
 
     #[inline]
@@ -51,7 +57,7 @@ impl<'c, 'a> std::ops::Deref for WASMBuilder<'c, 'a> {
     }
 }
 
-impl<'c, 'a> std::ops::DerefMut for WASMBuilder<'c, 'a> {
+impl std::ops::DerefMut for WASMBuilder<'_, '_> {
     #[inline]
     fn deref_mut(&mut self) -> &mut Self::Target {
         self.backend
@@ -88,10 +94,8 @@ impl<'c, 'a> std::ops::DerefMut for WASMBuilder<'c, 'a> {
 pub struct WASMBackend<'c> {
     /// A reference to the MLIR context used in the WASM backend.
     pub ctx: &'c Context,
-
     /// WebAssembly-specific intrinsic types, such as i32, i64, f32, and f64.
     pub intrinsics: WASMIntrinsics<'c>,
-
     /// The current state of WASM execution, including the stack and control structures.
     pub state: State<'c, 'c>,
 }
@@ -114,7 +118,7 @@ impl<'c> IRTypes for WASMBackend<'c> {
     type Operation = OperationRef<'c, 'c>;
 }
 
-impl<'c> TypeMethods for WASMBackend<'c> {
+impl TypeMethods for WASMBackend<'_> {
     fn type_ptr(&self) -> Self::Type {
         self.intrinsics.ptr_ty
     }
@@ -124,7 +128,10 @@ impl<'c> TypeMethods for WASMBackend<'c> {
     }
 }
 
-pub fn is_zero<'c, 'a>(builder: &OpBuilder<'c, 'a>, value: Value<'c, 'a>) -> Result<Value<'c, 'a>> {
+pub(crate) fn is_zero<'c, 'a>(
+    builder: &OpBuilder<'c, 'a>,
+    value: Value<'c, 'a>,
+) -> Result<Value<'c, 'a>> {
     let ty = value.r#type();
     if ty.is_integer() {
         Ok(builder
@@ -141,7 +148,7 @@ pub fn is_zero<'c, 'a>(builder: &OpBuilder<'c, 'a>, value: Value<'c, 'a>) -> Res
             ))
             .result(0)?
             .to_ctx_value())
-    } else {
+    } else if ty.is_float() {
         Ok(builder
             .create(arith::cmpf(
                 builder.context(),
@@ -156,5 +163,149 @@ pub fn is_zero<'c, 'a>(builder: &OpBuilder<'c, 'a>, value: Value<'c, 'a>) -> Res
             ))
             .result(0)?
             .to_ctx_value())
+    } else {
+        // WASM pointer type
+        let value = builder.make(builder.load(value, builder.i32_ty()))?;
+        let result = builder.make(builder.icmp_imm(IntCC::Equal, value, 0)?)?;
+        Ok(unsafe { Value::from_raw(result.to_raw()) })
     }
+}
+
+pub(crate) fn trap<'c, 'a>(
+    builder: &OpBuilder<'c, 'a>,
+    code: TrapCode,
+    continue_block: BlockRef<'c, 'a>,
+) -> Result<()> {
+    let ctx = builder.ctx;
+    let code = builder.make(builder.iconst_32(code as _))?;
+    builder.create(func::call(
+        ctx,
+        FlatSymbolRefAttribute::new(ctx, symbols::wasm::RAISE_TRAP),
+        &[code],
+        &[],
+        builder.get_insert_location(),
+    ));
+    builder.create(cf::br(&continue_block, &[], builder.get_insert_location()));
+    Ok(())
+}
+
+/// Convert floating point vector to integer and saturate when out of range.
+/// Reference https://github.com/WebAssembly/nontrapping-float-to-int-conversions/blob/master/proposals/nontrapping-float-to-int-conversion/Overview.md
+pub(crate) fn trunc_sat_scalar<'c, 'a>(
+    rewriter: &Rewriter<'c, 'a>,
+    int_ty: Type<'c>,
+    lower_bound: u64, // Exclusive (least representable value)
+    upper_bound: u64, // Exclusive (greatest representable value)
+    int_min_value: u64,
+    int_max_value: u64,
+    value: Value<'c, 'a>, // float value
+) -> Result<Value<'c, 'a>> {
+    // a) Compare value with itself to identify NaN.
+    // b) Compare value inttofp(upper_bound) to identify values that need to
+    //    saturate to max.
+    // c) Compare value with inttofp(lower_bound) to identify values that need
+    //    to saturate to min.
+    // d) Use select to pick from either zero or the input vector depending on
+    //    whether the comparison indicates that we have an unrepresentable
+    //    value.
+    // e) Now that the value is safe, fpto[su]i it.
+    // f) Use our previous comparison results to replace certain zeros with
+    //    int_min or int_max.
+
+    let is_signed = int_min_value != 0;
+    let int_min_value = rewriter.make(rewriter.iconst(int_ty, int_min_value as i64))?;
+    let int_max_value = rewriter.make(rewriter.iconst(int_ty, int_max_value as i64))?;
+
+    let lower_bound = if is_signed {
+        rewriter.make(arith::sitofp(
+            rewriter.make(rewriter.iconst(int_ty, lower_bound as i64))?,
+            value.r#type(),
+            rewriter.get_insert_location(),
+        ))?
+    } else {
+        rewriter.make(arith::uitofp(
+            rewriter.make(rewriter.iconst(int_ty, lower_bound as i64))?,
+            value.r#type(),
+            rewriter.get_insert_location(),
+        ))?
+    };
+    let upper_bound = if is_signed {
+        rewriter.make(arith::sitofp(
+            rewriter.make(rewriter.iconst(int_ty, upper_bound as i64))?,
+            value.r#type(),
+            rewriter.get_insert_location(),
+        ))?
+    } else {
+        rewriter.make(arith::uitofp(
+            rewriter.make(rewriter.iconst(int_ty, upper_bound as i64))?,
+            value.r#type(),
+            rewriter.get_insert_location(),
+        ))?
+    };
+
+    let zero = rewriter.make(rewriter.fconst(value.r#type(), 0.0))?;
+
+    let nan_cmp = rewriter.make(arith::cmpf(
+        rewriter.context(),
+        CmpfPredicate::Uno,
+        value,
+        zero,
+        rewriter.get_insert_location(),
+    ))?;
+
+    let above_upper_bound_cmp = rewriter.make(arith::cmpf(
+        rewriter.context(),
+        CmpfPredicate::Ogt,
+        value,
+        upper_bound,
+        rewriter.get_insert_location(),
+    ))?;
+
+    let below_lower_bound_cmp = rewriter.make(arith::cmpf(
+        rewriter.context(),
+        CmpfPredicate::Olt,
+        value,
+        lower_bound,
+        rewriter.get_insert_location(),
+    ))?;
+
+    let not_representable = rewriter.make(arith::ori(
+        nan_cmp,
+        above_upper_bound_cmp,
+        rewriter.get_insert_location(),
+    ))?;
+    let not_representable = rewriter.make(arith::ori(
+        not_representable,
+        below_lower_bound_cmp,
+        rewriter.get_insert_location(),
+    ))?;
+
+    let value = rewriter.make(arith::select(
+        not_representable,
+        zero,
+        value,
+        rewriter.get_insert_location(),
+    ))?;
+
+    let value = if is_signed {
+        rewriter.make(arith::fptosi(value, int_ty, rewriter.get_insert_location()))?
+    } else {
+        rewriter.make(arith::fptoui(value, int_ty, rewriter.get_insert_location()))?
+    };
+
+    let value = rewriter.make(arith::select(
+        above_upper_bound_cmp,
+        int_max_value,
+        value,
+        rewriter.get_insert_location(),
+    ))?;
+
+    let value = rewriter.make(arith::select(
+        below_lower_bound_cmp,
+        int_min_value,
+        value,
+        rewriter.get_insert_location(),
+    ))?;
+
+    Ok(value.to_ctx_value())
 }

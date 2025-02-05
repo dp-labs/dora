@@ -1,46 +1,49 @@
 use crate::{
-    arith_constant,
-    conversion::rewriter::DeferredRewriter,
-    create_var,
+    block_argument, create_var,
     dora::{conversion::ConversionPass, memory},
     errors::Result,
-    load_var, operands, rewrite_ctx, syscall_ctx,
+    load_var, operands, rewrite_ctx,
 };
 use dora_runtime::symbols;
 use melior::{
     dialect::{
         arith::{self},
         func,
-        llvm::{self, AllocaOptions, LoadStoreOptions},
+        llvm::{self},
     },
     ir::{
-        attribute::{FlatSymbolRefAttribute, IntegerAttribute, TypeAttribute},
+        attribute::{FlatSymbolRefAttribute, TypeAttribute},
         operation::OperationRef,
         r#type::IntegerType,
     },
     Context,
 };
 
-impl<'c> ConversionPass<'c> {
+impl ConversionPass<'_> {
     pub(crate) fn chainid(context: &Context, op: &OperationRef<'_, '_>) -> Result<()> {
-        syscall_ctx!(op, syscall_ctx);
+        block_argument!(op, syscall_ctx);
         rewrite_ctx!(context, op, rewriter, location);
+
+        let uint64 = rewriter.i64_ty();
+        let uint256 = rewriter.i256_ty();
 
         let chainid = rewriter.make(func::call(
             context,
             FlatSymbolRefAttribute::new(context, symbols::CHAINID),
             &[syscall_ctx.into()],
-            &[rewriter.intrinsics.i64_ty],
+            &[uint64],
             location,
         ))?;
-        rewriter.make(arith::extui(chainid, rewriter.intrinsics.i256_ty, location))?;
+        rewriter.make(arith::extui(chainid, uint256, location))?;
         Ok(())
     }
 
     pub(crate) fn coinbase(context: &Context, op: &OperationRef<'_, '_>) -> Result<()> {
-        syscall_ctx!(op, syscall_ctx);
+        block_argument!(op, syscall_ctx);
         rewrite_ctx!(context, op, rewriter, location);
+
         let uint160 = IntegerType::new(context, 160).into();
+        let uint256 = rewriter.i256_ty();
 
         let coinbase_ptr = rewriter.make(func::call(
             context,
@@ -56,17 +59,15 @@ impl<'c> ConversionPass<'c> {
             coinbase
         };
 
-        rewriter.make(arith::extui(
-            coinbase,
-            rewriter.intrinsics.i256_ty,
-            location,
-        ))?;
+        rewriter.make(arith::extui(coinbase, uint256, location))?;
         Ok(())
     }
 
     pub(crate) fn timestamp(context: &Context, op: &OperationRef<'_, '_>) -> Result<()> {
-        syscall_ctx!(op, syscall_ctx);
+        block_argument!(op, syscall_ctx);
         rewrite_ctx!(context, op, rewriter, location);
+
+        let uint256 = rewriter.i256_ty();
 
         let timestamp_ptr = create_var!(rewriter, context, location);
         load_var!(
@@ -77,15 +78,17 @@ impl<'c> ConversionPass<'c> {
             &[timestamp_ptr],
             [],
             timestamp_ptr,
-            rewriter.intrinsics.i256_ty,
+            uint256,
             location
         );
         Ok(())
     }
 
     pub(crate) fn number(context: &Context, op: &OperationRef<'_, '_>) -> Result<()> {
-        syscall_ctx!(op, syscall_ctx);
+        block_argument!(op, syscall_ctx);
         rewrite_ctx!(context, op, rewriter, location);
+
+        let uint256 = rewriter.i256_ty();
 
         let number_ptr = create_var!(rewriter, context, location);
         load_var!(
@@ -96,15 +99,17 @@ impl<'c> ConversionPass<'c> {
             &[number_ptr],
             [],
             number_ptr,
-            rewriter.intrinsics.i256_ty,
+            uint256,
             location
         );
         Ok(())
     }
 
     pub(crate) fn prevrandao(context: &Context, op: &OperationRef<'_, '_>) -> Result<()> {
-        syscall_ctx!(op, syscall_ctx);
+        block_argument!(op, syscall_ctx);
         rewrite_ctx!(context, op, rewriter, location);
+
+        let uint256 = rewriter.i256_ty();
 
         let prevrandao_ptr = create_var!(rewriter, context, location);
         load_var!(
@@ -115,15 +120,17 @@ impl<'c> ConversionPass<'c> {
             &[prevrandao_ptr],
             [],
             prevrandao_ptr,
-            rewriter.intrinsics.i256_ty,
+            uint256,
             location
         );
         Ok(())
     }
 
     pub(crate) fn gaslimit(context: &Context, op: &OperationRef<'_, '_>) -> Result<()> {
-        syscall_ctx!(op, syscall_ctx);
+        block_argument!(op, syscall_ctx);
         rewrite_ctx!(context, op, rewriter, location);
+
+        let uint256 = rewriter.i256_ty();
 
         let gaslimit_ptr = create_var!(rewriter, context, location);
         load_var!(
@@ -134,15 +141,17 @@ impl<'c> ConversionPass<'c> {
             &[gaslimit_ptr],
             [],
             gaslimit_ptr,
-            rewriter.intrinsics.i256_ty,
+            uint256,
             location
         );
         Ok(())
     }
 
     pub(crate) fn gasprice(context: &Context, op: &OperationRef<'_, '_>) -> Result<()> {
-        syscall_ctx!(op, syscall_ctx);
+        block_argument!(op, syscall_ctx);
         rewrite_ctx!(context, op, rewriter, location);
+
+        let uint256 = rewriter.i256_ty();
 
         let gasprice_ptr = create_var!(rewriter, context, location);
         load_var!(
@@ -153,15 +162,17 @@ impl<'c> ConversionPass<'c> {
             &[gasprice_ptr],
             [],
             gasprice_ptr,
-            rewriter.intrinsics.i256_ty,
+            uint256,
             location
         );
         Ok(())
     }
 
     pub(crate) fn basefee(context: &Context, op: &OperationRef<'_, '_>) -> Result<()> {
-        syscall_ctx!(op, syscall_ctx);
+        block_argument!(op, syscall_ctx);
         rewrite_ctx!(context, op, rewriter, location);
+
+        let uint256 = rewriter.i256_ty();
 
         let basefee_ptr = create_var!(rewriter, context, location);
         load_var!(
@@ -172,15 +183,17 @@ impl<'c> ConversionPass<'c> {
             &[basefee_ptr],
             [],
             basefee_ptr,
-            rewriter.intrinsics.i256_ty,
+            uint256,
             location
         );
         Ok(())
     }
 
     pub(crate) fn origin(context: &Context, op: &OperationRef<'_, '_>) -> Result<()> {
-        syscall_ctx!(op, syscall_ctx);
+        block_argument!(op, syscall_ctx);
         rewrite_ctx!(context, op, rewriter, location);
+
+        let uint256 = rewriter.i256_ty();
 
         let origin_ptr = create_var!(rewriter, context, location);
         load_var!(
@@ -191,7 +204,7 @@ impl<'c> ConversionPass<'c> {
             &[origin_ptr],
             [],
             origin_ptr,
-            rewriter.intrinsics.i256_ty,
+            uint256,
             location
         );
         Ok(())
@@ -199,8 +212,10 @@ impl<'c> ConversionPass<'c> {
 
     pub(crate) fn blobhash(context: &Context, op: &OperationRef<'_, '_>) -> Result<()> {
         operands!(op, index);
-        syscall_ctx!(op, syscall_ctx);
+        block_argument!(op, syscall_ctx);
         rewrite_ctx!(context, op, rewriter, location);
+
+        let uint256 = rewriter.i256_ty();
 
         let index_ptr =
             memory::allocate_u256_and_assign_value(context, &rewriter, index, location)?;
@@ -212,15 +227,17 @@ impl<'c> ConversionPass<'c> {
             &[index_ptr],
             [],
             index_ptr,
-            rewriter.intrinsics.i256_ty,
+            uint256,
             location
         );
         Ok(())
     }
 
     pub(crate) fn blobbasefee(context: &Context, op: &OperationRef<'_, '_>) -> Result<()> {
-        syscall_ctx!(op, syscall_ctx);
+        block_argument!(op, syscall_ctx);
         rewrite_ctx!(context, op, rewriter, location);
+
+        let uint256 = rewriter.i256_ty();
 
         let blobbasefee_ptr = create_var!(rewriter, context, location);
         load_var!(
@@ -231,7 +248,7 @@ impl<'c> ConversionPass<'c> {
             &[blobbasefee_ptr],
             [],
             blobbasefee_ptr,
-            rewriter.intrinsics.i256_ty,
+            uint256,
             location
         );
         Ok(())

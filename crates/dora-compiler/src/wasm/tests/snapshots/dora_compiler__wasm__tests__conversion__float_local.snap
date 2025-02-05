@@ -1,0 +1,66 @@
+---
+source: crates/dora-compiler/src/wasm/tests/conversion.rs
+expression: op
+snapshot_kind: text
+---
+module {
+  func.func public @f32_local(%arg0: !llvm.ptr) -> f32 attributes {llvm.emit_c_interface} {
+    %cst = arith.constant 0.000000e+00 : f32
+    %c1_i64 = arith.constant 1 : i64
+    %0 = llvm.alloca %c1_i64 x f32 : (i64) -> !llvm.ptr
+    llvm.store %cst, %0 : f32, !llvm.ptr
+    cf.br ^bb1
+  ^bb1:  // pred: ^bb0
+    %c1092616192_i32 = arith.constant 1092616192 : i32
+    %1 = arith.bitcast %c1092616192_i32 : i32 to f32
+    llvm.store %1, %0 : f32, !llvm.ptr
+    %2 = llvm.load %0 : !llvm.ptr -> f32
+    cf.br ^bb2(%2 : f32)
+  ^bb2(%3: f32):  // pred: ^bb1
+    return %3 : f32
+  }
+  func.func public @f64_local(%arg0: !llvm.ptr) -> f64 attributes {llvm.emit_c_interface} {
+    %cst = arith.constant 0.000000e+00 : f64
+    %c1_i64 = arith.constant 1 : i64
+    %0 = llvm.alloca %c1_i64 x f64 : (i64) -> !llvm.ptr
+    llvm.store %cst, %0 : f64, !llvm.ptr
+    cf.br ^bb1
+  ^bb1:  // pred: ^bb0
+    %c4621819117588971520_i64 = arith.constant 4621819117588971520 : i64
+    %1 = arith.bitcast %c4621819117588971520_i64 : i64 to f64
+    llvm.store %1, %0 : f64, !llvm.ptr
+    %2 = llvm.load %0 : !llvm.ptr -> f64
+    cf.br ^bb2(%2 : f64)
+  ^bb2(%3: f64):  // pred: ^bb1
+    return %3 : f64
+  }
+  func.func private @dora_fn_wasm_table_init(!llvm.ptr, i32, i32, i32, i32, i32)
+  func.func private @dora_fn_wasm_table_copy(!llvm.ptr, i32, i32, i32, i32, i32)
+  func.func private @dora_fn_wasm_table_fill(!llvm.ptr, i32, i32, !llvm.ptr, i32)
+  func.func private @dora_fn_wasm_table_size(!llvm.ptr, i32) -> i32
+  func.func private @dora_fn_wasm_table_get(!llvm.ptr, i32, i32) -> !llvm.ptr
+  func.func private @dora_fn_wasm_table_set(!llvm.ptr, i32, i32, !llvm.ptr)
+  func.func private @dora_fn_wasm_table_grow(!llvm.ptr, !llvm.ptr, i32, i32) -> i32
+  func.func private @dora_fn_wasm_imported_table_size(!llvm.ptr, i32) -> i32
+  func.func private @dora_fn_wasm_imported_table_get(!llvm.ptr, i32, i32) -> !llvm.ptr
+  func.func private @dora_fn_wasm_imported_table_grow(!llvm.ptr, !llvm.ptr, i32, i32) -> i32
+  func.func private @dora_fn_wasm_memory_init(!llvm.ptr, i32, i32, i32, i32, i32)
+  func.func private @dora_fn_wasm_memory_size(!llvm.ptr, i32) -> i32
+  func.func private @dora_fn_wasm_memory_grow(!llvm.ptr, i32, i32) -> i32
+  func.func private @dora_fn_wasm_memory_copy(!llvm.ptr, i32, i32, i32, i32)
+  func.func private @dora_fn_wasm_memory_fill(!llvm.ptr, i32, i32, i32, i32)
+  func.func private @dora_fn_wasm_memory_notify(!llvm.ptr, i32, i32, i32) -> i32
+  func.func private @dora_fn_wasm_memory_wait32(!llvm.ptr, i32, i32, i32, i64) -> i32
+  func.func private @dora_fn_wasm_memory_wait64(!llvm.ptr, i32, i32, i64, i64) -> i32
+  func.func private @dora_fn_wasm_imported_memory_size(!llvm.ptr, i32) -> i32
+  func.func private @dora_fn_wasm_imported_memory_grow(!llvm.ptr, i32, i32) -> i32
+  func.func private @dora_fn_wasm_imported_memory_copy(!llvm.ptr, i32, i32, i32, i32)
+  func.func private @dora_fn_wasm_imported_memory_fill(!llvm.ptr, i32, i32, i32, i32)
+  func.func private @dora_fn_wasm_imported_memory_notify(!llvm.ptr, i32, i32, i32) -> i32
+  func.func private @dora_fn_wasm_imported_memory_wait32(!llvm.ptr, i32, i32, i32, i64) -> i32
+  func.func private @dora_fn_wasm_imported_memory_wait64(!llvm.ptr, i32, i32, i64, i64) -> i32
+  func.func private @dora_fn_wasm_func_ref(!llvm.ptr, i32) -> !llvm.ptr
+  func.func private @dora_fn_wasm_data_drop(!llvm.ptr, i32)
+  func.func private @dora_fn_wasm_elem_drop(!llvm.ptr, i32)
+  func.func private @dora_fn_wasm_raise_trap(i32)
+}

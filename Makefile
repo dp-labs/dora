@@ -1,7 +1,10 @@
 TARGET_DIR ?= target/release
 
+bench:
+	cargo bench -p dora-bench
+
 build:
-	cargo build -r
+	cargo build -r --all
 
 build-bin:
 	cargo clean && cargo build -r --manifest-path crates/dora-cli/Cargo.toml

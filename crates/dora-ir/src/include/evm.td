@@ -956,10 +956,10 @@ def EVM_DataCopy : EVM_Op<"datacopy"> {
     This operation takes three `i256` operands from the stack: the destination memory offset, the source offset in the data section, and the number of bytes to copy.
   }];
 
-  let arguments = (ins I<256>:$mem_offset, I<256>:$offset, I<256>:$size);
+  let arguments = (ins I<256>:$memOffset, I<256>:$offset, I<256>:$size);
   let results = (outs);
 
-  let assemblyFormat = "$mem_offset `,` $offset `,` $size `:` type($mem_offset)";
+  let assemblyFormat = "$memOffset `,` $offset `,` $size `:` type($memOffset)";
 }
 
 // CallF Operation
@@ -995,10 +995,10 @@ def EVM_EofCreate : EVM_Op<"eofcreate"> {
     This operation takes one `i8` argument, which is the index of EOF subcontainer in the containers, and four `i256` operands from the stack: the amount of Ether to send, a salt value, the memory offset of the initialization code and the length of the initialization code, and It returns the address of the created contract, which is determined using the salt and the caller's address.
   }];
 
-  let arguments = (ins I8:$initcontainer_index, I<256>:$value, I<256>:$salt, I<256>:$input_offset, I<256>:$input_size);
+  let arguments = (ins I8:$initContainerIndex, I<256>:$value, I<256>:$salt, I<256>:$inputOffset, I<256>:$inputSize);
   let results = (outs I<256>:$address);
 
-  let assemblyFormat = "$initcontainer_index `,` $value `,` $salt `,` $input_offset `,` $input_size `:` type($initcontainer_index) `->` type($address)";
+  let assemblyFormat = "$initContainerIndex `,` $value `,` $salt `,` $inputOffset `,` $inputSize `:` type($initContainerIndex) `->` type($address)";
 }
 
 // ReturnContract Operation
@@ -1008,10 +1008,10 @@ def EVM_ReturnContract : EVM_Op<"returncontract"> {
     This operation takes one `i8` argument, which is the index of EOF containers and two `i256` operand from the stack:  the memory offset of the auxiliary data and the length of the auxiliary data to copy, and It appended to deployed container's data.
   }];
 
-  let arguments = (ins I8:$deploy_container_index, I<256>:$aux_data_offset, I<256>:$aux_data_size);
+  let arguments = (ins I8:$deployContainerIndex, I<256>:$auxDataOffset, I<256>:$auxDataSize);
   let results = (outs);
 
-  let assemblyFormat = "$deploy_container_index `,` $aux_data_offset `,` $aux_data_size `:` type($deploy_container_index)";
+  let assemblyFormat = "$deployContainerIndex `,` $auxDataOffset `,` $auxDataSize `:` type($deployContainerIndex)";
 }
 
 // Create Operation
@@ -1040,8 +1040,8 @@ def EVM_Call : EVM_Op<"call"> {
   let assemblyFormat = "$gas `,` $address `,` $value `,` $inputOffset `,` $inputLength `,` $outputOffset `,` $outputLength `:` type($gas) `->` type($success)";
 }
 
-// CallCode Operation
-def EVM_CallCode : EVM_Op<"callcode"> {
+// Callcode Operation
+def EVM_Callcode : EVM_Op<"callcode"> {
   let summary = "Calls a contract's code without modifying its storage.";
   let description = [{
     This operation is similar to `call`, but it uses the caller's storage rather than the storage of the called contract.
@@ -1099,7 +1099,7 @@ def EVM_ReturndataLoad : EVM_Op<"returndataload"> {
     This operation takes one `i256` operand from the stack: the offset in the returned data, and pushes the loaded word onto the stack.
   }];
 
-  let arguments = (ins I<256>:$offset);
+  let arguments = (ins I16:$offset);
   let results = (outs I<256>:$data);
 
   let assemblyFormat = "$offset `:` type($offset) `->` type($data)";
@@ -1112,10 +1112,10 @@ def EVM_ExtCall : EVM_Op<"extcall"> {
     This operation takes four `i256` operands from the stack: the target address, the memory offset of the input data, the length of the input data to copy, the amount of Ether to send, and It returns 0 if the call succeeds, 1 for revert if sub context reverted and 2 if it fails.
   }];
 
-  let arguments = (ins I<256>:$target_address, I<256>:$input_offset, I<256>:$input_size, I<256>:$value);
+  let arguments = (ins I<256>:$targetAddress, I<256>:$inputOffset, I<256>:$inputSize, I<256>:$value);
   let results = (outs I<256>:$status);
 
-  let assemblyFormat = "$target_address `,` $input_offset `,` $input_size `,` $value `:` type($target_address) `->` type($status)";
+  let assemblyFormat = "$targetAddress `,` $inputOffset `,` $inputSize `,` $value `:` type($targetAddress) `->` type($status)";
 }
 
 // ExtDelegatecall Operation
@@ -1125,10 +1125,10 @@ def EVM_ExtDelegatecall : EVM_Op<"extdelegatecall"> {
     This operation is similar to `extcall`, but it also keeps the caller's sender and value.
   }];
 
-  let arguments = (ins I<256>:$target_address, I<256>:$input_offset, I<256>:$input_size);
+  let arguments = (ins I<256>:$targetAddress, I<256>:$inputOffset, I<256>:$inputSize);
   let results = (outs I<256>:$status);
 
-  let assemblyFormat = "$target_address `,` $input_offset `,` $input_size `:` type($target_address) `->` type($status)";
+  let assemblyFormat = "$targetAddress `,` $inputOffset `,` $inputSize `:` type($targetAddress) `->` type($status)";
 }
 
 // Staticcall Operation
@@ -1151,10 +1151,10 @@ def EVM_ExtStaticcall : EVM_Op<"extstaticcall"> {
     This operation is similar to `extcall`, but it does not allow state modifications.
   }];
 
-  let arguments = (ins I<256>:$target_address, I<256>:$input_offset, I<256>:$input_size);
+  let arguments = (ins I<256>:$targetAddress, I<256>:$inputOffset, I<256>:$inputSize);
   let results = (outs I<256>:$status);
 
-  let assemblyFormat = "$target_address `,` $input_offset `,` $input_size `:` type($target_address) `->` type($status)";
+  let assemblyFormat = "$targetAddress `,` $inputOffset `,` $inputSize `:` type($targetAddress) `->` type($status)";
 }
 
 // Revert Operation
@@ -1183,8 +1183,8 @@ def EVM_Invalid : EVM_Op<"invalid"> {
   let assemblyFormat = "";
 }
 
-// SelfDestruct Operation
-def EVM_SelfDestruct : EVM_Op<"selfdestruct"> {
+// Selfdestruct Operation
+def EVM_Selfdestruct : EVM_Op<"selfdestruct"> {
   let summary = "Terminates the contract and sends its balance to a specified address.";
   let description = [{
     This operation takes one `i256` operand from the stack, which is the address to send the remaining balance to, and terminates the contract, removing it from the blockchain.

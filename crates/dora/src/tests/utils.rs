@@ -1,5 +1,7 @@
+use std::sync::Arc;
+
 use dora_compiler::evm::{program::Operation, Program};
-use dora_primitives::{spec::SpecId, Address, Bytecode, Bytes, Bytes32, U256};
+use dora_primitives::{spec::SpecId, Address, Bytecode, Bytes, Bytes32, EVMBytecode, Eof, U256};
 use dora_runtime::{
     context::{Contract, Log, RuntimeContext},
     db::MemoryDB,
@@ -9,7 +11,7 @@ use dora_runtime::{
 };
 use num_bigint::{BigInt, BigUint};
 
-use crate::{run_evm, run_with_context};
+use crate::{run, run_with_context};
 
 use super::INIT_GAS;
 
@@ -74,9 +76,34 @@ pub(crate) fn run_result_with_spec(operations: Vec<Operation>, spec_id: SpecId) 
     let initial_gas = env.tx.gas_limit;
     let contract = Contract::new_with_env(
         &env,
-        Bytecode::from(Program::from(operations).to_opcode()),
+        Bytecode::new(Program::operations_to_opcode(&operations).into()),
         None,
     );
+    let mut host = DummyHost::new(env);
+    let mut runtime_context = RuntimeContext::new(contract, 1, false, false, &mut host, spec_id);
+    runtime_context.set_returndata(vec![0xDD; 64]);
+    run_with_context::<MemoryDB>(&mut runtime_context, initial_gas).unwrap();
+    TestResult {
+        status: runtime_context.status(),
+        memory: runtime_context.memory().to_owned(),
+        output: runtime_context.return_values().to_vec(),
+        gas_used: initial_gas - runtime_context.gas_remaining(),
+        host,
+    }
+}
+
+#[inline]
+pub(crate) fn run_result_eof(eof: Eof) -> TestResult {
+    run_result_with_spec_eof(eof, SpecId::OSAKA)
+}
+
+pub(crate) fn run_result_with_spec_eof(eof: Eof, spec_id: SpecId) -> TestResult {
+    let mut env = Env::default();
+    env.tx.gas_limit = INIT_GAS;
+    env.tx.data = Bytes::from_static(&[0xCC; 64]);
+    let initial_gas = env.tx.gas_limit;
+    let contract =
+        Contract::new_with_env(&env, Bytecode::EVM(EVMBytecode::Eof(Arc::new(eof))), None);
     let mut host = DummyHost::new(env);
     let mut runtime_context = RuntimeContext::new(contract, 1, false, false, &mut host, spec_id);
     runtime_context.set_returndata(vec![0xDD; 64]);
@@ -94,10 +121,25 @@ pub(crate) fn default_env_and_db_setup(operations: Vec<Operation>) -> (Env, Memo
     let mut env = Env::default();
     env.tx.gas_limit = INIT_GAS;
     env.block.gas_limit = Bytes32::from(INIT_GAS).into_u256();
-    let program = Program::from(operations);
+    let program = Program::from_operations(operations, false);
     let (address, bytecode) = (
         Address::left_padding_from(&[40]),
-        Bytecode::from(program.to_opcode()),
+        Bytes::from(program.to_opcode()),
+    );
+    env.tx.transact_to = TxKind::Call(address);
+    env.block.coinbase = Address::left_padding_from(&[80]);
+    let mut db = MemoryDB::new().with_contract(address, Bytecode::new(bytecode));
+    db.set_balance(address, U256::from(10));
+    (env, db)
+}
+
+pub(crate) fn default_env_and_db_setup_eof(eof: Eof) -> (Env, MemoryDB) {
+    let mut env = Env::default();
+    env.tx.gas_limit = INIT_GAS;
+    env.block.gas_limit = Bytes32::from(INIT_GAS).into_u256();
+    let (address, bytecode) = (
+        Address::left_padding_from(&[40]),
+        Bytecode::EVM(EVMBytecode::Eof(Arc::new(eof))),
     );
     env.tx.transact_to = TxKind::Call(address);
     env.block.coinbase = Address::left_padding_from(&[80]);
@@ -106,19 +148,44 @@ pub(crate) fn default_env_and_db_setup(operations: Vec<Operation>) -> (Env, Memo
     (env, db)
 }
 
-pub(crate) fn run_program_assert_num_result(env: Env, db: MemoryDB, expected_result: BigUint) {
-    let result = run_evm(env, db, SpecId::CANCUN).unwrap().result;
+/// Asserts program execution result as `succcess`.
+///
+/// Asserts returned [`BigUint`] number result.
+pub(crate) fn run_program_assert_num_result(
+    env: Env,
+    db: MemoryDB,
+    spec_id: SpecId,
+    expected_result: BigUint,
+) {
+    let result = run(env, db, spec_id).unwrap().result;
     assert!(result.is_success(), "{:?}", result);
     let result_data = BigUint::from_bytes_be(result.output().unwrap_or(&Bytes::new()));
     assert_eq!(result_data, expected_result);
 }
 
-pub(crate) fn run_program_assert_halt(env: Env, db: MemoryDB) {
-    let result = run_evm(env, db, SpecId::CANCUN).unwrap().result;
+/// Asserts program execution result as `succcess`.
+///
+/// Asserts returned [`Bytes`] result.
+pub(crate) fn run_program_assert_bytes_result(
+    env: Env,
+    db: MemoryDB,
+    spec_id: SpecId,
+    expected_result: Bytes,
+) {
+    let result = run(env, db, spec_id).unwrap().result;
+    assert!(result.is_success(), "{:?}", result);
+    let result_data = result.output().unwrap_or(&Bytes::new()).clone();
+    assert_eq!(result_data, expected_result);
+}
+
+/// Asserts program execution result as `halt`.
+pub(crate) fn run_program_assert_halt(env: Env, db: MemoryDB, spec_id: SpecId) {
+    let result = run(env, db, spec_id).unwrap().result;
     assert!(result.is_halt());
 }
 
-pub(crate) fn run_program_assert_revert(env: Env, db: MemoryDB) {
-    let result = run_evm(env, db, SpecId::CANCUN).unwrap().result;
+/// Asserts program execution result as `revert`.
+pub(crate) fn run_program_assert_revert(env: Env, db: MemoryDB, spec_id: SpecId) {
+    let result = run(env, db, spec_id).unwrap().result;
     assert!(result.is_revert());
 }

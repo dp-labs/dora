@@ -5,16 +5,17 @@ pub use dora_compiler as compiler;
 pub use dora_primitives as primitives;
 pub use dora_runtime as runtime;
 
-use dora_compiler::{
+pub use dora_compiler::{
     context::Context,
     dora,
     evm::{self, program::Program, CompileOptions, EVMCompiler},
-    pass, Compiler,
+    pass,
+    wasm::{self, Config, WASMCompiler},
+    Compiler,
 };
-use dora_primitives::{spec::SpecId, Bytecode, Bytes32};
-use dora_runtime::env::Env;
-use dora_runtime::executor::Executor;
-use dora_runtime::{
+pub use dora_primitives::{spec::SpecId, Bytecode, Bytes, Bytes32, EVMBytecode};
+pub use dora_runtime::executor::{ExecuteKind, Executor};
+pub use dora_runtime::{
     artifact::Artifact,
     call::CallResult,
     context::VMContext,
@@ -22,8 +23,9 @@ use dora_runtime::{
     result::EVMError,
     vm::VM,
 };
-use dora_runtime::{context::RuntimeContext, env::TxKind};
-use dora_runtime::{
+pub use dora_runtime::{context::RuntimeContext, env::TxKind};
+pub use dora_runtime::{context::Stack, env::Env};
+pub use dora_runtime::{
     db::{Database, MemoryDB},
     result::ResultAndState,
 };
@@ -44,7 +46,7 @@ use std::sync::Arc;
 ///
 /// Returns an error if the program fails to execute or if the bytecode or address is invalid.
 #[inline]
-pub fn run_evm<DB: Database + 'static>(
+pub fn run<DB: Database + 'static>(
     env: Env,
     db: DB,
     spec_id: SpecId,
@@ -72,19 +74,26 @@ pub fn call_frame<DB: Database>(
         artifact
     } else {
         // Issue: https://github.com/dp-labs/dora/issues/135
-        // ctx.db.set_artifact(code_hash, artifact.clone());
-        build_artifact::<DB>(&frame.contract.code, ctx.spec_id())
-            .map_err(|e| EVMError::Custom(e.to_string()))?
+        let artifact = build_artifact::<DB>(&frame.contract.code, ctx.spec_id())
+            .map_err(|e| EVMError::Custom(e.to_string()))?;
+        ctx.db.set_artifact(code_hash, artifact.clone());
+        artifact
     };
     let mut runtime_context = RuntimeContext::new(
         frame.contract,
         frame.depth,
         frame.is_static,
-        frame.is_eof,
+        frame.is_eof_init,
         ctx,
         spec_id,
     );
-    artifact.execute(&mut runtime_context, frame.gas_limit);
+    let mut initial_gas = frame.gas_limit;
+    artifact.execute(
+        &mut runtime_context,
+        &mut initial_gas,
+        &mut Stack::new(),
+        &mut 0,
+    );
     Ok(CallResult::new_with_runtime_context_and_gas_limit(
         &runtime_context,
         frame.gas_limit,
@@ -100,13 +109,28 @@ pub fn run_with_context<DB: Database>(
         &runtime_context.contract.code,
         runtime_context.inner.spec_id,
     )?;
-    Ok(artifact.execute(runtime_context, initial_gas))
+    let mut initial_gas = initial_gas;
+    Ok(artifact.execute(runtime_context, &mut initial_gas, &mut Stack::new(), &mut 0))
 }
 
 /// Build opcode to the artifact
-pub fn build_artifact<DB: Database>(code: &[u8], spec_id: SpecId) -> anyhow::Result<DB::Artifact> {
+pub fn build_artifact<DB: Database>(
+    code: &Bytecode,
+    spec_id: SpecId,
+) -> anyhow::Result<DB::Artifact> {
+    match code {
+        Bytecode::EVM(code) => build_evm_artifact::<DB>(code, spec_id),
+        Bytecode::WASM(code) => build_wasm_artifact::<DB>(code),
+    }
+}
+
+/// Build EVM opcode to the artifact
+pub fn build_evm_artifact<DB: Database>(
+    code: &EVMBytecode,
+    spec_id: SpecId,
+) -> anyhow::Result<DB::Artifact> {
     // Compile the contract code
-    let program = Program::from_opcodes(code, spec_id);
+    let program = Program::from_opcodes(code.bytecode(), code.eof().cloned());
     let context = Context::new();
     let compiler = EVMCompiler::new(&context);
     let mut module = compiler.compile(
@@ -123,14 +147,43 @@ pub fn build_artifact<DB: Database>(code: &[u8], spec_id: SpecId) -> anyhow::Res
         &context.mlir_context,
         &mut module.mlir_module,
         &dora::pass::PassOptions {
-            program_code_size: program.code_size,
+            code_size: program.code_size,
             spec_id,
             ..Default::default()
         },
     )?;
     pass::run(&context.mlir_context, &mut module.mlir_module)?;
     debug_assert!(module.mlir_module.as_operation().verify());
-    let executor = Executor::new(module.module(), Default::default());
+    let executor = Executor::new(module.module(), Default::default(), ExecuteKind::EVM);
+    Ok(DB::Artifact::new(executor))
+}
+
+/// Build WASM opcode to the artifact
+pub fn build_wasm_artifact<DB: Database>(code: &Bytes) -> anyhow::Result<DB::Artifact> {
+    let context = Context::new();
+    let compiler = WASMCompiler::new(&context, Config::default());
+    // Compile WASM Bytecode to MLIR EVM Dialect
+    let mut module = compiler.compile(code)?;
+    let instance = compiler.build_instance(code)?;
+    // Lowering the WASM dialect to the Dora dialect.
+    wasm::pass::run(&context.mlir_context, &mut module.mlir_module)?;
+    // Lowering the Dora dialect to MLIR builtin dialects.
+    dora::pass::run(
+        &context.mlir_context,
+        &mut module.mlir_module,
+        &dora::pass::PassOptions {
+            code_size: code.len() as u32,
+            ..Default::default()
+        },
+    )?;
+    pass::run(&context.mlir_context, &mut module.mlir_module)?;
+    debug_assert!(module.mlir_module.as_operation().verify());
+
+    let executor = Executor::new(
+        module.module(),
+        Default::default(),
+        ExecuteKind::new_wasm(instance),
+    );
     Ok(DB::Artifact::new(executor))
 }
 
@@ -149,7 +202,7 @@ pub fn build_artifact<DB: Database>(code: &[u8], spec_id: SpecId) -> anyhow::Res
 /// # Errors
 ///
 /// Returns an error if the bytecode fails to decode or execute.
-pub fn run_evm_bytecode_with_calldata(
+pub fn run_bytecode_with_calldata(
     program: &str,
     calldata: &str,
     initial_gas: u64,
@@ -161,8 +214,8 @@ pub fn run_evm_bytecode_with_calldata(
     let mut env = Env::default();
     env.tx.transact_to = TxKind::Call(address);
     env.tx.gas_limit = initial_gas;
-    env.tx.data = Bytecode::from(calldata);
+    env.tx.data = Bytes::from(calldata);
     env.tx.caller = Bytes32::from(10000_u32).to_address();
-    let db = MemoryDB::new().with_contract(address, Bytecode::from(opcodes));
-    run_evm(env, db, spec_id).map_err(|err| anyhow::anyhow!(err))
+    let db = MemoryDB::new().with_contract(address, Bytecode::new(Bytes::from(opcodes)));
+    run(env, db, spec_id).map_err(|err| anyhow::anyhow!(err))
 }

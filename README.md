@@ -18,10 +18,10 @@ Dora is currently in the MVP stage, with support for EVM functionalities. It is 
 
 Web3's programming and VM layers have attracted a growing developer community. Dora takes this a step further by introducing a next-gen blockchain programming and execution layer that addresses key needs:
 
-- Extreme performance and lower costs: Optimized execution for real-world use cases.
-- Multi-language support and toolchain flexibility: Accommodates a variety of programming languages and preferred toolchains.
-- Borderless on-chain use cases: Removes barriers to enable seamless on-chain interoperability.
-- Seamless integration with co-processors: Native support for collaboration with various co-processors, such as zkVM.
+- Extreme performance and lower costs: Optimized execution tailored for real-world on-chain use cases.
+- Multi-language support and toolchain flexibility: Enabling a wide range of programming languages and toolchains, supporting EVM and WASM specifications within a single VM.
+- Borderless on-chain use cases: Eliminating barriers to achieve seamless interoperability across a variety of on-chain use cases.
+- Seamless integration with co-processors: Providing native support for collaboration with various co-processors, such as zkVM, for enhanced capabilities.
 
 ## Key Features in Early Stage
 
@@ -43,16 +43,7 @@ Check out contract examples [here](./examples/).
 
 ## Benchmarks
 
-Dora performed well in basic test cases. The benchmark results are shown below. For more benchmark tests, see [here](./tests/bench/).
-
-- `Fib(70)`
-
-![7891731069869_ pic](https://github.com/user-attachments/assets/acc20aae-9f98-4323-b4e4-b64cb1536515)
-
-- `Counter`
-
-![7881731069869_ pic](https://github.com/user-attachments/assets/bac100ed-01ea-4106-aaf1-1b486624713f)
-
+Dora performed well in basic test cases. The benchmark tests and results are shown [here](./tests/bench/).
 
 ## Installation
 

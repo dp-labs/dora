@@ -1,40 +1,99 @@
-use dora_primitives::SpecId;
+use dora_primitives::{Bytecode, Bytes, Eof, EofBody};
 use num_bigint::BigUint;
 pub use revmc::{op_info_map, OpcodeInfo};
+use rustc_hash::FxHashMap;
 use std::fmt;
+use std::sync::Arc;
 use thiserror::Error;
 
 /// EOF magic number in array form.
 pub const EOF_MAGIC_BYTES: [u8; 2] = hex_literal::hex!("ef00");
 
+/// # OpcodeParseError
+/// This enum hold possible errors while parsing opcodes
+///
+/// # Members
+///
+/// - [`BannedOpcodeInEofContextError`][OpcodeParseError::BannedOpcodeInEofContextError]
+///
+/// An error that occurs when a opcode is encountered while it's banned in EOF context.
+/// This struct holds the banned-in-EOF-context opcode (as a `Opcode`) and provides a formatted error message
+/// indicating the banned opcode in string format.
+///
+/// ## Example Usage:
+/// ```
+/// use dora_compiler::evm::program::{Opcode, OpcodeParseError};
+/// let err = OpcodeParseError::BannedOpcodeInEofContextError(Opcode::CODESIZE);
+/// assert_eq!(err.to_string(), "The opcode CODESIZE is not banned in EOF context");
+/// ```
+///
+/// - [`EofOpcodeInLegacyContextError`][OpcodeParseError::EofOpcodeInLegacyContextError]
+///
+/// An error that occurs when a EOF opcode is encountered while in non-EOF, which is legacy context.
+/// This struct holds the disallowed EOF opcode (as a `Opcode`) and provides a formatted error message
+/// indicating the disallowed opcode in string format.
+///
+/// ## Example Usage:
+/// ```
+/// use dora_compiler::evm::program::{Opcode, OpcodeParseError};
+/// let err = OpcodeParseError::EofOpcodeInLegacyContextError(Opcode::DATALOAD);
+/// assert_eq!(err.to_string(), "The EOF opcode DATALOAD is not allowed in non-EOF(legacy) context");
+/// ```
+///
+/// - [`OpcodeInvalidError`][OpcodeParseError::OpcodeInvalidError]
+///
 /// An error that occurs when an invalid opcode is encountered during parsing.
 /// This struct holds the invalid opcode (as a `u8`) and provides a formatted error message
 /// indicating the invalid opcode in hexadecimal format.
 ///
-/// # Example Usage:
-/// ```no_check
-/// let err = OpcodeParseError(0xFF);
-/// println!("{}", err); // Output: "The opcode `FF` is not valid"
+/// ## Example Usage:
+/// ```
+/// use dora_compiler::evm::program::{Opcode, OpcodeParseError};
+/// let err = OpcodeParseError::OpcodeInvalidError(0xFF);
+/// assert_eq!(err.to_string(), "The opcode `FF` is not valid");
 /// ```
 ///
-/// # Notes:
+/// ## Notes:
 /// - This error is triggered when the byte sequence does not match any valid opcode during
 ///   the parsing process, which is common when processing raw EVM bytecode.
 #[derive(Error, Debug)]
-#[error("The opcode `{:02X}` is not valid", self.0)]
-pub struct OpcodeParseError(u8);
+pub enum OpcodeParseError {
+    BannedOpcodeInEofContextError(Opcode),
+    EofOpcodeInLegacyContextError(Opcode),
+    OpcodeInvalidError(u8),
+}
 
-/// An error type that aggregates multiple `OpcodeParseError` instances. This is used when
+impl fmt::Display for OpcodeParseError {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match self {
+            OpcodeParseError::BannedOpcodeInEofContextError(opcode) => {
+                write!(f, "The opcode {:?} is not banned in EOF context", opcode)
+            }
+            OpcodeParseError::EofOpcodeInLegacyContextError(opcode) => {
+                write!(
+                    f,
+                    "The EOF opcode {:?} is not allowed in non-EOF(legacy) context",
+                    opcode
+                )
+            }
+            OpcodeParseError::OpcodeInvalidError(opcode) => {
+                write!(f, "The opcode `{:02X}` is not valid", opcode)
+            }
+        }
+    }
+}
+
+/// An error type that aggregates multiple `OpcodeInvalidError` instances. This is used when
 /// multiple invalid opcodes are encountered during the parsing of bytecode.
 ///
 /// # Fields:
-/// - `0`: A vector of `OpcodeParseError` instances, each representing an individual invalid opcode.
+/// - `0`: A vector of `OpcodeInvalidError` instances, each representing an individual invalid opcode.
 ///
 /// # Example Usage:
 /// ```no_check
-/// let errors = vec![OpcodeParseError(0x01), OpcodeParseError(0xFF)];
+/// let errors = vec![OpcodeInvalidError(0x01), OpcodeInvalidError(0xFF)];
 /// let parse_error = ParseError(errors);
-/// println!("{:?}", parse_error); // Output: ParseError([OpcodeParseError(0x01), OpcodeParseError(0xFF)])
+/// println!("{:?}", parse_error); // Output: ParseError([OpcodeInvalidError(0x01), OpcodeInvalidError(0xFF)])
 /// ```
 ///
 /// # Notes:
@@ -45,8 +104,19 @@ pub struct ParseError(Vec<OpcodeParseError>);
 
 impl fmt::Display for ParseError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        let opcodes: Vec<_> = self.0.iter().map(|x| format!("{:02X}", x.0)).collect();
-        writeln!(f, "The following opcodes could not be parsed: ")?;
+        let opcodes: Vec<_> = self
+            .0
+            .iter()
+            .map(|err| {
+                let x: u8 = match err {
+                    OpcodeParseError::BannedOpcodeInEofContextError(opcode) => *opcode as u8,
+                    OpcodeParseError::EofOpcodeInLegacyContextError(opcode) => *opcode as u8,
+                    OpcodeParseError::OpcodeInvalidError(opcode) => *opcode,
+                };
+                format!("{:02X}", x)
+            })
+            .collect();
+        writeln!(f, "The following opcodes could not be parsed or allowed: ")?;
         writeln!(f, "{:#?}", opcodes)?;
         Ok(())
     }
@@ -66,7 +136,7 @@ macro_rules! opcodes {
             fn try_from(opcode: u8) -> Result<Self, Self::Error> {
                 match opcode {
                     $(x if x == Opcode::$name as u8 => Ok(Opcode::$name),)+
-                    _ => Err(OpcodeParseError(opcode))
+                    _ => Err(OpcodeParseError::OpcodeInvalidError(opcode))
                 }
             }
         }
@@ -255,28 +325,54 @@ opcodes! {
 
 macro_rules! operations {
     ($(($variant:ident, $opcode:ident)),* $(,)?) => {
-        #[derive(Debug, Clone)]
+        #[derive(Debug, Clone, Hash, PartialEq, Eq)]
         pub enum Operation {
             $(
                 $variant,
             )*
-            PC { pc: usize },
-            Jumpdest { pc: usize },
+            // For opcodes variant
             Push((u8, BigUint)),
             Dup(u8),
             Swap(u8),
             Log(u8),
+            // For opcodes banned in EOF context
+            CodeSize,
+            CodeCopy,
+            ExtCodeSize,
+            ExtCodeCopy,
+            ExtCodeHash,
+            Jump,
+            JumpI,
+            PC { pc: usize },
+            Gas,
+            Jumpdest { pc: usize },
+            Create,
+            Call,
+            Callcode,
+            Delegatecall,
+            Create2,
+            Staticcall,
+            Selfdestruct,
+            // For EOF opcodes
+            DataLoad,
             DataLoadN(u16),
+            DataSize,
+            DataCopy,
             RJump(u16),
             RJumpI(u16),
             RJumpV((u8, Vec<u16>)),
             CallF(u16),
+            RetF,
             JumpF(u16),
             DupN(u8),
             SwapN(u8),
             Exchange(u8),
             EofCreate(u8),
-            ReturnContract(u8)
+            ReturnContract(u8),
+            ReturndataLoad,
+            ExtCall,
+            ExtDelegatecall,
+            ExtStaticcall
         }
 
         impl Operation {
@@ -285,8 +381,6 @@ macro_rules! operations {
                     $(
                         Operation::$variant => vec![Opcode::$opcode as u8],
                     )*
-                    Operation::PC { .. } => vec![Opcode::PC as u8],
-                    Operation::Jumpdest { .. } => vec![Opcode::JUMPDEST as u8],
                     Operation::Push((n, x)) => {
                         if !(1..=32).contains(n) {
                             panic!("Invalid PUSH size: {}", n);
@@ -316,17 +410,79 @@ macro_rules! operations {
                         }
                         vec![Opcode::LOG0 as u8 + n]
                     },
-                    Operation::DataLoadN(_) => vec![Opcode::DATALOADN as u8],
-                    Operation::RJump(_) => vec![Opcode::RJUMP as u8],
-                    Operation::RJumpI(_) => vec![Opcode::RJUMPI as u8],
-                    Operation::RJumpV(_) => vec![Opcode::RJUMPV as u8],
-                    Operation::CallF(_) => vec![Opcode::CALLF as u8],
-                    Operation::JumpF(_) => vec![Opcode::JUMPF as u8],
-                    Operation::DupN(_) => vec![Opcode::DUPN as u8],
-                    Operation::SwapN(_) => vec![Opcode::SWAPN as u8],
-                    Operation::Exchange(_) => vec![Opcode::EXCHANGE as u8],
-                    Operation::EofCreate(_) => vec![Opcode::EOFCREATE as u8],
-                    Operation::ReturnContract(_) => vec![Opcode::RETURNCONTRACT as u8],
+
+                    Operation::CodeSize => vec![Opcode::CODESIZE as u8],
+                    Operation::CodeCopy => vec![Opcode::CODECOPY as u8],
+                    Operation::ExtCodeSize => vec![Opcode::EXTCODESIZE as u8],
+                    Operation::ExtCodeCopy => vec![Opcode::EXTCODECOPY as u8],
+                    Operation::ExtCodeHash => vec![Opcode::EXTCODEHASH as u8],
+                    Operation::Jump => vec![Opcode::JUMP as u8],
+                    Operation::JumpI => vec![Opcode::JUMPI as u8],
+                    Operation::PC { .. } => vec![Opcode::PC as u8],
+                    Operation::Gas => vec![Opcode::GAS as u8],
+                    Operation::Jumpdest { .. } => vec![Opcode::JUMPDEST as u8],
+                    Operation::Create => vec![Opcode::CREATE as u8],
+                    Operation::Call => vec![Opcode::CALL as u8],
+                    Operation::Callcode => vec![Opcode::CALLCODE as u8],
+                    Operation::Delegatecall => vec![Opcode::DELEGATECALL as u8],
+                    Operation::Create2 => vec![Opcode::CREATE2 as u8],
+                    Operation::Staticcall => vec![Opcode::STATICCALL as u8],
+                    Operation::Selfdestruct => vec![Opcode::SELFDESTRUCT as u8],
+
+                    Operation::DataLoad => vec![Opcode::DATALOAD as u8],
+                    Operation::DataLoadN(x) => {
+                        let mut opcode_bytes = vec![0; 3];
+                        opcode_bytes[0] = Opcode::DATALOADN as u8;
+                        opcode_bytes[1..].copy_from_slice(&x.to_be_bytes());
+                        opcode_bytes
+                    },
+                    Operation::DataSize => vec![Opcode::DATASIZE as u8],
+                    Operation::DataCopy => vec![Opcode::DATACOPY as u8],
+                    Operation::RJump(x) => {
+                        let mut opcode_bytes = vec![0; 3];
+                        opcode_bytes[0] = Opcode::RJUMP as u8;
+                        opcode_bytes[1..].copy_from_slice(&x.to_be_bytes());
+                        opcode_bytes
+                    },
+                    Operation::RJumpI(x) => {
+                        let mut opcode_bytes = vec![0; 3];
+                        opcode_bytes[0] = Opcode::RJUMPI as u8;
+                        opcode_bytes[1..].copy_from_slice(&x.to_be_bytes());
+                        opcode_bytes
+                    },
+                    Operation::RJumpV((l, x)) => {
+                        if *l == 0 {
+                            panic!("Invalid RJumpV max index: 0");
+                        }
+                        let len = 1 + (*l as usize + 1) * 2;
+                        let mut opcode_bytes = vec![0; len];
+                        opcode_bytes[0] = Opcode::RJUMPV as u8;
+                        let bytes: Vec<u8> = x.iter().flat_map(|&value| value.to_be_bytes()).collect();
+                        opcode_bytes[len - bytes.len()..].copy_from_slice(&bytes);
+                        opcode_bytes
+                    },
+                    Operation::CallF(x) => {
+                        let mut opcode_bytes = vec![0; 3];
+                        opcode_bytes[0] = Opcode::CALLF as u8;
+                        opcode_bytes[1..].copy_from_slice(&x.to_be_bytes());
+                        opcode_bytes
+                    },
+                    Operation::RetF => vec![Opcode::RETF as u8],
+                    Operation::JumpF(x) => {
+                        let mut opcode_bytes = vec![0; 3];
+                        opcode_bytes[0] = Opcode::JUMPF as u8;
+                        opcode_bytes[1..].copy_from_slice(&x.to_be_bytes());
+                        opcode_bytes
+                    },
+                    Operation::DupN(x) => vec![Opcode::DUPN as u8, x.to_be_bytes()[0]],
+                    Operation::SwapN(x) => vec![Opcode::SWAPN as u8, x.to_be_bytes()[0]],
+                    Operation::Exchange(x) => vec![Opcode::EXCHANGE as u8, x.to_be_bytes()[0]],
+                    Operation::EofCreate(x) => vec![Opcode::EOFCREATE as u8, x.to_be_bytes()[0]],
+                    Operation::ReturnContract(x) => vec![Opcode::RETURNCONTRACT as u8, x.to_be_bytes()[0]],
+                    Operation::ReturndataLoad => vec![Opcode::RETURNDATALOAD as u8],
+                    Operation::ExtCall => vec![Opcode::EXTCALL as u8],
+                    Operation::ExtDelegatecall => vec![Opcode::EXTDELEGATECALL as u8],
+                    Operation::ExtStaticcall => vec![Opcode::EXTSTATICCALL as u8],
                 }
             }
 
@@ -335,8 +491,6 @@ macro_rules! operations {
                     $(
                         Opcode::$opcode => Operation::$variant,
                     )*
-                    Opcode::PC => Operation::PC { pc: *pc },
-                    Opcode::JUMPDEST => Operation::Jumpdest { pc: *pc },
                     opcode if Opcode::PUSH1 as u8 <= opcode as u8 && opcode as u8 <= Opcode::PUSH32 as u8 => {
                             *pc += 1;
                             let n = (opcode as u8 - Opcode::PUSH0 as u8) as usize;
@@ -358,31 +512,168 @@ macro_rules! operations {
                         let index = (opcode as u8 - Opcode::LOG0 as u8) as u8;
                         Operation::Log(index)
                     }
-                    Opcode::DATALOADN if is_eof => {
+
+                    Opcode::CODESIZE => {
+                        if is_eof {
+                            return Err(OpcodeParseError::BannedOpcodeInEofContextError(opcode));
+                        }
+                        Operation::CodeSize
+                    }
+                    Opcode::CODECOPY => {
+                        if is_eof {
+                            return Err(OpcodeParseError::BannedOpcodeInEofContextError(opcode));
+                        }
+                        Operation::CodeCopy
+                    }
+                    Opcode::EXTCODESIZE => {
+                        if is_eof {
+                            return Err(OpcodeParseError::BannedOpcodeInEofContextError(opcode));
+                        }
+                        Operation::ExtCodeSize
+                    }
+                    Opcode::EXTCODECOPY => {
+                        if is_eof {
+                            return Err(OpcodeParseError::BannedOpcodeInEofContextError(opcode));
+                        }
+                        Operation::ExtCodeCopy
+                    }
+                    Opcode::EXTCODEHASH => {
+                        if is_eof {
+                            return Err(OpcodeParseError::BannedOpcodeInEofContextError(opcode));
+                        }
+                        Operation::ExtCodeHash
+                    }
+                    Opcode::JUMP => {
+                        if is_eof {
+                            return Err(OpcodeParseError::BannedOpcodeInEofContextError(opcode));
+                        }
+                        Operation::Jump
+                    }
+                    Opcode::JUMPI => {
+                        if is_eof {
+                            return Err(OpcodeParseError::BannedOpcodeInEofContextError(opcode));
+                        }
+                        Operation::JumpI
+                    }
+                    Opcode::PC => {
+                        if is_eof {
+                            return Err(OpcodeParseError::BannedOpcodeInEofContextError(opcode));
+                        }
+                        Operation::PC { pc: *pc }
+                    }
+                    Opcode::GAS => {
+                        if is_eof {
+                            return Err(OpcodeParseError::BannedOpcodeInEofContextError(opcode));
+                        }
+                        Operation::Gas
+                    }
+                    Opcode::JUMPDEST => {
+                        if is_eof {
+                            return Err(OpcodeParseError::OpcodeInvalidError(opcode as u8));
+                        }
+                        Operation::Jumpdest { pc: *pc }
+                    }
+                    Opcode::CREATE => {
+                        if is_eof {
+                            return Err(OpcodeParseError::BannedOpcodeInEofContextError(opcode));
+                        }
+                        Operation::Create
+                    }
+                    Opcode::CALL => {
+                        if is_eof {
+                            return Err(OpcodeParseError::BannedOpcodeInEofContextError(opcode));
+                        }
+                        Operation::Call
+                    }
+                    Opcode::CALLCODE => {
+                        if is_eof {
+                            return Err(OpcodeParseError::BannedOpcodeInEofContextError(opcode));
+                        }
+                        Operation::Callcode
+                    }
+                    Opcode::DELEGATECALL => {
+                        if is_eof {
+                            return Err(OpcodeParseError::BannedOpcodeInEofContextError(opcode));
+                        }
+                        Operation::Delegatecall
+                    }
+                    Opcode::CREATE2 => {
+                        if is_eof {
+                            return Err(OpcodeParseError::BannedOpcodeInEofContextError(opcode));
+                        }
+                        Operation::Create2
+                    }
+                    Opcode::STATICCALL => {
+                        if is_eof {
+                            return Err(OpcodeParseError::BannedOpcodeInEofContextError(opcode));
+                        }
+                        Operation::Staticcall
+                    }
+                    Opcode::SELFDESTRUCT => {
+                        if is_eof {
+                            return Err(OpcodeParseError::BannedOpcodeInEofContextError(opcode));
+                        }
+                        Operation::Selfdestruct
+                    }
+
+                    Opcode::DATALOAD => {
+                        if !is_eof {
+                            return Err(OpcodeParseError::EofOpcodeInLegacyContextError(opcode));
+                        }
+                        Operation::DataLoad
+                    }
+                    Opcode::DATALOADN => {
+                        if !is_eof {
+                            return Err(OpcodeParseError::EofOpcodeInLegacyContextError(opcode));
+                        }
                         *pc += 1;
                         let x = opcodes[*pc..(*pc + 2)]
                             .try_into()
                             .unwrap();
+                        *pc += 1; // *pc += 2 - 1;
 
                         Operation::DataLoadN(u16::from_be_bytes(x))
                     }
-                    Opcode::RJUMP if is_eof => {
+                    Opcode::DATASIZE => {
+                        if !is_eof {
+                            return Err(OpcodeParseError::EofOpcodeInLegacyContextError(opcode));
+                        }
+                        Operation::DataSize
+                    }
+                    Opcode::DATACOPY => {
+                        if !is_eof {
+                            return Err(OpcodeParseError::EofOpcodeInLegacyContextError(opcode));
+                        }
+                        Operation::DataCopy
+                    }
+                    Opcode::RJUMP => {
+                        if !is_eof {
+                            return Err(OpcodeParseError::EofOpcodeInLegacyContextError(opcode));
+                        }
                         *pc += 1;
                         let x = opcodes[*pc..(*pc + 2)]
                             .try_into()
                             .unwrap();
+                        *pc += 1; // *pc += 2 - 1;
 
                         Operation::RJump(u16::from_be_bytes(x))
                     }
-                    Opcode::RJUMPI if is_eof => {
+                    Opcode::RJUMPI => {
+                        if !is_eof {
+                            return Err(OpcodeParseError::EofOpcodeInLegacyContextError(opcode));
+                        }
                         *pc += 1;
                         let x = opcodes[*pc..(*pc + 2)]
                             .try_into()
                             .unwrap();
+                        *pc += 1; // *pc += 2 - 1;
 
                         Operation::RJumpI(u16::from_be_bytes(x))
                     }
-                    Opcode::RJUMPV if is_eof => {
+                    Opcode::RJUMPV => {
+                        if !is_eof {
+                            return Err(OpcodeParseError::EofOpcodeInLegacyContextError(opcode));
+                        }
                         *pc += 1;
                         let t1 = opcodes[*pc..(*pc + 1)]
                             .try_into()
@@ -397,26 +688,44 @@ macro_rules! operations {
                                 .unwrap();
                             x2.push(u16::from_be_bytes(t2));
                         }
+                        *pc += 1; // *pc += 2 - 1;
 
                         Operation::RJumpV((x1, x2))
                     }
-                    Opcode::CALLF if is_eof => {
+                    Opcode::CALLF => {
+                        if !is_eof {
+                            return Err(OpcodeParseError::EofOpcodeInLegacyContextError(opcode));
+                        }
                         *pc += 1;
                         let x = opcodes[*pc..(*pc + 2)]
                             .try_into()
                             .unwrap();
+                        *pc += 1; // *pc += 2 - 1;
 
                         Operation::CallF(u16::from_be_bytes(x))
                     }
-                    Opcode::JUMPF if is_eof => {
+                    Opcode::RETF => {
+                        if !is_eof {
+                            return Err(OpcodeParseError::EofOpcodeInLegacyContextError(opcode));
+                        }
+                        Operation::RetF
+                    }
+                    Opcode::JUMPF => {
+                        if !is_eof {
+                            return Err(OpcodeParseError::EofOpcodeInLegacyContextError(opcode));
+                        }
                         *pc += 1;
                         let x = opcodes[*pc..(*pc + 2)]
                             .try_into()
                             .unwrap();
+                        *pc += 1; // *pc += 2 - 1;
 
                         Operation::JumpF(u16::from_be_bytes(x))
                     }
-                    Opcode::DUPN if is_eof => {
+                    Opcode::DUPN => {
+                        if !is_eof {
+                            return Err(OpcodeParseError::EofOpcodeInLegacyContextError(opcode));
+                        }
                         *pc += 1;
                         let x = opcodes[*pc..(*pc + 1)]
                             .try_into()
@@ -424,7 +733,10 @@ macro_rules! operations {
 
                         Operation::DupN(u8::from_be_bytes(x))
                     }
-                    Opcode::SWAPN if is_eof => {
+                    Opcode::SWAPN => {
+                        if !is_eof {
+                            return Err(OpcodeParseError::EofOpcodeInLegacyContextError(opcode));
+                        }
                         *pc += 1;
                         let x = opcodes[*pc..(*pc + 1)]
                             .try_into()
@@ -432,7 +744,10 @@ macro_rules! operations {
 
                         Operation::SwapN(u8::from_be_bytes(x))
                     }
-                    Opcode::EXCHANGE if is_eof => {
+                    Opcode::EXCHANGE => {
+                        if !is_eof {
+                            return Err(OpcodeParseError::EofOpcodeInLegacyContextError(opcode));
+                        }
                         *pc += 1;
                         let x = opcodes[*pc..(*pc + 1)]
                             .try_into()
@@ -440,7 +755,10 @@ macro_rules! operations {
 
                         Operation::Exchange(u8::from_be_bytes(x))
                     }
-                    Opcode::EOFCREATE if is_eof => {
+                    Opcode::EOFCREATE => {
+                        if !is_eof {
+                            return Err(OpcodeParseError::EofOpcodeInLegacyContextError(opcode));
+                        }
                         *pc += 1;
                         let x = opcodes[*pc..(*pc + 1)]
                             .try_into()
@@ -448,7 +766,10 @@ macro_rules! operations {
 
                         Operation::EofCreate(u8::from_be_bytes(x))
                     }
-                    Opcode::RETURNCONTRACT if is_eof => {
+                    Opcode::RETURNCONTRACT => {
+                        if !is_eof {
+                            return Err(OpcodeParseError::EofOpcodeInLegacyContextError(opcode));
+                        }
                         *pc += 1;
                         let x = opcodes[*pc..(*pc + 1)]
                             .try_into()
@@ -456,7 +777,31 @@ macro_rules! operations {
 
                         Operation::ReturnContract(u8::from_be_bytes(x))
                     }
-                    _ => return Err(OpcodeParseError(opcode as u8)),
+                    Opcode::RETURNDATALOAD => {
+                        if !is_eof {
+                            return Err(OpcodeParseError::EofOpcodeInLegacyContextError(opcode));
+                        }
+                        Operation::ReturndataLoad
+                    }
+                    Opcode::EXTCALL => {
+                        if !is_eof {
+                            return Err(OpcodeParseError::EofOpcodeInLegacyContextError(opcode));
+                        }
+                        Operation::ExtCall
+                    }
+                    Opcode::EXTDELEGATECALL => {
+                        if !is_eof {
+                            return Err(OpcodeParseError::EofOpcodeInLegacyContextError(opcode));
+                        }
+                        Operation::ExtDelegatecall
+                    }
+                    Opcode::EXTSTATICCALL => {
+                        if !is_eof {
+                            return Err(OpcodeParseError::EofOpcodeInLegacyContextError(opcode));
+                        }
+                        Operation::ExtStaticcall
+                    }
+                    _ => return Err(OpcodeParseError::OpcodeInvalidError(opcode as u8)),
                 };
                 Ok(op)
             }
@@ -466,23 +811,48 @@ macro_rules! operations {
                     $(
                         Operation::$variant => Opcode::$opcode as usize,
                     )*
-                    Operation::PC { .. } => Opcode::PC as usize,
-                    Operation::Jumpdest { .. } => Opcode::JUMPDEST as usize,
                     Operation::Push((n, _)) => Opcode::PUSH0 as usize + *n as usize,
                     Operation::Dup(n) => Opcode::DUP1 as usize + (*n as usize - 1),
                     Operation::Swap(n) => Opcode::SWAP1 as usize + (*n as usize - 1),
                     Operation::Log(n) => Opcode::LOG0 as usize + *n as usize,
+
+                    Operation::CodeSize => Opcode::CODESIZE as usize,
+                    Operation::CodeCopy => Opcode::CODECOPY as usize,
+                    Operation::ExtCodeSize => Opcode::EXTCODESIZE as usize,
+                    Operation::ExtCodeCopy => Opcode::EXTCODECOPY as usize,
+                    Operation::ExtCodeHash => Opcode::EXTCODEHASH as usize,
+                    Operation::Jump => Opcode::JUMP as usize,
+                    Operation::JumpI => Opcode::JUMPI as usize,
+                    Operation::PC { .. } => Opcode::PC as usize,
+                    Operation::Gas => Opcode::GAS as usize,
+                    Operation::Jumpdest { .. } => Opcode::JUMPDEST as usize,
+                    Operation::Create => Opcode::CREATE as usize,
+                    Operation::Call => Opcode::CALL as usize,
+                    Operation::Callcode => Opcode::CALLCODE as usize,
+                    Operation::Delegatecall => Opcode::DELEGATECALL as usize,
+                    Operation::Create2 => Opcode::CREATE2 as usize,
+                    Operation::Staticcall => Opcode::STATICCALL as usize,
+                    Operation::Selfdestruct => Opcode::SELFDESTRUCT as usize,
+
+                    Operation::DataLoad => Opcode::DATALOAD as usize,
                     Operation::DataLoadN(_) => Opcode::DATALOADN as usize,
+                    Operation::DataSize => Opcode::DATASIZE as usize,
+                    Operation::DataCopy => Opcode::DATACOPY as usize,
                     Operation::RJump(_) => Opcode::RJUMP as usize,
                     Operation::RJumpI(_) => Opcode::RJUMPI as usize,
                     Operation::RJumpV(_) => Opcode::RJUMPV as usize,
                     Operation::CallF(_) => Opcode::CALLF as usize,
+                    Operation::RetF =>  Opcode::RETF as usize,
                     Operation::JumpF(_) => Opcode::JUMPF as usize,
                     Operation::DupN(_) => Opcode::DUPN as usize,
                     Operation::SwapN(_) => Opcode::SWAPN as usize,
                     Operation::Exchange(_) => Opcode::EXCHANGE as usize,
                     Operation::EofCreate(_) => Opcode::EOFCREATE as usize,
                     Operation::ReturnContract(_) => Opcode::RETURNCONTRACT as usize,
+                    Operation::ReturndataLoad => Opcode::RETURNDATALOAD as usize,
+                    Operation::ExtCall => Opcode::EXTCALL as usize,
+                    Operation::ExtDelegatecall => Opcode::EXTDELEGATECALL as usize,
+                    Operation::ExtStaticcall => Opcode::EXTSTATICCALL as usize,
                 }
             }
         }
@@ -525,15 +895,10 @@ operations!(
     (CalldataLoad, CALLDATALOAD),
     (CalldataSize, CALLDATASIZE),
     (CalldataCopy, CALLDATACOPY),
-    (CodeSize, CODESIZE),
-    (CodeCopy, CODECOPY),
     (GasPrice, GASPRICE),
-    (ExtCodeCopy, EXTCODECOPY),
     (ReturndataSize, RETURNDATASIZE),
     (ReturndataCopy, RETURNDATACOPY),
-    (ExtCodeHash, EXTCODEHASH),
     (BlockHash, BLOCKHASH),
-    (ExtCodeSize, EXTCODESIZE),
     (Coinbase, COINBASE),
     (Timestamp, TIMESTAMP),
     (Number, NUMBER),
@@ -550,32 +915,14 @@ operations!(
     (MStore8, MSTORE8),
     (SLoad, SLOAD),
     (SStore, SSTORE),
-    (Jump, JUMP),
-    (JumpI, JUMPI),
     (MSize, MSIZE),
-    (Gas, GAS),
     (TLoad, TLOAD),
     (TStore, TSTORE),
     (MCopy, MCOPY),
     (Push0, PUSH0),
-    (DataLoad, DATALOAD),
-    (DataSize, DATASIZE),
-    (DataCopy, DATACOPY),
-    (RetF, RETF),
-    (Create, CREATE),
-    (Call, CALL),
-    (CallCode, CALLCODE),
     (Return, RETURN),
-    (Delegatecall, DELEGATECALL),
-    (Create2, CREATE2),
-    (ReturndataLoad, RETURNDATALOAD),
-    (ExtCall, EXTCALL),
-    (ExtDelegatecall, EXTDELEGATECALL),
-    (Staticcall, STATICCALL),
-    (ExtStaticcall, EXTSTATICCALL),
     (Revert, REVERT),
     (Invalid, INVALID),
-    (SelfDestruct, SELFDESTRUCT),
 );
 
 /// Represents a program that has been parsed and is ready for execution. The `Program` struct
@@ -611,39 +958,21 @@ operations!(
 pub struct Program {
     /// A vector of operations parsed from the bytecode.
     pub operations: Vec<Operation>,
-
     /// The total size of the bytecode (in bytes).
     pub code_size: u32,
+    /// Whether eof bytecode
+    pub eof: Option<Arc<Eof>>,
+    /// Mapping from program counter to instruction.
+    pc_to_index_mapping: FxHashMap<usize, usize>,
+}
+
+impl From<Bytecode> for Program {
+    fn from(bytecode: Bytecode) -> Self {
+        Self::from_opcodes(bytecode.bytecode(), bytecode.eof().cloned())
+    }
 }
 
 impl Program {
-    /// Constructs a `Program` from a slice of opcodes, checking for errors during parsing.
-    ///
-    /// This method attempts to parse the provided opcodes into operations and calculates
-    /// the total code size. If any opcodes fail to parse, a `ParseError` is returned containing
-    /// the failed opcodes.
-    ///
-    /// # Parameters
-    /// * `opcodes` - A slice of bytes representing the opcodes to be parsed.
-    ///
-    /// # Returns
-    /// - `Ok(Self)` - If all opcodes are successfully parsed.
-    /// - `Err(ParseError)` - If any opcodes fail to parse, containing the list of failed opcodes.
-    pub fn from_opcode_checked(opcodes: &[u8], spec_id: SpecId) -> Result<Self, ParseError> {
-        let is_eof = spec_id.is_enabled_in(SpecId::OSAKA) && opcodes.starts_with(&EOF_MAGIC_BYTES);
-        let (operations, failed_opcodes) = Self::parse_operations(opcodes, is_eof);
-        let code_size = Self::calculate_code_size(&operations);
-
-        if failed_opcodes.is_empty() {
-            Ok(Self {
-                operations,
-                code_size,
-            })
-        } else {
-            Err(ParseError(failed_opcodes))
-        }
-    }
-
     /// Constructs a `Program` from a slice of opcodes without error checking.
     ///
     /// This method parses the provided opcodes into operations and calculates the total
@@ -654,14 +983,44 @@ impl Program {
     ///
     /// # Returns
     /// A `Program` instance constructed from the parsed operations.
-    pub fn from_opcodes(opcodes: &[u8], spec_id: SpecId) -> Self {
-        let is_eof = spec_id.is_enabled_in(SpecId::OSAKA) && opcodes.starts_with(&EOF_MAGIC_BYTES);
-        let (operations, _) = Self::parse_operations(opcodes, is_eof);
+    pub fn from_opcodes(opcodes: &[u8], eof: Option<Arc<Eof>>) -> Self {
+        let (operations, pc_to_index_mapping, _) = Self::parse_operations(opcodes, eof.is_some());
         let code_size = Self::calculate_code_size(&operations);
 
         Self {
             operations,
             code_size,
+            eof,
+            pc_to_index_mapping,
+        }
+    }
+
+    /// Constructs a `Program` from a slice of operations without error checking.
+    pub fn from_operations(operations: Vec<Operation>, is_eof: bool) -> Self {
+        if is_eof {
+            Self::eof(&Self::operations_to_opcode(&operations))
+        } else {
+            Self::raw(&Self::operations_to_opcode(&operations))
+        }
+    }
+
+    /// Constructs a `Program` from a slice of raw opcodes without error checking.
+    pub fn raw(opcodes: &[u8]) -> Self {
+        Self::from_opcodes(opcodes, None)
+    }
+
+    /// Constructs a `Program` from a slice of eof opcodes without error checking.
+    /// Note: the opcode bytes do not start with the EOF magic header
+    pub fn eof(opcodes: &[u8]) -> Self {
+        let eof = Self::eof_body(&[opcodes], vec![]).into_eof();
+        Self::from_opcodes(opcodes, Some(Arc::new(eof)))
+    }
+
+    fn eof_body(code: &[&[u8]], containers: Vec<Bytes>) -> EofBody {
+        EofBody {
+            code_section: code.iter().copied().map(Bytes::copy_from_slice).collect(),
+            container_section: containers,
+            ..Default::default()
         }
     }
 
@@ -672,17 +1031,18 @@ impl Program {
     ///
     /// # Returns
     /// A vector of bytes representing the opcodes of the program.
+    #[inline]
     pub fn to_opcode(&self) -> Vec<u8> {
-        self.operations
+        Self::operations_to_opcode(&self.operations)
+    }
+
+    /// Converts the list of operatiobs into a vector of opcodes.
+    #[inline]
+    pub fn operations_to_opcode(operations: &[Operation]) -> Vec<u8> {
+        operations
             .iter()
             .flat_map(Operation::to)
             .collect::<Vec<u8>>()
-    }
-
-    /// FIXME: Alter below that returns `true` if the EVM program is EOF.
-    #[inline]
-    pub fn is_eof(&self) -> bool {
-        false
     }
 
     /// Mark `PUSH<N>` followed by `JUMP[I]` as `STATIC_JUMP` and resolve the target.
@@ -703,16 +1063,49 @@ impl Program {
         false
     }
 
-    fn parse_operations(opcodes: &[u8], is_eof: bool) -> (Vec<Operation>, Vec<OpcodeParseError>) {
+    /// Whether eof bytecode
+    #[inline]
+    pub fn is_eof(&self) -> bool {
+        self.eof.is_some()
+    }
+
+    /// Returns the program counter of the given EOF section index.
+    pub fn eof_section_pc(&self, section: usize) -> usize {
+        let code = &self.eof.as_ref().unwrap().body.code_section;
+        let first = code.first().unwrap().as_ptr();
+        let section_ptr = code[section].as_ptr();
+        section_ptr as usize - first as usize
+    }
+
+    /// Returns the operation index of the given EOF section index.
+    pub fn eof_section_index(&self, section: usize) -> usize {
+        self.pc_to_index_mapping[&self.eof_section_pc(section)]
+    }
+
+    fn parse_operations(
+        opcodes: &[u8],
+        is_eof: bool,
+    ) -> (
+        Vec<Operation>,
+        FxHashMap<usize, usize>,
+        Vec<OpcodeParseError>,
+    ) {
         let mut operations = vec![];
+        let mut pc_to_index_mapping =
+            FxHashMap::with_capacity_and_hasher(opcodes.len(), Default::default());
         let mut failed_opcodes = vec![];
         let mut pc = 0;
+        let mut index = 0;
+
+        pc_to_index_mapping.insert(pc, index);
 
         while pc < opcodes.len() {
             match Self::parse_operation(opcodes, pc, is_eof) {
                 Ok((op, new_pc)) => {
                     operations.push(op);
                     pc = new_pc;
+                    index += 1;
+                    pc_to_index_mapping.insert(pc, index);
                 }
                 Err(e) => {
                     operations.push(Operation::Invalid);
@@ -722,7 +1115,7 @@ impl Program {
             }
         }
 
-        (operations, failed_opcodes)
+        (operations, pc_to_index_mapping, failed_opcodes)
     }
 
     fn parse_operation(
@@ -744,16 +1137,6 @@ impl Program {
                 _ => 1,
             })
             .sum()
-    }
-}
-
-impl From<Vec<Operation>> for Program {
-    fn from(operations: Vec<Operation>) -> Self {
-        let code_size = Self::calculate_code_size(&operations);
-        Self {
-            operations,
-            code_size,
-        }
     }
 }
 
@@ -845,7 +1228,7 @@ pub const fn stack_io(op: &Operation) -> (u8, u8) {
         Operation::ReturnContract(_) => (2, 0),
         Operation::Create => (3, 1),
         Operation::Call => (7, 1),
-        Operation::CallCode => (7, 1),
+        Operation::Callcode => (7, 1),
         Operation::Return => (2, 0),
         Operation::Delegatecall => (6, 1),
         Operation::Create2 => (4, 1),
@@ -856,7 +1239,7 @@ pub const fn stack_io(op: &Operation) -> (u8, u8) {
         Operation::ExtStaticcall => (3, 1),
         Operation::Revert => (2, 0),
         Operation::Invalid => (0, 0),
-        Operation::SelfDestruct => (1, 0),
+        Operation::Selfdestruct => (1, 0),
         Operation::PC { .. } => (0, 1),
         Operation::Jumpdest { .. } => (0, 0),
         Operation::Push(_) => (0, 1),

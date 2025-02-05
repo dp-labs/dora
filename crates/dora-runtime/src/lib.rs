@@ -14,17 +14,19 @@ pub mod result;
 pub mod symbols;
 pub mod transaction;
 pub mod vm;
+pub mod wasm;
 
 #[repr(u8)]
 #[derive(Debug, Clone)]
 pub enum ExitStatusCode {
+    Continue = 0,
     /* Success Codes */
     /// Encountered a `RETURN` opcode
-    Return = 0,
+    Return = 1,
     /// Encountered a `STOP` opcode
-    Stop = 1,
+    Stop = 2,
     /// Self-destruct the current contract.
-    SelfDestruct = 2,
+    Selfdestruct = 3,
 
     /* Revert Codes */
     /// Revert the transaction.
@@ -106,9 +108,10 @@ impl ExitStatusCode {
     }
     pub fn from_u8(value: u8) -> Self {
         match value {
+            x if x == Self::Continue.to_u8() => Self::Continue,
             x if x == Self::Return.to_u8() => Self::Return,
             x if x == Self::Stop.to_u8() => Self::Stop,
-            x if x == Self::SelfDestruct.to_u8() => Self::SelfDestruct,
+            x if x == Self::Selfdestruct.to_u8() => Self::Selfdestruct,
             x if x == Self::Revert.to_u8() => Self::Revert,
             x if x == Self::CallTooDeep.to_u8() => Self::CallTooDeep,
             x if x == Self::OutOfFunds.to_u8() => Self::OutOfFunds,
@@ -156,7 +159,7 @@ impl ExitStatusCode {
     pub fn is_ok(&self) -> bool {
         matches!(
             self,
-            ExitStatusCode::Return | ExitStatusCode::Stop | ExitStatusCode::SelfDestruct
+            ExitStatusCode::Return | ExitStatusCode::Stop | ExitStatusCode::Selfdestruct
         )
     }
 

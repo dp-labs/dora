@@ -29,6 +29,102 @@ pub enum IntCC {
     UnsignedLessThanOrEqual,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub enum AtomicOrdering {
+    /// Non-atomic operation. This is the default value, indicating that the operation
+    /// is not atomic. Suitable for regular load or store operations.
+    NotAtomic,
+    /// Unordered atomic operation. Provides the weakest atomicity guarantee, ensuring
+    /// only that the operation is atomic, with no memory ordering constraints.
+    /// Typically used in performance-critical scenarios.
+    Unordered,
+    /// Monotonic atomic operation. Guarantees atomicity and preserves the order of
+    /// operations within the same thread, but does not provide cross-thread memory
+    /// ordering guarantees.
+    Monotonic,
+    /// Atomic operation with `acquire` semantics. Ensures that all read/write operations
+    /// after this operation cannot be reordered before it. Commonly used for load operations
+    /// to ensure subsequent operations see the correct memory state.
+    Acquire,
+    /// Atomic operation with `release` semantics. Ensures that all read/write operations
+    /// before this operation cannot be reordered after it. Commonly used for store operations
+    /// to ensure previous operations are visible to other threads.
+    Release,
+    /// Atomic operation with `acquire-release` semantics. Combines the properties of
+    /// `acquire` and `release`, ensuring that operations before cannot be reordered after
+    /// and operations after cannot be reordered before. Typically used for read-modify-write
+    /// operations.
+    AcquireRelease,
+    /// Sequentially consistent atomic operation. Provides the strongest memory ordering
+    /// guarantee, ensuring that all threads observe operations in a consistent order.
+    /// Suitable for scenarios requiring strict synchronization.
+    SequentiallyConsistent,
+}
+
+impl AtomicOrdering {
+    pub fn attr_str(&self) -> String {
+        match self {
+            AtomicOrdering::NotAtomic => "not_atomic".to_string(),
+            AtomicOrdering::Unordered => "unordered".to_string(),
+            AtomicOrdering::Monotonic => "monotonic".to_string(),
+            AtomicOrdering::Acquire => "acquire".to_string(),
+            AtomicOrdering::Release => "release".to_string(),
+            AtomicOrdering::AcquireRelease => "acq_rel".to_string(),
+            AtomicOrdering::SequentiallyConsistent => "seq_cst".to_string(),
+        }
+    }
+}
+
+/// Reference: https://mlir.llvm.org/docs/Dialects/LLVM/#llvmatomicrmw-llvmatomicrmwop
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub enum AtomicBinOp {
+    Xchg,
+    Add,
+    Sub,
+    And,
+    NAnd,
+    Or,
+    Xor,
+    Max,
+    Min,
+    UMax,
+    UMin,
+    FAdd,
+    FSub,
+    FMax,
+    FMin,
+    UIncWrap,
+    UDecWrap,
+    USubCond,
+    USubSat,
+}
+
+impl AtomicBinOp {
+    pub fn attr_str(&self) -> String {
+        match self {
+            AtomicBinOp::Xchg => "xchg".to_string(),
+            AtomicBinOp::Add => "add".to_string(),
+            AtomicBinOp::Sub => "sub".to_string(),
+            AtomicBinOp::And => "_and".to_string(),
+            AtomicBinOp::NAnd => "nand".to_string(),
+            AtomicBinOp::Or => "_or".to_string(),
+            AtomicBinOp::Xor => "_xor".to_string(),
+            AtomicBinOp::Max => "max".to_string(),
+            AtomicBinOp::Min => "min".to_string(),
+            AtomicBinOp::UMax => "umax".to_string(),
+            AtomicBinOp::UMin => "umin".to_string(),
+            AtomicBinOp::FAdd => "fadd".to_string(),
+            AtomicBinOp::FSub => "fsub".to_string(),
+            AtomicBinOp::FMax => "fmax".to_string(),
+            AtomicBinOp::FMin => "fmin".to_string(),
+            AtomicBinOp::UIncWrap => "uinc_wrap".to_string(),
+            AtomicBinOp::UDecWrap => "udec_wrap".to_string(),
+            AtomicBinOp::USubCond => "usub_cond".to_string(),
+            AtomicBinOp::USubSat => "usub_sat".to_string(),
+        }
+    }
+}
+
 /// Linkage type.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Linkage {
@@ -91,6 +187,24 @@ pub trait Builder: IRTypes + TypeMethods {
     /// # Returns
     /// - `Result<Self::Value>`: A value representing the constant.
     fn uconst(&mut self, ty: Self::Type, value: u64) -> Result<Self::Value>;
+
+    /// Creates a 8-bit signed integer constant.
+    ///
+    /// # Arguments
+    /// - `value`: The signed integer value.
+    ///
+    /// # Returns
+    /// - `Result<Self::Value>`: A value representing the constant.
+    fn iconst_8(&mut self, value: i8) -> Result<Self::Value>;
+
+    /// Creates a 16-bit signed integer constant.
+    ///
+    /// # Arguments
+    /// - `value`: The signed integer value.
+    ///
+    /// # Returns
+    /// - `Result<Self::Value>`: A value representing the constant.
+    fn iconst_16(&mut self, value: i16) -> Result<Self::Value>;
 
     /// Creates a 32-bit signed integer constant.
     ///

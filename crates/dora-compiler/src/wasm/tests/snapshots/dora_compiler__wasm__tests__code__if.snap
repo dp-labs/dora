@@ -1,0 +1,1886 @@
+---
+source: crates/dora-compiler/src/wasm/tests/code.rs
+expression: op
+snapshot_kind: text
+---
+module {
+  func.func @dummy(%arg0: !llvm.ptr) {
+    cf.br ^bb1
+  ^bb1:  // pred: ^bb0
+    cf.br ^bb2
+  ^bb2:  // pred: ^bb1
+    return
+  }
+  func.func public @empty(%arg0: !llvm.ptr, %arg1: i32) attributes {llvm.emit_c_interface} {
+    %c1_i64 = arith.constant 1 : i64
+    %0 = llvm.alloca %c1_i64 x i32 : (i64) -> !llvm.ptr
+    llvm.store %arg1, %0 : i32, !llvm.ptr
+    cf.br ^bb1
+  ^bb1:  // pred: ^bb0
+    %1 = llvm.load %0 : !llvm.ptr -> i32
+    %c0_i32 = arith.constant 0 : i32
+    %2 = arith.cmpi ne, %1, %c0_i32 : i32
+    cf.cond_br %2, ^bb3, ^bb4
+  ^bb2:  // pred: ^bb14
+    return
+  ^bb3:  // pred: ^bb1
+    cf.br ^bb5
+  ^bb4:  // pred: ^bb1
+    cf.br ^bb5
+  ^bb5:  // 2 preds: ^bb3, ^bb4
+    %3 = llvm.load %0 : !llvm.ptr -> i32
+    %c0_i32_0 = arith.constant 0 : i32
+    %4 = arith.cmpi ne, %3, %c0_i32_0 : i32
+    cf.cond_br %4, ^bb6, ^bb7
+  ^bb6:  // pred: ^bb5
+    cf.br ^bb8
+  ^bb7:  // pred: ^bb5
+    cf.br ^bb8
+  ^bb8:  // 2 preds: ^bb6, ^bb7
+    %5 = llvm.load %0 : !llvm.ptr -> i32
+    %c0_i32_1 = arith.constant 0 : i32
+    %6 = arith.cmpi ne, %5, %c0_i32_1 : i32
+    cf.cond_br %6, ^bb9, ^bb10
+  ^bb9:  // pred: ^bb8
+    cf.br ^bb11
+  ^bb10:  // pred: ^bb8
+    cf.br ^bb11
+  ^bb11:  // 2 preds: ^bb9, ^bb10
+    %7 = llvm.load %0 : !llvm.ptr -> i32
+    %c0_i32_2 = arith.constant 0 : i32
+    %8 = arith.cmpi ne, %7, %c0_i32_2 : i32
+    cf.cond_br %8, ^bb12, ^bb13
+  ^bb12:  // pred: ^bb11
+    cf.br ^bb14
+  ^bb13:  // pred: ^bb11
+    cf.br ^bb14
+  ^bb14:  // 2 preds: ^bb12, ^bb13
+    cf.br ^bb2
+  }
+  func.func public @singular(%arg0: !llvm.ptr, %arg1: i32) -> i32 attributes {llvm.emit_c_interface} {
+    %c1_i64 = arith.constant 1 : i64
+    %0 = llvm.alloca %c1_i64 x i32 : (i64) -> !llvm.ptr
+    llvm.store %arg1, %0 : i32, !llvm.ptr
+    cf.br ^bb1
+  ^bb1:  // pred: ^bb0
+    %1 = llvm.load %0 : !llvm.ptr -> i32
+    %c0_i32 = arith.constant 0 : i32
+    %2 = arith.cmpi ne, %1, %c0_i32 : i32
+    cf.cond_br %2, ^bb3, ^bb4
+  ^bb2(%3: i32):  // pred: ^bb11
+    return %3 : i32
+  ^bb3:  // pred: ^bb1
+    cf.br ^bb5
+  ^bb4:  // pred: ^bb1
+    cf.br ^bb5
+  ^bb5:  // 2 preds: ^bb3, ^bb4
+    %4 = llvm.load %0 : !llvm.ptr -> i32
+    %c0_i32_0 = arith.constant 0 : i32
+    %5 = arith.cmpi ne, %4, %c0_i32_0 : i32
+    cf.cond_br %5, ^bb6, ^bb7
+  ^bb6:  // pred: ^bb5
+    cf.br ^bb8
+  ^bb7:  // pred: ^bb5
+    cf.br ^bb8
+  ^bb8:  // 2 preds: ^bb6, ^bb7
+    %6 = llvm.load %0 : !llvm.ptr -> i32
+    %c0_i32_1 = arith.constant 0 : i32
+    %7 = arith.cmpi ne, %6, %c0_i32_1 : i32
+    cf.cond_br %7, ^bb9, ^bb10
+  ^bb9:  // pred: ^bb8
+    %c7_i32 = arith.constant 7 : i32
+    cf.br ^bb11(%c7_i32 : i32)
+  ^bb10:  // pred: ^bb8
+    %c8_i32 = arith.constant 8 : i32
+    cf.br ^bb11(%c8_i32 : i32)
+  ^bb11(%8: i32):  // 2 preds: ^bb9, ^bb10
+    cf.br ^bb2(%8 : i32)
+  }
+  func.func public @multi(%arg0: !llvm.ptr, %arg1: i32) -> (i32, i32) attributes {llvm.emit_c_interface} {
+    %c1_i64 = arith.constant 1 : i64
+    %0 = llvm.alloca %c1_i64 x i32 : (i64) -> !llvm.ptr
+    llvm.store %arg1, %0 : i32, !llvm.ptr
+    cf.br ^bb1
+  ^bb1:  // pred: ^bb0
+    %1 = llvm.load %0 : !llvm.ptr -> i32
+    %c0_i32 = arith.constant 0 : i32
+    %2 = arith.cmpi ne, %1, %c0_i32 : i32
+    cf.cond_br %2, ^bb3, ^bb4
+  ^bb2(%3: i32, %4: i32):  // pred: ^bb14
+    return %3, %4 : i32, i32
+  ^bb3:  // pred: ^bb1
+    call @dummy(%arg0) : (!llvm.ptr) -> ()
+    call @dummy(%arg0) : (!llvm.ptr) -> ()
+    call @dummy(%arg0) : (!llvm.ptr) -> ()
+    cf.br ^bb5
+  ^bb4:  // pred: ^bb1
+    cf.br ^bb5
+  ^bb5:  // 2 preds: ^bb3, ^bb4
+    %5 = llvm.load %0 : !llvm.ptr -> i32
+    %c0_i32_0 = arith.constant 0 : i32
+    %6 = arith.cmpi ne, %5, %c0_i32_0 : i32
+    cf.cond_br %6, ^bb6, ^bb7
+  ^bb6:  // pred: ^bb5
+    cf.br ^bb8
+  ^bb7:  // pred: ^bb5
+    call @dummy(%arg0) : (!llvm.ptr) -> ()
+    call @dummy(%arg0) : (!llvm.ptr) -> ()
+    call @dummy(%arg0) : (!llvm.ptr) -> ()
+    cf.br ^bb8
+  ^bb8:  // 2 preds: ^bb6, ^bb7
+    %7 = llvm.load %0 : !llvm.ptr -> i32
+    %c0_i32_1 = arith.constant 0 : i32
+    %8 = arith.cmpi ne, %7, %c0_i32_1 : i32
+    cf.cond_br %8, ^bb9, ^bb10
+  ^bb9:  // pred: ^bb8
+    call @dummy(%arg0) : (!llvm.ptr) -> ()
+    call @dummy(%arg0) : (!llvm.ptr) -> ()
+    %c8_i32 = arith.constant 8 : i32
+    call @dummy(%arg0) : (!llvm.ptr) -> ()
+    cf.br ^bb11(%c8_i32 : i32)
+  ^bb10:  // pred: ^bb8
+    call @dummy(%arg0) : (!llvm.ptr) -> ()
+    call @dummy(%arg0) : (!llvm.ptr) -> ()
+    %c9_i32 = arith.constant 9 : i32
+    call @dummy(%arg0) : (!llvm.ptr) -> ()
+    cf.br ^bb11(%c9_i32 : i32)
+  ^bb11(%9: i32):  // 2 preds: ^bb9, ^bb10
+    %10 = llvm.load %0 : !llvm.ptr -> i32
+    %c0_i32_2 = arith.constant 0 : i32
+    %11 = arith.cmpi ne, %10, %c0_i32_2 : i32
+    cf.cond_br %11, ^bb12, ^bb13
+  ^bb12:  // pred: ^bb11
+    call @dummy(%arg0) : (!llvm.ptr) -> ()
+    call @dummy(%arg0) : (!llvm.ptr) -> ()
+    %c1_i32 = arith.constant 1 : i32
+    call @dummy(%arg0) : (!llvm.ptr) -> ()
+    call @dummy(%arg0) : (!llvm.ptr) -> ()
+    call @dummy(%arg0) : (!llvm.ptr) -> ()
+    %c2_i64 = arith.constant 2 : i64
+    call @dummy(%arg0) : (!llvm.ptr) -> ()
+    call @dummy(%arg0) : (!llvm.ptr) -> ()
+    call @dummy(%arg0) : (!llvm.ptr) -> ()
+    %c3_i32 = arith.constant 3 : i32
+    call @dummy(%arg0) : (!llvm.ptr) -> ()
+    cf.br ^bb14(%c1_i32, %c2_i64, %c3_i32 : i32, i64, i32)
+  ^bb13:  // pred: ^bb11
+    call @dummy(%arg0) : (!llvm.ptr) -> ()
+    call @dummy(%arg0) : (!llvm.ptr) -> ()
+    %c-1_i32 = arith.constant -1 : i32
+    call @dummy(%arg0) : (!llvm.ptr) -> ()
+    call @dummy(%arg0) : (!llvm.ptr) -> ()
+    call @dummy(%arg0) : (!llvm.ptr) -> ()
+    %c-2_i64 = arith.constant -2 : i64
+    call @dummy(%arg0) : (!llvm.ptr) -> ()
+    call @dummy(%arg0) : (!llvm.ptr) -> ()
+    call @dummy(%arg0) : (!llvm.ptr) -> ()
+    %c-3_i32 = arith.constant -3 : i32
+    call @dummy(%arg0) : (!llvm.ptr) -> ()
+    cf.br ^bb14(%c-1_i32, %c-2_i64, %c-3_i32 : i32, i64, i32)
+  ^bb14(%12: i32, %13: i64, %14: i32):  // 2 preds: ^bb12, ^bb13
+    cf.br ^bb2(%9, %12 : i32, i32)
+  }
+  func.func public @nested(%arg0: !llvm.ptr, %arg1: i32, %arg2: i32) -> i32 attributes {llvm.emit_c_interface} {
+    %c1_i64 = arith.constant 1 : i64
+    %0 = llvm.alloca %c1_i64 x i32 : (i64) -> !llvm.ptr
+    llvm.store %arg1, %0 : i32, !llvm.ptr
+    %c1_i64_0 = arith.constant 1 : i64
+    %1 = llvm.alloca %c1_i64_0 x i32 : (i64) -> !llvm.ptr
+    llvm.store %arg2, %1 : i32, !llvm.ptr
+    cf.br ^bb1
+  ^bb1:  // pred: ^bb0
+    %2 = llvm.load %0 : !llvm.ptr -> i32
+    %c0_i32 = arith.constant 0 : i32
+    %3 = arith.cmpi ne, %2, %c0_i32 : i32
+    cf.cond_br %3, ^bb3, ^bb4
+  ^bb2(%4: i32):  // pred: ^bb5
+    return %4 : i32
+  ^bb3:  // pred: ^bb1
+    %5 = llvm.load %1 : !llvm.ptr -> i32
+    %c0_i32_1 = arith.constant 0 : i32
+    %6 = arith.cmpi ne, %5, %c0_i32_1 : i32
+    cf.cond_br %6, ^bb6, ^bb7
+  ^bb4:  // pred: ^bb1
+    %7 = llvm.load %1 : !llvm.ptr -> i32
+    %c0_i32_2 = arith.constant 0 : i32
+    %8 = arith.cmpi ne, %7, %c0_i32_2 : i32
+    cf.cond_br %8, ^bb17, ^bb18
+  ^bb5(%9: i32):  // 2 preds: ^bb16, ^bb27
+    cf.br ^bb2(%9 : i32)
+  ^bb6:  // pred: ^bb3
+    call @dummy(%arg0) : (!llvm.ptr) -> ()
+    cf.br ^bb9
+  ^bb7:  // pred: ^bb3
+    cf.br ^bb8
+  ^bb8:  // 2 preds: ^bb7, ^bb9
+    %10 = llvm.load %1 : !llvm.ptr -> i32
+    %c0_i32_3 = arith.constant 0 : i32
+    %11 = arith.cmpi ne, %10, %c0_i32_3 : i32
+    cf.cond_br %11, ^bb10, ^bb11
+  ^bb9:  // pred: ^bb6
+    cf.br ^bb8
+  ^bb10:  // pred: ^bb8
+    cf.br ^bb12
+  ^bb11:  // pred: ^bb8
+    call @dummy(%arg0) : (!llvm.ptr) -> ()
+    cf.br ^bb13
+  ^bb12:  // 2 preds: ^bb10, ^bb13
+    %12 = llvm.load %1 : !llvm.ptr -> i32
+    %c0_i32_4 = arith.constant 0 : i32
+    %13 = arith.cmpi ne, %12, %c0_i32_4 : i32
+    cf.cond_br %13, ^bb14, ^bb15
+  ^bb13:  // pred: ^bb11
+    cf.br ^bb12
+  ^bb14:  // pred: ^bb12
+    call @dummy(%arg0) : (!llvm.ptr) -> ()
+    %c9_i32 = arith.constant 9 : i32
+    cf.br ^bb16(%c9_i32 : i32)
+  ^bb15:  // pred: ^bb12
+    call @dummy(%arg0) : (!llvm.ptr) -> ()
+    %c10_i32 = arith.constant 10 : i32
+    cf.br ^bb16(%c10_i32 : i32)
+  ^bb16(%14: i32):  // 2 preds: ^bb14, ^bb15
+    cf.br ^bb5(%14 : i32)
+  ^bb17:  // pred: ^bb4
+    call @dummy(%arg0) : (!llvm.ptr) -> ()
+    cf.br ^bb20
+  ^bb18:  // pred: ^bb4
+    cf.br ^bb19
+  ^bb19:  // 2 preds: ^bb18, ^bb20
+    %15 = llvm.load %1 : !llvm.ptr -> i32
+    %c0_i32_5 = arith.constant 0 : i32
+    %16 = arith.cmpi ne, %15, %c0_i32_5 : i32
+    cf.cond_br %16, ^bb21, ^bb22
+  ^bb20:  // pred: ^bb17
+    cf.br ^bb19
+  ^bb21:  // pred: ^bb19
+    cf.br ^bb23
+  ^bb22:  // pred: ^bb19
+    call @dummy(%arg0) : (!llvm.ptr) -> ()
+    cf.br ^bb24
+  ^bb23:  // 2 preds: ^bb21, ^bb24
+    %17 = llvm.load %1 : !llvm.ptr -> i32
+    %c0_i32_6 = arith.constant 0 : i32
+    %18 = arith.cmpi ne, %17, %c0_i32_6 : i32
+    cf.cond_br %18, ^bb25, ^bb26
+  ^bb24:  // pred: ^bb22
+    cf.br ^bb23
+  ^bb25:  // pred: ^bb23
+    call @dummy(%arg0) : (!llvm.ptr) -> ()
+    %c10_i32_7 = arith.constant 10 : i32
+    cf.br ^bb27(%c10_i32_7 : i32)
+  ^bb26:  // pred: ^bb23
+    call @dummy(%arg0) : (!llvm.ptr) -> ()
+    %c11_i32 = arith.constant 11 : i32
+    cf.br ^bb27(%c11_i32 : i32)
+  ^bb27(%19: i32):  // 2 preds: ^bb25, ^bb26
+    cf.br ^bb5(%19 : i32)
+  }
+  func.func public @"as-select-first"(%arg0: !llvm.ptr, %arg1: i32) -> i32 attributes {llvm.emit_c_interface} {
+    %c1_i64 = arith.constant 1 : i64
+    %0 = llvm.alloca %c1_i64 x i32 : (i64) -> !llvm.ptr
+    llvm.store %arg1, %0 : i32, !llvm.ptr
+    cf.br ^bb1
+  ^bb1:  // pred: ^bb0
+    %1 = llvm.load %0 : !llvm.ptr -> i32
+    %c0_i32 = arith.constant 0 : i32
+    %2 = arith.cmpi ne, %1, %c0_i32 : i32
+    cf.cond_br %2, ^bb3, ^bb4
+  ^bb2(%3: i32):  // pred: ^bb5
+    return %3 : i32
+  ^bb3:  // pred: ^bb1
+    call @dummy(%arg0) : (!llvm.ptr) -> ()
+    %c1_i32 = arith.constant 1 : i32
+    cf.br ^bb5(%c1_i32 : i32)
+  ^bb4:  // pred: ^bb1
+    call @dummy(%arg0) : (!llvm.ptr) -> ()
+    %c0_i32_0 = arith.constant 0 : i32
+    cf.br ^bb5(%c0_i32_0 : i32)
+  ^bb5(%4: i32):  // 2 preds: ^bb3, ^bb4
+    %c2_i32 = arith.constant 2 : i32
+    %c3_i32 = arith.constant 3 : i32
+    %5 = "wasm.select"(%4, %c2_i32, %c3_i32) : (i32, i32, i32) -> i32
+    cf.br ^bb2(%5 : i32)
+  }
+  func.func public @"as-select-mid"(%arg0: !llvm.ptr, %arg1: i32) -> i32 attributes {llvm.emit_c_interface} {
+    %c1_i64 = arith.constant 1 : i64
+    %0 = llvm.alloca %c1_i64 x i32 : (i64) -> !llvm.ptr
+    llvm.store %arg1, %0 : i32, !llvm.ptr
+    cf.br ^bb1
+  ^bb1:  // pred: ^bb0
+    %c2_i32 = arith.constant 2 : i32
+    %1 = llvm.load %0 : !llvm.ptr -> i32
+    %c0_i32 = arith.constant 0 : i32
+    %2 = arith.cmpi ne, %1, %c0_i32 : i32
+    cf.cond_br %2, ^bb3, ^bb4
+  ^bb2(%3: i32):  // pred: ^bb5
+    return %3 : i32
+  ^bb3:  // pred: ^bb1
+    call @dummy(%arg0) : (!llvm.ptr) -> ()
+    %c1_i32 = arith.constant 1 : i32
+    cf.br ^bb5(%c1_i32 : i32)
+  ^bb4:  // pred: ^bb1
+    call @dummy(%arg0) : (!llvm.ptr) -> ()
+    %c0_i32_0 = arith.constant 0 : i32
+    cf.br ^bb5(%c0_i32_0 : i32)
+  ^bb5(%4: i32):  // 2 preds: ^bb3, ^bb4
+    %c3_i32 = arith.constant 3 : i32
+    %5 = "wasm.select"(%c2_i32, %4, %c3_i32) : (i32, i32, i32) -> i32
+    cf.br ^bb2(%5 : i32)
+  }
+  func.func public @"as-select-last"(%arg0: !llvm.ptr, %arg1: i32) -> i32 attributes {llvm.emit_c_interface} {
+    %c1_i64 = arith.constant 1 : i64
+    %0 = llvm.alloca %c1_i64 x i32 : (i64) -> !llvm.ptr
+    llvm.store %arg1, %0 : i32, !llvm.ptr
+    cf.br ^bb1
+  ^bb1:  // pred: ^bb0
+    %c2_i32 = arith.constant 2 : i32
+    %c3_i32 = arith.constant 3 : i32
+    %1 = llvm.load %0 : !llvm.ptr -> i32
+    %c0_i32 = arith.constant 0 : i32
+    %2 = arith.cmpi ne, %1, %c0_i32 : i32
+    cf.cond_br %2, ^bb3, ^bb4
+  ^bb2(%3: i32):  // pred: ^bb5
+    return %3 : i32
+  ^bb3:  // pred: ^bb1
+    call @dummy(%arg0) : (!llvm.ptr) -> ()
+    %c1_i32 = arith.constant 1 : i32
+    cf.br ^bb5(%c1_i32 : i32)
+  ^bb4:  // pred: ^bb1
+    call @dummy(%arg0) : (!llvm.ptr) -> ()
+    %c0_i32_0 = arith.constant 0 : i32
+    cf.br ^bb5(%c0_i32_0 : i32)
+  ^bb5(%4: i32):  // 2 preds: ^bb3, ^bb4
+    %5 = "wasm.select"(%c2_i32, %c3_i32, %4) : (i32, i32, i32) -> i32
+    cf.br ^bb2(%5 : i32)
+  }
+  func.func public @"as-loop-first"(%arg0: !llvm.ptr, %arg1: i32) -> i32 attributes {llvm.emit_c_interface} {
+    %c1_i64 = arith.constant 1 : i64
+    %0 = llvm.alloca %c1_i64 x i32 : (i64) -> !llvm.ptr
+    llvm.store %arg1, %0 : i32, !llvm.ptr
+    cf.br ^bb1
+  ^bb1:  // pred: ^bb0
+    cf.br ^bb4
+  ^bb2(%1: i32):  // pred: ^bb3
+    return %1 : i32
+  ^bb3(%2: i32):  // pred: ^bb7
+    cf.br ^bb2(%2 : i32)
+  ^bb4:  // pred: ^bb1
+    %3 = llvm.load %0 : !llvm.ptr -> i32
+    %c0_i32 = arith.constant 0 : i32
+    %4 = arith.cmpi ne, %3, %c0_i32 : i32
+    cf.cond_br %4, ^bb5, ^bb6
+  ^bb5:  // pred: ^bb4
+    call @dummy(%arg0) : (!llvm.ptr) -> ()
+    %c1_i32 = arith.constant 1 : i32
+    cf.br ^bb7(%c1_i32 : i32)
+  ^bb6:  // pred: ^bb4
+    call @dummy(%arg0) : (!llvm.ptr) -> ()
+    %c0_i32_0 = arith.constant 0 : i32
+    cf.br ^bb7(%c0_i32_0 : i32)
+  ^bb7(%5: i32):  // 2 preds: ^bb5, ^bb6
+    call @dummy(%arg0) : (!llvm.ptr) -> ()
+    call @dummy(%arg0) : (!llvm.ptr) -> ()
+    cf.br ^bb3(%5 : i32)
+  }
+  func.func public @"as-loop-mid"(%arg0: !llvm.ptr, %arg1: i32) -> i32 attributes {llvm.emit_c_interface} {
+    %c1_i64 = arith.constant 1 : i64
+    %0 = llvm.alloca %c1_i64 x i32 : (i64) -> !llvm.ptr
+    llvm.store %arg1, %0 : i32, !llvm.ptr
+    cf.br ^bb1
+  ^bb1:  // pred: ^bb0
+    cf.br ^bb4
+  ^bb2(%1: i32):  // pred: ^bb3
+    return %1 : i32
+  ^bb3(%2: i32):  // pred: ^bb7
+    cf.br ^bb2(%2 : i32)
+  ^bb4:  // pred: ^bb1
+    call @dummy(%arg0) : (!llvm.ptr) -> ()
+    %3 = llvm.load %0 : !llvm.ptr -> i32
+    %c0_i32 = arith.constant 0 : i32
+    %4 = arith.cmpi ne, %3, %c0_i32 : i32
+    cf.cond_br %4, ^bb5, ^bb6
+  ^bb5:  // pred: ^bb4
+    call @dummy(%arg0) : (!llvm.ptr) -> ()
+    %c1_i32 = arith.constant 1 : i32
+    cf.br ^bb7(%c1_i32 : i32)
+  ^bb6:  // pred: ^bb4
+    call @dummy(%arg0) : (!llvm.ptr) -> ()
+    %c0_i32_0 = arith.constant 0 : i32
+    cf.br ^bb7(%c0_i32_0 : i32)
+  ^bb7(%5: i32):  // 2 preds: ^bb5, ^bb6
+    call @dummy(%arg0) : (!llvm.ptr) -> ()
+    cf.br ^bb3(%5 : i32)
+  }
+  func.func public @"as-loop-last"(%arg0: !llvm.ptr, %arg1: i32) -> i32 attributes {llvm.emit_c_interface} {
+    %c1_i64 = arith.constant 1 : i64
+    %0 = llvm.alloca %c1_i64 x i32 : (i64) -> !llvm.ptr
+    llvm.store %arg1, %0 : i32, !llvm.ptr
+    cf.br ^bb1
+  ^bb1:  // pred: ^bb0
+    cf.br ^bb4
+  ^bb2(%1: i32):  // pred: ^bb3
+    return %1 : i32
+  ^bb3(%2: i32):  // pred: ^bb7
+    cf.br ^bb2(%2 : i32)
+  ^bb4:  // pred: ^bb1
+    call @dummy(%arg0) : (!llvm.ptr) -> ()
+    call @dummy(%arg0) : (!llvm.ptr) -> ()
+    %3 = llvm.load %0 : !llvm.ptr -> i32
+    %c0_i32 = arith.constant 0 : i32
+    %4 = arith.cmpi ne, %3, %c0_i32 : i32
+    cf.cond_br %4, ^bb5, ^bb6
+  ^bb5:  // pred: ^bb4
+    call @dummy(%arg0) : (!llvm.ptr) -> ()
+    %c1_i32 = arith.constant 1 : i32
+    cf.br ^bb7(%c1_i32 : i32)
+  ^bb6:  // pred: ^bb4
+    call @dummy(%arg0) : (!llvm.ptr) -> ()
+    %c0_i32_0 = arith.constant 0 : i32
+    cf.br ^bb7(%c0_i32_0 : i32)
+  ^bb7(%5: i32):  // 2 preds: ^bb5, ^bb6
+    cf.br ^bb3(%5 : i32)
+  }
+  func.func public @"as-if-condition"(%arg0: !llvm.ptr, %arg1: i32) -> i32 attributes {llvm.emit_c_interface} {
+    %c1_i64 = arith.constant 1 : i64
+    %0 = llvm.alloca %c1_i64 x i32 : (i64) -> !llvm.ptr
+    llvm.store %arg1, %0 : i32, !llvm.ptr
+    cf.br ^bb1
+  ^bb1:  // pred: ^bb0
+    %1 = llvm.load %0 : !llvm.ptr -> i32
+    %c0_i32 = arith.constant 0 : i32
+    %2 = arith.cmpi ne, %1, %c0_i32 : i32
+    cf.cond_br %2, ^bb3, ^bb4
+  ^bb2(%3: i32):  // pred: ^bb8
+    return %3 : i32
+  ^bb3:  // pred: ^bb1
+    %c1_i32 = arith.constant 1 : i32
+    cf.br ^bb5(%c1_i32 : i32)
+  ^bb4:  // pred: ^bb1
+    %c0_i32_0 = arith.constant 0 : i32
+    cf.br ^bb5(%c0_i32_0 : i32)
+  ^bb5(%4: i32):  // 2 preds: ^bb3, ^bb4
+    %c0_i32_1 = arith.constant 0 : i32
+    %5 = arith.cmpi ne, %4, %c0_i32_1 : i32
+    cf.cond_br %5, ^bb6, ^bb7
+  ^bb6:  // pred: ^bb5
+    call @dummy(%arg0) : (!llvm.ptr) -> ()
+    %c2_i32 = arith.constant 2 : i32
+    cf.br ^bb8(%c2_i32 : i32)
+  ^bb7:  // pred: ^bb5
+    call @dummy(%arg0) : (!llvm.ptr) -> ()
+    %c3_i32 = arith.constant 3 : i32
+    cf.br ^bb8(%c3_i32 : i32)
+  ^bb8(%6: i32):  // 2 preds: ^bb6, ^bb7
+    cf.br ^bb2(%6 : i32)
+  }
+  func.func public @"as-br_if-first"(%arg0: !llvm.ptr, %arg1: i32) -> i32 attributes {llvm.emit_c_interface} {
+    %c1_i64 = arith.constant 1 : i64
+    %0 = llvm.alloca %c1_i64 x i32 : (i64) -> !llvm.ptr
+    llvm.store %arg1, %0 : i32, !llvm.ptr
+    cf.br ^bb1
+  ^bb1:  // pred: ^bb0
+    %1 = llvm.load %0 : !llvm.ptr -> i32
+    %c0_i32 = arith.constant 0 : i32
+    %2 = arith.cmpi ne, %1, %c0_i32 : i32
+    cf.cond_br %2, ^bb4, ^bb5
+  ^bb2(%3: i32):  // 2 preds: ^bb3, ^bb7
+    return %3 : i32
+  ^bb3(%4: i32):  // pred: ^bb6
+    cf.br ^bb2(%4 : i32)
+  ^bb4:  // pred: ^bb1
+    call @dummy(%arg0) : (!llvm.ptr) -> ()
+    %c1_i32 = arith.constant 1 : i32
+    cf.br ^bb6(%c1_i32 : i32)
+  ^bb5:  // pred: ^bb1
+    call @dummy(%arg0) : (!llvm.ptr) -> ()
+    %c0_i32_0 = arith.constant 0 : i32
+    cf.br ^bb6(%c0_i32_0 : i32)
+  ^bb6(%5: i32):  // 2 preds: ^bb4, ^bb5
+    %c2_i32 = arith.constant 2 : i32
+    %c0_i32_1 = arith.constant 0 : i32
+    %6 = arith.cmpi ne, %c2_i32, %c0_i32_1 : i32
+    cf.cond_br %6, ^bb3(%5 : i32), ^bb7(%5 : i32)
+  ^bb7(%7: i32):  // pred: ^bb6
+    %c3_i32 = arith.constant 3 : i32
+    cf.br ^bb2(%c3_i32 : i32)
+  }
+  func.func public @"as-br_if-last"(%arg0: !llvm.ptr, %arg1: i32) -> i32 attributes {llvm.emit_c_interface} {
+    %c1_i64 = arith.constant 1 : i64
+    %0 = llvm.alloca %c1_i64 x i32 : (i64) -> !llvm.ptr
+    llvm.store %arg1, %0 : i32, !llvm.ptr
+    cf.br ^bb1
+  ^bb1:  // pred: ^bb0
+    %c2_i32 = arith.constant 2 : i32
+    %1 = llvm.load %0 : !llvm.ptr -> i32
+    %c0_i32 = arith.constant 0 : i32
+    %2 = arith.cmpi ne, %1, %c0_i32 : i32
+    cf.cond_br %2, ^bb4, ^bb5
+  ^bb2(%3: i32):  // 2 preds: ^bb3, ^bb7
+    return %3 : i32
+  ^bb3(%4: i32):  // pred: ^bb6
+    cf.br ^bb2(%4 : i32)
+  ^bb4:  // pred: ^bb1
+    call @dummy(%arg0) : (!llvm.ptr) -> ()
+    %c1_i32 = arith.constant 1 : i32
+    cf.br ^bb6(%c1_i32 : i32)
+  ^bb5:  // pred: ^bb1
+    call @dummy(%arg0) : (!llvm.ptr) -> ()
+    %c0_i32_0 = arith.constant 0 : i32
+    cf.br ^bb6(%c0_i32_0 : i32)
+  ^bb6(%5: i32):  // 2 preds: ^bb4, ^bb5
+    %c0_i32_1 = arith.constant 0 : i32
+    %6 = arith.cmpi ne, %5, %c0_i32_1 : i32
+    cf.cond_br %6, ^bb3(%c2_i32 : i32), ^bb7(%c2_i32 : i32)
+  ^bb7(%7: i32):  // pred: ^bb6
+    %c3_i32 = arith.constant 3 : i32
+    cf.br ^bb2(%c3_i32 : i32)
+  }
+  func.func public @"as-br_table-first"(%arg0: !llvm.ptr, %arg1: i32) -> i32 attributes {llvm.emit_c_interface} {
+    %c1_i64 = arith.constant 1 : i64
+    %0 = llvm.alloca %c1_i64 x i32 : (i64) -> !llvm.ptr
+    llvm.store %arg1, %0 : i32, !llvm.ptr
+    cf.br ^bb1
+  ^bb1:  // pred: ^bb0
+    %1 = llvm.load %0 : !llvm.ptr -> i32
+    %c0_i32 = arith.constant 0 : i32
+    %2 = arith.cmpi ne, %1, %c0_i32 : i32
+    cf.cond_br %2, ^bb4, ^bb5
+  ^bb2(%3: i32):  // pred: ^bb3
+    return %3 : i32
+  ^bb3(%4: i32):  // 2 preds: ^bb6, ^bb6
+    cf.br ^bb2(%4 : i32)
+  ^bb4:  // pred: ^bb1
+    call @dummy(%arg0) : (!llvm.ptr) -> ()
+    %c1_i32 = arith.constant 1 : i32
+    cf.br ^bb6(%c1_i32 : i32)
+  ^bb5:  // pred: ^bb1
+    call @dummy(%arg0) : (!llvm.ptr) -> ()
+    %c0_i32_0 = arith.constant 0 : i32
+    cf.br ^bb6(%c0_i32_0 : i32)
+  ^bb6(%5: i32):  // 2 preds: ^bb4, ^bb5
+    %c2_i32 = arith.constant 2 : i32
+    cf.switch %c2_i32 : i32, [
+      default: ^bb3(%5 : i32),
+      0: ^bb3(%5 : i32)
+    ]
+  }
+  func.func public @"as-br_table-last"(%arg0: !llvm.ptr, %arg1: i32) -> i32 attributes {llvm.emit_c_interface} {
+    %c1_i64 = arith.constant 1 : i64
+    %0 = llvm.alloca %c1_i64 x i32 : (i64) -> !llvm.ptr
+    llvm.store %arg1, %0 : i32, !llvm.ptr
+    cf.br ^bb1
+  ^bb1:  // pred: ^bb0
+    %c2_i32 = arith.constant 2 : i32
+    %1 = llvm.load %0 : !llvm.ptr -> i32
+    %c0_i32 = arith.constant 0 : i32
+    %2 = arith.cmpi ne, %1, %c0_i32 : i32
+    cf.cond_br %2, ^bb4, ^bb5
+  ^bb2(%3: i32):  // pred: ^bb3
+    return %3 : i32
+  ^bb3(%4: i32):  // 2 preds: ^bb6, ^bb6
+    cf.br ^bb2(%4 : i32)
+  ^bb4:  // pred: ^bb1
+    call @dummy(%arg0) : (!llvm.ptr) -> ()
+    %c1_i32 = arith.constant 1 : i32
+    cf.br ^bb6(%c1_i32 : i32)
+  ^bb5:  // pred: ^bb1
+    call @dummy(%arg0) : (!llvm.ptr) -> ()
+    %c0_i32_0 = arith.constant 0 : i32
+    cf.br ^bb6(%c0_i32_0 : i32)
+  ^bb6(%5: i32):  // 2 preds: ^bb4, ^bb5
+    cf.switch %5 : i32, [
+      default: ^bb3(%c2_i32 : i32),
+      0: ^bb3(%c2_i32 : i32)
+    ]
+  }
+  func.func @func(%arg0: !llvm.ptr, %arg1: i32, %arg2: i32) -> i32 {
+    %c1_i64 = arith.constant 1 : i64
+    %0 = llvm.alloca %c1_i64 x i32 : (i64) -> !llvm.ptr
+    llvm.store %arg1, %0 : i32, !llvm.ptr
+    %c1_i64_0 = arith.constant 1 : i64
+    %1 = llvm.alloca %c1_i64_0 x i32 : (i64) -> !llvm.ptr
+    llvm.store %arg2, %1 : i32, !llvm.ptr
+    cf.br ^bb1
+  ^bb1:  // pred: ^bb0
+    %2 = llvm.load %0 : !llvm.ptr -> i32
+    cf.br ^bb2(%2 : i32)
+  ^bb2(%3: i32):  // pred: ^bb1
+    return %3 : i32
+  }
+  func.func public @"as-call_indirect-first"(%arg0: !llvm.ptr, %arg1: i32) -> i32 attributes {llvm.emit_c_interface} {
+    %c1_i64 = arith.constant 1 : i64
+    %0 = llvm.alloca %c1_i64 x i32 : (i64) -> !llvm.ptr
+    llvm.store %arg1, %0 : i32, !llvm.ptr
+    %1 = llvm.getelementptr %arg0[0] : (!llvm.ptr) -> !llvm.ptr, i8
+    %2 = llvm.load %1 : !llvm.ptr -> i32
+    %3 = llvm.getelementptr %arg0[64] : (!llvm.ptr) -> !llvm.ptr, i8
+    %4 = llvm.getelementptr %arg0[72] : (!llvm.ptr) -> !llvm.ptr, i8
+    %5 = llvm.load %3 : !llvm.ptr -> !llvm.ptr
+    %6 = llvm.load %4 : !llvm.ptr -> i32
+    cf.br ^bb1
+  ^bb1:  // pred: ^bb0
+    %7 = llvm.load %0 : !llvm.ptr -> i32
+    %c0_i32 = arith.constant 0 : i32
+    %8 = arith.cmpi ne, %7, %c0_i32 : i32
+    cf.cond_br %8, ^bb4, ^bb5
+  ^bb2(%9: i32):  // pred: ^bb3
+    return %9 : i32
+  ^bb3(%10: i32):  // pred: ^bb13
+    cf.br ^bb2(%10 : i32)
+  ^bb4:  // pred: ^bb1
+    call @dummy(%arg0) : (!llvm.ptr) -> ()
+    %c1_i32 = arith.constant 1 : i32
+    cf.br ^bb6(%c1_i32 : i32)
+  ^bb5:  // pred: ^bb1
+    call @dummy(%arg0) : (!llvm.ptr) -> ()
+    %c0_i32_0 = arith.constant 0 : i32
+    cf.br ^bb6(%c0_i32_0 : i32)
+  ^bb6(%11: i32):  // 2 preds: ^bb4, ^bb5
+    %c2_i32 = arith.constant 2 : i32
+    %c0_i32_1 = arith.constant 0 : i32
+    %12 = arith.cmpi ult, %c0_i32_1, %6 : i32
+    cf.cond_br %12, ^bb7, ^bb8
+  ^bb7:  // 2 preds: ^bb6, ^bb8
+    %13 = llvm.getelementptr %5[%c0_i32_1] : (!llvm.ptr, i32) -> !llvm.ptr, i8
+    %14 = llvm.load %13 : !llvm.ptr -> !llvm.ptr
+    %15 = llvm.load %14 : !llvm.ptr -> i32
+    %c0_i32_2 = arith.constant 0 : i32
+    %16 = arith.cmpi eq, %15, %c0_i32_2 : i32
+    cf.cond_br %16, ^bb10, ^bb9
+  ^bb8:  // pred: ^bb6
+    %c3_i32 = arith.constant 3 : i32
+    call @dora_fn_wasm_raise_trap(%c3_i32) : (i32) -> ()
+    cf.br ^bb7
+  ^bb9:  // 2 preds: ^bb7, ^bb10
+    %17 = llvm.getelementptr %14[0] : (!llvm.ptr) -> !llvm.ptr, i8
+    %18 = llvm.getelementptr %14[8] : (!llvm.ptr) -> !llvm.ptr, i8
+    %19 = llvm.getelementptr %14[16] : (!llvm.ptr) -> !llvm.ptr, i8
+    %20 = llvm.load %17 : !llvm.ptr -> !llvm.ptr
+    %21 = llvm.load %19 : !llvm.ptr -> !llvm.ptr
+    %22 = llvm.load %20 : !llvm.ptr -> i32
+    %c0_i32_3 = arith.constant 0 : i32
+    %23 = arith.cmpi eq, %22, %c0_i32_3 : i32
+    cf.cond_br %23, ^bb12, ^bb11
+  ^bb10:  // pred: ^bb7
+    %c4_i32 = arith.constant 4 : i32
+    call @dora_fn_wasm_raise_trap(%c4_i32) : (i32) -> ()
+    cf.br ^bb9
+  ^bb11:  // 2 preds: ^bb9, ^bb12
+    %24 = llvm.load %18 : !llvm.ptr -> i32
+    %25 = arith.cmpi ne, %2, %24 : i32
+    cf.cond_br %25, ^bb14, ^bb13
+  ^bb12:  // pred: ^bb9
+    %c3_i32_4 = arith.constant 3 : i32
+    call @dora_fn_wasm_raise_trap(%c3_i32_4) : (i32) -> ()
+    cf.br ^bb11
+  ^bb13:  // 2 preds: ^bb11, ^bb14
+    %26 = llvm.call %20(%21, %11, %c2_i32) vararg(!llvm.func<i32 (...)>) : !llvm.ptr, (!llvm.ptr, i32, i32) -> i32
+    cf.br ^bb3(%26 : i32)
+  ^bb14:  // pred: ^bb11
+    %c5_i32 = arith.constant 5 : i32
+    call @dora_fn_wasm_raise_trap(%c5_i32) : (i32) -> ()
+    cf.br ^bb13
+  }
+  func.func public @"as-call_indirect-mid"(%arg0: !llvm.ptr, %arg1: i32) -> i32 attributes {llvm.emit_c_interface} {
+    %c1_i64 = arith.constant 1 : i64
+    %0 = llvm.alloca %c1_i64 x i32 : (i64) -> !llvm.ptr
+    llvm.store %arg1, %0 : i32, !llvm.ptr
+    %1 = llvm.getelementptr %arg0[0] : (!llvm.ptr) -> !llvm.ptr, i8
+    %2 = llvm.load %1 : !llvm.ptr -> i32
+    %3 = llvm.getelementptr %arg0[64] : (!llvm.ptr) -> !llvm.ptr, i8
+    %4 = llvm.getelementptr %arg0[72] : (!llvm.ptr) -> !llvm.ptr, i8
+    %5 = llvm.load %3 : !llvm.ptr -> !llvm.ptr
+    %6 = llvm.load %4 : !llvm.ptr -> i32
+    cf.br ^bb1
+  ^bb1:  // pred: ^bb0
+    %c2_i32 = arith.constant 2 : i32
+    %7 = llvm.load %0 : !llvm.ptr -> i32
+    %c0_i32 = arith.constant 0 : i32
+    %8 = arith.cmpi ne, %7, %c0_i32 : i32
+    cf.cond_br %8, ^bb4, ^bb5
+  ^bb2(%9: i32):  // pred: ^bb3
+    return %9 : i32
+  ^bb3(%10: i32):  // pred: ^bb13
+    cf.br ^bb2(%10 : i32)
+  ^bb4:  // pred: ^bb1
+    call @dummy(%arg0) : (!llvm.ptr) -> ()
+    %c1_i32 = arith.constant 1 : i32
+    cf.br ^bb6(%c1_i32 : i32)
+  ^bb5:  // pred: ^bb1
+    call @dummy(%arg0) : (!llvm.ptr) -> ()
+    %c0_i32_0 = arith.constant 0 : i32
+    cf.br ^bb6(%c0_i32_0 : i32)
+  ^bb6(%11: i32):  // 2 preds: ^bb4, ^bb5
+    %c0_i32_1 = arith.constant 0 : i32
+    %12 = arith.cmpi ult, %c0_i32_1, %6 : i32
+    cf.cond_br %12, ^bb7, ^bb8
+  ^bb7:  // 2 preds: ^bb6, ^bb8
+    %13 = llvm.getelementptr %5[%c0_i32_1] : (!llvm.ptr, i32) -> !llvm.ptr, i8
+    %14 = llvm.load %13 : !llvm.ptr -> !llvm.ptr
+    %15 = llvm.load %14 : !llvm.ptr -> i32
+    %c0_i32_2 = arith.constant 0 : i32
+    %16 = arith.cmpi eq, %15, %c0_i32_2 : i32
+    cf.cond_br %16, ^bb10, ^bb9
+  ^bb8:  // pred: ^bb6
+    %c3_i32 = arith.constant 3 : i32
+    call @dora_fn_wasm_raise_trap(%c3_i32) : (i32) -> ()
+    cf.br ^bb7
+  ^bb9:  // 2 preds: ^bb7, ^bb10
+    %17 = llvm.getelementptr %14[0] : (!llvm.ptr) -> !llvm.ptr, i8
+    %18 = llvm.getelementptr %14[8] : (!llvm.ptr) -> !llvm.ptr, i8
+    %19 = llvm.getelementptr %14[16] : (!llvm.ptr) -> !llvm.ptr, i8
+    %20 = llvm.load %17 : !llvm.ptr -> !llvm.ptr
+    %21 = llvm.load %19 : !llvm.ptr -> !llvm.ptr
+    %22 = llvm.load %20 : !llvm.ptr -> i32
+    %c0_i32_3 = arith.constant 0 : i32
+    %23 = arith.cmpi eq, %22, %c0_i32_3 : i32
+    cf.cond_br %23, ^bb12, ^bb11
+  ^bb10:  // pred: ^bb7
+    %c4_i32 = arith.constant 4 : i32
+    call @dora_fn_wasm_raise_trap(%c4_i32) : (i32) -> ()
+    cf.br ^bb9
+  ^bb11:  // 2 preds: ^bb9, ^bb12
+    %24 = llvm.load %18 : !llvm.ptr -> i32
+    %25 = arith.cmpi ne, %2, %24 : i32
+    cf.cond_br %25, ^bb14, ^bb13
+  ^bb12:  // pred: ^bb9
+    %c3_i32_4 = arith.constant 3 : i32
+    call @dora_fn_wasm_raise_trap(%c3_i32_4) : (i32) -> ()
+    cf.br ^bb11
+  ^bb13:  // 2 preds: ^bb11, ^bb14
+    %26 = llvm.call %20(%21, %c2_i32, %11) vararg(!llvm.func<i32 (...)>) : !llvm.ptr, (!llvm.ptr, i32, i32) -> i32
+    cf.br ^bb3(%26 : i32)
+  ^bb14:  // pred: ^bb11
+    %c5_i32 = arith.constant 5 : i32
+    call @dora_fn_wasm_raise_trap(%c5_i32) : (i32) -> ()
+    cf.br ^bb13
+  }
+  func.func public @"as-call_indirect-last"(%arg0: !llvm.ptr, %arg1: i32) -> i32 attributes {llvm.emit_c_interface} {
+    %c1_i64 = arith.constant 1 : i64
+    %0 = llvm.alloca %c1_i64 x i32 : (i64) -> !llvm.ptr
+    llvm.store %arg1, %0 : i32, !llvm.ptr
+    %1 = llvm.getelementptr %arg0[0] : (!llvm.ptr) -> !llvm.ptr, i8
+    %2 = llvm.load %1 : !llvm.ptr -> i32
+    %3 = llvm.getelementptr %arg0[64] : (!llvm.ptr) -> !llvm.ptr, i8
+    %4 = llvm.getelementptr %arg0[72] : (!llvm.ptr) -> !llvm.ptr, i8
+    %5 = llvm.load %3 : !llvm.ptr -> !llvm.ptr
+    %6 = llvm.load %4 : !llvm.ptr -> i32
+    cf.br ^bb1
+  ^bb1:  // pred: ^bb0
+    %c2_i32 = arith.constant 2 : i32
+    %c0_i32 = arith.constant 0 : i32
+    %7 = llvm.load %0 : !llvm.ptr -> i32
+    %c0_i32_0 = arith.constant 0 : i32
+    %8 = arith.cmpi ne, %7, %c0_i32_0 : i32
+    cf.cond_br %8, ^bb4, ^bb5
+  ^bb2(%9: i32):  // pred: ^bb3
+    return %9 : i32
+  ^bb3(%10: i32):  // pred: ^bb13
+    cf.br ^bb2(%10 : i32)
+  ^bb4:  // pred: ^bb1
+    call @dummy(%arg0) : (!llvm.ptr) -> ()
+    %c1_i32 = arith.constant 1 : i32
+    cf.br ^bb6(%c1_i32 : i32)
+  ^bb5:  // pred: ^bb1
+    call @dummy(%arg0) : (!llvm.ptr) -> ()
+    %c0_i32_1 = arith.constant 0 : i32
+    cf.br ^bb6(%c0_i32_1 : i32)
+  ^bb6(%11: i32):  // 2 preds: ^bb4, ^bb5
+    %12 = arith.cmpi ult, %11, %6 : i32
+    cf.cond_br %12, ^bb7, ^bb8
+  ^bb7:  // 2 preds: ^bb6, ^bb8
+    %13 = llvm.getelementptr %5[%11] : (!llvm.ptr, i32) -> !llvm.ptr, i8
+    %14 = llvm.load %13 : !llvm.ptr -> !llvm.ptr
+    %15 = llvm.load %14 : !llvm.ptr -> i32
+    %c0_i32_2 = arith.constant 0 : i32
+    %16 = arith.cmpi eq, %15, %c0_i32_2 : i32
+    cf.cond_br %16, ^bb10, ^bb9
+  ^bb8:  // pred: ^bb6
+    %c3_i32 = arith.constant 3 : i32
+    call @dora_fn_wasm_raise_trap(%c3_i32) : (i32) -> ()
+    cf.br ^bb7
+  ^bb9:  // 2 preds: ^bb7, ^bb10
+    %17 = llvm.getelementptr %14[0] : (!llvm.ptr) -> !llvm.ptr, i8
+    %18 = llvm.getelementptr %14[8] : (!llvm.ptr) -> !llvm.ptr, i8
+    %19 = llvm.getelementptr %14[16] : (!llvm.ptr) -> !llvm.ptr, i8
+    %20 = llvm.load %17 : !llvm.ptr -> !llvm.ptr
+    %21 = llvm.load %19 : !llvm.ptr -> !llvm.ptr
+    %22 = llvm.load %20 : !llvm.ptr -> i32
+    %c0_i32_3 = arith.constant 0 : i32
+    %23 = arith.cmpi eq, %22, %c0_i32_3 : i32
+    cf.cond_br %23, ^bb12, ^bb11
+  ^bb10:  // pred: ^bb7
+    %c4_i32 = arith.constant 4 : i32
+    call @dora_fn_wasm_raise_trap(%c4_i32) : (i32) -> ()
+    cf.br ^bb9
+  ^bb11:  // 2 preds: ^bb9, ^bb12
+    %24 = llvm.load %18 : !llvm.ptr -> i32
+    %25 = arith.cmpi ne, %2, %24 : i32
+    cf.cond_br %25, ^bb14, ^bb13
+  ^bb12:  // pred: ^bb9
+    %c3_i32_4 = arith.constant 3 : i32
+    call @dora_fn_wasm_raise_trap(%c3_i32_4) : (i32) -> ()
+    cf.br ^bb11
+  ^bb13:  // 2 preds: ^bb11, ^bb14
+    %26 = llvm.call %20(%21, %c2_i32, %c0_i32) vararg(!llvm.func<i32 (...)>) : !llvm.ptr, (!llvm.ptr, i32, i32) -> i32
+    cf.br ^bb3(%26 : i32)
+  ^bb14:  // pred: ^bb11
+    %c5_i32 = arith.constant 5 : i32
+    call @dora_fn_wasm_raise_trap(%c5_i32) : (i32) -> ()
+    cf.br ^bb13
+  }
+  func.func public @"as-store-first"(%arg0: !llvm.ptr, %arg1: i32) attributes {llvm.emit_c_interface} {
+    %c1_i64 = arith.constant 1 : i64
+    %0 = llvm.alloca %c1_i64 x i32 : (i64) -> !llvm.ptr
+    llvm.store %arg1, %0 : i32, !llvm.ptr
+    %1 = llvm.getelementptr %arg0[80] : (!llvm.ptr) -> !llvm.ptr, i8
+    %2 = llvm.getelementptr %1[0] : (!llvm.ptr) -> !llvm.ptr, i8
+    %3 = llvm.load %2 : !llvm.ptr -> !llvm.ptr
+    cf.br ^bb1
+  ^bb1:  // pred: ^bb0
+    %4 = llvm.load %0 : !llvm.ptr -> i32
+    %c0_i32 = arith.constant 0 : i32
+    %5 = arith.cmpi ne, %4, %c0_i32 : i32
+    cf.cond_br %5, ^bb3, ^bb4
+  ^bb2:  // pred: ^bb5
+    return
+  ^bb3:  // pred: ^bb1
+    call @dummy(%arg0) : (!llvm.ptr) -> ()
+    %c1_i32 = arith.constant 1 : i32
+    cf.br ^bb5(%c1_i32 : i32)
+  ^bb4:  // pred: ^bb1
+    call @dummy(%arg0) : (!llvm.ptr) -> ()
+    %c0_i32_0 = arith.constant 0 : i32
+    cf.br ^bb5(%c0_i32_0 : i32)
+  ^bb5(%6: i32):  // 2 preds: ^bb3, ^bb4
+    %c2_i32 = arith.constant 2 : i32
+    %c0_i64 = arith.constant 0 : i64
+    %7 = arith.extui %6 : i32 to i64
+    %8 = arith.addi %7, %c0_i64 : i64
+    %9 = llvm.getelementptr %3[%8] : (!llvm.ptr, i64) -> !llvm.ptr, i8
+    llvm.store %c2_i32, %9 : i32, !llvm.ptr
+    cf.br ^bb2
+  }
+  func.func public @"as-store-last"(%arg0: !llvm.ptr, %arg1: i32) attributes {llvm.emit_c_interface} {
+    %c1_i64 = arith.constant 1 : i64
+    %0 = llvm.alloca %c1_i64 x i32 : (i64) -> !llvm.ptr
+    llvm.store %arg1, %0 : i32, !llvm.ptr
+    %1 = llvm.getelementptr %arg0[80] : (!llvm.ptr) -> !llvm.ptr, i8
+    %2 = llvm.getelementptr %1[0] : (!llvm.ptr) -> !llvm.ptr, i8
+    %3 = llvm.load %2 : !llvm.ptr -> !llvm.ptr
+    cf.br ^bb1
+  ^bb1:  // pred: ^bb0
+    %c2_i32 = arith.constant 2 : i32
+    %4 = llvm.load %0 : !llvm.ptr -> i32
+    %c0_i32 = arith.constant 0 : i32
+    %5 = arith.cmpi ne, %4, %c0_i32 : i32
+    cf.cond_br %5, ^bb3, ^bb4
+  ^bb2:  // pred: ^bb5
+    return
+  ^bb3:  // pred: ^bb1
+    call @dummy(%arg0) : (!llvm.ptr) -> ()
+    %c1_i32 = arith.constant 1 : i32
+    cf.br ^bb5(%c1_i32 : i32)
+  ^bb4:  // pred: ^bb1
+    call @dummy(%arg0) : (!llvm.ptr) -> ()
+    %c0_i32_0 = arith.constant 0 : i32
+    cf.br ^bb5(%c0_i32_0 : i32)
+  ^bb5(%6: i32):  // 2 preds: ^bb3, ^bb4
+    %c0_i64 = arith.constant 0 : i64
+    %7 = arith.extui %c2_i32 : i32 to i64
+    %8 = arith.addi %7, %c0_i64 : i64
+    %9 = llvm.getelementptr %3[%8] : (!llvm.ptr, i64) -> !llvm.ptr, i8
+    llvm.store %6, %9 : i32, !llvm.ptr
+    cf.br ^bb2
+  }
+  func.func public @"as-memory.grow-value"(%arg0: !llvm.ptr, %arg1: i32) -> i32 attributes {llvm.emit_c_interface} {
+    %c1_i64 = arith.constant 1 : i64
+    %0 = llvm.alloca %c1_i64 x i32 : (i64) -> !llvm.ptr
+    llvm.store %arg1, %0 : i32, !llvm.ptr
+    cf.br ^bb1
+  ^bb1:  // pred: ^bb0
+    %1 = llvm.load %0 : !llvm.ptr -> i32
+    %c0_i32 = arith.constant 0 : i32
+    %2 = arith.cmpi ne, %1, %c0_i32 : i32
+    cf.cond_br %2, ^bb3, ^bb4
+  ^bb2(%3: i32):  // pred: ^bb5
+    return %3 : i32
+  ^bb3:  // pred: ^bb1
+    %c1_i32 = arith.constant 1 : i32
+    cf.br ^bb5(%c1_i32 : i32)
+  ^bb4:  // pred: ^bb1
+    %c0_i32_0 = arith.constant 0 : i32
+    cf.br ^bb5(%c0_i32_0 : i32)
+  ^bb5(%4: i32):  // 2 preds: ^bb3, ^bb4
+    %c0_i32_1 = arith.constant 0 : i32
+    %5 = call @dora_fn_wasm_memory_grow(%arg0, %4, %c0_i32_1) : (!llvm.ptr, i32, i32) -> i32
+    cf.br ^bb2(%5 : i32)
+  }
+  func.func @f(%arg0: !llvm.ptr, %arg1: i32) -> i32 {
+    %c1_i64 = arith.constant 1 : i64
+    %0 = llvm.alloca %c1_i64 x i32 : (i64) -> !llvm.ptr
+    llvm.store %arg1, %0 : i32, !llvm.ptr
+    cf.br ^bb1
+  ^bb1:  // pred: ^bb0
+    %1 = llvm.load %0 : !llvm.ptr -> i32
+    cf.br ^bb2(%1 : i32)
+  ^bb2(%2: i32):  // pred: ^bb1
+    return %2 : i32
+  }
+  func.func public @"as-call-value"(%arg0: !llvm.ptr, %arg1: i32) -> i32 attributes {llvm.emit_c_interface} {
+    %c1_i64 = arith.constant 1 : i64
+    %0 = llvm.alloca %c1_i64 x i32 : (i64) -> !llvm.ptr
+    llvm.store %arg1, %0 : i32, !llvm.ptr
+    cf.br ^bb1
+  ^bb1:  // pred: ^bb0
+    %1 = llvm.load %0 : !llvm.ptr -> i32
+    %c0_i32 = arith.constant 0 : i32
+    %2 = arith.cmpi ne, %1, %c0_i32 : i32
+    cf.cond_br %2, ^bb3, ^bb4
+  ^bb2(%3: i32):  // pred: ^bb5
+    return %3 : i32
+  ^bb3:  // pred: ^bb1
+    %c1_i32 = arith.constant 1 : i32
+    cf.br ^bb5(%c1_i32 : i32)
+  ^bb4:  // pred: ^bb1
+    %c0_i32_0 = arith.constant 0 : i32
+    cf.br ^bb5(%c0_i32_0 : i32)
+  ^bb5(%4: i32):  // 2 preds: ^bb3, ^bb4
+    %5 = call @f(%arg0, %4) : (!llvm.ptr, i32) -> i32
+    cf.br ^bb2(%5 : i32)
+  }
+  func.func public @"as-return-value"(%arg0: !llvm.ptr, %arg1: i32) -> i32 attributes {llvm.emit_c_interface} {
+    %c1_i64 = arith.constant 1 : i64
+    %0 = llvm.alloca %c1_i64 x i32 : (i64) -> !llvm.ptr
+    llvm.store %arg1, %0 : i32, !llvm.ptr
+    cf.br ^bb1
+  ^bb1:  // pred: ^bb0
+    %1 = llvm.load %0 : !llvm.ptr -> i32
+    %c0_i32 = arith.constant 0 : i32
+    %2 = arith.cmpi ne, %1, %c0_i32 : i32
+    cf.cond_br %2, ^bb3, ^bb4
+  ^bb2(%3: i32):  // pred: ^bb5
+    return %3 : i32
+  ^bb3:  // pred: ^bb1
+    %c1_i32 = arith.constant 1 : i32
+    cf.br ^bb5(%c1_i32 : i32)
+  ^bb4:  // pred: ^bb1
+    %c0_i32_0 = arith.constant 0 : i32
+    cf.br ^bb5(%c0_i32_0 : i32)
+  ^bb5(%4: i32):  // 2 preds: ^bb3, ^bb4
+    cf.br ^bb2(%4 : i32)
+  }
+  func.func public @"as-drop-operand"(%arg0: !llvm.ptr, %arg1: i32) attributes {llvm.emit_c_interface} {
+    %c1_i64 = arith.constant 1 : i64
+    %0 = llvm.alloca %c1_i64 x i32 : (i64) -> !llvm.ptr
+    llvm.store %arg1, %0 : i32, !llvm.ptr
+    cf.br ^bb1
+  ^bb1:  // pred: ^bb0
+    %1 = llvm.load %0 : !llvm.ptr -> i32
+    %c0_i32 = arith.constant 0 : i32
+    %2 = arith.cmpi ne, %1, %c0_i32 : i32
+    cf.cond_br %2, ^bb3, ^bb4
+  ^bb2:  // pred: ^bb5
+    return
+  ^bb3:  // pred: ^bb1
+    %c1_i32 = arith.constant 1 : i32
+    cf.br ^bb5(%c1_i32 : i32)
+  ^bb4:  // pred: ^bb1
+    %c0_i32_0 = arith.constant 0 : i32
+    cf.br ^bb5(%c0_i32_0 : i32)
+  ^bb5(%3: i32):  // 2 preds: ^bb3, ^bb4
+    cf.br ^bb2
+  }
+  func.func public @"as-br-value"(%arg0: !llvm.ptr, %arg1: i32) -> i32 attributes {llvm.emit_c_interface} {
+    %c1_i64 = arith.constant 1 : i64
+    %0 = llvm.alloca %c1_i64 x i32 : (i64) -> !llvm.ptr
+    llvm.store %arg1, %0 : i32, !llvm.ptr
+    cf.br ^bb1
+  ^bb1:  // pred: ^bb0
+    %1 = llvm.load %0 : !llvm.ptr -> i32
+    %c0_i32 = arith.constant 0 : i32
+    %2 = arith.cmpi ne, %1, %c0_i32 : i32
+    cf.cond_br %2, ^bb4, ^bb5
+  ^bb2(%3: i32):  // pred: ^bb3
+    return %3 : i32
+  ^bb3(%4: i32):  // pred: ^bb6
+    cf.br ^bb2(%4 : i32)
+  ^bb4:  // pred: ^bb1
+    %c1_i32 = arith.constant 1 : i32
+    cf.br ^bb6(%c1_i32 : i32)
+  ^bb5:  // pred: ^bb1
+    %c0_i32_0 = arith.constant 0 : i32
+    cf.br ^bb6(%c0_i32_0 : i32)
+  ^bb6(%5: i32):  // 2 preds: ^bb4, ^bb5
+    cf.br ^bb3(%5 : i32)
+  }
+  func.func public @"as-local.set-value"(%arg0: !llvm.ptr, %arg1: i32) -> i32 attributes {llvm.emit_c_interface} {
+    %c1_i64 = arith.constant 1 : i64
+    %0 = llvm.alloca %c1_i64 x i32 : (i64) -> !llvm.ptr
+    llvm.store %arg1, %0 : i32, !llvm.ptr
+    %c0_i32 = arith.constant 0 : i32
+    %c1_i64_0 = arith.constant 1 : i64
+    %1 = llvm.alloca %c1_i64_0 x i32 : (i64) -> !llvm.ptr
+    llvm.store %c0_i32, %1 : i32, !llvm.ptr
+    cf.br ^bb1
+  ^bb1:  // pred: ^bb0
+    %2 = llvm.load %0 : !llvm.ptr -> i32
+    %c0_i32_1 = arith.constant 0 : i32
+    %3 = arith.cmpi ne, %2, %c0_i32_1 : i32
+    cf.cond_br %3, ^bb3, ^bb4
+  ^bb2(%4: i32):  // pred: ^bb5
+    return %4 : i32
+  ^bb3:  // pred: ^bb1
+    %c1_i32 = arith.constant 1 : i32
+    cf.br ^bb5(%c1_i32 : i32)
+  ^bb4:  // pred: ^bb1
+    %c0_i32_2 = arith.constant 0 : i32
+    cf.br ^bb5(%c0_i32_2 : i32)
+  ^bb5(%5: i32):  // 2 preds: ^bb3, ^bb4
+    llvm.store %5, %0 : i32, !llvm.ptr
+    %6 = llvm.load %0 : !llvm.ptr -> i32
+    cf.br ^bb2(%6 : i32)
+  }
+  func.func public @"as-local.tee-value"(%arg0: !llvm.ptr, %arg1: i32) -> i32 attributes {llvm.emit_c_interface} {
+    %c1_i64 = arith.constant 1 : i64
+    %0 = llvm.alloca %c1_i64 x i32 : (i64) -> !llvm.ptr
+    llvm.store %arg1, %0 : i32, !llvm.ptr
+    cf.br ^bb1
+  ^bb1:  // pred: ^bb0
+    %1 = llvm.load %0 : !llvm.ptr -> i32
+    %c0_i32 = arith.constant 0 : i32
+    %2 = arith.cmpi ne, %1, %c0_i32 : i32
+    cf.cond_br %2, ^bb3, ^bb4
+  ^bb2(%3: i32):  // pred: ^bb5
+    return %3 : i32
+  ^bb3:  // pred: ^bb1
+    %c1_i32 = arith.constant 1 : i32
+    cf.br ^bb5(%c1_i32 : i32)
+  ^bb4:  // pred: ^bb1
+    %c0_i32_0 = arith.constant 0 : i32
+    cf.br ^bb5(%c0_i32_0 : i32)
+  ^bb5(%4: i32):  // 2 preds: ^bb3, ^bb4
+    llvm.store %4, %0 : i32, !llvm.ptr
+    cf.br ^bb2(%4 : i32)
+  }
+  func.func public @"as-global.set-value"(%arg0: !llvm.ptr, %arg1: i32) -> i32 attributes {llvm.emit_c_interface} {
+    %c1_i64 = arith.constant 1 : i64
+    %0 = llvm.alloca %c1_i64 x i32 : (i64) -> !llvm.ptr
+    llvm.store %arg1, %0 : i32, !llvm.ptr
+    %1 = llvm.getelementptr %arg0[96] : (!llvm.ptr) -> !llvm.ptr, i8
+    %2 = llvm.load %1 : !llvm.ptr -> !llvm.ptr
+    cf.br ^bb1
+  ^bb1:  // pred: ^bb0
+    %3 = llvm.load %0 : !llvm.ptr -> i32
+    %c0_i32 = arith.constant 0 : i32
+    %4 = arith.cmpi ne, %3, %c0_i32 : i32
+    cf.cond_br %4, ^bb3, ^bb4
+  ^bb2(%5: i32):  // pred: ^bb5
+    return %5 : i32
+  ^bb3:  // pred: ^bb1
+    %c1_i32 = arith.constant 1 : i32
+    cf.br ^bb5(%c1_i32 : i32)
+  ^bb4:  // pred: ^bb1
+    %c0_i32_0 = arith.constant 0 : i32
+    cf.br ^bb5(%c0_i32_0 : i32)
+  ^bb5(%6: i32):  // 2 preds: ^bb3, ^bb4
+    llvm.store %6, %2 : i32, !llvm.ptr
+    %7 = llvm.load %2 : !llvm.ptr -> i32
+    cf.br ^bb2(%7 : i32)
+  }
+  func.func public @"as-load-operand"(%arg0: !llvm.ptr, %arg1: i32) -> i32 attributes {llvm.emit_c_interface} {
+    %c1_i64 = arith.constant 1 : i64
+    %0 = llvm.alloca %c1_i64 x i32 : (i64) -> !llvm.ptr
+    llvm.store %arg1, %0 : i32, !llvm.ptr
+    %1 = llvm.getelementptr %arg0[80] : (!llvm.ptr) -> !llvm.ptr, i8
+    %2 = llvm.getelementptr %1[0] : (!llvm.ptr) -> !llvm.ptr, i8
+    %3 = llvm.load %2 : !llvm.ptr -> !llvm.ptr
+    cf.br ^bb1
+  ^bb1:  // pred: ^bb0
+    %4 = llvm.load %0 : !llvm.ptr -> i32
+    %c0_i32 = arith.constant 0 : i32
+    %5 = arith.cmpi ne, %4, %c0_i32 : i32
+    cf.cond_br %5, ^bb3, ^bb4
+  ^bb2(%6: i32):  // pred: ^bb5
+    return %6 : i32
+  ^bb3:  // pred: ^bb1
+    %c11_i32 = arith.constant 11 : i32
+    cf.br ^bb5(%c11_i32 : i32)
+  ^bb4:  // pred: ^bb1
+    %c10_i32 = arith.constant 10 : i32
+    cf.br ^bb5(%c10_i32 : i32)
+  ^bb5(%7: i32):  // 2 preds: ^bb3, ^bb4
+    %c0_i64 = arith.constant 0 : i64
+    %8 = arith.extui %7 : i32 to i64
+    %9 = arith.addi %8, %c0_i64 : i64
+    %10 = llvm.getelementptr %3[%9] : (!llvm.ptr, i64) -> !llvm.ptr, i8
+    %11 = llvm.load %10 : !llvm.ptr -> i32
+    cf.br ^bb2(%11 : i32)
+  }
+  func.func public @"as-unary-operand"(%arg0: !llvm.ptr, %arg1: i32) -> i32 attributes {llvm.emit_c_interface} {
+    %c1_i64 = arith.constant 1 : i64
+    %0 = llvm.alloca %c1_i64 x i32 : (i64) -> !llvm.ptr
+    llvm.store %arg1, %0 : i32, !llvm.ptr
+    cf.br ^bb1
+  ^bb1:  // pred: ^bb0
+    %1 = llvm.load %0 : !llvm.ptr -> i32
+    %c0_i32 = arith.constant 0 : i32
+    %2 = arith.cmpi ne, %1, %c0_i32 : i32
+    cf.cond_br %2, ^bb3, ^bb4
+  ^bb2(%3: i32):  // pred: ^bb5
+    return %3 : i32
+  ^bb3:  // pred: ^bb1
+    call @dummy(%arg0) : (!llvm.ptr) -> ()
+    %c13_i32 = arith.constant 13 : i32
+    cf.br ^bb5(%c13_i32 : i32)
+  ^bb4:  // pred: ^bb1
+    call @dummy(%arg0) : (!llvm.ptr) -> ()
+    %c-13_i32 = arith.constant -13 : i32
+    cf.br ^bb5(%c-13_i32 : i32)
+  ^bb5(%4: i32):  // 2 preds: ^bb3, ^bb4
+    %5 = "wasm.ctz"(%4) : (i32) -> i32
+    cf.br ^bb2(%5 : i32)
+  }
+  func.func public @"as-binary-operand"(%arg0: !llvm.ptr, %arg1: i32, %arg2: i32) -> i32 attributes {llvm.emit_c_interface} {
+    %c1_i64 = arith.constant 1 : i64
+    %0 = llvm.alloca %c1_i64 x i32 : (i64) -> !llvm.ptr
+    llvm.store %arg1, %0 : i32, !llvm.ptr
+    %c1_i64_0 = arith.constant 1 : i64
+    %1 = llvm.alloca %c1_i64_0 x i32 : (i64) -> !llvm.ptr
+    llvm.store %arg2, %1 : i32, !llvm.ptr
+    cf.br ^bb1
+  ^bb1:  // pred: ^bb0
+    %2 = llvm.load %0 : !llvm.ptr -> i32
+    %c0_i32 = arith.constant 0 : i32
+    %3 = arith.cmpi ne, %2, %c0_i32 : i32
+    cf.cond_br %3, ^bb3, ^bb4
+  ^bb2(%4: i32):  // pred: ^bb8
+    return %4 : i32
+  ^bb3:  // pred: ^bb1
+    call @dummy(%arg0) : (!llvm.ptr) -> ()
+    %c3_i32 = arith.constant 3 : i32
+    cf.br ^bb5(%c3_i32 : i32)
+  ^bb4:  // pred: ^bb1
+    call @dummy(%arg0) : (!llvm.ptr) -> ()
+    %c-3_i32 = arith.constant -3 : i32
+    cf.br ^bb5(%c-3_i32 : i32)
+  ^bb5(%5: i32):  // 2 preds: ^bb3, ^bb4
+    %6 = llvm.load %1 : !llvm.ptr -> i32
+    %c0_i32_1 = arith.constant 0 : i32
+    %7 = arith.cmpi ne, %6, %c0_i32_1 : i32
+    cf.cond_br %7, ^bb6, ^bb7
+  ^bb6:  // pred: ^bb5
+    call @dummy(%arg0) : (!llvm.ptr) -> ()
+    %c4_i32 = arith.constant 4 : i32
+    cf.br ^bb8(%c4_i32 : i32)
+  ^bb7:  // pred: ^bb5
+    call @dummy(%arg0) : (!llvm.ptr) -> ()
+    %c-5_i32 = arith.constant -5 : i32
+    cf.br ^bb8(%c-5_i32 : i32)
+  ^bb8(%8: i32):  // 2 preds: ^bb6, ^bb7
+    %9 = "wasm.mul"(%5, %8) : (i32, i32) -> i32
+    cf.br ^bb2(%9 : i32)
+  }
+  func.func public @"as-test-operand"(%arg0: !llvm.ptr, %arg1: i32) -> i32 attributes {llvm.emit_c_interface} {
+    %c1_i64 = arith.constant 1 : i64
+    %0 = llvm.alloca %c1_i64 x i32 : (i64) -> !llvm.ptr
+    llvm.store %arg1, %0 : i32, !llvm.ptr
+    cf.br ^bb1
+  ^bb1:  // pred: ^bb0
+    %1 = llvm.load %0 : !llvm.ptr -> i32
+    %c0_i32 = arith.constant 0 : i32
+    %2 = arith.cmpi ne, %1, %c0_i32 : i32
+    cf.cond_br %2, ^bb3, ^bb4
+  ^bb2(%3: i32):  // pred: ^bb5
+    return %3 : i32
+  ^bb3:  // pred: ^bb1
+    call @dummy(%arg0) : (!llvm.ptr) -> ()
+    %c13_i32 = arith.constant 13 : i32
+    cf.br ^bb5(%c13_i32 : i32)
+  ^bb4:  // pred: ^bb1
+    call @dummy(%arg0) : (!llvm.ptr) -> ()
+    %c0_i32_0 = arith.constant 0 : i32
+    cf.br ^bb5(%c0_i32_0 : i32)
+  ^bb5(%4: i32):  // 2 preds: ^bb3, ^bb4
+    %5 = "wasm.eqz"(%4) : (i32) -> i32
+    cf.br ^bb2(%5 : i32)
+  }
+  func.func public @"as-compare-operand"(%arg0: !llvm.ptr, %arg1: i32, %arg2: i32) -> i32 attributes {llvm.emit_c_interface} {
+    %c1_i64 = arith.constant 1 : i64
+    %0 = llvm.alloca %c1_i64 x i32 : (i64) -> !llvm.ptr
+    llvm.store %arg1, %0 : i32, !llvm.ptr
+    %c1_i64_0 = arith.constant 1 : i64
+    %1 = llvm.alloca %c1_i64_0 x i32 : (i64) -> !llvm.ptr
+    llvm.store %arg2, %1 : i32, !llvm.ptr
+    cf.br ^bb1
+  ^bb1:  // pred: ^bb0
+    %2 = llvm.load %0 : !llvm.ptr -> i32
+    %c0_i32 = arith.constant 0 : i32
+    %3 = arith.cmpi ne, %2, %c0_i32 : i32
+    cf.cond_br %3, ^bb3, ^bb4
+  ^bb2(%4: i32):  // pred: ^bb8
+    return %4 : i32
+  ^bb3:  // pred: ^bb1
+    call @dummy(%arg0) : (!llvm.ptr) -> ()
+    %c1077936128_i32 = arith.constant 1077936128 : i32
+    %5 = arith.bitcast %c1077936128_i32 : i32 to f32
+    cf.br ^bb5(%5 : f32)
+  ^bb4:  // pred: ^bb1
+    call @dummy(%arg0) : (!llvm.ptr) -> ()
+    %c-1069547520_i32 = arith.constant -1069547520 : i32
+    %6 = arith.bitcast %c-1069547520_i32 : i32 to f32
+    cf.br ^bb5(%6 : f32)
+  ^bb5(%7: f32):  // 2 preds: ^bb3, ^bb4
+    %8 = llvm.load %1 : !llvm.ptr -> i32
+    %c0_i32_1 = arith.constant 0 : i32
+    %9 = arith.cmpi ne, %8, %c0_i32_1 : i32
+    cf.cond_br %9, ^bb6, ^bb7
+  ^bb6:  // pred: ^bb5
+    call @dummy(%arg0) : (!llvm.ptr) -> ()
+    %c1082130432_i32 = arith.constant 1082130432 : i32
+    %10 = arith.bitcast %c1082130432_i32 : i32 to f32
+    cf.br ^bb8(%10 : f32)
+  ^bb7:  // pred: ^bb5
+    call @dummy(%arg0) : (!llvm.ptr) -> ()
+    %c-1065353216_i32 = arith.constant -1065353216 : i32
+    %11 = arith.bitcast %c-1065353216_i32 : i32 to f32
+    cf.br ^bb8(%11 : f32)
+  ^bb8(%12: f32):  // 2 preds: ^bb6, ^bb7
+    %13 = "wasm.fgt"(%7, %12) : (f32, f32) -> i32
+    cf.br ^bb2(%13 : i32)
+  }
+  func.func public @"as-binary-operands"(%arg0: !llvm.ptr, %arg1: i32) -> i32 attributes {llvm.emit_c_interface} {
+    %c1_i64 = arith.constant 1 : i64
+    %0 = llvm.alloca %c1_i64 x i32 : (i64) -> !llvm.ptr
+    llvm.store %arg1, %0 : i32, !llvm.ptr
+    cf.br ^bb1
+  ^bb1:  // pred: ^bb0
+    %1 = llvm.load %0 : !llvm.ptr -> i32
+    %c0_i32 = arith.constant 0 : i32
+    %2 = arith.cmpi ne, %1, %c0_i32 : i32
+    cf.cond_br %2, ^bb3, ^bb4
+  ^bb2(%3: i32):  // pred: ^bb5
+    return %3 : i32
+  ^bb3:  // pred: ^bb1
+    call @dummy(%arg0) : (!llvm.ptr) -> ()
+    %c3_i32 = arith.constant 3 : i32
+    call @dummy(%arg0) : (!llvm.ptr) -> ()
+    %c4_i32 = arith.constant 4 : i32
+    cf.br ^bb5(%c3_i32, %c4_i32 : i32, i32)
+  ^bb4:  // pred: ^bb1
+    call @dummy(%arg0) : (!llvm.ptr) -> ()
+    %c3_i32_0 = arith.constant 3 : i32
+    call @dummy(%arg0) : (!llvm.ptr) -> ()
+    %c-4_i32 = arith.constant -4 : i32
+    cf.br ^bb5(%c3_i32_0, %c-4_i32 : i32, i32)
+  ^bb5(%4: i32, %5: i32):  // 2 preds: ^bb3, ^bb4
+    %6 = "wasm.mul"(%4, %5) : (i32, i32) -> i32
+    cf.br ^bb2(%6 : i32)
+  }
+  func.func public @"as-compare-operands"(%arg0: !llvm.ptr, %arg1: i32) -> i32 attributes {llvm.emit_c_interface} {
+    %c1_i64 = arith.constant 1 : i64
+    %0 = llvm.alloca %c1_i64 x i32 : (i64) -> !llvm.ptr
+    llvm.store %arg1, %0 : i32, !llvm.ptr
+    cf.br ^bb1
+  ^bb1:  // pred: ^bb0
+    %1 = llvm.load %0 : !llvm.ptr -> i32
+    %c0_i32 = arith.constant 0 : i32
+    %2 = arith.cmpi ne, %1, %c0_i32 : i32
+    cf.cond_br %2, ^bb3, ^bb4
+  ^bb2(%3: i32):  // pred: ^bb5
+    return %3 : i32
+  ^bb3:  // pred: ^bb1
+    call @dummy(%arg0) : (!llvm.ptr) -> ()
+    %c1077936128_i32 = arith.constant 1077936128 : i32
+    %4 = arith.bitcast %c1077936128_i32 : i32 to f32
+    call @dummy(%arg0) : (!llvm.ptr) -> ()
+    %c1077936128_i32_0 = arith.constant 1077936128 : i32
+    %5 = arith.bitcast %c1077936128_i32_0 : i32 to f32
+    cf.br ^bb5(%4, %5 : f32, f32)
+  ^bb4:  // pred: ^bb1
+    call @dummy(%arg0) : (!llvm.ptr) -> ()
+    %c-1073741824_i32 = arith.constant -1073741824 : i32
+    %6 = arith.bitcast %c-1073741824_i32 : i32 to f32
+    call @dummy(%arg0) : (!llvm.ptr) -> ()
+    %c-1069547520_i32 = arith.constant -1069547520 : i32
+    %7 = arith.bitcast %c-1069547520_i32 : i32 to f32
+    cf.br ^bb5(%6, %7 : f32, f32)
+  ^bb5(%8: f32, %9: f32):  // 2 preds: ^bb3, ^bb4
+    %10 = "wasm.fgt"(%8, %9) : (f32, f32) -> i32
+    cf.br ^bb2(%10 : i32)
+  }
+  func.func public @"as-mixed-operands"(%arg0: !llvm.ptr, %arg1: i32) -> i32 attributes {llvm.emit_c_interface} {
+    %c1_i64 = arith.constant 1 : i64
+    %0 = llvm.alloca %c1_i64 x i32 : (i64) -> !llvm.ptr
+    llvm.store %arg1, %0 : i32, !llvm.ptr
+    cf.br ^bb1
+  ^bb1:  // pred: ^bb0
+    %1 = llvm.load %0 : !llvm.ptr -> i32
+    %c0_i32 = arith.constant 0 : i32
+    %2 = arith.cmpi ne, %1, %c0_i32 : i32
+    cf.cond_br %2, ^bb3, ^bb4
+  ^bb2(%3: i32):  // pred: ^bb5
+    return %3 : i32
+  ^bb3:  // pred: ^bb1
+    call @dummy(%arg0) : (!llvm.ptr) -> ()
+    %c3_i32 = arith.constant 3 : i32
+    call @dummy(%arg0) : (!llvm.ptr) -> ()
+    %c4_i32 = arith.constant 4 : i32
+    cf.br ^bb5(%c3_i32, %c4_i32 : i32, i32)
+  ^bb4:  // pred: ^bb1
+    call @dummy(%arg0) : (!llvm.ptr) -> ()
+    %c-3_i32 = arith.constant -3 : i32
+    call @dummy(%arg0) : (!llvm.ptr) -> ()
+    %c-4_i32 = arith.constant -4 : i32
+    cf.br ^bb5(%c-3_i32, %c-4_i32 : i32, i32)
+  ^bb5(%4: i32, %5: i32):  // 2 preds: ^bb3, ^bb4
+    %c5_i32 = arith.constant 5 : i32
+    %6 = "wasm.add"(%5, %c5_i32) : (i32, i32) -> i32
+    %7 = "wasm.mul"(%4, %6) : (i32, i32) -> i32
+    cf.br ^bb2(%7 : i32)
+  }
+  func.func public @"break-bare"(%arg0: !llvm.ptr) -> i32 attributes {llvm.emit_c_interface} {
+    cf.br ^bb1
+  ^bb1:  // pred: ^bb0
+    %c1_i32 = arith.constant 1 : i32
+    %c0_i32 = arith.constant 0 : i32
+    %0 = arith.cmpi ne, %c1_i32, %c0_i32 : i32
+    cf.cond_br %0, ^bb3, ^bb4
+  ^bb2(%1: i32):  // pred: ^bb32
+    return %1 : i32
+  ^bb3:  // pred: ^bb1
+    cf.br ^bb5
+  ^bb4:  // pred: ^bb1
+    cf.br ^bb5
+  ^bb5:  // 2 preds: ^bb3, ^bb4
+    %c1_i32_0 = arith.constant 1 : i32
+    %c0_i32_1 = arith.constant 0 : i32
+    %2 = arith.cmpi ne, %c1_i32_0, %c0_i32_1 : i32
+    cf.cond_br %2, ^bb6, ^bb7
+  ^bb6:  // pred: ^bb5
+    cf.br ^bb8
+  ^bb7:  // pred: ^bb5
+    "wasm.unreachable"() : () -> ()
+  ^bb8:  // pred: ^bb6
+    %c0_i32_2 = arith.constant 0 : i32
+    %c0_i32_3 = arith.constant 0 : i32
+    %3 = arith.cmpi ne, %c0_i32_2, %c0_i32_3 : i32
+    cf.cond_br %3, ^bb9, ^bb10
+  ^bb9:  // pred: ^bb8
+    "wasm.unreachable"() : () -> ()
+  ^bb10:  // pred: ^bb8
+    cf.br ^bb11
+  ^bb11:  // pred: ^bb10
+    %c1_i32_4 = arith.constant 1 : i32
+    %c0_i32_5 = arith.constant 0 : i32
+    %4 = arith.cmpi ne, %c1_i32_4, %c0_i32_5 : i32
+    cf.cond_br %4, ^bb12, ^bb13
+  ^bb12:  // pred: ^bb11
+    %c1_i32_6 = arith.constant 1 : i32
+    %c0_i32_7 = arith.constant 0 : i32
+    %5 = arith.cmpi ne, %c1_i32_6, %c0_i32_7 : i32
+    cf.cond_br %5, ^bb14, ^bb15
+  ^bb13:  // pred: ^bb11
+    cf.br ^bb14
+  ^bb14:  // 2 preds: ^bb12, ^bb13
+    %c1_i32_8 = arith.constant 1 : i32
+    %c0_i32_9 = arith.constant 0 : i32
+    %6 = arith.cmpi ne, %c1_i32_8, %c0_i32_9 : i32
+    cf.cond_br %6, ^bb16, ^bb17
+  ^bb15:  // pred: ^bb12
+    "wasm.unreachable"() : () -> ()
+  ^bb16:  // pred: ^bb14
+    %c1_i32_10 = arith.constant 1 : i32
+    %c0_i32_11 = arith.constant 0 : i32
+    %7 = arith.cmpi ne, %c1_i32_10, %c0_i32_11 : i32
+    cf.cond_br %7, ^bb18, ^bb19
+  ^bb17:  // pred: ^bb14
+    "wasm.unreachable"() : () -> ()
+  ^bb18:  // pred: ^bb16
+    %c0_i32_12 = arith.constant 0 : i32
+    %c0_i32_13 = arith.constant 0 : i32
+    %8 = arith.cmpi ne, %c0_i32_12, %c0_i32_13 : i32
+    cf.cond_br %8, ^bb20, ^bb21
+  ^bb19:  // pred: ^bb16
+    "wasm.unreachable"() : () -> ()
+  ^bb20:  // pred: ^bb18
+    "wasm.unreachable"() : () -> ()
+  ^bb21:  // pred: ^bb18
+    %c1_i32_14 = arith.constant 1 : i32
+    %c0_i32_15 = arith.constant 0 : i32
+    %9 = arith.cmpi ne, %c1_i32_14, %c0_i32_15 : i32
+    cf.cond_br %9, ^bb22, ^bb23
+  ^bb22:  // pred: ^bb21
+    %c1_i32_16 = arith.constant 1 : i32
+    %c0_i32_17 = arith.constant 0 : i32
+    %10 = arith.cmpi ne, %c1_i32_16, %c0_i32_17 : i32
+    cf.cond_br %10, ^bb24, ^bb25
+  ^bb23:  // pred: ^bb21
+    "wasm.unreachable"() : () -> ()
+  ^bb24:  // pred: ^bb22
+    %c0_i32_18 = arith.constant 0 : i32
+    cf.switch %c0_i32_18 : i32, [
+      default: ^bb26
+    ]
+  ^bb25:  // pred: ^bb22
+    cf.br ^bb26
+  ^bb26:  // 2 preds: ^bb24, ^bb25
+    %c1_i32_19 = arith.constant 1 : i32
+    %c0_i32_20 = arith.constant 0 : i32
+    %11 = arith.cmpi ne, %c1_i32_19, %c0_i32_20 : i32
+    cf.cond_br %11, ^bb27, ^bb28
+  ^bb27:  // pred: ^bb26
+    %c0_i32_21 = arith.constant 0 : i32
+    cf.switch %c0_i32_21 : i32, [
+      default: ^bb29
+    ]
+  ^bb28:  // pred: ^bb26
+    "wasm.unreachable"() : () -> ()
+  ^bb29:  // pred: ^bb27
+    %c0_i32_22 = arith.constant 0 : i32
+    %c0_i32_23 = arith.constant 0 : i32
+    %12 = arith.cmpi ne, %c0_i32_22, %c0_i32_23 : i32
+    cf.cond_br %12, ^bb30, ^bb31
+  ^bb30:  // pred: ^bb29
+    "wasm.unreachable"() : () -> ()
+  ^bb31:  // pred: ^bb29
+    %c0_i32_24 = arith.constant 0 : i32
+    cf.switch %c0_i32_24 : i32, [
+      default: ^bb32
+    ]
+  ^bb32:  // pred: ^bb31
+    %c19_i32 = arith.constant 19 : i32
+    cf.br ^bb2(%c19_i32 : i32)
+  }
+  func.func public @"break-value"(%arg0: !llvm.ptr, %arg1: i32) -> i32 attributes {llvm.emit_c_interface} {
+    %c1_i64 = arith.constant 1 : i64
+    %0 = llvm.alloca %c1_i64 x i32 : (i64) -> !llvm.ptr
+    llvm.store %arg1, %0 : i32, !llvm.ptr
+    cf.br ^bb1
+  ^bb1:  // pred: ^bb0
+    %1 = llvm.load %0 : !llvm.ptr -> i32
+    %c0_i32 = arith.constant 0 : i32
+    %2 = arith.cmpi ne, %1, %c0_i32 : i32
+    cf.cond_br %2, ^bb3, ^bb4
+  ^bb2(%3: i32):  // pred: ^bb5
+    return %3 : i32
+  ^bb3:  // pred: ^bb1
+    %c18_i32 = arith.constant 18 : i32
+    cf.br ^bb5(%c18_i32 : i32)
+  ^bb4:  // pred: ^bb1
+    %c21_i32 = arith.constant 21 : i32
+    cf.br ^bb5(%c21_i32 : i32)
+  ^bb5(%4: i32):  // 2 preds: ^bb3, ^bb4
+    cf.br ^bb2(%4 : i32)
+  }
+  func.func public @"break-multi-value"(%arg0: !llvm.ptr, %arg1: i32) -> (i32, i32, i64) attributes {llvm.emit_c_interface} {
+    %c1_i64 = arith.constant 1 : i64
+    %0 = llvm.alloca %c1_i64 x i32 : (i64) -> !llvm.ptr
+    llvm.store %arg1, %0 : i32, !llvm.ptr
+    cf.br ^bb1
+  ^bb1:  // pred: ^bb0
+    %1 = llvm.load %0 : !llvm.ptr -> i32
+    %c0_i32 = arith.constant 0 : i32
+    %2 = arith.cmpi ne, %1, %c0_i32 : i32
+    cf.cond_br %2, ^bb3, ^bb4
+  ^bb2(%3: i32, %4: i32, %5: i64):  // pred: ^bb5
+    return %3, %4, %5 : i32, i32, i64
+  ^bb3:  // pred: ^bb1
+    %c18_i32 = arith.constant 18 : i32
+    %c-18_i32 = arith.constant -18 : i32
+    %c18_i64 = arith.constant 18 : i64
+    cf.br ^bb5(%c18_i32, %c-18_i32, %c18_i64 : i32, i32, i64)
+  ^bb4:  // pred: ^bb1
+    %c-18_i32_0 = arith.constant -18 : i32
+    %c18_i32_1 = arith.constant 18 : i32
+    %c-18_i64 = arith.constant -18 : i64
+    cf.br ^bb5(%c-18_i32_0, %c18_i32_1, %c-18_i64 : i32, i32, i64)
+  ^bb5(%6: i32, %7: i32, %8: i64):  // 2 preds: ^bb3, ^bb4
+    cf.br ^bb2(%6, %7, %8 : i32, i32, i64)
+  }
+  func.func public @param(%arg0: !llvm.ptr, %arg1: i32) -> i32 attributes {llvm.emit_c_interface} {
+    %c1_i64 = arith.constant 1 : i64
+    %0 = llvm.alloca %c1_i64 x i32 : (i64) -> !llvm.ptr
+    llvm.store %arg1, %0 : i32, !llvm.ptr
+    cf.br ^bb1
+  ^bb1:  // pred: ^bb0
+    %c1_i32 = arith.constant 1 : i32
+    %1 = llvm.load %0 : !llvm.ptr -> i32
+    %c0_i32 = arith.constant 0 : i32
+    %2 = arith.cmpi ne, %1, %c0_i32 : i32
+    cf.cond_br %2, ^bb3(%c1_i32 : i32), ^bb4(%c1_i32 : i32)
+  ^bb2(%3: i32):  // pred: ^bb5
+    return %3 : i32
+  ^bb3(%4: i32):  // pred: ^bb1
+    %c2_i32 = arith.constant 2 : i32
+    %5 = "wasm.add"(%4, %c2_i32) : (i32, i32) -> i32
+    cf.br ^bb5(%5 : i32)
+  ^bb4(%6: i32):  // pred: ^bb1
+    %c-2_i32 = arith.constant -2 : i32
+    %7 = "wasm.add"(%6, %c-2_i32) : (i32, i32) -> i32
+    cf.br ^bb5(%7 : i32)
+  ^bb5(%8: i32):  // 2 preds: ^bb3, ^bb4
+    cf.br ^bb2(%8 : i32)
+  }
+  func.func public @params(%arg0: !llvm.ptr, %arg1: i32) -> i32 attributes {llvm.emit_c_interface} {
+    %c1_i64 = arith.constant 1 : i64
+    %0 = llvm.alloca %c1_i64 x i32 : (i64) -> !llvm.ptr
+    llvm.store %arg1, %0 : i32, !llvm.ptr
+    cf.br ^bb1
+  ^bb1:  // pred: ^bb0
+    %c1_i32 = arith.constant 1 : i32
+    %c2_i32 = arith.constant 2 : i32
+    %1 = llvm.load %0 : !llvm.ptr -> i32
+    %c0_i32 = arith.constant 0 : i32
+    %2 = arith.cmpi ne, %1, %c0_i32 : i32
+    cf.cond_br %2, ^bb3(%c1_i32, %c2_i32 : i32, i32), ^bb4(%c1_i32, %c2_i32 : i32, i32)
+  ^bb2(%3: i32):  // pred: ^bb5
+    return %3 : i32
+  ^bb3(%4: i32, %5: i32):  // pred: ^bb1
+    %6 = "wasm.add"(%4, %5) : (i32, i32) -> i32
+    cf.br ^bb5(%6 : i32)
+  ^bb4(%7: i32, %8: i32):  // pred: ^bb1
+    %9 = "wasm.sub"(%7, %8) : (i32, i32) -> i32
+    cf.br ^bb5(%9 : i32)
+  ^bb5(%10: i32):  // 2 preds: ^bb3, ^bb4
+    cf.br ^bb2(%10 : i32)
+  }
+  func.func public @"params-id"(%arg0: !llvm.ptr, %arg1: i32) -> i32 attributes {llvm.emit_c_interface} {
+    %c1_i64 = arith.constant 1 : i64
+    %0 = llvm.alloca %c1_i64 x i32 : (i64) -> !llvm.ptr
+    llvm.store %arg1, %0 : i32, !llvm.ptr
+    cf.br ^bb1
+  ^bb1:  // pred: ^bb0
+    %c1_i32 = arith.constant 1 : i32
+    %c2_i32 = arith.constant 2 : i32
+    %1 = llvm.load %0 : !llvm.ptr -> i32
+    %c0_i32 = arith.constant 0 : i32
+    %2 = arith.cmpi ne, %1, %c0_i32 : i32
+    cf.cond_br %2, ^bb3(%c1_i32, %c2_i32 : i32, i32), ^bb4(%c1_i32, %c2_i32 : i32, i32)
+  ^bb2(%3: i32):  // pred: ^bb5
+    return %3 : i32
+  ^bb3(%4: i32, %5: i32):  // pred: ^bb1
+    cf.br ^bb5(%4, %5 : i32, i32)
+  ^bb4(%6: i32, %7: i32):  // pred: ^bb1
+    cf.br ^bb5(%6, %7 : i32, i32)
+  ^bb5(%8: i32, %9: i32):  // 2 preds: ^bb3, ^bb4
+    %10 = "wasm.add"(%8, %9) : (i32, i32) -> i32
+    cf.br ^bb2(%10 : i32)
+  }
+  func.func public @"param-break"(%arg0: !llvm.ptr, %arg1: i32) -> i32 attributes {llvm.emit_c_interface} {
+    %c1_i64 = arith.constant 1 : i64
+    %0 = llvm.alloca %c1_i64 x i32 : (i64) -> !llvm.ptr
+    llvm.store %arg1, %0 : i32, !llvm.ptr
+    cf.br ^bb1
+  ^bb1:  // pred: ^bb0
+    %c1_i32 = arith.constant 1 : i32
+    %1 = llvm.load %0 : !llvm.ptr -> i32
+    %c0_i32 = arith.constant 0 : i32
+    %2 = arith.cmpi ne, %1, %c0_i32 : i32
+    cf.cond_br %2, ^bb3(%c1_i32 : i32), ^bb4(%c1_i32 : i32)
+  ^bb2(%3: i32):  // pred: ^bb5
+    return %3 : i32
+  ^bb3(%4: i32):  // pred: ^bb1
+    %c2_i32 = arith.constant 2 : i32
+    %5 = "wasm.add"(%4, %c2_i32) : (i32, i32) -> i32
+    cf.br ^bb5(%5 : i32)
+  ^bb4(%6: i32):  // pred: ^bb1
+    %c-2_i32 = arith.constant -2 : i32
+    %7 = "wasm.add"(%6, %c-2_i32) : (i32, i32) -> i32
+    cf.br ^bb5(%7 : i32)
+  ^bb5(%8: i32):  // 2 preds: ^bb3, ^bb4
+    cf.br ^bb2(%8 : i32)
+  }
+  func.func public @"params-break"(%arg0: !llvm.ptr, %arg1: i32) -> i32 attributes {llvm.emit_c_interface} {
+    %c1_i64 = arith.constant 1 : i64
+    %0 = llvm.alloca %c1_i64 x i32 : (i64) -> !llvm.ptr
+    llvm.store %arg1, %0 : i32, !llvm.ptr
+    cf.br ^bb1
+  ^bb1:  // pred: ^bb0
+    %c1_i32 = arith.constant 1 : i32
+    %c2_i32 = arith.constant 2 : i32
+    %1 = llvm.load %0 : !llvm.ptr -> i32
+    %c0_i32 = arith.constant 0 : i32
+    %2 = arith.cmpi ne, %1, %c0_i32 : i32
+    cf.cond_br %2, ^bb3(%c1_i32, %c2_i32 : i32, i32), ^bb4(%c1_i32, %c2_i32 : i32, i32)
+  ^bb2(%3: i32):  // pred: ^bb5
+    return %3 : i32
+  ^bb3(%4: i32, %5: i32):  // pred: ^bb1
+    %6 = "wasm.add"(%4, %5) : (i32, i32) -> i32
+    cf.br ^bb5(%6 : i32)
+  ^bb4(%7: i32, %8: i32):  // pred: ^bb1
+    %9 = "wasm.sub"(%7, %8) : (i32, i32) -> i32
+    cf.br ^bb5(%9 : i32)
+  ^bb5(%10: i32):  // 2 preds: ^bb3, ^bb4
+    cf.br ^bb2(%10 : i32)
+  }
+  func.func public @"params-id-break"(%arg0: !llvm.ptr, %arg1: i32) -> i32 attributes {llvm.emit_c_interface} {
+    %c1_i64 = arith.constant 1 : i64
+    %0 = llvm.alloca %c1_i64 x i32 : (i64) -> !llvm.ptr
+    llvm.store %arg1, %0 : i32, !llvm.ptr
+    cf.br ^bb1
+  ^bb1:  // pred: ^bb0
+    %c1_i32 = arith.constant 1 : i32
+    %c2_i32 = arith.constant 2 : i32
+    %1 = llvm.load %0 : !llvm.ptr -> i32
+    %c0_i32 = arith.constant 0 : i32
+    %2 = arith.cmpi ne, %1, %c0_i32 : i32
+    cf.cond_br %2, ^bb3(%c1_i32, %c2_i32 : i32, i32), ^bb4(%c1_i32, %c2_i32 : i32, i32)
+  ^bb2(%3: i32):  // pred: ^bb5
+    return %3 : i32
+  ^bb3(%4: i32, %5: i32):  // pred: ^bb1
+    cf.br ^bb5(%4, %5 : i32, i32)
+  ^bb4(%6: i32, %7: i32):  // pred: ^bb1
+    cf.br ^bb5(%6, %7 : i32, i32)
+  ^bb5(%8: i32, %9: i32):  // 2 preds: ^bb3, ^bb4
+    %10 = "wasm.add"(%8, %9) : (i32, i32) -> i32
+    cf.br ^bb2(%10 : i32)
+  }
+  func.func public @effects(%arg0: !llvm.ptr, %arg1: i32) -> i32 attributes {llvm.emit_c_interface} {
+    %c1_i64 = arith.constant 1 : i64
+    %0 = llvm.alloca %c1_i64 x i32 : (i64) -> !llvm.ptr
+    llvm.store %arg1, %0 : i32, !llvm.ptr
+    %c0_i32 = arith.constant 0 : i32
+    %c1_i64_0 = arith.constant 1 : i64
+    %1 = llvm.alloca %c1_i64_0 x i32 : (i64) -> !llvm.ptr
+    llvm.store %c0_i32, %1 : i32, !llvm.ptr
+    cf.br ^bb1
+  ^bb1:  // pred: ^bb0
+    %c1_i32 = arith.constant 1 : i32
+    llvm.store %c1_i32, %1 : i32, !llvm.ptr
+    %2 = llvm.load %0 : !llvm.ptr -> i32
+    cf.br ^bb3(%2 : i32)
+  ^bb2(%3: i32):  // pred: ^bb6
+    return %3 : i32
+  ^bb3(%4: i32):  // pred: ^bb1
+    %c0_i32_1 = arith.constant 0 : i32
+    %5 = arith.cmpi ne, %4, %c0_i32_1 : i32
+    cf.cond_br %5, ^bb4, ^bb5
+  ^bb4:  // pred: ^bb3
+    %6 = llvm.load %1 : !llvm.ptr -> i32
+    %c3_i32 = arith.constant 3 : i32
+    %7 = "wasm.mul"(%6, %c3_i32) : (i32, i32) -> i32
+    llvm.store %7, %1 : i32, !llvm.ptr
+    %8 = llvm.load %1 : !llvm.ptr -> i32
+    %c5_i32 = arith.constant 5 : i32
+    %9 = "wasm.sub"(%8, %c5_i32) : (i32, i32) -> i32
+    llvm.store %9, %1 : i32, !llvm.ptr
+    %10 = llvm.load %1 : !llvm.ptr -> i32
+    %c7_i32 = arith.constant 7 : i32
+    %11 = "wasm.mul"(%10, %c7_i32) : (i32, i32) -> i32
+    llvm.store %11, %1 : i32, !llvm.ptr
+    cf.br ^bb6
+  ^bb5:  // pred: ^bb3
+    %12 = llvm.load %1 : !llvm.ptr -> i32
+    %c5_i32_2 = arith.constant 5 : i32
+    %13 = "wasm.mul"(%12, %c5_i32_2) : (i32, i32) -> i32
+    llvm.store %13, %1 : i32, !llvm.ptr
+    %14 = llvm.load %1 : !llvm.ptr -> i32
+    %c7_i32_3 = arith.constant 7 : i32
+    %15 = "wasm.sub"(%14, %c7_i32_3) : (i32, i32) -> i32
+    llvm.store %15, %1 : i32, !llvm.ptr
+    %16 = llvm.load %1 : !llvm.ptr -> i32
+    %c3_i32_4 = arith.constant 3 : i32
+    %17 = "wasm.mul"(%16, %c3_i32_4) : (i32, i32) -> i32
+    llvm.store %17, %1 : i32, !llvm.ptr
+    cf.br ^bb6
+  ^bb6:  // 2 preds: ^bb4, ^bb5
+    %18 = llvm.load %1 : !llvm.ptr -> i32
+    cf.br ^bb2(%18 : i32)
+  }
+  func.func public @add64_u_with_carry(%arg0: !llvm.ptr, %arg1: i64, %arg2: i64, %arg3: i32) -> (i64, i32) attributes {llvm.emit_c_interface} {
+    %c1_i64 = arith.constant 1 : i64
+    %0 = llvm.alloca %c1_i64 x i64 : (i64) -> !llvm.ptr
+    llvm.store %arg1, %0 : i64, !llvm.ptr
+    %c1_i64_0 = arith.constant 1 : i64
+    %1 = llvm.alloca %c1_i64_0 x i64 : (i64) -> !llvm.ptr
+    llvm.store %arg2, %1 : i64, !llvm.ptr
+    %c1_i64_1 = arith.constant 1 : i64
+    %2 = llvm.alloca %c1_i64_1 x i32 : (i64) -> !llvm.ptr
+    llvm.store %arg3, %2 : i32, !llvm.ptr
+    %c0_i64 = arith.constant 0 : i64
+    %c1_i64_2 = arith.constant 1 : i64
+    %3 = llvm.alloca %c1_i64_2 x i64 : (i64) -> !llvm.ptr
+    llvm.store %c0_i64, %3 : i64, !llvm.ptr
+    cf.br ^bb1
+  ^bb1:  // pred: ^bb0
+    %4 = llvm.load %0 : !llvm.ptr -> i64
+    %5 = llvm.load %1 : !llvm.ptr -> i64
+    %6 = "wasm.add"(%4, %5) : (i64, i64) -> i64
+    %7 = llvm.load %2 : !llvm.ptr -> i32
+    %8 = "wasm.i64_extend_i32u"(%7) : (i32) -> i64
+    %9 = "wasm.add"(%6, %8) : (i64, i64) -> i64
+    llvm.store %9, %3 : i64, !llvm.ptr
+    %10 = llvm.load %3 : !llvm.ptr -> i64
+    %11 = llvm.load %3 : !llvm.ptr -> i64
+    %12 = llvm.load %0 : !llvm.ptr -> i64
+    %13 = "wasm.ltu"(%11, %12) : (i64, i64) -> i32
+    cf.br ^bb2(%10, %13 : i64, i32)
+  ^bb2(%14: i64, %15: i32):  // pred: ^bb1
+    return %14, %15 : i64, i32
+  }
+  func.func public @add64_u_saturated(%arg0: !llvm.ptr, %arg1: i64, %arg2: i64) -> i64 attributes {llvm.emit_c_interface} {
+    %c1_i64 = arith.constant 1 : i64
+    %0 = llvm.alloca %c1_i64 x i64 : (i64) -> !llvm.ptr
+    llvm.store %arg1, %0 : i64, !llvm.ptr
+    %c1_i64_0 = arith.constant 1 : i64
+    %1 = llvm.alloca %c1_i64_0 x i64 : (i64) -> !llvm.ptr
+    llvm.store %arg2, %1 : i64, !llvm.ptr
+    cf.br ^bb1
+  ^bb1:  // pred: ^bb0
+    %2 = llvm.load %0 : !llvm.ptr -> i64
+    %3 = llvm.load %1 : !llvm.ptr -> i64
+    %c0_i32 = arith.constant 0 : i32
+    %4:2 = call @add64_u_with_carry(%arg0, %2, %3, %c0_i32) : (!llvm.ptr, i64, i64, i32) -> (i64, i32)
+    %c0_i32_1 = arith.constant 0 : i32
+    %5 = arith.cmpi ne, %4#1, %c0_i32_1 : i32
+    cf.cond_br %5, ^bb3(%4#0 : i64), ^bb4(%4#0 : i64)
+  ^bb2(%6: i64):  // pred: ^bb5
+    return %6 : i64
+  ^bb3(%7: i64):  // pred: ^bb1
+    %c-1_i64 = arith.constant -1 : i64
+    cf.br ^bb5(%c-1_i64 : i64)
+  ^bb4(%8: i64):  // pred: ^bb1
+    cf.br ^bb5(%8 : i64)
+  ^bb5(%9: i64):  // 2 preds: ^bb3, ^bb4
+    cf.br ^bb2(%9 : i64)
+  }
+  func.func public @"type-use"(%arg0: !llvm.ptr) attributes {llvm.emit_c_interface} {
+    cf.br ^bb1
+  ^bb1:  // pred: ^bb0
+    %c1_i32 = arith.constant 1 : i32
+    %c0_i32 = arith.constant 0 : i32
+    %0 = arith.cmpi ne, %c1_i32, %c0_i32 : i32
+    cf.cond_br %0, ^bb3, ^bb4
+  ^bb2:  // pred: ^bb23
+    return
+  ^bb3:  // pred: ^bb1
+    cf.br ^bb5
+  ^bb4:  // pred: ^bb1
+    cf.br ^bb5
+  ^bb5:  // 2 preds: ^bb3, ^bb4
+    %c1_i32_0 = arith.constant 1 : i32
+    %c0_i32_1 = arith.constant 0 : i32
+    %1 = arith.cmpi ne, %c1_i32_0, %c0_i32_1 : i32
+    cf.cond_br %1, ^bb6, ^bb7
+  ^bb6:  // pred: ^bb5
+    %c0_i32_2 = arith.constant 0 : i32
+    cf.br ^bb8(%c0_i32_2 : i32)
+  ^bb7:  // pred: ^bb5
+    %c2_i32 = arith.constant 2 : i32
+    cf.br ^bb8(%c2_i32 : i32)
+  ^bb8(%2: i32):  // 2 preds: ^bb6, ^bb7
+    %c1_i32_3 = arith.constant 1 : i32
+    %c0_i32_4 = arith.constant 0 : i32
+    %3 = arith.cmpi ne, %c1_i32_3, %c0_i32_4 : i32
+    cf.cond_br %3, ^bb9(%2 : i32), ^bb10(%2 : i32)
+  ^bb9(%4: i32):  // pred: ^bb8
+    cf.br ^bb11
+  ^bb10(%5: i32):  // pred: ^bb8
+    cf.br ^bb11
+  ^bb11:  // 2 preds: ^bb9, ^bb10
+    %c0_i32_5 = arith.constant 0 : i32
+    %c0_i64 = arith.constant 0 : i64
+    %6 = arith.bitcast %c0_i64 : i64 to f64
+    %c0_i32_6 = arith.constant 0 : i32
+    %c1_i32_7 = arith.constant 1 : i32
+    %c0_i32_8 = arith.constant 0 : i32
+    %7 = arith.cmpi ne, %c1_i32_7, %c0_i32_8 : i32
+    cf.cond_br %7, ^bb12(%c0_i32_5, %6, %c0_i32_6 : i32, f64, i32), ^bb13(%c0_i32_5, %6, %c0_i32_6 : i32, f64, i32)
+  ^bb12(%8: i32, %9: f64, %10: i32):  // pred: ^bb11
+    cf.br ^bb14(%8, %9, %10 : i32, f64, i32)
+  ^bb13(%11: i32, %12: f64, %13: i32):  // pred: ^bb11
+    cf.br ^bb14(%11, %12, %13 : i32, f64, i32)
+  ^bb14(%14: i32, %15: f64, %16: i32):  // 2 preds: ^bb12, ^bb13
+    %c1_i32_9 = arith.constant 1 : i32
+    %c0_i32_10 = arith.constant 0 : i32
+    %17 = arith.cmpi ne, %c1_i32_9, %c0_i32_10 : i32
+    cf.cond_br %17, ^bb15, ^bb16
+  ^bb15:  // pred: ^bb14
+    %c0_i32_11 = arith.constant 0 : i32
+    cf.br ^bb17(%c0_i32_11 : i32)
+  ^bb16:  // pred: ^bb14
+    %c2_i32_12 = arith.constant 2 : i32
+    cf.br ^bb17(%c2_i32_12 : i32)
+  ^bb17(%18: i32):  // 2 preds: ^bb15, ^bb16
+    %c1_i32_13 = arith.constant 1 : i32
+    %c0_i32_14 = arith.constant 0 : i32
+    %19 = arith.cmpi ne, %c1_i32_13, %c0_i32_14 : i32
+    cf.cond_br %19, ^bb18(%18 : i32), ^bb19(%18 : i32)
+  ^bb18(%20: i32):  // pred: ^bb17
+    cf.br ^bb20
+  ^bb19(%21: i32):  // pred: ^bb17
+    cf.br ^bb20
+  ^bb20:  // 2 preds: ^bb18, ^bb19
+    %c0_i32_15 = arith.constant 0 : i32
+    %c0_i64_16 = arith.constant 0 : i64
+    %22 = arith.bitcast %c0_i64_16 : i64 to f64
+    %c0_i32_17 = arith.constant 0 : i32
+    %c1_i32_18 = arith.constant 1 : i32
+    %c0_i32_19 = arith.constant 0 : i32
+    %23 = arith.cmpi ne, %c1_i32_18, %c0_i32_19 : i32
+    cf.cond_br %23, ^bb21(%c0_i32_15, %22, %c0_i32_17 : i32, f64, i32), ^bb22(%c0_i32_15, %22, %c0_i32_17 : i32, f64, i32)
+  ^bb21(%24: i32, %25: f64, %26: i32):  // pred: ^bb20
+    cf.br ^bb23(%24, %25, %26 : i32, f64, i32)
+  ^bb22(%27: i32, %28: f64, %29: i32):  // pred: ^bb20
+    cf.br ^bb23(%27, %28, %29 : i32, f64, i32)
+  ^bb23(%30: i32, %31: f64, %32: i32):  // 2 preds: ^bb21, ^bb22
+    cf.br ^bb2
+  }
+  func.func public @"atypical-condition"(%arg0: !llvm.ptr) attributes {llvm.emit_c_interface} {
+    cf.br ^bb1
+  ^bb1:  // pred: ^bb0
+    %c0_i32 = arith.constant 0 : i32
+    %c0_i32_0 = arith.constant 0 : i32
+    %0 = arith.cmpi ne, %c0_i32, %c0_i32_0 : i32
+    cf.cond_br %0, ^bb3, ^bb4
+  ^bb2:  // pred: ^bb8
+    return
+  ^bb3:  // pred: ^bb1
+    cf.br ^bb5
+  ^bb4:  // pred: ^bb1
+    cf.br ^bb5
+  ^bb5:  // 2 preds: ^bb3, ^bb4
+    %c1_i32 = arith.constant 1 : i32
+    %1 = "wasm.eqz"(%c1_i32) : (i32) -> i32
+    %c0_i32_1 = arith.constant 0 : i32
+    %2 = arith.cmpi ne, %1, %c0_i32_1 : i32
+    cf.cond_br %2, ^bb6, ^bb7
+  ^bb6:  // pred: ^bb5
+    cf.br ^bb8
+  ^bb7:  // pred: ^bb5
+    cf.br ^bb8
+  ^bb8:  // 2 preds: ^bb6, ^bb7
+    cf.br ^bb2
+  }
+  func.func private @dora_fn_wasm_table_init(!llvm.ptr, i32, i32, i32, i32, i32)
+  func.func private @dora_fn_wasm_table_copy(!llvm.ptr, i32, i32, i32, i32, i32)
+  func.func private @dora_fn_wasm_table_fill(!llvm.ptr, i32, i32, !llvm.ptr, i32)
+  func.func private @dora_fn_wasm_table_size(!llvm.ptr, i32) -> i32
+  func.func private @dora_fn_wasm_table_get(!llvm.ptr, i32, i32) -> !llvm.ptr
+  func.func private @dora_fn_wasm_table_set(!llvm.ptr, i32, i32, !llvm.ptr)
+  func.func private @dora_fn_wasm_table_grow(!llvm.ptr, !llvm.ptr, i32, i32) -> i32
+  func.func private @dora_fn_wasm_imported_table_size(!llvm.ptr, i32) -> i32
+  func.func private @dora_fn_wasm_imported_table_get(!llvm.ptr, i32, i32) -> !llvm.ptr
+  func.func private @dora_fn_wasm_imported_table_grow(!llvm.ptr, !llvm.ptr, i32, i32) -> i32
+  func.func private @dora_fn_wasm_memory_init(!llvm.ptr, i32, i32, i32, i32, i32)
+  func.func private @dora_fn_wasm_memory_size(!llvm.ptr, i32) -> i32
+  func.func private @dora_fn_wasm_memory_grow(!llvm.ptr, i32, i32) -> i32
+  func.func private @dora_fn_wasm_memory_copy(!llvm.ptr, i32, i32, i32, i32)
+  func.func private @dora_fn_wasm_memory_fill(!llvm.ptr, i32, i32, i32, i32)
+  func.func private @dora_fn_wasm_memory_notify(!llvm.ptr, i32, i32, i32) -> i32
+  func.func private @dora_fn_wasm_memory_wait32(!llvm.ptr, i32, i32, i32, i64) -> i32
+  func.func private @dora_fn_wasm_memory_wait64(!llvm.ptr, i32, i32, i64, i64) -> i32
+  func.func private @dora_fn_wasm_imported_memory_size(!llvm.ptr, i32) -> i32
+  func.func private @dora_fn_wasm_imported_memory_grow(!llvm.ptr, i32, i32) -> i32
+  func.func private @dora_fn_wasm_imported_memory_copy(!llvm.ptr, i32, i32, i32, i32)
+  func.func private @dora_fn_wasm_imported_memory_fill(!llvm.ptr, i32, i32, i32, i32)
+  func.func private @dora_fn_wasm_imported_memory_notify(!llvm.ptr, i32, i32, i32) -> i32
+  func.func private @dora_fn_wasm_imported_memory_wait32(!llvm.ptr, i32, i32, i32, i64) -> i32
+  func.func private @dora_fn_wasm_imported_memory_wait64(!llvm.ptr, i32, i32, i64, i64) -> i32
+  func.func private @dora_fn_wasm_func_ref(!llvm.ptr, i32) -> !llvm.ptr
+  func.func private @dora_fn_wasm_data_drop(!llvm.ptr, i32)
+  func.func private @dora_fn_wasm_elem_drop(!llvm.ptr, i32)
+  func.func private @dora_fn_wasm_raise_trap(i32)
+}

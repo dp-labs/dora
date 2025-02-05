@@ -1,29 +1,22 @@
 use crate::{
-    arith_constant,
     backend::IntCC,
-    check_op_oog, check_runtime_error,
-    conversion::{
-        builder::OpBuilder,
-        rewriter::{DeferredRewriter, Rewriter},
-    },
+    block_argument, check_runtime_error,
+    conversion::{builder::OpBuilder, rewriter::Rewriter},
     create_var,
     dora::{
         conversion::ConversionPass,
-        gas::{self, compute_copy_cost, compute_keccak256_cost},
+        gas::{compute_copy_cost, compute_keccak256_cost},
         memory::{self, allocate_u256_and_assign_value},
     },
     errors::Result,
-    gas_or_fail, if_here, load_by_addr, load_var, maybe_revert_here, operands, rewrite_ctx,
-    syscall_ctx, u256_to_u64,
+    gas_or_fail, if_here, load_var, operands, rewrite_ctx, u256_to_u64,
 };
-use dora_runtime::constants;
-use dora_runtime::constants::GAS_COUNTER_GLOBAL;
 use dora_runtime::symbols;
 use dora_runtime::ExitStatusCode;
 use melior::{
     dialect::{
-        arith, cf, func,
-        llvm::{self, AllocaOptions, LoadStoreOptions},
+        arith, func,
+        llvm::{self, LoadStoreOptions},
         ods, scf,
     },
     ir::{
@@ -36,19 +29,27 @@ use melior::{
 use num_bigint::BigUint;
 use std::mem::offset_of;
 
-impl<'c> ConversionPass<'c> {
+impl ConversionPass<'_> {
     pub(crate) fn keccak256(context: &Context, op: &OperationRef<'_, '_>) -> Result<()> {
         operands!(op, offset, size);
-        syscall_ctx!(op, syscall_ctx);
+        block_argument!(op, syscall_ctx, gas_counter_ptr);
         let rewriter = Rewriter::new_with_op(context, *op);
         u256_to_u64!(op, rewriter, size);
         let size_is_not_zero = rewriter.make(rewriter.icmp_imm(IntCC::NotEqual, size, 0)?)?;
         if_here!(op, rewriter, size_is_not_zero, {
             let gas = compute_keccak256_cost(&rewriter, size)?;
-            gas_or_fail!(op, rewriter, gas);
+            gas_or_fail!(op, rewriter, gas, gas_counter_ptr);
             let rewriter = Rewriter::new_with_op(context, *op);
             u256_to_u64!(op, rewriter, offset);
-            memory::resize_memory(context, op, &rewriter, syscall_ctx, offset, size)?;
+            memory::resize_memory(
+                context,
+                op,
+                &rewriter,
+                syscall_ctx,
+                gas_counter_ptr,
+                offset,
+                size,
+            )?;
         });
         rewrite_ctx!(context, op, rewriter, location);
         let offset = rewriter.make(arith::trunci(offset, rewriter.intrinsics.i64_ty, location))?;
@@ -68,7 +69,7 @@ impl<'c> ConversionPass<'c> {
     }
 
     pub(crate) fn address(context: &Context, op: &OperationRef<'_, '_>) -> Result<()> {
-        syscall_ctx!(op, syscall_ctx);
+        block_argument!(op, syscall_ctx);
         rewrite_ctx!(context, op, rewriter, location);
 
         let uint160 = IntegerType::new(context, 160).into();
@@ -95,7 +96,7 @@ impl<'c> ConversionPass<'c> {
     }
 
     pub(crate) fn caller(context: &Context, op: &OperationRef<'_, '_>) -> Result<()> {
-        syscall_ctx!(op, syscall_ctx);
+        block_argument!(op, syscall_ctx);
         rewrite_ctx!(context, op, rewriter, location);
 
         let caller_ptr = create_var!(rewriter, context, location);
@@ -114,7 +115,7 @@ impl<'c> ConversionPass<'c> {
     }
 
     pub(crate) fn callvalue(context: &Context, op: &OperationRef<'_, '_>) -> Result<()> {
-        syscall_ctx!(op, syscall_ctx);
+        block_argument!(op, syscall_ctx);
         rewrite_ctx!(context, op, rewriter, location);
         let callvalue_ptr = create_var!(rewriter, context, location);
         load_var!(
@@ -132,23 +133,35 @@ impl<'c> ConversionPass<'c> {
     }
 
     pub(crate) fn calldataload(context: &Context, op: &OperationRef<'_, '_>) -> Result<()> {
+        block_argument!(op, syscall_ctx);
         operands!(op, offset);
         rewrite_ctx!(context, op, rewriter, location);
 
         let uint1 = rewriter.intrinsics.i1_ty;
         let uint8 = rewriter.intrinsics.i8_ty;
-        let uint64 = rewriter.intrinsics.i64_ty;
+        let uint64 = rewriter.i64_ty();
         let uint256 = rewriter.intrinsics.i256_ty;
         let ptr_type = rewriter.intrinsics.ptr_ty;
 
-        let calldata_ptr =
-            load_by_addr!(rewriter, constants::CALLDATA_PTR_GLOBAL, rewriter.ptr_ty());
+        let calldata_ptr = rewriter.make(func::call(
+            context,
+            FlatSymbolRefAttribute::new(context, symbols::CALLDATA),
+            &[syscall_ctx.into()],
+            &[ptr_type],
+            location,
+        ))?;
+        let calldata_size = rewriter.make(func::call(
+            context,
+            FlatSymbolRefAttribute::new(context, symbols::CALLDATA_SIZE),
+            &[syscall_ctx.into()],
+            &[uint64],
+            location,
+        ))?;
+        // convert `calldata_size` from u64 to u256
+        let calldata_size = rewriter.make(arith::extui(calldata_size, uint256, location))?;
         // Define the maximum slice width (32 bytes)
         let max_slice_width = rewriter.make(rewriter.iconst_256_from_u64(32)?)?;
-        let calldata_size = load_by_addr!(rewriter, constants::CALLDATA_SIZE_GLOBAL, uint64);
-        // convert calldata_size from u64 to u256
-        let calldata_size = rewriter.make(arith::extui(calldata_size, uint256, location))?;
-        // Compare offset with calldata size
+        // Compare offset with `calldata_size`
         let offset_cmpi = rewriter.make(arith::cmpi(
             context,
             arith::CmpiPredicate::Ult,
@@ -221,15 +234,17 @@ impl<'c> ConversionPass<'c> {
     }
 
     pub(crate) fn calldatasize(context: &Context, op: &OperationRef<'_, '_>) -> Result<()> {
-        syscall_ctx!(op, syscall_ctx);
+        block_argument!(op, syscall_ctx);
         rewrite_ctx!(context, op, rewriter, location);
 
+        let uint64 = rewriter.i64_ty();
         let uint256 = rewriter.intrinsics.i256_ty;
+
         let calldata_size = rewriter.make(func::call(
             context,
             FlatSymbolRefAttribute::new(context, symbols::CALLDATA_SIZE),
             &[syscall_ctx.into()],
-            &[rewriter.intrinsics.i64_ty],
+            &[uint64],
             location,
         ))?;
         rewriter.make(arith::extui(calldata_size, uint256, location))?;
@@ -238,16 +253,24 @@ impl<'c> ConversionPass<'c> {
 
     pub(crate) fn calldatacopy(context: &Context, op: &OperationRef<'_, '_>) -> Result<()> {
         operands!(op, memory_offset, data_offset, size);
-        syscall_ctx!(op, syscall_ctx);
+        block_argument!(op, syscall_ctx, gas_counter_ptr);
         let rewriter = Rewriter::new_with_op(context, *op);
         u256_to_u64!(op, rewriter, size);
         let size_is_not_zero = rewriter.make(rewriter.icmp_imm(IntCC::NotEqual, size, 0)?)?;
         if_here!(op, rewriter, size_is_not_zero, {
             let gas = compute_copy_cost(&rewriter, size)?;
-            gas_or_fail!(op, rewriter, gas);
+            gas_or_fail!(op, rewriter, gas, gas_counter_ptr);
             rewrite_ctx!(context, op, rewriter, _location, NoDefer);
             u256_to_u64!(op, rewriter, memory_offset);
-            memory::resize_memory(context, op, &rewriter, syscall_ctx, memory_offset, size)?;
+            memory::resize_memory(
+                context,
+                op,
+                &rewriter,
+                syscall_ctx,
+                gas_counter_ptr,
+                memory_offset,
+                size,
+            )?;
         });
         rewrite_ctx!(context, op, rewriter, location);
         let memory_offset = rewriter.make(arith::trunci(
@@ -279,17 +302,25 @@ impl<'c> ConversionPass<'c> {
 
     pub(crate) fn codecopy(context: &Context, op: &OperationRef<'_, '_>) -> Result<()> {
         operands!(op, memory_offset, code_offset, size);
-        syscall_ctx!(op, syscall_ctx);
+        block_argument!(op, syscall_ctx, gas_counter_ptr);
         let rewriter = Rewriter::new_with_op(context, *op);
 
         u256_to_u64!(op, rewriter, size);
         let size_is_not_zero = rewriter.make(rewriter.icmp_imm(IntCC::NotEqual, size, 0)?)?;
         if_here!(op, rewriter, size_is_not_zero, {
             let gas = compute_copy_cost(&rewriter, size)?;
-            gas_or_fail!(op, rewriter, gas);
+            gas_or_fail!(op, rewriter, gas, gas_counter_ptr);
             let rewriter = Rewriter::new_with_op(context, *op);
             u256_to_u64!(op, rewriter, memory_offset);
-            memory::resize_memory(context, op, &rewriter, syscall_ctx, memory_offset, size)?;
+            memory::resize_memory(
+                context,
+                op,
+                &rewriter,
+                syscall_ctx,
+                gas_counter_ptr,
+                memory_offset,
+                size,
+            )?;
         });
         rewrite_ctx!(context, op, rewriter, location);
         let memory_offset = rewriter.make(arith::trunci(
@@ -302,7 +333,7 @@ impl<'c> ConversionPass<'c> {
         rewriter.create(func::call(
             context,
             FlatSymbolRefAttribute::new(context, symbols::CODE_COPY),
-            &[syscall_ctx.into(), code_offset, size, memory_offset],
+            &[syscall_ctx.into(), memory_offset, code_offset, size],
             &[],
             location,
         ));
@@ -310,15 +341,17 @@ impl<'c> ConversionPass<'c> {
     }
 
     pub(crate) fn returndatasize(context: &Context, op: &OperationRef<'_, '_>) -> Result<()> {
-        syscall_ctx!(op, syscall_ctx);
+        block_argument!(op, syscall_ctx);
         rewrite_ctx!(context, op, rewriter, location);
 
-        let uint256 = rewriter.intrinsics.i256_ty;
+        let uint64 = rewriter.i64_ty();
+        let uint256 = rewriter.i256_ty();
+
         let data_size = rewriter.make(func::call(
             context,
             FlatSymbolRefAttribute::new(context, symbols::RETURNDATA_SIZE),
             &[syscall_ctx.into()],
-            &[rewriter.intrinsics.i64_ty],
+            &[uint64],
             location,
         ))?;
         rewriter.create(arith::extui(data_size, uint256, location));
@@ -327,12 +360,12 @@ impl<'c> ConversionPass<'c> {
 
     pub(crate) fn returndatacopy(context: &Context, op: &OperationRef<'_, '_>) -> Result<()> {
         operands!(op, memory_offset, data_offset, size);
-        syscall_ctx!(op, syscall_ctx);
+        block_argument!(op, syscall_ctx, gas_counter_ptr);
         let rewriter = Rewriter::new_with_op(context, *op);
         let ptr_type = rewriter.ptr_ty();
         u256_to_u64!(op, rewriter, size);
         let gas = compute_copy_cost(&rewriter, size)?;
-        gas_or_fail!(op, rewriter, gas);
+        gas_or_fail!(op, rewriter, gas, gas_counter_ptr);
         let rewriter = Rewriter::new_with_op(context, *op);
         let data_offset_ptr = allocate_u256_and_assign_value(
             context,
@@ -343,7 +376,15 @@ impl<'c> ConversionPass<'c> {
         let size_is_not_zero = rewriter.make(rewriter.icmp_imm(IntCC::NotEqual, size, 0)?)?;
         if_here!(op, rewriter, size_is_not_zero, {
             u256_to_u64!(op, rewriter, memory_offset);
-            memory::resize_memory(context, op, &rewriter, syscall_ctx, memory_offset, size)?;
+            memory::resize_memory(
+                context,
+                op,
+                &rewriter,
+                syscall_ctx,
+                gas_counter_ptr,
+                memory_offset,
+                size,
+            )?;
         });
         rewrite_ctx!(context, op, rewriter, location);
         let memory_offset = rewriter.make(arith::trunci(
@@ -370,8 +411,9 @@ impl<'c> ConversionPass<'c> {
 
     pub(crate) fn gas(context: &Context, op: &OperationRef<'_, '_>) -> Result<()> {
         rewrite_ctx!(context, op, rewriter, location);
-
-        let gas_counter = gas::get_gas_counter(&rewriter)?;
+        block_argument!(op, _syscall_ctx, gas_counter_ptr);
+        let gas_counter =
+            rewriter.make(rewriter.load(gas_counter_ptr, rewriter.intrinsics.i64_ty))?;
         rewriter.create(arith::extui(
             gas_counter,
             rewriter.intrinsics.i256_ty,

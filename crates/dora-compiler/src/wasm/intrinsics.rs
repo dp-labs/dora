@@ -3,14 +3,24 @@ use std::collections::HashMap;
 use std::ops::Deref;
 
 use crate::context::Context;
+use crate::conversion::builder::OpBuilder;
 use crate::intrinsics::Intrinsics;
+use crate::value::ToContextValue;
 use anyhow::Result;
 use melior::ir::r#type::Type;
-use melior::ir::{OperationRef, Value};
+use melior::ir::{Value, ValueLike};
 use melior::{dialect::llvm::r#type::r#struct, ir::r#type::FunctionType};
+use wasmer::{LocalFunctionIndex, Mutability};
+use wasmer_types::entity::PrimaryMap;
 use wasmer_types::{
-    FunctionIndex, GlobalIndex, MemoryIndex, ModuleInfo, SignatureIndex, TableIndex, VMOffsets,
+    FunctionIndex, GlobalIndex, ImportIndex, ImportKey, MemoryIndex, MemoryStyle, ModuleInfo,
+    SignatureIndex, TableIndex, VMOffsets,
 };
+
+use super::ty::{func_type_to_mlir, type_to_mlir};
+
+/// WASM magic number `\0asm` in array form.
+pub const WASM_MAGIC_BYTES: [u8; 4] = [0x00, 0x61, 0x73, 0x6D];
 
 /// Represents a set of WebAssembly (WASM) intrinsic types and utilities for interacting with
 /// WebAssembly-specific constructs within the target intermediate representation (IR).
@@ -57,19 +67,14 @@ use wasmer_types::{
 pub struct WASMIntrinsics<'c> {
     /// The type representing the WebAssembly execution context.
     pub ctx_ty: Type<'c>,
-
     /// The pointer type to the WebAssembly execution context.
     pub ctx_ptr_ty: Type<'c>,
-
     /// The type for representing any WebAssembly function.
     pub any_func_ty: Type<'c>,
-
     /// The type representing a reference to a WebAssembly function.
     pub func_ref_ty: Type<'c>,
-
     /// The type for representing a reference to an external object.
     pub extern_ref_ty: Type<'c>,
-
     /// Intrinsics inherited from the base `Intrinsics` structure.
     pub(crate) intrinsics: Intrinsics<'c>,
 }
@@ -118,6 +123,7 @@ pub enum MemoryCache<'c, 'a> {
     Static { base_ptr: Value<'c, 'a> },
 }
 
+#[derive(Clone, Copy)]
 struct TableCache<'c, 'a> {
     ptr_to_base_ptr: Value<'c, 'a>,
     ptr_to_bounds: Value<'c, 'a>,
@@ -127,7 +133,7 @@ struct TableCache<'c, 'a> {
 pub enum GlobalCache<'c, 'a> {
     Mut {
         ptr_to_value: Value<'c, 'a>,
-        value_type: Value<'c, 'a>,
+        value_type: Type<'c>,
     },
     Const {
         value: Value<'c, 'a>,
@@ -159,11 +165,10 @@ pub enum GlobalCache<'c, 'a> {
 ///   and function types during execution or code generation.
 #[derive(Clone)]
 pub struct FunctionCache<'c, 'a> {
-    /// A reference to the operation representing the WebAssembly function.
-    pub func: OperationRef<'c, 'a>,
-
     /// The type of the WebAssembly function, including its parameter and return types.
     pub func_type: FunctionType<'c>,
+    /// The function body pointer value and the vm context value.
+    pub func_with_vmctx: Option<(Value<'c, 'a>, Value<'c, 'a>)>,
 }
 
 /// Represents a collection of cached entities within a WebAssembly execution context. The `CtxType` struct
@@ -204,86 +209,372 @@ pub struct FunctionCache<'c, 'a> {
 /// - The `CtxType` struct is essential for efficiently managing the state and resources of a WebAssembly
 ///   execution environment by caching frequently accessed elements like functions, memories, and tables.
 pub struct CtxType<'c, 'a> {
+    /// The WASM vm context value used during the execution.
+    pub vm_ctx: Value<'c, 'c>,
+    /// The builder used to generate cache instructions.
+    cache_builder: OpBuilder<'c, 'a>,
     /// A reference to the WebAssembly module information, providing metadata about the module.
     wasm_module: &'a ModuleInfo,
-
     /// A cache of WebAssembly memories, indexed by `MemoryIndex`.
     cached_memories: HashMap<MemoryIndex, MemoryCache<'c, 'a>>,
-
     /// A cache of WebAssembly tables, indexed by `TableIndex`.
     cached_tables: HashMap<TableIndex, TableCache<'c, 'a>>,
-
     /// A cache of signature indices as `Value` instances.
     cached_sigindices: HashMap<SignatureIndex, Value<'c, 'a>>,
-
     /// A cache of WebAssembly globals, indexed by `GlobalIndex`.
     cached_globals: HashMap<GlobalIndex, GlobalCache<'c, 'a>>,
-
     /// A cache of WebAssembly functions, indexed by `FunctionIndex`.
     cached_functions: HashMap<FunctionIndex, FunctionCache<'c, 'a>>,
-
-    /// A cache for memory growth values, indexed by `MemoryIndex`.
-    cached_memory_grow: HashMap<MemoryIndex, Value<'c, 'a>>,
-
-    /// A cache for memory size values, indexed by `MemoryIndex`.
-    cached_memory_size: HashMap<MemoryIndex, Value<'c, 'a>>,
-
     /// Contains the offsets for memory and table elements within the WebAssembly execution context.
-    offsets: VMOffsets,
+    pub(crate) offsets: VMOffsets,
 }
 
 impl<'c, 'a> CtxType<'c, 'a> {
-    pub fn new(wasm_module: &'a ModuleInfo) -> CtxType<'c, 'a> {
+    pub fn new(
+        vm_ctx: Value<'c, 'c>,
+        wasm_module: &'a ModuleInfo,
+        cache_builder: OpBuilder<'c, 'a>,
+    ) -> CtxType<'c, 'a> {
         CtxType {
+            vm_ctx,
+            cache_builder,
             wasm_module,
             cached_memories: HashMap::new(),
             cached_tables: HashMap::new(),
             cached_sigindices: HashMap::new(),
             cached_globals: HashMap::new(),
             cached_functions: HashMap::new(),
-            cached_memory_grow: HashMap::new(),
-            cached_memory_size: HashMap::new(),
             offsets: VMOffsets::new(8, wasm_module),
         }
     }
 
-    pub fn add_func(
+    pub(crate) fn local_func(
+        &mut self,
+        _local_function_index: LocalFunctionIndex,
+        function_index: FunctionIndex,
+        func_type: &wasmer::FunctionType,
+        ctx: &'c Context,
+        intrinsics: &WASMIntrinsics<'c>,
+    ) -> Result<&FunctionCache<'c, 'a>> {
+        let cached_functions = &mut self.cached_functions;
+        Ok(match cached_functions.entry(function_index) {
+            Entry::Occupied(entry) => entry.into_mut(),
+            Entry::Vacant(entry) => {
+                let func_type = func_type_to_mlir(ctx, intrinsics, func_type);
+                entry.insert(FunctionCache {
+                    func_type,
+                    func_with_vmctx: None,
+                })
+            }
+        })
+    }
+
+    pub(crate) fn func(
         &mut self,
         function_index: FunctionIndex,
-        func: OperationRef<'c, 'a>,
-        func_type: FunctionType<'c>,
-    ) {
-        match self.cached_functions.entry(function_index) {
-            Entry::Occupied(_) => unreachable!("duplicate function"),
+        func_type: &wasmer::FunctionType,
+        ctx: &'c Context,
+        intrinsics: &WASMIntrinsics<'c>,
+    ) -> Result<&FunctionCache<'c, 'a>> {
+        let cached_functions = &mut self.cached_functions;
+        Ok(match cached_functions.entry(function_index) {
+            Entry::Occupied(entry) => entry.into_mut(),
             Entry::Vacant(entry) => {
-                entry.insert(FunctionCache { func, func_type });
+                let builder = &self.cache_builder;
+                let func_type = func_type_to_mlir(ctx, intrinsics, func_type);
+                debug_assert!(self.wasm_module.local_func_index(function_index).is_none());
+                let offset = self.offsets.vmctx_vmfunction_import(function_index);
+                let vmfunction_import_ptr = builder.make(builder.gep(
+                    self.vm_ctx,
+                    offset as usize,
+                    builder.i8_ty(),
+                    builder.ptr_ty(),
+                ))?;
+                let body_ptr_ptr = builder.make(builder.gep(
+                    vmfunction_import_ptr,
+                    self.offsets.vmfunction_import_body() as usize,
+                    builder.i8_ty(),
+                    builder.ptr_ty(),
+                ))?;
+                let body_ptr = builder.make(builder.load(body_ptr_ptr, builder.ptr_ty()))?;
+                let vmctx_ptr_ptr = builder.make(builder.gep(
+                    vmfunction_import_ptr,
+                    self.offsets.vmfunction_import_vmctx() as usize,
+                    builder.i8_ty(),
+                    builder.ptr_ty(),
+                ))?;
+                let vmctx_ptr = builder.make(builder.load(vmctx_ptr_ptr, builder.ptr_ty()))?;
+
+                entry.insert(FunctionCache {
+                    func_type,
+                    func_with_vmctx: Some(unsafe {
+                        (
+                            Value::from_raw(body_ptr.to_raw()),
+                            Value::from_raw(vmctx_ptr.to_raw()),
+                        )
+                    }),
+                })
+            }
+        })
+    }
+
+    pub(crate) fn table_prepare(
+        &mut self,
+        table_index: TableIndex,
+    ) -> Result<(Value<'c, 'a>, Value<'c, 'a>)> {
+        let (cached_tables, wasm_module, offsets) =
+            (&mut self.cached_tables, self.wasm_module, &self.offsets);
+        let TableCache {
+            ptr_to_base_ptr,
+            ptr_to_bounds,
+        } = match cached_tables.entry(table_index) {
+            Entry::Occupied(entry) => *entry.get(),
+            Entry::Vacant(entry) => {
+                let (ptr_to_base_ptr, ptr_to_bounds) =
+                    if let Some(local_table_index) = wasm_module.local_table_index(table_index) {
+                        let builder = &self.cache_builder;
+                        let ptr_to_base_ptr = builder.make(builder.gep(
+                            self.vm_ctx,
+                            offsets.vmctx_vmtable_definition_base(local_table_index) as usize,
+                            builder.i8_ty(),
+                            builder.ptr_ty(),
+                        ))?;
+                        let ptr_to_bounds = builder.make(builder.gep(
+                            self.vm_ctx,
+                            offsets.vmctx_vmtable_definition_current_elements(local_table_index)
+                                as usize,
+                            builder.i8_ty(),
+                            builder.ptr_ty(),
+                        ))?;
+                        (ptr_to_base_ptr.to_ctx_value(), ptr_to_bounds.to_ctx_value())
+                    } else {
+                        let builder = &self.cache_builder;
+                        let definition_ptr_ptr = builder
+                            .make(builder.gep(
+                                self.vm_ctx,
+                                offsets.vmctx_vmtable_import_definition(table_index) as usize,
+                                builder.i8_ty(),
+                                builder.ptr_ty(),
+                            ))?
+                            .to_ctx_value();
+                        let definition_ptr =
+                            builder.make(builder.load(definition_ptr_ptr, builder.ptr_ty()))?;
+                        let ptr_to_base_ptr = builder.make(builder.gep(
+                            definition_ptr.to_ctx_value(),
+                            offsets.vmtable_definition_base() as usize,
+                            builder.i8_ty(),
+                            builder.ptr_ty(),
+                        ))?;
+                        let ptr_to_bounds = builder.make(builder.gep(
+                            definition_ptr.to_ctx_value(),
+                            offsets.vmtable_definition_current_elements() as usize,
+                            builder.i8_ty(),
+                            builder.ptr_ty(),
+                        ))?;
+                        (ptr_to_base_ptr.to_ctx_value(), ptr_to_bounds.to_ctx_value())
+                    };
+
+                let v = TableCache {
+                    ptr_to_base_ptr: ptr_to_base_ptr.to_ctx_value(),
+                    ptr_to_bounds: ptr_to_bounds.to_ctx_value(),
+                };
+
+                entry.insert(v);
+
+                v
+            }
+        };
+        unsafe {
+            Ok((
+                Value::from_raw(ptr_to_base_ptr.to_raw()),
+                Value::from_raw(ptr_to_bounds.to_raw()),
+            ))
+        }
+    }
+
+    pub(crate) fn table(&mut self, index: TableIndex) -> Result<(Value<'c, 'a>, Value<'c, 'a>)> {
+        let (ptr_to_base_ptr, ptr_to_bounds) = self.table_prepare(index)?;
+        let builder = &self.cache_builder;
+        let base_ptr = builder.make(builder.load(ptr_to_base_ptr, builder.ptr_ty()))?;
+        let bounds = builder.make(builder.load(ptr_to_bounds, builder.i32_ty()))?;
+        unsafe {
+            Ok((
+                Value::from_raw(base_ptr.to_raw()),
+                Value::from_raw(bounds.to_raw()),
+            ))
+        }
+    }
+
+    pub(crate) fn dynamic_sigindex(&mut self, index: SignatureIndex) -> Result<Value<'c, 'a>> {
+        let (cached_sigindices, ctx_ptr_value, offsets) =
+            (&mut self.cached_sigindices, self.vm_ctx, &self.offsets);
+
+        match cached_sigindices.entry(index) {
+            Entry::Occupied(entry) => {
+                let value = *entry.get();
+                Ok(unsafe { Value::from_raw(value.to_raw()) })
+            }
+            Entry::Vacant(entry) => {
+                let builder = &self.cache_builder;
+                let sigindex_ptr = builder
+                    .make(builder.gep(
+                        ctx_ptr_value,
+                        offsets.vmctx_vmshared_signature_id(index) as usize,
+                        builder.i8_ty(),
+                        builder.ptr_ty(),
+                    ))?
+                    .to_ctx_value();
+                let sigindex = builder.make(builder.load(sigindex_ptr, builder.i32_ty()))?;
+                entry.insert(sigindex.to_ctx_value());
+                Ok(unsafe { Value::from_raw(sigindex.to_raw()) })
             }
         }
     }
-}
 
-pub fn is_sret(func_sig: &wasmer_types::FunctionType) -> Result<bool> {
-    let func_sig_returns_bit_widths = func_sig
-        .results()
-        .iter()
-        .map(|ty| match ty {
-            wasmer_types::Type::I32 | wasmer_types::Type::F32 => 32,
-            wasmer_types::Type::I64 | wasmer_types::Type::F64 => 64,
-            wasmer_types::Type::V128 => 128,
-            wasmer_types::Type::ExternRef | wasmer_types::Type::FuncRef => 64, /* pointer */
-        })
-        .collect::<Vec<i32>>();
+    pub(crate) fn global(
+        &mut self,
+        index: GlobalIndex,
+        intrinsics: &WASMIntrinsics<'c>,
+    ) -> Result<GlobalCache<'c, 'a>> {
+        let (cached_globals, wasm_module, ctx_ptr_value, offsets) = (
+            &mut self.cached_globals,
+            self.wasm_module,
+            self.vm_ctx,
+            &self.offsets,
+        );
+        if let Entry::Vacant(entry) = cached_globals.entry(index) {
+            let global_type = wasm_module.globals[index];
+            let global_value_type = global_type.ty;
 
-    Ok(!matches!(
-        func_sig_returns_bit_widths.as_slice(),
-        [] | [_]
-            | [32, 32]
-            | [32, 64]
-            | [64, 32]
-            | [64, 64]
-            | [32, 32, 32]
-            | [32, 32, 64]
-            | [64, 32, 32]
-            | [32, 32, 32, 32]
-    ))
+            let global_mutability = global_type.mutability;
+            let offset = if let Some(local_global_index) = wasm_module.local_global_index(index) {
+                offsets.vmctx_vmglobal_definition(local_global_index)
+            } else {
+                offsets.vmctx_vmglobal_import(index)
+            };
+            let builder = &self.cache_builder;
+            let global = {
+                let global_ptr = {
+                    let global_ptr_ptr = builder
+                        .make(builder.gep(
+                            ctx_ptr_value,
+                            offset as usize,
+                            builder.i8_ty(),
+                            builder.ptr_ty(),
+                        ))?
+                        .to_ctx_value();
+                    let global_ptr = builder
+                        .make(builder.load(global_ptr_ptr, builder.ptr_ty()))?
+                        .to_ctx_value();
+                    global_ptr
+                };
+                match global_mutability {
+                    Mutability::Const => {
+                        let value = builder
+                            .make(
+                                builder
+                                    .load(global_ptr, type_to_mlir(intrinsics, &global_value_type)),
+                            )?
+                            .to_ctx_value();
+                        GlobalCache::Const { value }
+                    }
+                    Mutability::Var => GlobalCache::Mut {
+                        ptr_to_value: global_ptr,
+                        value_type: type_to_mlir(intrinsics, &global_value_type),
+                    },
+                }
+            };
+            entry.insert(global);
+        }
+        self.cached_globals
+            .get(&index)
+            .ok_or_else(|| anyhow::anyhow!("wasm global not found"))
+            .cloned()
+    }
+
+    pub(crate) fn memory(
+        &mut self,
+        index: MemoryIndex,
+        memory_styles: &PrimaryMap<MemoryIndex, MemoryStyle>,
+    ) -> Result<MemoryCache<'c, 'a>> {
+        let (cached_memories, wasm_module, ctx_ptr_value, offsets) = (
+            &mut self.cached_memories,
+            self.wasm_module,
+            self.vm_ctx,
+            &self.offsets,
+        );
+        let memory_style = &memory_styles[index];
+        match cached_memories.get(&index) {
+            Some(r) => Ok(*r),
+            None => {
+                let builder = &self.cache_builder;
+                let memory_definition_ptr =
+                    if let Some(local_memory_index) = wasm_module.local_memory_index(index) {
+                        let offset = offsets.vmctx_vmmemory_definition(local_memory_index);
+                        builder
+                            .make(builder.gep(
+                                ctx_ptr_value,
+                                offset as usize,
+                                builder.i8_ty(),
+                                builder.ptr_ty(),
+                            ))?
+                            .to_ctx_value()
+                    } else {
+                        let offset = offsets.vmctx_vmmemory_import(index);
+                        let memory_definition_ptr_ptr = builder
+                            .make(builder.gep(
+                                ctx_ptr_value,
+                                offset as usize,
+                                builder.i8_ty(),
+                                builder.ptr_ty(),
+                            ))?
+                            .to_ctx_value();
+                        builder
+                            .make(builder.load(memory_definition_ptr_ptr, builder.ptr_ty()))?
+                            .to_ctx_value()
+                    };
+                let base_ptr = builder
+                    .make(builder.gep(
+                        memory_definition_ptr,
+                        offsets.vmmemory_definition_base() as usize,
+                        builder.i8_ty(),
+                        builder.ptr_ty(),
+                    ))?
+                    .to_ctx_value();
+                let value = if let MemoryStyle::Dynamic { .. } = memory_style {
+                    let current_length_ptr = builder
+                        .make(builder.gep(
+                            memory_definition_ptr,
+                            offsets.vmmemory_definition_current_length() as usize,
+                            builder.i8_ty(),
+                            builder.ptr_ty(),
+                        ))?
+                        .to_ctx_value();
+                    MemoryCache::Dynamic {
+                        ptr_to_base_ptr: base_ptr,
+                        ptr_to_current_length: current_length_ptr,
+                    }
+                } else {
+                    let base_ptr = builder
+                        .make(builder.load(base_ptr, builder.ptr_ty()))?
+                        .to_ctx_value();
+                    MemoryCache::Static { base_ptr }
+                };
+
+                self.cached_memories.insert(index, value);
+                Ok(*self.cached_memories.get(&index).unwrap())
+            }
+        }
+    }
+
+    pub(crate) fn get_import_function_info(&self, function_index: u32) -> Option<&ImportKey> {
+        for (import_key, import_index) in &self.wasm_module.imports {
+            if let ImportIndex::Function(index) = import_index {
+                if function_index == index.as_u32() {
+                    return Some(import_key);
+                }
+            }
+        }
+        None
+    }
 }
