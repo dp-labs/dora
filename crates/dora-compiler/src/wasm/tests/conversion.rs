@@ -521,6 +521,11 @@ fn float_exprs() {
 }
 
 #[test]
+fn float_literals() {
+    assert_snapshot!(include_str!("suites/float_literals.wat"));
+}
+
+#[test]
 fn counter_contract() {
     assert_snapshot!(include_str!("suites/counter.wat"));
 }
