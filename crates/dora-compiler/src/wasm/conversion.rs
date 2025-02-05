@@ -686,7 +686,7 @@ impl ConversionPass<'_> {
                 replace_op(op, math::absi(self.ctx, value, op.location()).into());
             } else if name == dora_ir::wasm::NegOperation::name() {
                 let value = op.operand(0)?;
-                replace_op(op, arith::negf(value, op.location()).into());
+                replace_op(op, arith::negf(value, op.location()));
             } else if name == dora_ir::wasm::FloorOperation::name() {
                 let value = op.operand(0)?;
                 replace_op(op, math::floor(self.ctx, value, op.location()).into());
