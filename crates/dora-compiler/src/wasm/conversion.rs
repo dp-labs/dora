@@ -466,7 +466,8 @@ impl ConversionPass<'_> {
                 let rhs = op.operand(1)?;
                 debug_assert!(lhs.r#type() == rhs.r#type());
                 let eq = rewriter.make(
-                    dora_ir::dora::eq(self.ctx, lhs.r#type(), lhs, rhs, op.location()).into(),
+                    dora_ir::dora::eq(self.ctx, op.result(0)?.r#type(), lhs, rhs, op.location())
+                        .into(),
                 )?;
                 let not_op: Operation =
                     dora_ir::dora::not(self.ctx, eq.r#type(), eq, op.location()).into();

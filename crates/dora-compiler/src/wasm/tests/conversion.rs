@@ -501,6 +501,16 @@ fn endianness() {
 }
 
 #[test]
+fn f32_arith() {
+    assert_snapshot!(include_str!("suites/f32_arith.wat"));
+}
+
+#[test]
+fn f64_arith() {
+    assert_snapshot!(include_str!("suites/f64_arith.wat"));
+}
+
+#[test]
 fn counter_contract() {
     assert_snapshot!(include_str!("suites/counter.wat"));
 }
