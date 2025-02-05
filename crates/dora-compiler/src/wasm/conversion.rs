@@ -678,6 +678,24 @@ impl ConversionPass<'_> {
                     )
                     .into(),
                 );
+            } else if name == dora_ir::wasm::CeilOperation::name() {
+                let value = op.operand(0)?;
+                replace_op(op, math::ceil(self.ctx, value, op.location()).into());
+            } else if name == dora_ir::wasm::AbsOperation::name() {
+                let value = op.operand(0)?;
+                replace_op(op, math::absi(self.ctx, value, op.location()).into());
+            } else if name == dora_ir::wasm::NegOperation::name() {
+                let value = op.operand(0)?;
+                replace_op(op, arith::negf(value, op.location()));
+            } else if name == dora_ir::wasm::FloorOperation::name() {
+                let value = op.operand(0)?;
+                replace_op(op, math::floor(self.ctx, value, op.location()).into());
+            } else if name == dora_ir::wasm::NearestOperation::name() {
+                let value = op.operand(0)?;
+                replace_op(op, math::round(self.ctx, value, op.location()).into());
+            } else if name == dora_ir::wasm::CopySignOperation::name() {
+                let (x, y) = (op.operand(0)?, op.operand(1)?);
+                replace_op(op, math::copysign(self.ctx, x, y, op.location()).into());
             } else if name == dora_ir::wasm::SqrtOperation::name() {
                 let value = op.operand(0)?;
                 replace_op(op, math::sqrt(self.ctx, value, op.location()).into());

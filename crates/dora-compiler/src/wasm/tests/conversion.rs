@@ -421,6 +421,138 @@ fn cmp_i64() {
 }
 
 #[test]
+fn ceil_i32() {
+    assert_snapshot!(
+        r#"
+(module
+  (func (export "ceil") (param $x f32) (result f32) (f32.ceil (local.get $x)))
+)
+"#
+    );
+}
+
+#[test]
+fn ceil_i64() {
+    assert_snapshot!(
+        r#"
+(module
+   (func (export "ceil") (param $x f64) (result f64) (f64.ceil (local.get $x)))
+)
+"#
+    );
+}
+
+#[test]
+fn abs_i32() {
+    assert_snapshot!(
+        r#"
+(module
+  (func (export "abs") (param $x f32) (result f32) (f32.abs (local.get $x)))
+)
+"#
+    );
+}
+
+#[test]
+fn abs_i64() {
+    assert_snapshot!(
+        r#"
+(module
+   (func (export "abs") (param $x f64) (result f64) (f64.abs (local.get $x)))
+)
+"#
+    );
+}
+
+#[test]
+fn neg_i32() {
+    assert_snapshot!(
+        r#"
+(module
+  (func (export "neg") (param $x f32) (result f32) (f32.neg (local.get $x)))
+)
+"#
+    );
+}
+
+#[test]
+fn neg_i64() {
+    assert_snapshot!(
+        r#"
+(module
+   (func (export "neg") (param $x f64) (result f64) (f64.abs (local.get $x)))
+)
+"#
+    );
+}
+
+#[test]
+fn floor_i32() {
+    assert_snapshot!(
+        r#"
+(module
+  (func (export "floor") (param $x f32) (result f32) (f32.neg (local.get $x)))
+)
+"#
+    );
+}
+
+#[test]
+fn floor_i64() {
+    assert_snapshot!(
+        r#"
+(module
+   (func (export "floor") (param $x f64) (result f64) (f64.abs (local.get $x)))
+)
+"#
+    );
+}
+
+#[test]
+fn nearest_i32() {
+    assert_snapshot!(
+        r#"
+(module
+  (func (export "nearest") (param $x f32) (result f32) (f32.neg (local.get $x)))
+)
+"#
+    );
+}
+
+#[test]
+fn nearest_i64() {
+    assert_snapshot!(
+        r#"
+(module
+   (func (export "nearest") (param $x f64) (result f64) (f64.abs (local.get $x)))
+)
+"#
+    );
+}
+
+#[test]
+fn copysign_i32() {
+    assert_snapshot!(
+        r#"
+(module
+  (func (export "copysign") (param $x f32) (result f32) (f32.neg (local.get $x)))
+)
+"#
+    );
+}
+
+#[test]
+fn copysign_i64() {
+    assert_snapshot!(
+        r#"
+(module
+   (func (export "copysign") (param $x f64) (result f64) (f64.abs (local.get $x)))
+)
+"#
+    );
+}
+
+#[test]
 fn select() {
     assert_snapshot!(include_str!("suites/select.wat"));
 }
