@@ -18,14 +18,15 @@ jobs:
 
   build:
     name: Build on ${{ matrix.config.runner }}
-    runs-on: ubuntu-latest
+    runs-on: ${{ matrix.config.runs_on }}
     timeout-minutes: 240  # 4 hours
 
     strategy:
       fail-fast: true
       matrix:
         config:
-        - {runner: 'CentOS 7', runs_on: ['self-hosted', 'CPU'], target-os: 'centos', arch: 'x64'}
+        - {runner: 'CentOS 7', runs_on: 'ubuntu-latest', target-os: 'centos', arch: 'x64'}
+        - {runner: 'Windows Latest', runs_on: 'windows-latest', target-os: 'windows', arch: 'x64'}
 
     steps:
     - name: Checkout Repo
@@ -96,6 +97,31 @@ jobs:
         sudo chown -R "$(id -u -n):$(id -g -n)" "${{ env.SCCACHE_DIR }}"
 
         docker rm "${CONTAINER_ID}"
+
+    - name: Configure, Build, Test, and Install LLVM (Windows)
+      if: matrix.config.arch == 'x64' && (matrix.config.target-os == 'windows')
+      run: >
+        python3 -m pip install -r llvm-project/mlir/python/requirements.txt
+
+        cmake -GNinja -Bllvm-project/build
+        -DCMAKE_BUILD_TYPE=Release
+        -DCMAKE_C_COMPILER=cl
+        -DCMAKE_CXX_COMPILER=cl
+        -DCMAKE_INSTALL_PREFIX="${{ env.llvm_install_dir }}"
+        -DLLVM_BUILD_UTILS=ON
+        -DLLVM_BUILD_TOOLS=ON
+        -DLLVM_ENABLE_ASSERTIONS=ON
+        -DMLIR_ENABLE_BINDINGS_PYTHON=ON
+        -DLLVM_ENABLE_PROJECTS="mlir;llvm"
+        -DLLVM_ENABLE_DIA_SDK=OFF
+        -DLLVM_INSTALL_UTILS=ON
+        -DLLVM_TARGETS_TO_BUILD="Native"
+        -DLLVM_ENABLE_TERMINFO=OFF
+        llvm-project/llvm
+
+        ninja -C llvm-project/build check-mlir install
+
+        tar czf "${{ env.llvm_install_dir }}.tar.gz" "${{ env.llvm_install_dir }}"
 
     - name: Upload Build Artifacts
       uses: actions/upload-artifact@v4

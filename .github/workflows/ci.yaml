@@ -104,12 +104,20 @@ jobs:
         run: |
           $llvmVersion = "${{ env.LLVM_VERSION }}"
           $llvmUrl = "https://github.com/llvm/llvm-project/releases/download/llvmorg-$llvmVersion/LLVM-$llvmVersion-win64.exe"
+          $llvmPath = "C:\Program Files\LLVM\bin"
           Invoke-WebRequest -Uri $llvmUrl -OutFile llvm-installer.exe
           Start-Process -Wait -FilePath .\llvm-installer.exe -ArgumentList '/S'
+          Add-Content $env:GITHUB_ENV "PATH=$llvmPath;$env:PATH"
+
           echo "LLVM_SYS_${{ env.LLVM_MAJOR_VERSION }}0_PREFIX=C:\Program Files\LLVM" >> $env:GITHUB_ENV
           echo "MLIR_SYS_${{ env.LLVM_MAJOR_VERSION }}0_PREFIX=C:\Program Files\LLVM" >> $env:GITHUB_ENV
           echo "TABLEGEN_${{ env.LLVM_MAJOR_VERSION }}0_PREFIX=C:\Program Files\LLVM" >> $env:GITHUB_ENV
           echo "PATH=C:\Program Files\LLVM\bin;$env:PATH" >> $env:GITHUB_ENV
+
+      - name: Verify LLVM installation
+        run: |
+          clang --version
+          mlir-opt --version
 
       - name: Run tests
         run: cargo test -r --workspace --all-features
