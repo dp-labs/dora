@@ -48,11 +48,12 @@ module {
     %3 = llvm.load %1 : !llvm.ptr -> i32
     %4 = arith.cmpi eq, %2, %3 : i32
     %5 = arith.extui %4 : i1 to i32
-    %c-1_i32 = arith.constant -1 : i32
-    %6 = arith.xori %5, %c-1_i32 : i32
-    cf.br ^bb2(%6 : i32)
-  ^bb2(%7: i32):  // pred: ^bb1
-    return %7 : i32
+    %c0_i32 = arith.constant 0 : i32
+    %6 = arith.cmpi eq, %5, %c0_i32 : i32
+    %7 = arith.extui %6 : i1 to i32
+    cf.br ^bb2(%7 : i32)
+  ^bb2(%8: i32):  // pred: ^bb1
+    return %8 : i32
   }
   func.func private @dora_fn_wasm_table_init(!llvm.ptr, i32, i32, i32, i32, i32)
   func.func private @dora_fn_wasm_table_copy(!llvm.ptr, i32, i32, i32, i32, i32)

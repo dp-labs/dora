@@ -82,16 +82,6 @@ fn sum_with_export_functions() {
 }
 
 #[test]
-fn i32_arith() {
-    assert_snapshot!(include_str!("suites/i32_arith.wat"));
-}
-
-#[test]
-fn i64_arith() {
-    assert_snapshot!(include_str!("suites/i64_arith.wat"));
-}
-
-#[test]
 fn and_i32() {
     assert_snapshot!(
         r#"
@@ -628,6 +618,11 @@ fn conversions() {
 }
 
 #[test]
+fn counter_contract() {
+    assert_snapshot!(include_str!("suites/counter.wat"));
+}
+
+#[test]
 fn endianness() {
     assert_snapshot!(include_str!("suites/endianness.wat"));
 }
@@ -683,11 +678,21 @@ fn global() {
 }
 
 #[test]
-fn counter_contract() {
-    assert_snapshot!(include_str!("suites/counter.wat"));
+fn global_get_and_set() {
+    assert_snapshot!(include_str!("suites/global_get_and_set.wat"));
 }
 
 #[test]
 fn global_value() {
     assert_snapshot!(include_str!("suites/global_value.wat"));
+}
+
+#[test]
+fn i32_arith() {
+    assert_snapshot!(include_str!("suites/i32_arith.wat"));
+}
+
+#[test]
+fn i64_arith() {
+    assert_snapshot!(include_str!("suites/i64_arith.wat"));
 }

@@ -554,22 +554,26 @@ impl ConversionPass<'_> {
         Ok(())
     }
 
+    #[inline]
     pub(crate) fn clz(context: &Context, op: &OperationRef<'_, '_>) -> Result<()> {
-        Self::call_llvm_intrinsic(context, op, "llvm.ctlz")
+        Self::call_llvm_intrinsic(context, op, "llvm.ctlz", true)
     }
 
+    #[inline]
     pub(crate) fn ctz(context: &Context, op: &OperationRef<'_, '_>) -> Result<()> {
-        Self::call_llvm_intrinsic(context, op, "llvm.cttz")
+        Self::call_llvm_intrinsic(context, op, "llvm.cttz", true)
     }
 
+    #[inline]
     pub(crate) fn popcnt(context: &Context, op: &OperationRef<'_, '_>) -> Result<()> {
-        Self::call_llvm_intrinsic(context, op, "llvm.ctpop")
+        Self::call_llvm_intrinsic(context, op, "llvm.ctpop", false)
     }
 
     fn call_llvm_intrinsic(
         context: &Context,
         op: &OperationRef<'_, '_>,
         intrinsic_base: &str,
+        with_zero_undef: bool,
     ) -> Result<()> {
         operands!(op, value);
         rewrite_ctx!(context, op, rewriter, location);
@@ -581,7 +585,11 @@ impl ConversionPass<'_> {
         let intrinsic_name = format!("{}.i{}", intrinsic_base, bit_width);
         let intrinsic_attr = StringAttribute::new(context, &intrinsic_name);
 
-        let args = vec![value, is_zero_undef];
+        let args = if with_zero_undef {
+            vec![value, is_zero_undef]
+        } else {
+            vec![value]
+        };
         let result_types = vec![ty];
 
         rewriter.make(llvm::call_intrinsic(

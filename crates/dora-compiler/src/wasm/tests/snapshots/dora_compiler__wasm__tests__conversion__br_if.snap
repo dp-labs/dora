@@ -1,6 +1,7 @@
 ---
 source: crates/dora-compiler/src/wasm/tests/conversion.rs
 expression: op
+snapshot_kind: text
 ---
 module {
   func.func @dummy(%arg0: !llvm.ptr) {
@@ -1302,9 +1303,10 @@ module {
   ^bb4(%3: i32):  // pred: ^bb1
     %4 = arith.cmpi eq, %c10_i32, %c1_i32 : i32
     %5 = arith.extui %4 : i1 to i32
-    %c-1_i32 = arith.constant -1 : i32
-    %6 = arith.xori %5, %c-1_i32 : i32
-    cf.br ^bb3(%6 : i32)
+    %c0_i32_0 = arith.constant 0 : i32
+    %6 = arith.cmpi eq, %5, %c0_i32_0 : i32
+    %7 = arith.extui %6 : i1 to i32
+    cf.br ^bb3(%7 : i32)
   }
   func.func public @"as-memory.grow-size"(%arg0: !llvm.ptr) -> i32 attributes {llvm.emit_c_interface} {
     cf.br ^bb1

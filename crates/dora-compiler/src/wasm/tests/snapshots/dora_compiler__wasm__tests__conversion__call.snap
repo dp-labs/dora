@@ -932,13 +932,14 @@ module {
     %0 = call @dummy(%arg0, %c1_i32) : (!llvm.ptr, i32) -> i32
     %1 = arith.cmpi eq, %c10_i32, %0 : i32
     %2 = arith.extui %1 : i1 to i32
-    %c-1_i32 = arith.constant -1 : i32
-    %3 = arith.xori %2, %c-1_i32 : i32
-    cf.br ^bb3(%3 : i32)
-  ^bb2(%4: i32):  // pred: ^bb3
-    return %4 : i32
-  ^bb3(%5: i32):  // pred: ^bb1
-    cf.br ^bb2(%5 : i32)
+    %c0_i32 = arith.constant 0 : i32
+    %3 = arith.cmpi eq, %2, %c0_i32 : i32
+    %4 = arith.extui %3 : i1 to i32
+    cf.br ^bb3(%4 : i32)
+  ^bb2(%5: i32):  // pred: ^bb3
+    return %5 : i32
+  ^bb3(%6: i32):  // pred: ^bb1
+    cf.br ^bb2(%6 : i32)
   }
   func.func public @"as-convert-operand"(%arg0: !llvm.ptr) -> i64 attributes {llvm.emit_c_interface} {
     cf.br ^bb1

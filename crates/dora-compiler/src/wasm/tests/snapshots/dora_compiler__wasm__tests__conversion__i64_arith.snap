@@ -336,7 +336,7 @@ module {
   ^bb1:  // pred: ^bb0
     %1 = llvm.load %0 : !llvm.ptr -> i64
     %false = arith.constant false
-    %2 = llvm.call_intrinsic "llvm.ctpop.i64"(%1, %false) : (i64, i1) -> i64
+    %2 = llvm.call_intrinsic "llvm.ctpop.i64"(%1) : (i64) -> i64
     cf.br ^bb2(%2 : i64)
   ^bb2(%3: i64):  // pred: ^bb1
     return %3 : i64
@@ -424,11 +424,12 @@ module {
     %3 = llvm.load %1 : !llvm.ptr -> i64
     %4 = arith.cmpi eq, %2, %3 : i64
     %5 = arith.extui %4 : i1 to i32
-    %c-1_i32 = arith.constant -1 : i32
-    %6 = arith.xori %5, %c-1_i32 : i32
-    cf.br ^bb2(%6 : i32)
-  ^bb2(%7: i32):  // pred: ^bb1
-    return %7 : i32
+    %c0_i32 = arith.constant 0 : i32
+    %6 = arith.cmpi eq, %5, %c0_i32 : i32
+    %7 = arith.extui %6 : i1 to i32
+    cf.br ^bb2(%7 : i32)
+  ^bb2(%8: i32):  // pred: ^bb1
+    return %8 : i32
   }
   func.func public @lt_s(%arg0: !llvm.ptr, %arg1: i64, %arg2: i64) -> i32 attributes {llvm.emit_c_interface} {
     %c1_i64 = arith.constant 1 : i64
