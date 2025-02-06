@@ -1085,3 +1085,19 @@ fn test_wasm_float_memory() -> Result<()> {
     );
     Ok(())
 }
+
+#[test]
+fn test_wasm_forward() -> Result<()> {
+    let code = include_bytes!("../../../dora-compiler/src/wasm/tests/suites/forward.wat");
+    build_wasm_code!(code, artifact);
+    generate_test_cases!(
+        &artifact,
+        [
+            ("even", 13, 0, i32),
+            ("even", 20, 1, i32),
+            ("odd", 13, 1, i32),
+            ("odd", 20, 0, i32),
+        ]
+    );
+    Ok(())
+}
