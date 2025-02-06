@@ -1221,3 +1221,68 @@ fn test_wasm_func_ptr() -> Result<()> {
     );
     Ok(())
 }
+
+#[test]
+fn test_wasm_global() -> Result<()> {
+    let code = include_bytes!("../../../dora-compiler/src/wasm/tests/suites/global.wat");
+    build_wasm_code!(code, artifact);
+    generate_test_cases!(
+        &artifact,
+        [
+            ("get-a", (), (-2,), (i32,)),
+            ("get-b", (), (-5,), (i64,)),
+            ("get-x", (), (-12,), (i32,)),
+            ("get-y", (), (-15,), (i64,)),
+            ("get-z1", (), (0,), (i32,)),
+            ("get-z2", (), (1,), (i64,)),
+            ("get-3", (), (-3.0,), (f32,)),
+            ("get-4", (), (-4.0,), (f64,)),
+            ("get-7", (), (-13.0,), (f32,)),
+            ("get-8", (), (-14.0,), (f64,)),
+            ("set-x", (6,), (), ()),
+            ("set-y", (7,), (), ()),
+            ("set-7", (8_f32,), (), ()),
+            ("set-8", (9_f64,), (), ()),
+            ("get-x", (), (6,), (i32,)),
+            ("get-y", (), (7,), (i64,)),
+            ("get-7", (), (8.0,), (f32,)),
+            ("get-8", (), (9.0,), (f64,)),
+            ("set-7", (8_f32,), (), ()),
+            ("set-8", (9_f64,), (), ()),
+            ("set-mr", (10,), (), ()),
+            ("get-x", (), (6,), (i32,)),
+            ("get-y", (), (7,), (i64,)),
+            ("get-7", (), (8.0,), (f32,)),
+            ("get-8", (), (9.0,), (f64,)),
+            ("as-select-first", (), (6,), (i32,)),
+            ("as-select-mid", (), (2,), (i32,)),
+            ("as-select-last", (), (2,), (i32,)),
+            ("as-loop-first", (), (6,), (i32,)),
+            ("as-loop-mid", (), (6,), (i32,)),
+            ("as-loop-last", (), (6,), (i32,)),
+            ("as-if-condition", (), (2,), (i32,)),
+            ("as-if-then", (), (6,), (i32,)),
+            ("as-if-else", (), (6,), (i32,)),
+            ("as-br_if-first", (), (6,), (i32,)),
+            ("as-br_if-last", (), (2,), (i32,)),
+            ("as-br_table-first", (), (6,), (i32,)),
+            ("as-br_table-last", (), (2,), (i32,)),
+            ("as-call_indirect-first", (), (6,), (i32,)),
+            ("as-call_indirect-mid", (), (2,), (i32,)),
+            ("as-store-first", (), (), ()),
+            ("as-store-last", (), (), ()),
+            ("as-load-operand", (1,), (), ()),
+            ("as-memory.grow-value", (1,), (), ()),
+            ("as-call-value", (), (6,), (i32,)),
+            ("as-return-value", (), (6,), (i32,)),
+            ("as-drop-operand", (), (), ()),
+            ("as-br-value", (), (6,), (i32,)),
+            ("as-local.set-value", (1,), (6,), (i32,)),
+            ("as-local.tee-value", (1,), (6,), (i32,)),
+            ("as-global.set-value", (6,), (), ()),
+            ("as-unary-operand", (), (0,), (i32,)),
+            ("as-binary-operand", (), (36,), (i32,)),
+        ]
+    );
+    Ok(())
+}

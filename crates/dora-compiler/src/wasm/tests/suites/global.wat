@@ -1,6 +1,6 @@
 (module
-  (global (import "spectest" "global_i32") i32)
-  (global (import "spectest" "global_i64") i64)
+  (global $g0 i32 (i32.const 0))
+  (global $g1 i64 (i64.const 1))
 
   (global $a i32 (i32.const -2))
   (global (;3;) f32 (f32.const -3))
@@ -12,8 +12,6 @@
   (global (;8;) (mut f64) (f64.const -14))
   (global $y (mut i64) (i64.const -15))
 
-  (global $z1 i32 (global.get 0))
-  (global $z2 i64 (global.get 1))
 
   (global $r externref (ref.null extern))
   (global $mr (mut externref) (ref.null extern))
@@ -25,8 +23,8 @@
   (func (export "get-mr") (result externref) (global.get $mr))
   (func (export "get-x") (result i32) (global.get $x))
   (func (export "get-y") (result i64) (global.get $y))
-  (func (export "get-z1") (result i32) (global.get $z1))
-  (func (export "get-z2") (result i64) (global.get $z2))
+  (func (export "get-z1") (result i32) (global.get $g0))
+  (func (export "get-z2") (result i64) (global.get $g1))
   (func (export "set-x") (param i32) (global.set $x (local.get 0)))
   (func (export "set-y") (param i64) (global.set $y (local.get 0)))
   (func (export "set-mr") (param externref) (global.set $mr (local.get 0)))
