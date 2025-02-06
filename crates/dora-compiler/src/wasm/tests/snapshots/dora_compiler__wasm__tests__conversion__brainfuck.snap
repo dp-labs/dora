@@ -243,11 +243,12 @@ module {
     %c0_i32 = arith.constant 0 : i32
     %11 = arith.cmpi eq, %10, %c0_i32 : i32
     %12 = arith.extui %11 : i1 to i32
-    %c-1_i32 = arith.constant -1 : i32
-    %13 = arith.xori %12, %c-1_i32 : i32
-    cf.br ^bb2(%13 : i32)
-  ^bb2(%14: i32):  // pred: ^bb1
-    return %14 : i32
+    %c0_i32_0 = arith.constant 0 : i32
+    %13 = arith.cmpi eq, %12, %c0_i32_0 : i32
+    %14 = arith.extui %13 : i1 to i32
+    cf.br ^bb2(%14 : i32)
+  ^bb2(%15: i32):  // pred: ^bb1
+    return %15 : i32
   }
   func.func @user(%arg0: !llvm.ptr) {
     cf.br ^bb1

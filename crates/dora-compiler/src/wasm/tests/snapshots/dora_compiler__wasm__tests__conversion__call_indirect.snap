@@ -4276,9 +4276,10 @@ module {
     %22 = llvm.call %16(%17, %c1_i32) vararg(!llvm.func<i32 (...)>) : !llvm.ptr, (!llvm.ptr, i32) -> i32
     %23 = arith.cmpi eq, %c10_i32, %22 : i32
     %24 = arith.extui %23 : i1 to i32
-    %c-1_i32 = arith.constant -1 : i32
-    %25 = arith.xori %24, %c-1_i32 : i32
-    cf.br ^bb3(%25 : i32)
+    %c0_i32_3 = arith.constant 0 : i32
+    %25 = arith.cmpi eq, %24, %c0_i32_3 : i32
+    %26 = arith.extui %25 : i1 to i32
+    cf.br ^bb3(%26 : i32)
   ^bb11:  // pred: ^bb8
     %c5_i32 = arith.constant 5 : i32
     call @dora_fn_wasm_raise_trap(%c5_i32) : (i32) -> ()

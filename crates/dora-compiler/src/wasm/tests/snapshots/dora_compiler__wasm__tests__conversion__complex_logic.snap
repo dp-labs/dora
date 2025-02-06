@@ -407,30 +407,31 @@ module {
     llvm.store %29, %5 : i32, !llvm.ptr
     %30 = arith.cmpi eq, %23, %29 : i32
     %31 = arith.extui %30 : i1 to i32
-    %c-1_i32 = arith.constant -1 : i32
-    %32 = arith.xori %31, %c-1_i32 : i32
     %c0_i32_9 = arith.constant 0 : i32
-    %33 = arith.cmpi ne, %32, %c0_i32_9 : i32
-    cf.cond_br %33, ^bb5, ^bb8
+    %32 = arith.cmpi eq, %31, %c0_i32_9 : i32
+    %33 = arith.extui %32 : i1 to i32
+    %c0_i32_10 = arith.constant 0 : i32
+    %34 = arith.cmpi ne, %33, %c0_i32_10 : i32
+    cf.cond_br %34, ^bb5, ^bb8
   ^bb8:  // pred: ^bb7
-    %34 = llvm.load %0 : !llvm.ptr -> i32
+    %35 = llvm.load %0 : !llvm.ptr -> i32
     %c1_i32 = arith.constant 1 : i32
-    %35 = arith.addi %34, %c1_i32 : i32
-    llvm.store %35, %0 : i32, !llvm.ptr
-    %36 = llvm.load %1 : !llvm.ptr -> i32
-    %c1_i32_10 = arith.constant 1 : i32
-    %37 = arith.addi %36, %c1_i32_10 : i32
-    llvm.store %37, %1 : i32, !llvm.ptr
-    %38 = llvm.load %2 : !llvm.ptr -> i32
-    %c-1_i32_11 = arith.constant -1 : i32
-    %39 = arith.addi %38, %c-1_i32_11 : i32
-    llvm.store %39, %2 : i32, !llvm.ptr
+    %36 = arith.addi %35, %c1_i32 : i32
+    llvm.store %36, %0 : i32, !llvm.ptr
+    %37 = llvm.load %1 : !llvm.ptr -> i32
+    %c1_i32_11 = arith.constant 1 : i32
+    %38 = arith.addi %37, %c1_i32_11 : i32
+    llvm.store %38, %1 : i32, !llvm.ptr
+    %39 = llvm.load %2 : !llvm.ptr -> i32
+    %c-1_i32 = arith.constant -1 : i32
+    %40 = arith.addi %39, %c-1_i32 : i32
+    llvm.store %40, %2 : i32, !llvm.ptr
     %c0_i32_12 = arith.constant 0 : i32
-    %40 = arith.cmpi eq, %39, %c0_i32_12 : i32
-    %41 = arith.extui %40 : i1 to i32
+    %41 = arith.cmpi eq, %40, %c0_i32_12 : i32
+    %42 = arith.extui %41 : i1 to i32
     %c0_i32_13 = arith.constant 0 : i32
-    %42 = arith.cmpi ne, %41, %c0_i32_13 : i32
-    cf.cond_br %42, ^bb3, ^bb9
+    %43 = arith.cmpi ne, %42, %c0_i32_13 : i32
+    cf.cond_br %43, ^bb3, ^bb9
   ^bb9:  // pred: ^bb8
     cf.br ^bb7
   }

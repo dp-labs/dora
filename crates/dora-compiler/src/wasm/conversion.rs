@@ -1,3 +1,4 @@
+use crate::backend::IntCC;
 use crate::conversion::rewriter::{replace_op, Replacer, Rewriter};
 use crate::conversion::walker::walk_operation;
 use crate::errors::Result;
@@ -10,7 +11,7 @@ use dora_runtime::constants::{
     LEF64_GEQ_U64_MIN,
 };
 use melior::dialect::{arith, llvm, ods::math};
-use melior::ir::{operation::OperationBuilder, Operation, TypeLike, ValueLike};
+use melior::ir::{operation::OperationBuilder, TypeLike, ValueLike};
 use melior::{
     dialect::DialectHandle,
     ir::{r#type::TypeId, OperationRef},
@@ -465,24 +466,16 @@ impl ConversionPass<'_> {
                 let lhs = op.operand(0)?;
                 let rhs = op.operand(1)?;
                 debug_assert!(lhs.r#type() == rhs.r#type());
-                let eq = rewriter.make(
+                let eq_val = rewriter.make(
                     dora_ir::dora::eq(self.ctx, op.result(0)?.r#type(), lhs, rhs, op.location())
                         .into(),
                 )?;
-                let not_op: Operation =
-                    dora_ir::dora::not(self.ctx, eq.r#type(), eq, op.location()).into();
-                let ty = not_op.result(0)?.r#type();
-                let is_i32 = ty.is_integer() && rewriter.int_ty_width(ty)? == 32;
+                let result = rewriter.make(rewriter.icmp_imm(IntCC::Equal, eq_val, 0)?)?;
                 // Note: the wasm ne operation always return i32 value.
-                if is_i32 {
-                    replace_op(op, not_op);
-                } else {
-                    let not_value = rewriter.make(not_op)?;
-                    replace_op(
-                        op,
-                        arith::trunci(not_value, rewriter.i32_ty(), rewriter.get_insert_location()),
-                    );
-                }
+                replace_op(
+                    op,
+                    arith::extui(result, rewriter.i32_ty(), rewriter.get_insert_location()),
+                );
             } else if name == dora_ir::wasm::FltOperation::name() {
                 let lhs = op.operand(0)?;
                 let rhs = op.operand(1)?;
