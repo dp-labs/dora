@@ -121,7 +121,7 @@ impl Host for EvmcDelegateHost<'_> {
         unsafe {
             let addr = transmute::<Address, evmc_address>(addr);
             let key = transmute::<Bytes32, evmc_bytes32>(key.to_be());
-            let result = self.context.get_storage(&addr, &key);
+            let result = self.context.get_transient_storage(&addr, &key);
             Bytes32::from_be_bytes(result.bytes)
         }
     }
@@ -131,7 +131,7 @@ impl Host for EvmcDelegateHost<'_> {
             let addr = transmute::<Address, evmc_address>(addr);
             let key = transmute::<Bytes32, evmc_bytes32>(key.to_be());
             let value = transmute::<Bytes32, evmc_bytes32>(value.to_be());
-            self.context.set_storage(&addr, &key, &value);
+            self.context.set_transient_storage(&addr, &key, &value);
         }
     }
 
