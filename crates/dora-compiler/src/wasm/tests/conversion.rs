@@ -73,7 +73,7 @@ fn sum_with_export_functions() {
     local.get $y
     i32.add)
 
-  (func (export "main") 
+  (func (export "main")
     (call $sum_f (i32.const 2) (i32.const 3))
   )
 )
@@ -660,6 +660,11 @@ fn float_literals() {
 #[test]
 fn float_memory() {
     assert_snapshot!(include_str!("suites/float_memory.wat"));
+}
+
+#[test]
+fn forward() {
+    assert_snapshot!(include_str!("suites/forward.wat"));
 }
 
 #[test]

@@ -59,8 +59,8 @@ fn float_literals() {
 }
 
 #[test]
-fn forwald() {
-    assert_snapshot!(include_str!("suites/forwald.wat"));
+fn forward() {
+    assert_snapshot!(include_str!("suites/forward.wat"));
 }
 
 #[test]
