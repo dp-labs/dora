@@ -614,7 +614,7 @@ fn keccak256_1() {
     let expect_gas = 3 + 2 // Push1 + Push0
         + 30 // 30 is the static gas of Keccak256
         + 6  // 6 = 6 * (32 + 31) / 32 is the dynamic gas cost of Keccak256
-        + 3  // 3 = 3 * (32 + 31) / 32 is the memory extention gas cost
+        + 3  // 3 = 3 * (32 + 31) / 32 is the memory extension gas cost
         ;
     assert_eq!(result.gas_used(), expect_gas);
     // Check the extended memory
