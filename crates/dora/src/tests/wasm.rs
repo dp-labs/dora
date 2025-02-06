@@ -33,7 +33,7 @@ macro_rules! generate_test_cases {
         $(
             {
                 let result: $ty = $artifact.execute_wasm_func($func_name, $arg)?;
-                assert_eq!(result, $expect);
+                assert_eq!(result, $expect, "Function: {} test failed", $func_name);
             }
         )*
     };
@@ -1097,6 +1097,111 @@ fn test_wasm_forward() -> Result<()> {
             ("even", 20, 1, i32),
             ("odd", 13, 1, i32),
             ("odd", 20, 0, i32),
+        ]
+    );
+    Ok(())
+}
+
+#[test]
+fn test_wasm_func() -> Result<()> {
+    let code = include_bytes!("../../../dora-compiler/src/wasm/tests/suites/func.wat");
+    build_wasm_code!(code, artifact);
+    generate_test_cases!(
+        &artifact,
+        [
+            ("type-use-1", (), (), ()),
+            ("type-use-2", (), 0, i32),
+            ("type-use-3", 1, (), ()),
+            ("type-use-4", (1, 1, 1), 0, i32),
+            ("type-use-5", (), 0, i32),
+            ("type-use-6", 1, (), ()),
+            ("type-use-7", (1, 1, 1), 0, i32),
+            ("local-first-i32", (), 0, i32),
+            ("local-first-i64", (), 0, i64),
+            ("local-first-f32", (), 0.0, f32),
+            ("local-first-f64", (), 0.0, f64),
+            ("local-second-i32", (), 0, i32),
+            ("local-second-i64", (), 0, i64),
+            ("local-second-f32", (), 0.0, f32),
+            ("local-second-f64", (), 0.0, f64),
+            ("local-mixed", (), 0.0, f64),
+            ("param-first-i32", (2, 3), 2, i32),
+            ("param-first-i64", (2, 3), 2, i64),
+            ("param-first-f32", (2.0_f32, 3.0_f32), 2.0, f32),
+            ("param-first-f64", (2.0, 3.0), 2.0, f64),
+            ("param-second-i32", (2, 3), 3, i32),
+            ("param-second-i64", (2, 3), 3, i64),
+            ("param-second-f32", (2.0_f32, 3.0_f32), 3.0, f32),
+            ("param-second-f64", (2.0, 3.0), 3.0, f64),
+            // ("param-mixed", (1.0_f32, 2_i32, 3_i64, 4_i32, 5.5_f64, 6_i32), 5.5_f64, f64),
+            ("empty", (), (), ()),
+            ("value-void", (), (), ()),
+            ("value-i32", (), 77, i32),
+            ("value-i64", (), 7777, i64),
+            ("value-f32", (), 77.7, f32),
+            ("value-f64", (), 77.77, f64),
+            ("value-i32-f64", (), (77_i32, 7.0_f64), (i32, f64)),
+            // ("value-i32-i32-i32", (), (1_i32, 2_i32, 3_i32), (i32, i32, i32)),
+            ("value-block-void", (), (), ()),
+            ("value-block-i32", (), 77, i32),
+            ("value-block-i32-i64", (), (1, 2), (i32, i64)),
+            ("return-empty", (), (), ()),
+            ("return-i32", (), 78, i32),
+            ("return-i64", (), 7878, i64),
+            ("return-f32", (), 78.7, f32),
+            ("return-f64", (), 78.78, f64),
+            ("return-i32-f64", (), (78, 78.78), (i32, f64)),
+            // ("return-i32-i32-i32", (), (1, 2, 3), (i32, i32, i32)),
+            ("return-block-i32", (), 77, i32),
+            ("return-block-i32-i64", (), (1, 2), (i32, i64)),
+            ("break-empty", (), (), ()),
+            ("break-i32", (), 79, i32),
+            ("break-i64", (), 7979, i64),
+            ("break-f32", (), 79.9, f32),
+            ("break-f64", (), 79.79, f64),
+            ("break-i32-f64", (), (79, 79.79), (i32, f64)),
+            // ("break-i32-i32-i32", (), (1, 2, 3), (i32, i32, i32)),
+            ("break-block-i32", (), 77, i32),
+            ("break-block-i32-i64", (), (1, 2), (i32, i64)),
+            ("break-br_if-empty", (0,), (), ()),
+            ("break-br_if-empty", (2,), (), ()),
+            ("break-br_if-num", (0,), 51, i32),
+            ("break-br_if-num", (1,), 50, i32),
+            ("break-br_if-num-num", (0,), (51, 52), (i32, i64)),
+            ("break-br_if-num-num", (1,), (50, 51), (i32, i64)),
+            ("break-br_table-empty", (0,), (), ()),
+            ("break-br_table-empty", (1,), (), ()),
+            ("break-br_table-empty", (5,), (), ()),
+            ("break-br_table-empty", (-1,), (), ()),
+            ("break-br_table-num", (0,), 50, i32),
+            ("break-br_table-num", (1,), 50, i32),
+            ("break-br_table-num", (10,), 50, i32),
+            ("break-br_table-num", (-100,), 50, i32),
+            ("break-br_table-num-num", (0,), (50, 51), (i32, i64)),
+            ("break-br_table-num-num", (1,), (50, 51), (i32, i64)),
+            ("break-br_table-num-num", (10,), (50, 51), (i32, i64)),
+            ("break-br_table-num-num", (-100,), (50, 51), (i32, i64)),
+            ("break-br_table-nested-empty", (0,), (), ()),
+            ("break-br_table-nested-empty", (1,), (), ()),
+            ("break-br_table-nested-empty", (3,), (), ()),
+            ("break-br_table-nested-empty", (-2,), (), ()),
+            ("break-br_table-nested-num", (0,), 52, i32),
+            ("break-br_table-nested-num", (1,), 50, i32),
+            ("break-br_table-nested-num", (2,), 52, i32),
+            ("break-br_table-nested-num", (-3,), 52, i32),
+            ("break-br_table-nested-num-num", (0,), (101, 52), (i32, i32)),
+            ("break-br_table-nested-num-num", (1,), (50, 51), (i32, i32)),
+            ("break-br_table-nested-num-num", (2,), (101, 52), (i32, i32)),
+            (
+                "break-br_table-nested-num-num",
+                (-3,),
+                (101, 52),
+                (i32, i32)
+            ),
+            ("init-local-i32", (), 0, i32),
+            ("init-local-i64", (), 0, i64),
+            ("init-local-f32", (), 0.0, f32),
+            ("init-local-f64", (), 0.0, f64),
         ]
     );
     Ok(())

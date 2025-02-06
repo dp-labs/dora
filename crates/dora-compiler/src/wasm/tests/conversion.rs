@@ -668,6 +668,11 @@ fn forward() {
 }
 
 #[test]
+fn func() {
+    assert_snapshot!(include_str!("suites/func.wat"));
+}
+
+#[test]
 fn counter_contract() {
     assert_snapshot!(include_str!("suites/counter.wat"));
 }
