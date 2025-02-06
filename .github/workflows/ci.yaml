@@ -100,27 +100,40 @@ jobs:
           override: true
           components: clippy, rustfmt
 
-      - name: Download and Install LLVM
-        run: |
-          $llvmVersion = "${{ env.LLVM_VERSION }}"
-          $llvmUrl = "https://github.com/llvm/llvm-project/releases/download/llvmorg-$llvmVersion/LLVM-$llvmVersion-win64.exe"
-          $llvmPath = "C:\Program Files\LLVM\bin"
-          Invoke-WebRequest -Uri $llvmUrl -OutFile llvm-installer.exe
-          Start-Process -Wait -FilePath .\llvm-installer.exe -ArgumentList '/S'
-          Add-Content $env:GITHUB_ENV "PATH=$llvmPath;$env:PATH"
+      # Download LLVM from Build Artifacts
+      # https://github.com/dp-labs/dora/actions/runs/13151166250
+      - name: Download LLVM from Build Artifacts
+        id: download-llvm
+        uses: dawidd6/action-download-artifact@v6
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          workflow: llvm-build.yaml
+          workflow_conclusion: success
+          event: push
+          branch: llvm-head
+          name: llvm-windows-x64
+          path: llvm-artifact
 
-          echo "LLVM_SYS_${{ env.LLVM_MAJOR_VERSION }}0_PREFIX=C:\Program Files\LLVM" >> $env:GITHUB_ENV
-          echo "MLIR_SYS_${{ env.LLVM_MAJOR_VERSION }}0_PREFIX=C:\Program Files\LLVM" >> $env:GITHUB_ENV
-          echo "TABLEGEN_${{ env.LLVM_MAJOR_VERSION }}0_PREFIX=C:\Program Files\LLVM" >> $env:GITHUB_ENV
-          echo "PATH=C:\Program Files\LLVM\bin;$env:PATH" >> $env:GITHUB_ENV
+      - name: Extract LLVM
+        run: |
+          $llvmArtifactPath = "llvm-artifact\llvm-${{ env.LLVM_MAJOR_VERSION }}-windows-x64.tar.gz"
+          $llvmInstallPath = "C:\Program Files\LLVM"
+          if (Test-Path -Path $llvmInstallPath) {
+              Remove-Item -Recurse -Force -Path $llvmInstallPath
+          }
+          New-Item -ItemType Directory -Path $llvmInstallPath
+
+          tar -xzf $llvmArtifactPath -C $llvmInstallPath --strip-components=1
+
+          Add-Content $env:GITHUB_ENV "PATH=$llvmInstallPath\bin;$env:PATH"
+          echo "LLVM_SYS_${{ env.LLVM_MAJOR_VERSION }}0_PREFIX=$llvmInstallPath" >> $env:GITHUB_ENV
+          echo "MLIR_SYS_${{ env.LLVM_MAJOR_VERSION }}0_PREFIX=$llvmInstallPath" >> $env:GITHUB_ENV
+          echo "TABLEGEN_${{ env.LLVM_MAJOR_VERSION }}0_PREFIX=$llvmInstallPath" >> $env:GITHUB_ENV
+          echo "PATH=$llvmInstallPath\bin;$env:PATH" >> $env:GITHUB_ENV
 
       - name: Verify LLVM installation
         run: |
-          clang --version
-          # Need to build LLVM and MLIR tools
-          # llvm-config --version
-          # mlir-opt --version
+          llvm-config --version
 
-      # Need to build LLVM and MLIR tools
-      # - name: Run tests
-      #   run: cargo test -r --workspace --all-features
+      - name: Run tests
+        run: cargo test -r --workspace --all-features
