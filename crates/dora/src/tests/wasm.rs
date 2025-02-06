@@ -1206,3 +1206,18 @@ fn test_wasm_func() -> Result<()> {
     );
     Ok(())
 }
+
+#[test]
+fn test_wasm_func_ptr() -> Result<()> {
+    let code = include_bytes!("../../../dora-compiler/src/wasm/tests/suites/func_ptr.wat");
+    build_wasm_code!(code, artifact);
+    generate_test_cases!(
+        &artifact,
+        [
+            ("one", (), 13, i32),
+            ("two", 13, 14, i32),
+            ("three", 13, 11, i32),
+        ]
+    );
+    Ok(())
+}

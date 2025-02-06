@@ -7,7 +7,7 @@
   (type $T (func (param i32) (result i32)))  ;; 5: i32 -> i32
   (type $U (func (param i32)))               ;; 6: i32 -> void
 
-  (func $print (import "spectest" "print_i32") (type 6))
+  ;; (func $print (import "spectest" "print_i32") (type 6))
 
   (func (type 0))
   (func (type $S))
