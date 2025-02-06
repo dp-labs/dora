@@ -673,6 +673,11 @@ fn func() {
 }
 
 #[test]
+fn func_ptr() {
+    assert_snapshot!(include_str!("suites/func_ptr.wat"));
+}
+
+#[test]
 fn counter_contract() {
     assert_snapshot!(include_str!("suites/counter.wat"));
 }
