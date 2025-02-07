@@ -699,6 +699,22 @@ impl ConversionPass<'_> {
             } else if name == dora_ir::wasm::SqrtOperation::name() {
                 let value = op.operand(0)?;
                 replace_op(op, math::sqrt(self.ctx, value, op.location()).into());
+            } else if name == dora_ir::wasm::MinOperation::name() {
+                let lhs = op.operand(0)?;
+                let rhs = op.operand(1)?;
+                let new_op = OperationBuilder::new("arith.minimumf", op.location())
+                    .add_operands(&[lhs, rhs])
+                    .add_results(&[op.result(0)?.r#type()])
+                    .build()?;
+                replace_op(op, new_op);
+            } else if name == dora_ir::wasm::MaxOperation::name() {
+                let lhs = op.operand(0)?;
+                let rhs = op.operand(1)?;
+                let new_op = OperationBuilder::new("arith.maxnumf", op.location())
+                    .add_operands(&[lhs, rhs])
+                    .add_results(&[op.result(0)?.r#type()])
+                    .build()?;
+                replace_op(op, new_op);
             }
         }
         Ok(())

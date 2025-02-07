@@ -716,3 +716,8 @@ fn int_literals() {
 fn label() {
     assert_snapshot!(include_str!("suites/label.wat"));
 }
+
+#[test]
+fn left_to_right() {
+    assert_snapshot!(include_str!("suites/left_to_right.wat"));
+}
