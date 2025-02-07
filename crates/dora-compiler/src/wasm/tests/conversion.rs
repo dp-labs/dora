@@ -741,3 +741,8 @@ fn local_get_and_set() {
 fn local_tee() {
     assert_snapshot!(include_str!("suites/local_tee.wat"));
 }
+
+#[test]
+fn r#loop() {
+    assert_snapshot!(include_str!("suites/loop.wat"));
+}
