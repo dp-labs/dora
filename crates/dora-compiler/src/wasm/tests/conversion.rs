@@ -721,3 +721,8 @@ fn label() {
 fn left_to_right() {
     assert_snapshot!(include_str!("suites/left_to_right.wat"));
 }
+
+#[test]
+fn load() {
+    assert_snapshot!(include_str!("suites/load.wat"));
+}

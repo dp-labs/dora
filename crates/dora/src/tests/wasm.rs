@@ -3275,3 +3275,52 @@ fn test_wasm_left_to_right() -> Result<()> {
     );
     Ok(())
 }
+
+#[test]
+fn test_wasm_load() -> Result<()> {
+    let code = include_bytes!("../../../dora-compiler/src/wasm/tests/suites/load.wat");
+    build_wasm_code!(code, artifact);
+    generate_test_cases!(
+        &artifact,
+        [
+            ("as-br-value", (), 0, i32),
+            ("as-br_if-cond", (), (), ()),
+            ("as-br_if-value", (), 0, i32),
+            ("as-br_if-value-cond", (), 7, i32),
+            ("as-br_table-index", (), (), ()),
+            ("as-br_table-value", (), 0, i32),
+            ("as-br_table-value-index", (), 6, i32),
+            ("as-return-value", (), 0, i32),
+            ("as-if-cond", (), 1, i32),
+            ("as-if-then", (), 0, i32),
+            ("as-if-else", (), 0, i32),
+            ("as-select-first", (0, 1), 0, i32),
+            ("as-select-second", (0, 0), 0, i32),
+            ("as-select-cond", (), 1, i32),
+            ("as-call-first", (), -1, i32),
+            ("as-call-mid", (), -1, i32),
+            ("as-call-last", (), -1, i32),
+            // ("as-call_indirect-first", (), -1, i32),
+            // ("as-call_indirect-mid", (), -1, i32),
+            // ("as-call_indirect-last", (), -1, i32),
+            // ("as-call_indirect-index", (), -1, i32),
+            ("as-local.set-value", (), (), ()),
+            ("as-local.tee-value", (), 0, i32),
+            ("as-global.set-value", (), (), ()),
+            ("as-load-address", (), 0, i32),
+            ("as-loadN-address", (), 0, i32),
+            ("as-store-address", (), (), ()),
+            ("as-store-value", (), (), ()),
+            ("as-storeN-address", (), (), ()),
+            ("as-storeN-value", (), (), ()),
+            ("as-unary-operand", (), 32, i32),
+            ("as-binary-left", (), 10, i32),
+            ("as-binary-right", (), 10, i32),
+            ("as-test-operand", (), 1, i32),
+            ("as-compare-left", (), 1, i32),
+            ("as-compare-right", (), 1, i32),
+            ("as-memory.grow-size", (), 1, i32),
+        ]
+    );
+    Ok(())
+}
