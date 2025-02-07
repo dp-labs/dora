@@ -98,7 +98,7 @@ module {
   ^bb1:  // pred: ^bb0
     %2 = llvm.load %0 : !llvm.ptr -> f32
     %3 = llvm.load %1 : !llvm.ptr -> f32
-    %4 = "wasm.min"(%2, %3) : (f32, f32) -> f32
+    %4 = arith.minimumf %2, %3 : f32
     cf.br ^bb2(%4 : f32)
   ^bb2(%5: f32):  // pred: ^bb1
     return %5 : f32
@@ -114,7 +114,7 @@ module {
   ^bb1:  // pred: ^bb0
     %2 = llvm.load %0 : !llvm.ptr -> f32
     %3 = llvm.load %1 : !llvm.ptr -> f32
-    %4 = "wasm.max"(%2, %3) : (f32, f32) -> f32
+    %4 = arith.maxnumf %2, %3 : f32
     cf.br ^bb2(%4 : f32)
   ^bb2(%5: f32):  // pred: ^bb1
     return %5 : f32
