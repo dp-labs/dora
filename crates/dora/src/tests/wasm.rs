@@ -3134,3 +3134,40 @@ fn test_wasm_int_literals() -> Result<()> {
     );
     Ok(())
 }
+
+#[test]
+fn test_wasm_label() -> Result<()> {
+    let code = include_bytes!("../../../dora-compiler/src/wasm/tests/suites/label.wat");
+    build_wasm_code!(code, artifact);
+    generate_test_cases!(
+        &artifact,
+        [
+            ("block", (), 1, i32),
+            ("loop1", (), 5, i32),
+            ("loop2", (), 8, i32),
+            ("loop3", (), 1, i32),
+            ("loop4", (8,), 16, i32),
+            ("loop5", (), 2, i32),
+            ("loop6", (), 3, i32),
+            ("if", (), 5, i32),
+            ("if2", (), 5, i32),
+            ("switch", (0,), 50, i32),
+            ("switch", (1,), 20, i32),
+            ("switch", (2,), 20, i32),
+            ("switch", (3,), 3, i32),
+            ("switch", (4,), 50, i32),
+            ("switch", (5,), 50, i32),
+            ("return", (0,), 0, i32),
+            ("return", (1,), 2, i32),
+            ("return", (2,), 2, i32),
+            ("br_if0", (), 0x1d, i32),
+            ("br_if1", (), 1, i32),
+            ("br_if2", (), 1, i32),
+            ("br_if3", (), 2, i32),
+            ("br", (), 1, i32),
+            ("shadowing", (), 1, i32),
+            ("redefinition", (), 5, i32),
+        ]
+    );
+    Ok(())
+}
