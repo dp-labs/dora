@@ -2888,3 +2888,249 @@ fn test_wasm_if() -> Result<()> {
     );
     Ok(())
 }
+
+#[test]
+fn test_wasm_int_exprs() -> Result<()> {
+    let code = include_bytes!("../../../dora-compiler/src/wasm/tests/suites/int_exprs.wat");
+    build_wasm_code!(code, artifact);
+    generate_test_cases!(
+        &artifact,
+        [
+            (
+                "i32.no_fold_cmp_s_offset",
+                (0x7fffffff_u32 as i32, 0),
+                1,
+                i32
+            ),
+            (
+                "i32.no_fold_cmp_u_offset",
+                (0xffffffff_u32 as i32, 0),
+                1,
+                i32
+            ),
+            (
+                "i64.no_fold_cmp_s_offset",
+                (0x7fffffffffffffff_u64 as i64, 0),
+                1,
+                i32
+            ),
+            (
+                "i64.no_fold_cmp_u_offset",
+                (0xffffffffffffffff_u64 as i64, 0),
+                1,
+                i32
+            ),
+            (
+                "i64.no_fold_wrap_extend_s",
+                (0x0010203040506070_u64 as i64,),
+                0x0000000040506070_u64 as i64,
+                i64
+            ),
+            (
+                "i64.no_fold_wrap_extend_s",
+                (0x00a0b0c0d0e0f0a0_u64 as i64,),
+                0xffffffffd0e0f0a0_u64 as i64,
+                i64
+            ),
+            ("i32.no_fold_shl_shr_s", (0x80000000_u64 as i64,), 0, i32),
+            ("i32.no_fold_shl_shr_u", (0x80000000_u64 as i64,), 0, i32),
+            (
+                "i64.no_fold_shl_shr_s",
+                (0x8000000000000000_u64 as i64,),
+                0,
+                i64
+            ),
+            (
+                "i64.no_fold_shl_shr_u",
+                (0x8000000000000000_u64 as i64,),
+                0,
+                i64
+            ),
+            ("i32.no_fold_div_s_mul", (1,), 0, i32),
+            ("i32.no_fold_div_u_mul", (1,), 0, i32),
+            ("i64.no_fold_div_s_mul", (1,), 0, i64),
+            ("i64.no_fold_div_u_mul", (1,), 0, i64),
+            ("i32.no_fold_div_s_self", (0,), (), ()),
+            ("i32.no_fold_div_u_self", (0,), (), ()),
+            ("i64.no_fold_div_s_self", (0,), (), ()),
+            ("i64.no_fold_div_u_self", (0,), (), ()),
+            ("i32.no_fold_rem_s_self", (0,), (), ()),
+            ("i32.no_fold_rem_u_self", (0,), (), ()),
+            ("i64.no_fold_rem_s_self", (0,), (), ()),
+            ("i64.no_fold_rem_u_self", (0,), (), ()),
+            ("i32.no_fold_mul_div_s", (0x80000000_u32 as i32,), 0, i32),
+            ("i32.no_fold_mul_div_u", (0x80000000_u32 as i32,), 0, i32),
+            (
+                "i64.no_fold_mul_div_s",
+                (0x8000000000000000_u64 as i64,),
+                0,
+                i64
+            ),
+            (
+                "i64.no_fold_mul_div_u",
+                (0x8000000000000000_u64 as i64,),
+                0,
+                i64
+            ),
+            ("i32.no_fold_div_s_2", (-11_i32,), -5_i32, i32),
+            ("i64.no_fold_div_s_2", (-11_i64,), -5_i64, i64),
+            ("i32.no_fold_rem_s_2", (-11_i32,), -1_i32, i32),
+            ("i64.no_fold_rem_s_2", (-11_i64,), -1_i64, i64),
+            ("i32.div_s_0", (71,), (), ()),
+            ("i32.div_u_0", (71,), (), ()),
+            ("i64.div_s_0", (71,), (), ()),
+            ("i64.div_u_0", (71,), (), ()),
+            ("i32.div_s_3", (71,), 23, i32),
+            (
+                "i32.div_s_3",
+                (0x60000000_u32 as i32,),
+                0x20000000_u32 as i32,
+                i32
+            ),
+            ("i32.div_u_3", (71,), 23, i32),
+            (
+                "i32.div_u_3",
+                (0xc0000000_u32 as i32,),
+                0x40000000_u32 as i32,
+                i32
+            ),
+            ("i64.div_s_3", (71,), 23, i64),
+            (
+                "i64.div_s_3",
+                (0x3000000000000000_u64 as i64,),
+                0x1000000000000000_u64 as i64,
+                i64
+            ),
+            ("i64.div_u_3", (71,), 23, i64),
+            (
+                "i64.div_u_3",
+                (0xc000000000000000_u64 as i64,),
+                0x4000000000000000_u64 as i64,
+                i64
+            ),
+            ("i32.div_s_5", (71,), 14, i32),
+            (
+                "i32.div_s_5",
+                (0x50000000_u32 as i32,),
+                0x10000000_u32 as i32,
+                i32
+            ),
+            ("i32.div_u_5", (71,), 14, i32),
+            (
+                "i32.div_u_5",
+                (0xa0000000_u32 as i32,),
+                0x20000000_u32 as i32,
+                i32
+            ),
+            ("i64.div_s_5", (71,), 14, i64),
+            (
+                "i64.div_s_5",
+                (0x5000000000000000_u64 as i64,),
+                0x1000000000000000_u64 as i64,
+                i64
+            ),
+            ("i64.div_u_5", (71,), 14, i64),
+            (
+                "i64.div_u_5",
+                (0xa000000000000000_u64 as i64,),
+                0x2000000000000000_u64 as i64,
+                i64
+            ),
+            ("i32.div_s_7", (71,), 10, i32),
+            (
+                "i32.div_s_7",
+                (0x70000000_u32 as i32,),
+                0x10000000_u32 as i32,
+                i32
+            ),
+            ("i32.div_u_7", (71,), 10, i32),
+            (
+                "i32.div_u_7",
+                (0xe0000000_u32 as i32,),
+                0x20000000_u32 as i32,
+                i32
+            ),
+            ("i64.div_s_7", (71,), 10, i64),
+            (
+                "i64.div_s_7",
+                (0x7000000000000000_u64 as i64,),
+                0x1000000000000000_u64 as i64,
+                i64
+            ),
+            ("i64.div_u_7", (71,), 10, i64),
+            (
+                "i64.div_u_7",
+                (0xe000000000000000_u64 as i64,),
+                0x2000000000000000_u64 as i64,
+                i64
+            ),
+            ("i32.rem_s_3", (71,), 2, i32),
+            ("i32.rem_s_3", (0x60000000_u32 as i32,), 0, i32),
+            ("i32.rem_u_3", (71,), 2, i32),
+            ("i32.rem_u_3", (0xc0000000_u32 as i32,), 0, i32),
+            ("i64.rem_s_3", (71,), 2, i64),
+            ("i64.rem_s_3", (0x3000000000000000_u64 as i64,), 0, i64),
+            ("i64.rem_u_3", (71,), 2, i64),
+            ("i64.rem_u_3", (0xc000000000000000_u64 as i64,), 0, i64),
+            ("i32.rem_s_5", (71,), 1, i32),
+            ("i32.rem_s_5", (0x50000000_u32 as i32,), 0, i32),
+            ("i32.rem_u_5", (71,), 1, i32),
+            ("i32.rem_u_5", (0xa0000000_u32 as i32,), 0, i32),
+            ("i64.rem_s_5", (71,), 1, i64),
+            ("i64.rem_s_5", (0x5000000000000000_u64 as i64,), 0, i64),
+            ("i64.rem_u_5", (71,), 1, i64),
+            ("i64.rem_u_5", (0xa000000000000000_u64 as i64,), 0, i64),
+            ("i32.rem_s_7", (71,), 1, i32),
+            ("i32.rem_s_7", (0x70000000_u32 as i32,), 0, i32),
+            ("i32.rem_u_7", (71,), 1, i32),
+            ("i32.rem_u_7", (0xe0000000_u32 as i32,), 0, i32),
+            ("i64.rem_s_7", (71,), 1, i64),
+            ("i64.rem_s_7", (0x7000000000000000_u64 as i64,), 0, i64),
+            ("i64.rem_u_7", (71,), 1, i64),
+            ("i64.rem_u_7", (0xe000000000000000_u64 as i64,), 0, i64),
+        ]
+    );
+    Ok(())
+}
+
+#[test]
+fn test_wasm_int_literals() -> Result<()> {
+    let code = include_bytes!("../../../dora-compiler/src/wasm/tests/suites/int_literals.wat");
+    build_wasm_code!(code, artifact);
+    generate_test_cases!(
+        &artifact,
+        [
+            ("i32.test", (), 195940365, i32),
+            ("i32.umax", (), -1, i32),
+            ("i32.smax", (), 2147483647, i32),
+            ("i32.neg_smax", (), -2147483647, i32),
+            ("i32.smin", (), -2147483648, i32),
+            ("i32.alt_smin", (), -2147483648, i32),
+            ("i32.inc_smin", (), -2147483647, i32),
+            ("i32.neg_zero", (), 0, i32),
+            ("i32.not_octal", (), 10, i32),
+            ("i32.unsigned_decimal", (), -1, i32),
+            ("i32.plus_sign", (), 42, i32),
+            ("i64.test", (), 913028331277281902, i64),
+            ("i64.umax", (), -1, i64),
+            ("i64.smax", (), 9223372036854775807, i64),
+            ("i64.neg_smax", (), -9223372036854775807, i64),
+            ("i64.smin", (), -9223372036854775808, i64),
+            ("i64.alt_smin", (), -9223372036854775808, i64),
+            ("i64.inc_smin", (), -9223372036854775807, i64),
+            ("i64.neg_zero", (), 0, i64),
+            ("i64.not_octal", (), 10, i64),
+            ("i64.unsigned_decimal", (), -1, i64),
+            ("i64.plus_sign", (), 42, i64),
+            ("i32-dec-sep1", (), 1000000, i32),
+            ("i32-dec-sep2", (), 1000, i32),
+            ("i32-hex-sep1", (), 0xa0f0099, i32),
+            ("i32-hex-sep2", (), 0x1aa0f, i32),
+            ("i64-dec-sep1", (), 1000000, i64),
+            ("i64-dec-sep2", (), 1000, i64),
+            ("i64-hex-sep1", (), 0xaf00f00009999, i64),
+            ("i64-hex-sep2", (), 0x1aa0f, i64),
+        ]
+    );
+    Ok(())
+}

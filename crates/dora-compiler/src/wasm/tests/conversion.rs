@@ -701,3 +701,13 @@ fn i64_arith() {
 fn r#if() {
     assert_snapshot!(include_str!("suites/if.wat"));
 }
+
+#[test]
+fn int_exprs() {
+    assert_snapshot!(include_str!("suites/int_exprs.wat"));
+}
+
+#[test]
+fn int_literals() {
+    assert_snapshot!(include_str!("suites/int_literals.wat"));
+}
