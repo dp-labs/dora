@@ -696,3 +696,8 @@ fn i32_arith() {
 fn i64_arith() {
     assert_snapshot!(include_str!("suites/i64_arith.wat"));
 }
+
+#[test]
+fn r#if() {
+    assert_snapshot!(include_str!("suites/if.wat"));
+}
