@@ -711,3 +711,8 @@ fn int_exprs() {
 fn int_literals() {
     assert_snapshot!(include_str!("suites/int_literals.wat"));
 }
+
+#[test]
+fn label() {
+    assert_snapshot!(include_str!("suites/label.wat"));
+}
