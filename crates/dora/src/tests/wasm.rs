@@ -3324,3 +3324,74 @@ fn test_wasm_load() -> Result<()> {
     );
     Ok(())
 }
+
+#[test]
+fn test_wasm_local_tee() -> Result<()> {
+    let code = include_bytes!("../../../dora-compiler/src/wasm/tests/suites/local_tee.wat");
+    build_wasm_code!(code, artifact);
+    generate_test_cases!(
+        &artifact,
+        [
+            ("type-local-i32", (), 0, i32),
+            ("type-local-i64", (), 0, i64),
+            ("type-local-f32", (), 0.0, f32),
+            ("type-local-f64", (), 0.0, f64),
+            ("type-param-i32", (2,), 10, i32),
+            ("type-param-i64", (3,), 11, i64),
+            ("type-param-f32", (4.4,), 11.1, f32),
+            ("type-param-f64", (5.5,), 12.2, f64),
+            ("as-block-first", (0,), 1, i32),
+            ("as-block-mid", (0,), 1, i32),
+            ("as-block-last", (0,), 1, i32),
+            ("as-loop-first", (0,), 3, i32),
+            ("as-loop-mid", (0,), 4, i32),
+            ("as-loop-last", (0,), 5, i32),
+            ("as-br-value", (0,), 9, i32),
+            ("as-br_if-cond", (0,), (), ()),
+            ("as-br_if-value", (0,), 8, i32),
+            ("as-br_if-value-cond", (0,), 6, i32),
+            ("as-br_table-index", (0,), (), ()),
+            ("as-br_table-value", (0,), 10, i32),
+            ("as-br_table-value-index", (0,), 6, i32),
+            ("as-return-value", (0,), 7, i32),
+            ("as-if-cond", (0,), 0, i32),
+            ("as-if-then", (1,), 3, i32),
+            ("as-if-else", (0,), 4, i32),
+            ("as-select-first", (0, 1), 5, i32),
+            ("as-select-second", (0, 0), 6, i32),
+            ("as-select-cond", (0,), 0, i32),
+            ("as-call-first", (0,), -1, i32),
+            ("as-call-mid", (0,), -1, i32),
+            ("as-call-last", (0,), -1, i32),
+            // ("as-call_indirect-first", (0,), -1, i32),
+            // ("as-call_indirect-mid", (0,), -1, i32),
+            // ("as-call_indirect-last", (0,), -1, i32),
+            // ("as-call_indirect-index", (0,), -1, i32),
+            ("as-local.set-value", (), (), ()),
+            ("as-local.tee-value", (0,), 1, i32),
+            ("as-global.set-value", (), (), ()),
+            ("as-load-address", (0,), 0, i32),
+            ("as-loadN-address", (0,), 0, i32),
+            ("as-store-address", (0,), (), ()),
+            ("as-store-value", (0,), (), ()),
+            ("as-storeN-address", (0,), (), ()),
+            ("as-storeN-value", (0,), (), ()),
+            ("as-binary-left", (0,), 13, i32),
+            ("as-binary-right", (0,), 6, i32),
+            ("as-test-operand", (0,), 1, i32),
+            ("as-compare-left", (0,), 0, i32),
+            ("as-compare-right", (0,), 1, i32),
+            ("as-convert-operand", (0,), 41, i32),
+            ("as-memory.grow-size", (0,), 1, i32),
+            (
+                "type-mixed",
+                (1_i64, 2.2_f32, 3.3_f64, 4_i32, 5_i32),
+                (),
+                ()
+            ),
+            // ("write", (1_i64, 2.0_f32, 3.3_f64, 4_i32, 5_i32), 56, i64),
+            // ("result", (-1_i64, -2.0_f32, -3.3_f64, -4_i32, -5_i32), 34.8, f64),
+        ]
+    );
+    Ok(())
+}
