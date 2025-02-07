@@ -726,3 +726,18 @@ fn left_to_right() {
 fn load() {
     assert_snapshot!(include_str!("suites/load.wat"));
 }
+
+#[test]
+fn local_call() {
+    assert_snapshot!(include_str!("suites/local_call.wat"));
+}
+
+#[test]
+fn local_get_and_set() {
+    assert_snapshot!(include_str!("suites/local_get_and_set.wat"));
+}
+
+#[test]
+fn local_tee() {
+    assert_snapshot!(include_str!("suites/local_tee.wat"));
+}
