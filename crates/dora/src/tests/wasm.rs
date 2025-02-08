@@ -4076,3 +4076,24 @@ fn test_wasm_stack() -> Result<()> {
     );
     Ok(())
 }
+
+#[test]
+fn test_wasm_store() -> Result<()> {
+    let code = include_bytes!("../../../dora-compiler/src/wasm/tests/suites/store.wat");
+    build_wasm_code!(code, artifact);
+    generate_test_cases!(
+        &artifact,
+        [
+            ("as-block-value", (), (), ()),
+            ("as-loop-value", (), (), ()),
+            ("as-br-value", (), (), ()),
+            ("as-br_if-value", (), (), ()),
+            ("as-br_if-value-cond", (), (), ()),
+            ("as-br_table-value", (), (), ()),
+            ("as-return-value", (), (), ()),
+            ("as-if-then", (), (), ()),
+            ("as-if-else", (), (), ()),
+        ]
+    );
+    Ok(())
+}
