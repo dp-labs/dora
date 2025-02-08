@@ -816,3 +816,8 @@ fn r#return() {
 fn select() {
     assert_snapshot!(include_str!("suites/select.wat"));
 }
+
+#[test]
+fn stack() {
+    assert_snapshot!(include_str!("suites/stack.wat"));
+}

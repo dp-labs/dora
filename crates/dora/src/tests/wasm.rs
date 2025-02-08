@@ -4059,3 +4059,20 @@ fn test_wasm_select() -> Result<()> {
     );
     Ok(())
 }
+
+#[test]
+fn test_wasm_stack() -> Result<()> {
+    let code = include_bytes!("../../../dora-compiler/src/wasm/tests/suites/stack.wat");
+    build_wasm_code!(code, artifact);
+    generate_test_cases!(
+        &artifact,
+        [
+            ("fac-expr", (25,), 7034535277573963776, i64),
+            ("fac-stack", (25,), 7034535277573963776, i64),
+            ("fac-mixed", (25,), 7034535277573963776, i64),
+            ("not-quite-a-tree", (), 3, i32),
+            ("not-quite-a-tree", (), 9, i32),
+        ]
+    );
+    Ok(())
+}
