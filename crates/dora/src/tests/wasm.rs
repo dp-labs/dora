@@ -3942,3 +3942,76 @@ fn test_wasm_ref_is_null() -> Result<()> {
     generate_test_cases!(&artifact, [("init", (0,), (), ()), ("deinit", (), (), ()),]);
     Ok(())
 }
+
+#[test]
+fn test_wasm_return() -> Result<()> {
+    let code = include_bytes!("../../../dora-compiler/src/wasm/tests/suites/return.wat");
+    build_wasm_code!(code, artifact);
+    generate_test_cases!(
+        &artifact,
+        [
+            ("type-i32", (), (), ()),
+            ("type-i64", (), (), ()),
+            ("type-f32", (), (), ()),
+            ("type-f64", (), (), ()),
+            ("type-i32-value", (), 1_i32, i32),
+            ("type-i64-value", (), 2_i64, i64),
+            ("type-f32-value", (), 3_f32, f32),
+            ("type-f64-value", (), 4_f64, f64),
+            ("nullary", (), (), ()),
+            ("unary", (3,), 3.0_f64, f64),
+            ("as-func-first", (), 1, i32),
+            ("as-func-mid", (), 2, i32),
+            ("as-func-last", (), (), ()),
+            ("as-func-value", (), 3, i32),
+            ("as-block-first", (), (), ()),
+            ("as-block-mid", (), (), ()),
+            ("as-block-last", (), (), ()),
+            ("as-block-value", (), 2, i32),
+            ("as-loop-first", (), 3, i32),
+            ("as-loop-mid", (), 4, i32),
+            ("as-loop-last", (), 5, i32),
+            ("as-br-value", (), 9, i32),
+            ("as-br_if-cond", (), (), ()),
+            ("as-br_if-value", (), 8, i32),
+            ("as-br_if-value-cond", (), 9, i32),
+            ("as-br_table-index", (), (), ()),
+            ("as-br_table-value", (), 10, i32),
+            ("as-br_table-value-index", (), 11, i32),
+            ("as-return-value", (), 7, i32),
+            ("as-if-cond", (0,), (), ()),
+            ("as-if-then", (1,), 3, i32),
+            ("as-if-else", (0,), 4, i32),
+            ("as-select-first", (0, 6), 5, i32),
+            ("as-select-first", (1, 6), 5, i32),
+            ("as-select-second", (0, 6), 6, i32),
+            ("as-select-second", (1, 6), 6, i32),
+            ("as-select-cond", (0,), 7, i32),
+            ("as-call-first", (), 12, i32),
+            ("as-call-mid", (), 13, i32),
+            ("as-call-last", (), 14, i32),
+            // ("as-call_indirect-func", (20,), 20, i32),
+            // ("as-call_indirect-first", (), 21, i32),
+            // ("as-call_indirect-mid", (), 22, i32),
+            // ("as-call_indirect-last", (), 23, i32),
+            ("as-local.set-value", (), 17, i32),
+            ("as-local.tee-value", (1,), 1, i32),
+            ("as-global.set-value", (), 1, i32),
+            ("as-load-address", (0,), 1.7_f32, f32),
+            ("as-loadN-address", (30,), 30, i64),
+            ("as-store-address", (30,), (), ()),
+            ("as-store-value", (31,), (), ()),
+            ("as-storeN-address", (32,), (), ()),
+            ("as-storeN-value", (33,), (), ()),
+            ("as-unary-operand", (3.4_f32,), 3.4_f32, f32),
+            ("as-binary-left", (), 3, i32),
+            ("as-binary-right", (), 45, i64),
+            ("as-test-operand", (), 44, i32),
+            ("as-compare-left", (), 43, i32),
+            ("as-compare-right", (), 42, i32),
+            ("as-convert-operand", (), 41, i32),
+            ("as-memory.grow-size", (), 40, i32),
+        ]
+    );
+    Ok(())
+}
