@@ -746,3 +746,48 @@ fn local_tee() {
 fn r#loop() {
     assert_snapshot!(include_str!("suites/loop.wat"));
 }
+
+#[test]
+fn mem_i32_load() {
+    assert_snapshot!(include_str!("suites/mem_i32_load.wat"));
+}
+
+#[test]
+fn memory() {
+    assert_snapshot!(include_str!("suites/memory.wat"));
+}
+
+#[test]
+fn memory_copy() {
+    assert_snapshot!(include_str!("suites/memory_copy.wat"));
+}
+
+#[test]
+fn memory_fill() {
+    assert_snapshot!(include_str!("suites/memory_fill.wat"));
+}
+
+#[test]
+fn memory_grow() {
+    assert_snapshot!(include_str!("suites/memory_grow.wat"));
+}
+
+#[test]
+fn memory_init() {
+    assert_snapshot!(include_str!("suites/memory_init.wat"));
+}
+
+#[test]
+fn memory_redundancy() {
+    assert_snapshot!(include_str!("suites/memory_redundancy.wat"));
+}
+
+#[test]
+fn memory_load_store() {
+    assert_snapshot!(include_str!("suites/memory_load_store.wat"));
+}
+
+#[test]
+fn memory_size() {
+    assert_snapshot!(include_str!("suites/memory_size.wat"));
+}

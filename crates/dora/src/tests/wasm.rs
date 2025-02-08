@@ -3484,3 +3484,358 @@ fn test_wasm_loop() -> Result<()> {
     );
     Ok(())
 }
+
+#[test]
+fn test_wasm_memory() -> Result<()> {
+    let code = include_bytes!("../../../dora-compiler/src/wasm/tests/suites/memory.wat");
+    build_wasm_code!(code, artifact);
+    generate_test_cases!(
+        &artifact,
+        [
+            ("data", (), 1, i32),
+            ("cast", (), 42.0, f64),
+            ("i32_load8_s", (-1,), -1, i32),
+            ("i32_load8_u", (-1,), 255, i32),
+            ("i32_load16_s", (-1,), -1, i32),
+            ("i32_load16_u", (-1,), 65535, i32),
+            ("i32_load8_s", (100,), 100, i32),
+            ("i32_load8_u", (200,), 200, i32),
+            ("i32_load16_s", (20000,), 20000, i32),
+            ("i32_load16_u", (40000,), 40000, i32),
+            (
+                "i32_load8_s",
+                (0xfedc6543_u32 as i32,),
+                0x43_u32 as i32,
+                i32
+            ),
+            (
+                "i32_load8_s",
+                (0x3456cdef_u32 as i32,),
+                0xffffffef_u32 as i32,
+                i32
+            ),
+            (
+                "i32_load8_u",
+                (0xfedc6543_u32 as i32,),
+                0x43_u32 as i32,
+                i32
+            ),
+            (
+                "i32_load8_u",
+                (0x3456cdef_u32 as i32,),
+                0xef_u32 as i32,
+                i32
+            ),
+            (
+                "i32_load16_s",
+                (0xfedc6543_u32 as i32,),
+                0x6543_u32 as i32,
+                i32
+            ),
+            (
+                "i32_load16_s",
+                (0x3456cdef_u32 as i32,),
+                0xffffcdef_u32 as i32,
+                i32
+            ),
+            (
+                "i32_load16_u",
+                (0xfedc6543_u32 as i32,),
+                0x6543_u32 as i32,
+                i32
+            ),
+            (
+                "i32_load16_u",
+                (0x3456cdef_u32 as i32,),
+                0xcdef_u32 as i32,
+                i32
+            ),
+            ("i64_load8_s", (-1_i64,), -1_i64, i64),
+            ("i64_load8_u", (-1_i64,), 255_i64, i64),
+            ("i64_load16_s", (-1_i64,), -1_i64, i64),
+            ("i64_load16_u", (-1_i64,), 65535_i64, i64),
+            ("i64_load32_s", (-1_i64,), -1_i64, i64),
+            ("i64_load32_u", (-1_i64,), 4294967295_i64, i64),
+            ("i64_load8_s", (100,), 100, i64),
+            ("i64_load8_u", (200,), 200, i64),
+            ("i64_load16_s", (20000,), 20000, i64),
+            ("i64_load16_u", (40000,), 40000, i64),
+            ("i64_load32_s", (20000,), 20000, i64),
+            ("i64_load32_u", (40000,), 40000, i64),
+            (
+                "i64_load8_s",
+                (0xfedcba9856346543_u64 as i64,),
+                0x43_u64 as i64,
+                i64
+            ),
+            (
+                "i64_load8_s",
+                (0x3456436598bacdef_u64 as i64,),
+                0xffffffffffffffef_u64 as i64,
+                i64
+            ),
+            (
+                "i64_load8_u",
+                (0xfedcba9856346543_u64 as i64,),
+                0x43_u64 as i64,
+                i64
+            ),
+            (
+                "i64_load8_u",
+                (0x3456436598bacdef_u64 as i64,),
+                0xef_u64 as i64,
+                i64
+            ),
+            (
+                "i64_load16_s",
+                (0xfedcba9856346543_u64 as i64,),
+                0x6543_u64 as i64,
+                i64
+            ),
+            (
+                "i64_load16_s",
+                (0x3456436598bacdef_u64 as i64,),
+                0xffffffffffffcdef_u64 as i64,
+                i64
+            ),
+            (
+                "i64_load16_u",
+                (0xfedcba9856346543_u64 as i64,),
+                0x6543_u64 as i64,
+                i64
+            ),
+            (
+                "i64_load16_u",
+                (0x3456436598bacdef_u64 as i64,),
+                0xcdef_u64 as i64,
+                i64
+            ),
+            (
+                "i64_load32_s",
+                (0xfedcba9856346543_u64 as i64,),
+                0x56346543_u64 as i64,
+                i64
+            ),
+            (
+                "i64_load32_s",
+                (0x3456436598bacdef_u64 as i64,),
+                0xffffffff98bacdef_u64 as i64,
+                i64
+            ),
+            (
+                "i64_load32_u",
+                (0xfedcba9856346543_u64 as i64,),
+                0x56346543_u64 as i64,
+                i64
+            ),
+            (
+                "i64_load32_u",
+                (0x3456436598bacdef_u64 as i64,),
+                0x98bacdef_u64 as i64,
+                i64
+            ),
+        ]
+    );
+    Ok(())
+}
+
+#[test]
+fn test_wasm_memory_copy() -> Result<()> {
+    let code = include_bytes!("../../../dora-compiler/src/wasm/tests/suites/memory_copy.wat");
+    build_wasm_code!(code, artifact);
+    generate_test_cases!(
+        &artifact,
+        [
+            ("load8_u", (0,), 0, i32),
+            ("load8_u", (1,), 0, i32),
+            ("load8_u", (2,), 3, i32),
+            ("load8_u", (3,), 1, i32),
+            ("load8_u", (4,), 4, i32),
+            ("load8_u", (5,), 1, i32),
+            ("load8_u", (6,), 0, i32),
+            ("load8_u", (7,), 0, i32),
+            ("load8_u", (8,), 0, i32),
+            ("load8_u", (9,), 0, i32),
+            ("load8_u", (10,), 0, i32),
+            ("load8_u", (11,), 0, i32),
+            ("load8_u", (12,), 7, i32),
+            ("load8_u", (13,), 5, i32),
+            ("load8_u", (14,), 2, i32),
+            ("load8_u", (15,), 3, i32),
+            ("load8_u", (16,), 6, i32),
+            ("load8_u", (17,), 0, i32),
+            ("load8_u", (18,), 0, i32),
+            ("load8_u", (19,), 0, i32),
+            ("load8_u", (20,), 0, i32),
+            ("load8_u", (21,), 0, i32),
+            ("load8_u", (22,), 0, i32),
+            ("load8_u", (23,), 0, i32),
+            ("load8_u", (24,), 0, i32),
+            ("load8_u", (25,), 0, i32),
+            ("load8_u", (26,), 0, i32),
+            ("load8_u", (27,), 0, i32),
+            ("load8_u", (28,), 0, i32),
+            ("load8_u", (29,), 0, i32),
+            ("test", (), (), ()),
+            ("load8_u", (0,), 0, i32),
+            ("load8_u", (1,), 0, i32),
+            ("load8_u", (2,), 3, i32),
+            ("load8_u", (3,), 1, i32),
+            ("load8_u", (4,), 4, i32),
+            ("load8_u", (5,), 1, i32),
+            ("load8_u", (6,), 0, i32),
+            ("load8_u", (7,), 0, i32),
+            ("load8_u", (8,), 0, i32),
+            ("load8_u", (9,), 0, i32),
+            ("load8_u", (10,), 0, i32),
+            ("load8_u", (11,), 0, i32),
+            ("load8_u", (12,), 7, i32),
+            ("load8_u", (13,), 3, i32),
+            ("load8_u", (14,), 1, i32),
+            ("load8_u", (15,), 4, i32),
+            ("load8_u", (16,), 6, i32),
+            ("load8_u", (17,), 0, i32),
+            ("load8_u", (18,), 0, i32),
+            ("load8_u", (19,), 0, i32),
+            ("load8_u", (20,), 0, i32),
+            ("load8_u", (21,), 0, i32),
+            ("load8_u", (22,), 0, i32),
+            ("load8_u", (23,), 0, i32),
+            ("load8_u", (24,), 0, i32),
+            ("load8_u", (25,), 0, i32),
+            ("load8_u", (26,), 0, i32),
+            ("load8_u", (27,), 0, i32),
+            ("load8_u", (28,), 0, i32),
+            ("load8_u", (29,), 0, i32),
+        ]
+    );
+    Ok(())
+}
+
+#[test]
+fn test_wasm_memory_fill() -> Result<()> {
+    let code = include_bytes!("../../../dora-compiler/src/wasm/tests/suites/memory_fill.wat");
+    build_wasm_code!(code, artifact);
+    generate_test_cases!(
+        &artifact,
+        [
+            ("test", (), (), ()),
+            ("checkRange", (0_i32, 0_i32), -1_i32, i32),
+            ("checkRange", (0xFF00, 0xFFFF), -1_i32, i32),
+        ]
+    );
+    Ok(())
+}
+
+#[test]
+fn test_wasm_memory_grow() -> Result<()> {
+    let code = include_bytes!("../../../dora-compiler/src/wasm/tests/suites/memory_grow.wat");
+    build_wasm_code!(code, artifact);
+    generate_test_cases!(
+        &artifact,
+        [
+            ("size", (), 0, i32),
+            // ("store_at_zero", (), (), ()),  // assert_trap "out of bounds memory access"
+            // ("load_at_zero", (), (), ()),  // assert_trap "out of bounds memory access"
+            // ("store_at_page_size", (), (), ()),  // assert_trap "out of bounds memory access"
+            // ("load_at_page_size", (), (), ()),  // assert_trap "out of bounds memory access"
+            ("grow", (1,), 0, i32),
+            ("size", (), 1, i32),
+            ("load_at_zero", (), 0, i32),
+            ("store_at_zero", (), (), ()),
+            ("load_at_zero", (), 2, i32),
+            // ("store_at_page_size", (), (), ()),  // assert_trap "out of bounds memory access"
+            // ("load_at_page_size", (), (), ()),  // assert_trap "out of bounds memory access"
+            ("grow", (4,), 1, i32),
+            ("size", (), 5, i32),
+            ("load_at_zero", (), 2, i32),
+            ("store_at_zero", (), (), ()),
+            ("load_at_zero", (), 2, i32),
+            ("load_at_page_size", (), 0, i32),
+            ("store_at_page_size", (), (), ()),
+            ("load_at_page_size", (), 3, i32),
+        ]
+    );
+    Ok(())
+}
+
+#[test]
+fn test_wasm_memory_init() -> Result<()> {
+    let code = include_bytes!("../../../dora-compiler/src/wasm/tests/suites/memory_init.wat");
+    build_wasm_code!(code, artifact);
+    generate_test_cases!(
+        &artifact,
+        [
+            ("test", (), (), ()),
+            ("load8_u", (0,), 0, i32),
+            ("load8_u", (1,), 0, i32),
+            ("load8_u", (2,), 3, i32),
+            ("load8_u", (3,), 1, i32),
+            ("load8_u", (4,), 4, i32),
+            ("load8_u", (5,), 1, i32),
+            ("load8_u", (6,), 0, i32),
+            ("load8_u", (7,), 2, i32),
+            ("load8_u", (8,), 7, i32),
+            ("load8_u", (9,), 1, i32),
+            ("load8_u", (10,), 8, i32),
+            ("load8_u", (11,), 0, i32),
+            ("load8_u", (12,), 7, i32),
+            ("load8_u", (13,), 5, i32),
+            ("load8_u", (14,), 2, i32),
+            ("load8_u", (15,), 3, i32),
+            ("load8_u", (16,), 6, i32),
+            ("load8_u", (17,), 0, i32),
+            ("load8_u", (18,), 0, i32),
+            ("load8_u", (19,), 0, i32),
+            ("load8_u", (20,), 0, i32),
+            ("load8_u", (21,), 0, i32),
+            ("load8_u", (22,), 0, i32),
+            ("load8_u", (23,), 0, i32),
+            ("load8_u", (24,), 0, i32),
+            ("load8_u", (25,), 0, i32),
+            ("load8_u", (26,), 0, i32),
+            ("load8_u", (27,), 0, i32),
+            ("load8_u", (28,), 0, i32),
+            ("load8_u", (29,), 0, i32),
+        ]
+    );
+    Ok(())
+}
+
+#[test]
+fn test_wasm_memory_redundancy() -> Result<()> {
+    let code = include_bytes!("../../../dora-compiler/src/wasm/tests/suites/memory_redundancy.wat");
+    build_wasm_code!(code, artifact);
+    generate_test_cases!(
+        &artifact,
+        [
+            ("test_store_to_load", (), 0x00000080, i32),
+            ("zero_everything", (), (), ()),
+            ("test_redundant_load", (), 0x00000080, i32),
+            ("zero_everything", (), (), ()),
+            ("test_dead_store", (), 4.91e-44, f32),
+            ("zero_everything", (), (), ()),
+            ("malloc_aliasing", (), 43, i32),
+        ]
+    );
+    Ok(())
+}
+
+#[test]
+fn test_wasm_memory_size() -> Result<()> {
+    let code = include_bytes!("../../../dora-compiler/src/wasm/tests/suites/memory_size.wat");
+    build_wasm_code!(code, artifact);
+    generate_test_cases!(
+        &artifact,
+        [
+            ("size", (), 0, i32),
+            ("grow", (1,), (), ()),
+            ("size", (), 1, i32),
+            ("grow", (4,), (), ()),
+            ("size", (), 5, i32),
+            ("grow", (0,), (), ()),
+            ("size", (), 5, i32),
+        ]
+    );
+    Ok(())
+}
