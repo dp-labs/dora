@@ -4097,3 +4097,40 @@ fn test_wasm_store() -> Result<()> {
     );
     Ok(())
 }
+
+#[test]
+fn test_wasm_switch() -> Result<()> {
+    let code = include_bytes!("../../../dora-compiler/src/wasm/tests/suites/switch.wat");
+    build_wasm_code!(code, artifact);
+    generate_test_cases!(
+        &artifact,
+        [
+            ("stmt", (0,), 0, i32),
+            ("stmt", (1,), -1, i32),
+            ("stmt", (2,), -2, i32),
+            ("stmt", (3,), -3, i32),
+            ("stmt", (4,), 100, i32),
+            ("stmt", (5,), 101, i32),
+            ("stmt", (6,), 102, i32),
+            ("stmt", (7,), 100, i32),
+            ("stmt", (-10,), 102, i32),
+            ("expr", (0,), 0, i64),
+            ("expr", (1,), -1, i64),
+            ("expr", (2,), -2, i64),
+            ("expr", (3,), -3, i64),
+            ("expr", (6,), 101, i64),
+            ("expr", (7,), -5, i64),
+            ("expr", (-10,), 100, i64),
+            ("arg", (0,), 110, i32),
+            ("arg", (1,), 12, i32),
+            ("arg", (2,), 4, i32),
+            ("arg", (3,), 1116, i32),
+            ("arg", (4,), 118, i32),
+            ("arg", (5,), 20, i32),
+            ("arg", (6,), 12, i32),
+            ("arg", (7,), 1124, i32),
+            ("arg", (8,), 126, i32),
+        ]
+    );
+    Ok(())
+}

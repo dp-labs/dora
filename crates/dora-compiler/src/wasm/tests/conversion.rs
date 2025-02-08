@@ -826,3 +826,8 @@ fn stack() {
 fn store() {
     assert_snapshot!(include_str!("suites/store.wat"));
 }
+
+#[test]
+fn switch() {
+    assert_snapshot!(include_str!("suites/switch.wat"));
+}
