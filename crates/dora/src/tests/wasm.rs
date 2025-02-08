@@ -3934,3 +3934,11 @@ fn test_wasm_nop() -> Result<()> {
     );
     Ok(())
 }
+
+#[test]
+fn test_wasm_ref_is_null() -> Result<()> {
+    let code = include_bytes!("../../../dora-compiler/src/wasm/tests/suites/ref_is_null.wat");
+    build_wasm_code!(code, artifact);
+    generate_test_cases!(&artifact, [("init", (0,), (), ()), ("deinit", (), (), ()),]);
+    Ok(())
+}
