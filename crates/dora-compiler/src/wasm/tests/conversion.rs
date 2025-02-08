@@ -831,3 +831,38 @@ fn store() {
 fn switch() {
     assert_snapshot!(include_str!("suites/switch.wat"));
 }
+
+#[test]
+fn table_copy() {
+    assert_snapshot!(include_str!("suites/table_copy.wat"));
+}
+
+#[test]
+fn table_fill() {
+    assert_snapshot!(include_str!("suites/table_fill.wat"));
+}
+
+#[test]
+fn table_get() {
+    assert_snapshot!(include_str!("suites/table_get.wat"));
+}
+
+#[test]
+fn table_grow() {
+    assert_snapshot!(include_str!("suites/table_grow.wat"));
+}
+
+#[test]
+fn table_init() {
+    assert_snapshot!(include_str!("suites/table_init.wat"));
+}
+
+#[test]
+fn table_set() {
+    assert_snapshot!(include_str!("suites/table_set.wat"));
+}
+
+#[test]
+fn table_size() {
+    assert_snapshot!(include_str!("suites/table_size.wat"));
+}
