@@ -543,11 +543,6 @@ fn copysign_i64() {
 }
 
 #[test]
-fn select() {
-    assert_snapshot!(include_str!("suites/select.wat"));
-}
-
-#[test]
 fn fib() {
     assert_snapshot!(include_str!("suites/fib.wat"));
 }
@@ -815,4 +810,9 @@ fn ref_null() {
 #[test]
 fn r#return() {
     assert_snapshot!(include_str!("suites/return.wat"));
+}
+
+#[test]
+fn select() {
+    assert_snapshot!(include_str!("suites/select.wat"));
 }
