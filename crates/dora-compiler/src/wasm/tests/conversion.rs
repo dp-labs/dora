@@ -811,3 +811,8 @@ fn ref_is_null() {
 fn ref_null() {
     assert_snapshot!(include_str!("suites/ref_null.wat"));
 }
+
+#[test]
+fn r#return() {
+    assert_snapshot!(include_str!("suites/return.wat"));
+}
