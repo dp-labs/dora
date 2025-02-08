@@ -134,6 +134,7 @@ fn evmc_revision_to_spec_id(revision: Revision) -> SpecId {
         EVMC_CANCUN => SpecId::CANCUN,
         EVMC_PRAGUE => SpecId::PRAGUE,
         EVMC_OSAKA => SpecId::OSAKA,
+        EVMC_EXPERIMENTAL => SpecId::LATEST,
     }
 }
 
