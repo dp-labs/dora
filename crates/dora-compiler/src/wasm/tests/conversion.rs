@@ -796,3 +796,18 @@ fn memory_size() {
 fn nop() {
     assert_snapshot!(include_str!("suites/nop.wat"));
 }
+
+#[test]
+fn ref_func() {
+    assert_snapshot!(include_str!("suites/ref_func.wat"));
+}
+
+#[test]
+fn ref_is_null() {
+    assert_snapshot!(include_str!("suites/ref_is_null.wat"));
+}
+
+#[test]
+fn ref_null() {
+    assert_snapshot!(include_str!("suites/ref_null.wat"));
+}
