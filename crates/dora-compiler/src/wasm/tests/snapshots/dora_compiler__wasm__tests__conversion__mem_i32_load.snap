@@ -1,10 +1,10 @@
 ---
-source: crates/dora-compiler/src/wasm/tests/code.rs
+source: crates/dora-compiler/src/wasm/tests/conversion.rs
 expression: op
 snapshot_kind: text
 ---
 module {
-  func.func public @checkRange(%arg0: !llvm.ptr, %arg1: i32, %arg2: i32) -> i32 attributes {llvm.emit_c_interface} {
+  func.func public @"as-select-first"(%arg0: !llvm.ptr, %arg1: i32, %arg2: i32) -> i32 attributes {llvm.emit_c_interface} {
     %c1_i64 = arith.constant 1 : i64
     %0 = llvm.alloca %c1_i64 x i32 : (i64) -> !llvm.ptr
     llvm.store %arg1, %0 : i32, !llvm.ptr
@@ -16,59 +16,20 @@ module {
     %4 = llvm.load %3 : !llvm.ptr -> !llvm.ptr
     cf.br ^bb1
   ^bb1:  // pred: ^bb0
-    cf.br ^bb4
-  ^bb2(%5: i32):  // 2 preds: ^bb3, ^bb5
-    return %5 : i32
-  ^bb3:  // pred: ^bb10
-    %6 = llvm.load %0 : !llvm.ptr -> i32
-    cf.br ^bb2(%6 : i32)
-  ^bb4:  // 2 preds: ^bb1, ^bb8
-    %7 = llvm.load %0 : !llvm.ptr -> i32
-    %8 = llvm.load %1 : !llvm.ptr -> i32
-    %9 = "wasm.eq"(%7, %8) : (i32, i32) -> i32
     %c0_i32 = arith.constant 0 : i32
-    %10 = arith.cmpi ne, %9, %c0_i32 : i32
-    cf.cond_br %10, ^bb5, ^bb6
-  ^bb5:  // pred: ^bb4
-    %c-1_i32 = arith.constant -1 : i32
-    cf.br ^bb2(%c-1_i32 : i32)
-  ^bb6:  // pred: ^bb4
-    cf.br ^bb7
-  ^bb7:  // pred: ^bb6
-    %11 = llvm.load %0 : !llvm.ptr -> i32
     %c0_i64 = arith.constant 0 : i64
-    %12 = arith.extui %11 : i32 to i64
-    %13 = arith.addi %12, %c0_i64 : i64
-    %14 = llvm.getelementptr %4[%13] : (!llvm.ptr, i64) -> !llvm.ptr, i8
-    %15 = llvm.load %14 : !llvm.ptr -> i8
-    %16 = arith.extui %15 : i8 to i32
-    %c85_i32 = arith.constant 85 : i32
-    %17 = "wasm.eq"(%16, %c85_i32) : (i32, i32) -> i32
+    %5 = arith.extui %c0_i32 : i32 to i64
+    %6 = arith.addi %5, %c0_i64 : i64
+    %7 = llvm.getelementptr %4[%6] : (!llvm.ptr, i64) -> !llvm.ptr, i8
+    %8 = llvm.load %7 : !llvm.ptr -> i32
+    %9 = llvm.load %0 : !llvm.ptr -> i32
+    %10 = llvm.load %1 : !llvm.ptr -> i32
     %c0_i32_1 = arith.constant 0 : i32
-    %18 = arith.cmpi ne, %17, %c0_i32_1 : i32
-    cf.cond_br %18, ^bb8, ^bb9
-  ^bb8:  // pred: ^bb7
-    %19 = llvm.load %0 : !llvm.ptr -> i32
-    %c1_i32 = arith.constant 1 : i32
-    %20 = "wasm.add"(%19, %c1_i32) : (i32, i32) -> i32
-    llvm.store %20, %0 : i32, !llvm.ptr
-    cf.br ^bb4
-  ^bb9:  // pred: ^bb7
-    cf.br ^bb10
-  ^bb10:  // pred: ^bb9
-    cf.br ^bb3
-  }
-  func.func public @test(%arg0: !llvm.ptr) attributes {llvm.emit_c_interface} {
-    cf.br ^bb1
-  ^bb1:  // pred: ^bb0
-    %c65280_i32 = arith.constant 65280 : i32
-    %c85_i32 = arith.constant 85 : i32
-    %c256_i32 = arith.constant 256 : i32
-    %c0_i32 = arith.constant 0 : i32
-    call @dora_fn_wasm_memory_fill(%arg0, %c0_i32, %c65280_i32, %c85_i32, %c256_i32) : (!llvm.ptr, i32, i32, i32, i32) -> ()
-    cf.br ^bb2
-  ^bb2:  // pred: ^bb1
-    return
+    %11 = arith.cmpi ne, %10, %c0_i32_1 : i32
+    %12 = arith.select %11, %8, %9 : i32
+    cf.br ^bb2(%12 : i32)
+  ^bb2(%13: i32):  // pred: ^bb1
+    return %13 : i32
   }
   func.func private @dora_fn_wasm_table_init(!llvm.ptr, i32, i32, i32, i32, i32)
   func.func private @dora_fn_wasm_table_copy(!llvm.ptr, i32, i32, i32, i32, i32)
