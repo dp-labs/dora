@@ -791,3 +791,8 @@ fn memory_load_store() {
 fn memory_size() {
     assert_snapshot!(include_str!("suites/memory_size.wat"));
 }
+
+#[test]
+fn nop() {
+    assert_snapshot!(include_str!("suites/nop.wat"));
+}
