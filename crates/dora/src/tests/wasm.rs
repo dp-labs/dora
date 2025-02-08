@@ -4134,3 +4134,19 @@ fn test_wasm_switch() -> Result<()> {
     );
     Ok(())
 }
+
+#[test]
+fn test_wasm_table_copy() -> Result<()> {
+    let code = include_bytes!("../../../dora-compiler/src/wasm/tests/suites/table_copy.wat");
+    build_wasm_code!(code, artifact);
+    generate_test_cases!(&artifact, [("test", (), (), ()),]);
+    Ok(())
+}
+
+#[test]
+fn test_wasm_table_size() -> Result<()> {
+    let code = include_bytes!("../../../dora-compiler/src/wasm/tests/suites/table_size.wat");
+    build_wasm_code!(code, artifact);
+    generate_test_cases!(&artifact, [("size-t0", (), 0, i32),]);
+    Ok(())
+}
