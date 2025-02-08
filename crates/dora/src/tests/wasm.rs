@@ -4015,3 +4015,47 @@ fn test_wasm_return() -> Result<()> {
     );
     Ok(())
 }
+
+#[test]
+fn test_wasm_select() -> Result<()> {
+    let code = include_bytes!("../../../dora-compiler/src/wasm/tests/suites/select.wat");
+    build_wasm_code!(code, artifact);
+    generate_test_cases!(
+        &artifact,
+        [
+            ("select-i32", (1_i32, 2_i32), 1, i32),
+            ("select-i64", (2_i64, 1_i64), 2, i64),
+            ("select-f32", (1.0_f32, 2.0_f32), 1.0, f32),
+            ("select-f64", (1.0_f64, 2.0_f64), 1.0, f64),
+            // ("as-call_indirect-first", (0,), 3, i32),
+            // ("as-call_indirect-first", (1,), 2, i32),
+            // ("as-call_indirect-mid", (0,), 1, i32),
+            // ("as-call_indirect-mid", (1,), 1, i32),
+            // ("as-call_indirect-last", (0,), (), ()),  # assert_trap "undefined element"
+            // ("as-call_indirect-last", (1,), (), ()),  # assert_trap "undefined element"
+            ("as-store-first", (0,), (), ()),
+            ("as-store-first", (1,), (), ()),
+            ("as-store-last", (0,), (), ()),
+            ("as-store-last", (1,), (), ()),
+            ("as-memory.grow-value", (0,), 1, i32),
+            ("as-memory.grow-value", (1,), 3, i32),
+            ("as-call-value", (0,), 2, i32),
+            ("as-call-value", (1,), 1, i32),
+            ("as-return-value", (0,), 2, i32),
+            ("as-return-value", (1,), 1, i32),
+            ("as-drop-operand", (0,), (), ()),
+            ("as-drop-operand", (1,), (), ()),
+            ("as-br-value", (0,), 2, i32),
+            ("as-br-value", (1,), 1, i32),
+            ("as-local.set-value", (0,), 2, i32),
+            ("as-local.set-value", (1,), 1, i32),
+            ("as-local.tee-value", (0,), 2, i32),
+            ("as-local.tee-value", (1,), 1, i32),
+            ("as-global.set-value", (0,), 2, i32),
+            ("as-global.set-value", (1,), 1, i32),
+            ("as-load-operand", (0,), 1, i32),
+            ("as-load-operand", (1,), 1, i32),
+        ]
+    );
+    Ok(())
+}
