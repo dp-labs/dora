@@ -1,3 +1,4 @@
+use sha2::Digest;
 use std::cmp::min;
 use std::mem::MaybeUninit;
 
@@ -242,6 +243,32 @@ pub fn tstore(
     Ok(())
 }
 
+/// Gets the block hash for a given block number.
+pub fn block_hash(
+    mut env: WASMEnvMut,
+    number: u64,    // u64,
+    dest: GuestPtr, // *mut u8
+) -> MaybeEscape {
+    let host = HostInfo::from_env(&mut env)?;
+    let hash = with_runtime_context(|runtime_context| runtime_context.host.block_hash(number))
+        .unwrap_or_default();
+    host.write_slice(dest, &hash.to_be_bytes())?;
+    Ok(())
+}
+
+/// Gets the block prevrandao value.
+pub fn block_prevrandao(
+    mut env: WASMEnvMut,
+    dest: GuestPtr, // *mut u8
+) -> MaybeEscape {
+    let host = HostInfo::from_env(&mut env)?;
+    let prevrandao =
+        with_runtime_context(|runtime_context| runtime_context.host.env().block.prevrandao)
+            .unwrap_or_default();
+    host.write_slice(dest, &prevrandao.0)?;
+    Ok(())
+}
+
 /// Gets the basefee of the current block.
 pub fn block_basefee(
     mut env: WASMEnvMut,
@@ -250,6 +277,27 @@ pub fn block_basefee(
     let host = HostInfo::from_env(&mut env)?;
     let basefee = with_runtime_context(|runtime_context| runtime_context.host.env().block.basefee);
     host.write_slice(dest, &basefee.to_be_bytes_vec())?;
+    Ok(())
+}
+
+/// Gets the basefee of the current block.
+pub fn block_blobbasefee(
+    mut env: WASMEnvMut,
+    dest: GuestPtr, // *mut u8
+) -> MaybeEscape {
+    let host = HostInfo::from_env(&mut env)?;
+    let basefee = with_runtime_context(|runtime_context| {
+        runtime_context
+            .host
+            .env()
+            .block
+            .blob_excess_gas_and_price
+            .clone()
+            .unwrap_or_default()
+            .blob_gasprice
+    });
+    let basefee = Bytes32::from(basefee);
+    host.write_slice(dest, &basefee.to_be_bytes())?;
     Ok(())
 }
 
@@ -292,6 +340,14 @@ pub fn chainid(mut _env: WASMEnvMut) -> EscapeResult<u64> {
     Ok(chainid)
 }
 
+/// Gets the unique chain identifier.
+pub fn chainid_u128_dest(mut env: WASMEnvMut, dest: GuestPtr) -> MaybeEscape {
+    let host = HostInfo::from_env(&mut env)?;
+    let chainid = with_runtime_context(|runtime_context| runtime_context.host.env().cfg.chain_id);
+    host.write_slice(dest, &(chainid as u128).to_le_bytes())?;
+    Ok(())
+}
+
 /// Calls the contract at the given address with options for passing value and to limit the
 /// amount of gas supplied.
 pub fn call(
@@ -318,6 +374,108 @@ pub fn call(
         )
     })?;
     host.write_u32(return_data_len, result.1)?;
+    Ok(result.0)
+}
+
+/// Calls code at a given address.
+pub fn call_code(
+    mut env: WASMEnvMut,
+    gas_limit: u64,
+    contract: GuestPtr, // *const u8,
+    calldata: GuestPtr, // *const u8,
+    calldata_len: u32,  // usize,
+) -> EscapeResult<u8> {
+    let host = HostInfo::from_env(&mut env)?;
+    let to = host.read_address(contract)?;
+    let value = U256::ZERO;
+    let call_data = host.read_slice(calldata, calldata_len)?;
+    let result = with_runtime_context(|runtime_context| {
+        intern_call(
+            runtime_context,
+            CallType::Callcode,
+            to,
+            value,
+            call_data,
+            gas_limit,
+        )
+    })?;
+    Ok(result.0)
+}
+
+/// Performs a delegate call to a contract at a given address.
+pub fn call_delegate(
+    mut env: WASMEnvMut,
+    gas_limit: u64,
+    contract: GuestPtr, // *const u8,
+    calldata: GuestPtr, // *const u8,
+    calldata_len: u32,  // usize,
+) -> EscapeResult<u8> {
+    let host = HostInfo::from_env(&mut env)?;
+    let to = host.read_address(contract)?;
+    let value = U256::ZERO;
+    let call_data = host.read_slice(calldata, calldata_len)?;
+    let result = with_runtime_context(|runtime_context| {
+        intern_call(
+            runtime_context,
+            CallType::Delegatecall,
+            to,
+            value,
+            call_data,
+            gas_limit,
+        )
+    })?;
+    Ok(result.0)
+}
+
+/// Performs a static call to a contract at a given address.
+pub fn call_static(
+    mut env: WASMEnvMut,
+    gas_limit: u64,
+    contract: GuestPtr, // *const u8,
+    calldata: GuestPtr, // *const u8,
+    calldata_len: u32,  // usize,
+) -> EscapeResult<u8> {
+    let host = HostInfo::from_env(&mut env)?;
+    let to = host.read_address(contract)?;
+    let value = U256::ZERO;
+    let call_data = host.read_slice(calldata, calldata_len)?;
+    let result = with_runtime_context(|runtime_context| {
+        intern_call(
+            runtime_context,
+            CallType::Staticcall,
+            to,
+            value,
+            call_data,
+            gas_limit,
+        )
+    })?;
+    Ok(result.0)
+}
+
+/// Calls the contract at the given address with options for passing value and to limit the
+/// amount of gas supplied.
+pub fn call_contract(
+    mut env: WASMEnvMut,
+    gas_limit: u64,
+    contract: GuestPtr, // *const u8,
+    value: GuestPtr,    // *const u8,
+    calldata: GuestPtr, // *const u8,
+    calldata_len: u32,  // usize,
+) -> EscapeResult<u8> {
+    let host = HostInfo::from_env(&mut env)?;
+    let to = host.read_address(contract)?;
+    let value = host.read_bytes32(value)?.to_u256();
+    let call_data = host.read_slice(calldata, calldata_len)?;
+    let result = with_runtime_context(|runtime_context| {
+        intern_call(
+            runtime_context,
+            CallType::Call,
+            to,
+            value,
+            call_data,
+            gas_limit,
+        )
+    })?;
     Ok(result.0)
 }
 
@@ -375,6 +533,21 @@ pub fn static_call(
     Ok(result.0)
 }
 
+/// Self-destructs the current contract and sends any remaining balance to the specified address.
+pub fn selfdestruct(
+    mut env: WASMEnvMut,
+    address: GuestPtr, // *const u8,
+) -> MaybeEscape {
+    let host = HostInfo::from_env(&mut env)?;
+    let address = host.read_address(address)?;
+    with_runtime_context(|runtime_context| {
+        runtime_context
+            .host
+            .selfdestruct(runtime_context.contract.target_address, address)
+    });
+    Ok(())
+}
+
 /// Gets the address of the current program.
 pub fn contract_address(
     mut env: WASMEnvMut,
@@ -405,6 +578,36 @@ pub fn create(
     host.write_slice(contract, result.0.as_slice())?;
     host.write_u32(revert_data_len, result.1)?;
     Ok(())
+}
+
+/// Deploys a new contract using the init code provided.
+#[allow(clippy::too_many_arguments)]
+pub fn create_contract(
+    mut env: WASMEnvMut,
+    endowment: GuestPtr, // *const u8,
+    code: GuestPtr,      // *const u8,
+    code_len: u32,       // usize,
+    _data: GuestPtr,     // *const u8,
+    _data_len: u32,      // usize,
+    salt: GuestPtr,      // *const u8,
+    is_create2: u32,     // bool,
+    contract: GuestPtr,  // *mut u8,
+) -> EscapeResult<u32> {
+    let host = HostInfo::from_env(&mut env)?;
+    let code = host.read_slice(code, code_len)?;
+    let value = host.read_bytes32(endowment)?.to_u256();
+    let salt = host.read_bytes32(salt)?.to_b256();
+    let result = with_runtime_context(|runtime_context| {
+        intern_create(
+            runtime_context,
+            code,
+            value,
+            if is_create2 > 0 { Some(salt) } else { None },
+            u64::MAX,
+        )
+    })?;
+    host.write_slice(contract, result.0.as_slice())?;
+    Ok(result.1)
 }
 
 /// Deploys a new contract using the init code provided.
@@ -446,6 +649,50 @@ pub fn emit_log(
                 data,
                 topics: vec![],
             },
+        });
+    });
+    Ok(())
+}
+
+/// Emits an EVM log with the given number of topics and data.
+#[allow(clippy::too_many_arguments)]
+pub fn emit_log_event(
+    mut env: WASMEnvMut,
+    data: GuestPtr, // *const u8,
+    len: u32,       // usize,
+    topics: u32,    // usize
+    topic1: GuestPtr,
+    topic2: GuestPtr,
+    topic3: GuestPtr,
+    topic4: GuestPtr,
+) -> MaybeEscape {
+    debug_assert!(topics <= 4);
+    let host = HostInfo::from_env(&mut env)?;
+    let data = host.read_slice(data, len)?;
+    let topics = match topics {
+        0 => vec![],
+        1 => vec![host.read_fixed(topic1)?.into()],
+        2 => vec![
+            host.read_fixed(topic1)?.into(),
+            host.read_fixed(topic2)?.into(),
+        ],
+        3 => vec![
+            host.read_fixed(topic1)?.into(),
+            host.read_fixed(topic2)?.into(),
+            host.read_fixed(topic3)?.into(),
+        ],
+        4 => vec![
+            host.read_fixed(topic1)?.into(),
+            host.read_fixed(topic2)?.into(),
+            host.read_fixed(topic3)?.into(),
+            host.read_fixed(topic4)?.into(),
+        ],
+        _ => return Err(Escape::Exit(ExitStatusCode::FatalExternalError.to_u8())),
+    };
+    with_runtime_context(|runtime_context| {
+        runtime_context.host.log(Log {
+            address: runtime_context.contract.target_address,
+            data: LogData { data, topics },
         });
     });
     Ok(())
@@ -497,6 +744,40 @@ pub fn keccak256(
     Ok(())
 }
 
+/// Efficiently computes the [`sha256`] hash of the given preimage.
+pub fn sha256(
+    mut env: WASMEnvMut,
+    bytes: GuestPtr,  // *const u8,
+    len: u32,         // usize,
+    output: GuestPtr, // *mut u8
+) -> MaybeEscape {
+    let host = HostInfo::from_env(&mut env)?;
+    let data = host.read_slice(bytes, len)?;
+    let hash = sha2::Sha256::digest(data.as_slice());
+    host.write_slice(output, &hash)?;
+    Ok(())
+}
+
+/// Copies the contract code into a buffer.
+pub fn code_copy(
+    mut env: WASMEnvMut,
+    dest: GuestPtr, // *mut u8,
+    offset: u32,    // usize,
+    size: u32,      // usize,
+) -> MaybeEscape {
+    let host = HostInfo::from_env(&mut env)?;
+    let code = with_runtime_context(|runtime_context| runtime_context.contract.code.clone());
+    let code_slice = data_slice(code.bytecode(), offset, size);
+    host.write_slice(dest, code_slice)?;
+    Ok(())
+}
+
+/// Gets the size of the contract code.
+pub fn code_size(mut _env: WASMEnvMut) -> EscapeResult<u32> {
+    let code_size = with_runtime_context(|runtime_context| runtime_context.contract.code.len());
+    Ok(code_size as u32)
+}
+
 /// Reads the program calldata.
 pub fn call_data_copy(
     mut env: WASMEnvMut,
@@ -506,6 +787,25 @@ pub fn call_data_copy(
     let data = with_runtime_context(|runtime_context| runtime_context.contract.input.clone());
     host.write_slice(dest, data_slice(&data, 0, data.len() as u32))?;
     Ok(())
+}
+
+/// Reads the program calldata with offset and size
+pub fn call_data_copy_with_size(
+    mut env: WASMEnvMut,
+    dest: GuestPtr, // *mut u8
+    offset: u32,    // usize,
+    size: u32,      // usize
+) -> MaybeEscape {
+    let host = HostInfo::from_env(&mut env)?;
+    let data = with_runtime_context(|runtime_context| runtime_context.contract.input.clone());
+    host.write_slice(dest, data_slice(&data, offset, size))?;
+    Ok(())
+}
+
+/// Gets the size of the program calldata.
+pub fn call_data_size(mut _env: WASMEnvMut) -> EscapeResult<u32> {
+    let data = with_runtime_context(|runtime_context| runtime_context.contract.input.clone());
+    Ok(data.len() as u32)
 }
 
 /// Copies the bytes of the last EVM call or deployment return result.
@@ -522,6 +822,18 @@ pub fn return_data_copy(
     Ok(data.len() as u32)
 }
 
+/// Copies the contract code into a buffer.
+pub fn external_code_copy(
+    env: WASMEnvMut,
+    address: GuestPtr, // *const u8,
+    dest: GuestPtr,    // *mut u8,
+    offset: u32,       // usize,
+    size: u32,         // usize,
+) -> MaybeEscape {
+    account_code(env, address, offset, size, dest)?;
+    Ok(())
+}
+
 /// Writes the final return data. If not called before the program exists, the return data will
 /// be 0 bytes long. Note that this hostio does not cause the program to exit.
 pub fn write_result(
@@ -534,6 +846,40 @@ pub fn write_result(
     with_runtime_context(|runtime_context| {
         runtime_context.set_returndata(data);
     });
+    Ok(())
+}
+
+/// Reverts the program, which will cause the program to exit with a status code of `1`.
+pub fn revert(
+    env: WASMEnvMut,
+    data: GuestPtr, // *const u8,
+    len: u32,       // usize
+) -> MaybeEscape {
+    write_result(env, data, len)?;
+    with_runtime_context(|runtime_context| {
+        runtime_context.set_exit_status(ExitStatusCode::Revert);
+    });
+    Ok(())
+}
+
+/// Prints a 32-bit integer to the console, which can be either signed or unsigned.
+/// Only available in debug mode.
+pub fn debug_i32(_env: WASMEnvMut, value: i32) {
+    println!("{value}");
+}
+
+/// Prints a 64-bit integer to the console, which can be either signed or unsigned.
+/// Only available in debug mode.
+pub fn debug_i64(_env: WASMEnvMut, value: i64) {
+    println!("{value}");
+}
+
+/// Prints a UTF-8 encoded string to the console. Only available in debug mode.
+pub fn debug_bytes(mut env: WASMEnvMut, bytes: GuestPtr, len: u32) -> MaybeEscape {
+    let host = HostInfo::from_env(&mut env)?;
+    let data = host.read_slice(bytes, len)?;
+    let string = String::from_utf8_lossy(&data);
+    println!("{string}");
     Ok(())
 }
 
