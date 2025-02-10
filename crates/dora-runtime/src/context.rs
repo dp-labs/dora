@@ -1274,6 +1274,12 @@ impl<'a> RuntimeContext<'a> {
     pub fn set_returndata(&mut self, data: Vec<u8>) {
         self.inner.returndata = data;
     }
+
+    /// Set the exit status code.
+    #[inline]
+    pub fn set_exit_status(&mut self, code: ExitStatusCode) {
+        self.inner.exit_status = Some(code);
+    }
 }
 
 // System call functions
