@@ -613,8 +613,23 @@ fn conversions() {
 }
 
 #[test]
+fn alloc() {
+    assert_snapshot!(include_str!("suites/alloc.wat"));
+}
+
+#[test]
+fn console() {
+    assert_snapshot!(include_str!("suites/console.wat"));
+}
+
+#[test]
 fn counter_contract() {
     assert_snapshot!(include_str!("suites/counter.wat"));
+}
+
+#[test]
+fn erc20_contract() {
+    assert_snapshot!(include_str!("suites/erc20.wat"));
 }
 
 #[test]
