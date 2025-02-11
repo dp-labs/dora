@@ -1,3 +1,83 @@
+;; extern crate alloc;
+;; 
+;; #[no_mangle]
+;; pub extern "C" fn vec_sum(data: i32) -> i32 {
+;;     let data = alloc::vec![data, 1, 2, 3];
+;;     let mut sum = 0;
+;;     for i in data {
+;;         sum += i;
+;;     }
+;;     sum
+;; }
+;; 
+;; #[no_mangle]
+;; pub extern "C" fn vec_product(data: i32) -> i32 {
+;;     let data = alloc::vec![data, 1, 2, 3];
+;;     let mut product = 1;
+;;     for i in data {
+;;         product *= i;
+;;     }
+;;     product
+;; }
+;; 
+;; #[no_mangle]
+;; pub extern "C" fn vec_max(data: i32) -> i32 {
+;;     let data = alloc::vec![data, 1, 2, 3];
+;;     let mut max = i32::MIN;
+;;     for i in data {
+;;         if i > max {
+;;             max = i;
+;;         }
+;;     }
+;;     max
+;; }
+;; 
+;; #[no_mangle]
+;; pub extern "C" fn vec_min(data: i32) -> i32 {
+;;     let data = alloc::vec![data, 1, 2, 3];
+;;     let mut min = i32::MAX;
+;;     for i in data {
+;;         if i < min {
+;;             min = i;
+;;         }
+;;     }
+;;     min
+;; }
+;; 
+;; #[no_mangle]
+;; pub extern "C" fn vec_average(data: i32) -> f32 {
+;;     let data = alloc::vec![data, 1, 2, 3];
+;;     let sum: i32 = data.iter().sum();
+;;     sum as f32 / data.len() as f32
+;; }
+;; 
+;; #[no_mangle]
+;; pub extern "C" fn vec_reverse(data: i32) -> i32 {
+;;     let mut data = alloc::vec![data, 1, 2, 3];
+;;     data.reverse();
+;;     data[0]
+;; }
+;; 
+;; #[no_mangle]
+;; pub extern "C" fn vec_clone(data: i32) -> i32 {
+;;     let data = alloc::vec![data, 1, 2, 3];
+;;     let cloned_data = data.clone();
+;;     cloned_data[0]
+;; }
+;; 
+;; #[no_mangle]
+;; pub extern "C" fn vec_drain(data: i32) -> i32 {
+;;     let mut data = alloc::vec![data, 1, 2, 3];
+;;     let drained_data: Vec<i32> = data.drain(..2).collect();
+;;     drained_data[0]
+;; }
+;; 
+;; #[no_mangle]
+;; pub extern "C" fn vec_sort(data: i32) -> i32 {
+;;     let mut data = alloc::vec![data, 1, 2, 3];
+;;     data.sort();
+;;     data[0]
+;; }
 (module
   (type (;0;) (func (param i32 i32)))
   (type (;1;) (func (param i32 i32 i32) (result i32)))
