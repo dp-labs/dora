@@ -29,11 +29,8 @@
     local.set 0
     i32.const 1048808
     local.set 1
-    i32.const 1048544
+    i32.const 1048536
     local.set 2
-
-    i32.const 1
-    call 0
 
     global.get 0
     i32.const 48
@@ -63,9 +60,6 @@
     local.get 3
     i32.const 0
     i32.store offset=12
-
-    i32.const 2
-    call 0
 
     block ;; label = @1
       block ;; label = @2
