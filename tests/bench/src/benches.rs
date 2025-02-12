@@ -1,7 +1,6 @@
 use crate::native::fibonacci_rust;
 use alloy_sol_types::{sol, SolCall};
 use dora_primitives::address;
-use hex_literal::hex;
 use ruint::aliases::U256;
 use std::hint::black_box;
 
@@ -26,6 +25,7 @@ pub fn get_benches() -> Vec<Bench> {
         function mint(address to) public payable;
         function balanceOf(address account) public payable;
         function transfer(address recipient, uint256 amount) public payable;
+        function increment() public;
     }
     vec![
         Bench {
@@ -46,7 +46,7 @@ pub fn get_benches() -> Vec<Bench> {
         Bench {
             name: "counter",
             bytecode: hex::decode(COUNTER_BYTECODE_HEX).unwrap(),
-            calldata: hex!("d09de08a").to_vec(),
+            calldata: incrementCall {}.abi_encode(),
             ..Default::default()
         },
         // Note: There may be differences in performance results when using different Runtime Contexts or different Memory/Stoage DBs

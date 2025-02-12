@@ -340,10 +340,14 @@ impl<'c> WASMCompiler<'c> {
                 "keccak256" => func!(host::keccak256),
                 "sha256" => func!(host::sha256),
                 "finish" => func!(host::write_result),
+                "revert" => func!(host::revert),
                 "debug_i32" => func!(host::debug_i32),
                 "debug_i64" => func!(host::debug_i64),
                 "debug_bytes" => func!(host::debug_bytes),
             },
+            "console" => {
+                "log_txt" => func!(host::debug_bytes),
+            }
         };
         let (module, mut instance) = self.build_instance_with_imports(data, &mut store, imports)?;
 

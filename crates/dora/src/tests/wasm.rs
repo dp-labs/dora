@@ -3,6 +3,8 @@
 use crate::build_wasm_artifact;
 use crate::MemoryDB;
 use anyhow::Result;
+#[cfg(target_os = "linux")]
+use hex_literal::hex;
 use wasmer::wat2wasm;
 
 macro_rules! build_wasm_code {
@@ -33,6 +35,18 @@ macro_rules! generate_test_cases {
         $(
             {
                 let result: $ty = $artifact.execute_wasm_func($func_name, $arg)?;
+                assert_eq!(result, $expect, "Function: {} {:?} test failed.", $func_name, $arg);
+            }
+        )*
+    };
+}
+
+#[allow(unused_macros)]
+macro_rules! generate_calldata_test_cases {
+    ($artifact:expr, [ $(($func_name:expr, $arg:expr, $expect:expr, $ty:ty, $calldata:expr)),* $(,)? ]) => {
+        $(
+            {
+                let result: $ty = $artifact.execute_wasm_func_with_calldata($func_name, $arg, $calldata)?;
                 assert_eq!(result, $expect, "Function: {} {:?} test failed.", $func_name, $arg);
             }
         )*
@@ -4148,5 +4162,92 @@ fn test_wasm_table_size() -> Result<()> {
     let code = include_bytes!("../../../dora-compiler/src/wasm/tests/suites/table_size.wat");
     build_wasm_code!(code, artifact);
     generate_test_cases!(&artifact, [("size-t0", (), 0, i32),]);
+    Ok(())
+}
+
+#[test]
+fn test_wasm_alloc() -> Result<()> {
+    let code = include_bytes!("../../../dora-compiler/src/wasm/tests/suites/alloc.wat");
+    build_wasm_code!(code, _artifact);
+    generate_test_cases!(
+        &_artifact,
+        [
+            // vec_sum
+            ("vec_sum", 0, 6, i32),
+            ("vec_sum", 10, 16, i32),
+            // vec_product
+            ("vec_product", 0, 0, i32),
+            ("vec_product", 10, 60, i32),
+            // vec_max
+            ("vec_max", 0, 3, i32),
+            ("vec_max", 10, 10, i32),
+            // vec_min
+            ("vec_min", 0, 0, i32),
+            ("vec_min", 10, 1, i32),
+            // vec_average
+            ("vec_average", 0, 1.5, f32),
+            ("vec_average", 10, 4.0, f32),
+            // vec_reverse
+            ("vec_reverse", 0, 3, i32),
+            ("vec_reverse", 10, 3, i32),
+            // vec_clone
+            ("vec_clone", 0, 0, i32),
+            ("vec_clone", 10, 10, i32),
+            // vec_drain
+            ("vec_drain", 0, 0, i32),
+            ("vec_drain", 10, 10, i32),
+            ("vec_sort", 0, 0, i32),
+            ("vec_sort", 10, 1, i32),
+        ]
+    );
+    Ok(())
+}
+
+#[test]
+fn test_wasm_console() -> Result<()> {
+    let code = include_bytes!("../../../dora-compiler/src/wasm/tests/suites/console.wat");
+    build_wasm_code!(code, _artifact);
+    generate_test_cases!(
+        &_artifact,
+        [
+            // ("main", (), (), ()),
+        ]
+    );
+    Ok(())
+}
+
+// TODO: fix host api calling panic on macos.
+#[test]
+#[cfg(target_os = "linux")]
+fn test_wasm_counter_contract() -> Result<()> {
+    let code = include_bytes!("../../../dora-compiler/src/wasm/tests/suites/counter.wat");
+    build_wasm_code!(code, artifact);
+    generate_calldata_test_cases!(
+        &artifact,
+        [
+            // No calldata, expect the revert code 1
+            ("user_entrypoint", 0, 1, i32, hex!("")),
+            // wrong function ABI, expect the revert code 1
+            // ("user_entrypoint", 4, 1, i32, hex!("AABBCCDD")),
+            // increment function ABI
+            // ("user_entrypoint", 4, 0, i32, hex!("d09de08a")),
+        ]
+    );
+    Ok(())
+}
+
+// TODO: fix host api calling panic on macos.
+#[test]
+#[cfg(target_os = "linux")]
+fn test_wasm_erc20_contract() -> Result<()> {
+    let code = include_bytes!("../../../dora-compiler/src/wasm/tests/suites/erc20.wat");
+    build_wasm_code!(code, artifact);
+    generate_calldata_test_cases!(
+        &artifact,
+        [
+            // No calldata, expect the revert code 1
+            ("call", (), 1, i32, hex!("")),
+        ]
+    );
     Ok(())
 }

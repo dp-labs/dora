@@ -148,6 +148,46 @@ impl SymbolArtifact {
         )
     }
 
+    /// Executes a WASM function by name with the given arguments.
+    ///
+    /// # Arguments
+    /// * `name` - The name of the WASM function to execute.
+    /// * `args` - The arguments to pass to the WASM function.
+    ///
+    /// # Returns
+    /// * `Result<Ret>` - The result of the WASM function execution, or an error if the function fails.
+    ///
+    /// # Safety
+    /// This function uses `unsafe` to transmute a function pointer, which is inherently unsafe.
+    /// Ensure that the function pointer is valid and that the arguments and return types match the expected types.
+    #[inline]
+    pub fn execute_wasm_func_with_calldata<Args, Ret, T>(
+        &self,
+        name: &str,
+        args: Args,
+        calldata: T,
+    ) -> Result<Ret>
+    where
+        Args: Sized,
+        Ret: Sized,
+        T: AsRef<[u8]>,
+    {
+        let mut host = DummyHost::default();
+        self.execute_wasm_func_with_context(
+            name,
+            args,
+            RuntimeContext::new(
+                Contract::new_with_calldata(calldata),
+                1,
+                false,
+                false,
+                &mut host,
+                SpecId::default(),
+            ),
+            u64::MAX,
+        )
+    }
+
     /// Executes the WASM compiled code represented by this artifact.
     ///
     /// This method demonstrates the primary advantage of the SymbolArtifact:
