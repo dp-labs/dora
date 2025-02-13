@@ -4207,12 +4207,7 @@ fn test_wasm_alloc() -> Result<()> {
 fn test_wasm_console() -> Result<()> {
     let code = include_bytes!("../../../dora-compiler/src/wasm/tests/suites/console.wat");
     build_wasm_code!(code, _artifact);
-    generate_test_cases!(
-        &_artifact,
-        [
-            // ("main", (), (), ()),
-        ]
-    );
+    generate_test_cases!(&_artifact, [("main", (), (), ()),]);
     Ok(())
 }
 
