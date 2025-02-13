@@ -1,6 +1,7 @@
 use crate::run_bytecode_with_calldata;
 use dora_primitives::spec::SpecId;
 
+mod bytecode;
 mod operations;
 mod results;
 pub(crate) mod utils;
