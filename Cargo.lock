@@ -539,6 +539,26 @@ dependencies = [
 ]
 
 [[package]]
+name = "bindgen"
+version = "0.71.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "5f58bf3d7db68cfbac37cfc485a8d711e87e064c3d0fe0435b92f7a407f9d6b3"
+dependencies = [
+ "bitflags 2.8.0",
+ "cexpr",
+ "clang-sys",
+ "itertools 0.12.1",
+ "log",
+ "prettyplease",
+ "proc-macro2",
+ "quote",
+ "regex",
+ "rustc-hash 2.1.1",
+ "shlex",
+ "syn 2.0.91",
+]
+
+[[package]]
 name = "bit-set"
 version = "0.5.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -600,31 +620,6 @@ dependencies = [
  "glob",
  "threadpool",
  "zeroize",
-]
-
-[[package]]
-name = "bon"
-version = "3.0.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "a636f83af97c6946f3f5cf5c268ec02375bf5efd371110292dfd57961f57a509"
-dependencies = [
- "bon-macros",
- "rustversion",
-]
-
-[[package]]
-name = "bon-macros"
-version = "3.0.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "a7eaf1bfaa5b8d512abfd36d0c432591fef139d3de9ee54f1f839ea109d70d33"
-dependencies = [
- "darling",
- "ident_case",
- "prettyplease",
- "proc-macro2",
- "quote",
- "rustversion",
- "syn 2.0.91",
 ]
 
 [[package]]
@@ -778,9 +773,9 @@ dependencies = [
 
 [[package]]
 name = "cc"
-version = "1.1.14"
+version = "1.2.13"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "50d2eb3cd3d1bf4529e31c215ee6f93ec5a3d536d9f578f93d9d33ee19562932"
+checksum = "c7777341816418c02e033934a09f20dc0ccaf65a5201ef8a450ae0105a573fda"
 dependencies = [
  "jobserver",
  "libc",
@@ -917,16 +912,13 @@ dependencies = [
 
 [[package]]
 name = "comrak"
-version = "0.31.0"
+version = "0.33.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "453dcb42e33f7b474d7e0db12e0b8d82802c88f35cf5a1d8c297d0dfcecb154f"
+checksum = "39bff2cbb80102771ca62bd2375bc6f6611dc1493373440b23aa08a155538708"
 dependencies = [
- "bon",
  "caseless",
  "entities",
  "memchr",
- "once_cell",
- "regex",
  "slug",
  "typed-arena",
  "unicode_categories",
@@ -972,9 +964,9 @@ checksum = "7c74b8349d32d297c9134b8c88677813a227df8f779daa29bfc29c183fe3dca6"
 
 [[package]]
 name = "convert_case"
-version = "0.6.0"
+version = "0.7.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "ec182b0ca2f35d8fc196cf3404988fd8b8c739a4d270ff118a398feb0cbec1ca"
+checksum = "bb402b8d4c85569410425650ce3eddc7d698ed96d39a73f941b08fb63082f1e7"
 dependencies = [
  "unicode-segmentation",
 ]
@@ -1232,7 +1224,6 @@ dependencies = [
  "ident_case",
  "proc-macro2",
  "quote",
- "strsim",
  "syn 2.0.91",
 ]
 
@@ -2520,9 +2511,9 @@ dependencies = [
 
 [[package]]
 name = "melior"
-version = "0.19.2"
+version = "0.20.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "ee088ab94ababfb7843fbf3c6239a535f371ea23b57c75f26707c14096527874"
+checksum = "1cfcb398e6571361b6f54fd0057066d9b47a822bcb797bf5867e5412e9e6f387"
 dependencies = [
  "melior-macro",
  "mlir-sys",
@@ -2530,9 +2521,9 @@ dependencies = [
 
 [[package]]
 name = "melior-macro"
-version = "0.12.2"
+version = "0.13.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "575063f5ab34758980f9441a3978b4ad8c46e8eaeb5c6cb0e73b985f056d8490"
+checksum = "53793223a7d821e2f69ac9cb4054d885074013f5a5a7f0accbaba74b454769be"
 dependencies = [
  "comrak",
  "convert_case",
@@ -2540,7 +2531,7 @@ dependencies = [
  "quote",
  "regex",
  "syn 2.0.91",
- "tblgen-alt",
+ "tblgen",
  "unindent",
 ]
 
@@ -2594,11 +2585,11 @@ dependencies = [
 
 [[package]]
 name = "mlir-sys"
-version = "0.3.0"
+version = "0.4.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "fae0a14b0940736a243fef4a4d96d8cdf8a253272031b63c5e4b1bea207c82b0"
+checksum = "cee4047ffefa7e9853412025a98b38a66968584543918cf084a6e4df9144b71b"
 dependencies = [
- "bindgen 0.70.1",
+ "bindgen 0.71.1",
 ]
 
 [[package]]
@@ -3611,12 +3602,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "rustversion"
-version = "1.0.18"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "0e819f2bc632f285be6d7cd36e25940d45b2391dd6d9b939e79de557f7014248"
-
-[[package]]
 name = "rusty-fork"
 version = "0.3.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -4019,15 +4004,15 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "61c41af27dd6d1e27b1b16b489db798443478cef1f06a660c96db617ba5de3b1"
 
 [[package]]
-name = "tblgen-alt"
-version = "0.4.0"
+name = "tblgen"
+version = "0.5.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "0ecbc9175dd38627cd01d546e7b41c9a115e5773f4c98f64e2185c81ec5f45ab"
+checksum = "c155c9310c9e11e6f642b4c8a30ae572ea0cad013d5c9e28bb264b52fa8163bb"
 dependencies = [
- "bindgen 0.69.4",
+ "bindgen 0.71.1",
  "cc",
  "paste",
- "thiserror 1.0.69",
+ "thiserror 2.0.11",
 ]
 
 [[package]]
