@@ -59,7 +59,7 @@ impl EvmcVm for DoraVM {
             caller: evmc_address_to_address(message.sender()),
             call_value: Bytes32::from_be_bytes(message.value().bytes).into_u256(),
         };
-        let mut host = EvmcDelegateHost::new(context);
+        let mut host = EvmcDelegateHost::new(context, spec_id);
         let mut runtime_context = RuntimeContext::new(
             contract,
             message.depth() as usize,

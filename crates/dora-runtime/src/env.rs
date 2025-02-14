@@ -18,7 +18,7 @@ use super::constants::{
 };
 use super::result::InvalidTransaction;
 use dora_primitives::{
-    calc_blob_gasprice, Address, AuthorizationList, Bytes, SpecId, B256, GAS_PER_BLOB, U256,
+    calc_blob_gasprice, Address, Bytes, SignedAuthorization, SpecId, B256, GAS_PER_BLOB, U256,
 };
 
 /// Represents the execution environment for the EVM, including block, transaction, and EVM configuration.
@@ -361,8 +361,9 @@ pub struct BlockEnv {
 
 impl BlockEnv {
     /// Takes `blob_excess_gas` saves it inside env.
-    pub fn set_blob_excess_gas_and_price(&mut self, excess_blob_gas: u64) {
-        self.blob_excess_gas_and_price = Some(BlobExcessGasAndPrice::new(excess_blob_gas));
+    pub fn set_blob_excess_gas_and_price(&mut self, excess_blob_gas: u64, is_prague: bool) {
+        self.blob_excess_gas_and_price =
+            Some(BlobExcessGasAndPrice::new(excess_blob_gas, is_prague));
     }
 }
 
@@ -377,8 +378,8 @@ pub struct BlobExcessGasAndPrice {
 
 impl BlobExcessGasAndPrice {
     /// Creates a new instance by calculating the blob gas price with [`calc_blob_gasprice`].
-    pub fn new(excess_blob_gas: u64) -> Self {
-        let blob_gasprice = calc_blob_gasprice(excess_blob_gas);
+    pub fn new(excess_blob_gas: u64, is_prague: bool) -> Self {
+        let blob_gasprice = calc_blob_gasprice(excess_blob_gas, is_prague);
         Self {
             excess_blob_gas,
             blob_gasprice,
@@ -453,7 +454,7 @@ pub struct TxEnv {
     /// Set EOA account code for one transaction
     ///
     /// [EIP-Set EOA account code for one transaction](https://eips.ethereum.org/EIPS/eip-7702)
-    pub authorization_list: AuthorizationList,
+    pub authorization_list: Vec<SignedAuthorization>,
 }
 
 pub type AccessListItem = (Address, Vec<B256>);
@@ -474,7 +475,7 @@ impl Default for TxEnv {
             chain_id: Some(1),
             gas_priority_fee: None,
             max_fee_per_blob_gas: None,
-            authorization_list: AuthorizationList::Signed(Vec::new()),
+            authorization_list: vec![],
         }
     }
 }

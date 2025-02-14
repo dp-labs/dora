@@ -1,4 +1,4 @@
-pub use revm_primitives::{spec_to_generic, Spec, SpecId};
+pub use revm::primitives::{spec_to_generic, Spec, SpecId};
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize, Hash)]

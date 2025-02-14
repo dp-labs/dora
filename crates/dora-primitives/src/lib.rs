@@ -1,14 +1,17 @@
 use std::sync::Arc;
 
-pub use revm_primitives::{
+pub use alloy_primitives::{PrimitiveSignature, SignatureError, Signed};
+pub use revm::precompile::{
+    Precompile, PrecompileErrors, PrecompileOutput, PrecompileSpecId, Precompiles,
+};
+pub use revm::primitives::{
     address, alloy_primitives, b256, calc_blob_gasprice, calc_excess_blob_gas, eip7702,
     eof::{Eof, EofBody, TypesSection},
     fixed_bytes,
     hex::{FromHex, ToHexExt},
     keccak256, uint, Address, Authorization, AuthorizationList, Bytecode as EVMBytecode, Bytes,
-    EvmStorageSlot, FixedBytes, Log, LogData, Precompile, PrecompileErrors, PrecompileOutput,
-    RecoveredAuthority, RecoveredAuthorization, Signature, SpecId, B256, EOF_MAGIC_BYTES,
-    GAS_PER_BLOB, I256, KECCAK_EMPTY, U256,
+    EvmStorageSlot, FixedBytes, Log, LogData, RecoveredAuthority, RecoveredAuthorization,
+    SignedAuthorization, SpecId, B256, EOF_MAGIC_BYTES, GAS_PER_BLOB, I256, KECCAK_EMPTY, U256,
 };
 
 pub mod config;
