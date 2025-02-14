@@ -1,4 +1,4 @@
-name: "CLA Assistant"
+name: CLA Assistant
 on:
   issue_comment:
     types: [created]
@@ -6,23 +6,20 @@ on:
     types: [opened, closed, synchronize]
 
 permissions:
-  actions: write
   contents: read
-  pull-requests: write
-  statuses: write
 
 jobs:
   cla-check:
     runs-on: ubuntu-latest
     steps:
-      - name: "Run CLA Assistant"
+      - name: Run CLA Assistant
         uses: contributor-assistant/github-action@v2.6.1
         with:
-          path-to-document: "https://github.com/dp-labs/.github/blob/main/CLA.md"
-          path-to-signatures: "signatures/version1/cla.json"
+          path-to-document: https://github.com/dp-labs/.github/blob/main/CLA.md
+          path-to-signatures: signatures/version1/cla.json
           remote-organization-name: dp-labs
           remote-repository-name: cla.db
-          branch: "main"
+          branch: main
           allowlist: bot*
           use-dco-flag: false
         env:
