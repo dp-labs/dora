@@ -17,7 +17,7 @@ fn test_counter() {
     let result =
         run_bytecode_with_calldata(COUNTER_BYTECODE_HEX, "d09de08a", INIT_GAS, SpecId::CANCUN);
     let result = result.as_ref().unwrap();
-    assert!(result.result.is_success(), "{:?}", result);
+    assert!(result.is_success(), "{:?}", result);
 }
 
 /// Solidity code:
@@ -55,5 +55,5 @@ fn test_erc20_transfer() {
         SpecId::CANCUN,
     );
     let result = result.as_ref().unwrap();
-    assert!(result.result.is_success(), "{:?}", result);
+    assert!(result.is_success(), "{:?}", result);
 }

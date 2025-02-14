@@ -157,7 +157,7 @@ pub(crate) fn run_program_assert_num_result(
     spec_id: SpecId,
     expected_result: BigUint,
 ) {
-    let result = run(env, db, spec_id).unwrap().result;
+    let result = run(env, db, spec_id).unwrap();
     assert!(result.is_success(), "{:?}", result);
     let result_data = BigUint::from_bytes_be(result.output().unwrap_or(&Bytes::new()));
     assert_eq!(result_data, expected_result);
@@ -172,7 +172,7 @@ pub(crate) fn run_program_assert_bytes_result(
     spec_id: SpecId,
     expected_result: Bytes,
 ) {
-    let result = run(env, db, spec_id).unwrap().result;
+    let result = run(env, db, spec_id).unwrap();
     assert!(result.is_success(), "{:?}", result);
     let result_data = result.output().unwrap_or(&Bytes::new()).clone();
     assert_eq!(result_data, expected_result);
@@ -180,12 +180,12 @@ pub(crate) fn run_program_assert_bytes_result(
 
 /// Asserts program execution result as `halt`.
 pub(crate) fn run_program_assert_halt(env: Env, db: MemoryDB, spec_id: SpecId) {
-    let result = run(env, db, spec_id).unwrap().result;
+    let result = run(env, db, spec_id).unwrap();
     assert!(result.is_halt());
 }
 
 /// Asserts program execution result as `revert`.
 pub(crate) fn run_program_assert_revert(env: Env, db: MemoryDB, spec_id: SpecId) {
-    let result = run(env, db, spec_id).unwrap().result;
+    let result = run(env, db, spec_id).unwrap();
     assert!(result.is_revert());
 }
