@@ -1095,7 +1095,6 @@ impl Program {
         section_ptr as usize - first as usize
     }
 
-
     /// Returns the operation index of the given EOF section index.
     pub fn eof_section_index(&self, section: usize) -> usize {
         self.pc_to_index_mapping[&self.eof_section_pc(section)]

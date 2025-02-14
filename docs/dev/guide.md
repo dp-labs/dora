@@ -23,7 +23,9 @@ The following hardware is recommended.
 You'll need LLVM installed and `llvm-config` in your `PATH`. Just download `llvm@19` using `brew`.
 
 ```shell
-brew install llvm@19
+brew install llvm@19 # homebrew installation will automatically install the latest version of llvm
+echo 'export PATH="/opt/homebrew/opt/llvm/bin:$PATH"' >> ~/.zshrc # default llvm installtion path using homebrew
+source ~/.zshrc
 ```
 
 Setup a environment variable called `MLIR_SYS_190_PREFIX`, `LLVM_SYS_190_PREFIX` and `TABLEGEN_190_PREFIX` pointing to the llvm directory:
