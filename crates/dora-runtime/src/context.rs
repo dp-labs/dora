@@ -16,11 +16,10 @@ use crate::host::{AccountLoad, CodeLoad, Host, SStoreResult, SelfdestructResult,
 use crate::journaled_state::{JournalCheckpoint, JournalEntry, JournaledState};
 use crate::result::EVMError;
 use crate::{gas, symbols, ExitStatusCode};
-use dora_primitives::spec::SpecId;
 use dora_primitives::{
-    keccak256, Address, Bytecode, Bytes, Bytes32, Precompile, PrecompileErrors, B256, U256,
+    keccak256, Address, Bytecode, Bytes, Bytes32, Precompile, PrecompileErrors, PrecompileSpecId,
+    Precompiles, SpecId, B256, U256,
 };
-use revm_precompile::{PrecompileSpecId, Precompiles};
 
 /// Converts a `U256` value to a `u64`, saturating to `MAX` if the value is too large.
 #[macro_export]

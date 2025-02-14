@@ -12,22 +12,16 @@ use alloy_rlp::RlpMaxEncodedLen;
 use anyhow::Result;
 use clap::{Args, Parser, Subcommand};
 use dora::compile_handler;
-use dora_primitives::alloy_primitives::Parity;
 use dora_primitives::calc_excess_blob_gas;
 use dora_primitives::keccak256;
 use dora_primitives::spec::SpecId;
 use dora_primitives::spec::SpecName;
-use dora_primitives::Authorization;
-use dora_primitives::AuthorizationList;
 use dora_primitives::Bytecode;
 use dora_primitives::Bytes;
 use dora_primitives::EvmStorageSlot;
-use dora_primitives::RecoveredAuthority;
-use dora_primitives::RecoveredAuthorization;
-use dora_primitives::Signature;
+use dora_primitives::SignedAuthorization;
 use dora_primitives::{Address, B256, U256};
 use dora_runtime::account::Account;
-use dora_runtime::as_u64_saturated;
 use dora_runtime::context::Log;
 use dora_runtime::context::VMContext;
 use dora_runtime::db::{Database, MemoryDB};
@@ -50,6 +44,14 @@ use thiserror::Error;
 use tracing::{error, info};
 use triehash::sec_trie_root;
 use walkdir::{DirEntry, WalkDir};
+
+/// Gas consumption of a single data blob (== blob byte size)
+pub const GAS_PER_BLOB: u64 = 1 << 17;
+pub const TARGET_BLOB_NUMBER_PER_BLOCK_CANCUN: u64 = 3;
+
+/// Target consumable blob gas for data blobs per block (for 1559-like pricing)
+pub const TARGET_BLOB_GAS_PER_BLOCK_CANCUN: u64 =
+    TARGET_BLOB_NUMBER_PER_BLOCK_CANCUN * GAS_PER_BLOB;
 
 #[derive(Parser)]
 #[command(author, version, about)]
@@ -111,6 +113,7 @@ struct TestEnv {
     pub current_withdrawals_root: Option<B256>,
     pub parent_blob_gas_used: Option<U256>,
     pub parent_excess_blob_gas: Option<U256>,
+    pub parent_target_blobs_per_block: Option<U256>,
     pub current_excess_blob_gas: Option<U256>,
 }
 
@@ -181,40 +184,15 @@ pub struct TestAccessListItem {
 pub type TestAccessList = Vec<TestAccessListItem>;
 
 #[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
-#[serde(rename_all = "camelCase", deny_unknown_fields)]
+#[serde(rename_all = "camelCase")]
 pub struct TestAuthorization {
-    chain_id: U256,
-    address: Address,
-    nonce: U256,
-    v: U256,
-    r: U256,
-    s: U256,
-    signer: Option<Address>,
+    #[serde(flatten)]
+    inner: SignedAuthorization,
 }
 
-impl TestAuthorization {
-    /// Get the signature using the v, r, s values.
-    pub fn signature(&self) -> Signature {
-        let v = u64::try_from(self.v).unwrap_or(u64::MAX);
-        let parity = Parity::try_from(v).unwrap_or(Parity::Eip155(36));
-        Signature::from_rs_and_parity(self.r, self.s, parity).unwrap()
-    }
-
-    /// Convert to a recovered authorization.
-    pub fn into_recovered(self) -> RecoveredAuthorization {
-        let authorization = Authorization {
-            chain_id: as_u64_saturated!(self.chain_id),
-            address: self.address,
-            nonce: u64::try_from(self.nonce).unwrap(),
-        };
-        let authority = match self
-            .signature()
-            .recover_address_from_prehash(&authorization.signature_hash())
-        {
-            Ok(addr) => RecoveredAuthority::Valid(addr),
-            Err(_) => RecoveredAuthority::Invalid,
-        };
-        RecoveredAuthorization::new_unchecked(authorization, authority)
+impl From<TestAuthorization> for SignedAuthorization {
+    fn from(auth: TestAuthorization) -> Self {
+        auth.inner
     }
 }
 
@@ -524,7 +502,7 @@ fn execute_test(path: &Path) -> Result<(), TestError> {
             }
             let spec_id = spec_name.to_spec_id();
             for test_case in tests {
-                let mut env = setup_env(&name, &suite)?;
+                let mut env = setup_env(&name, &suite, spec_id)?;
                 if spec_id.is_enabled_in(SpecId::MERGE) && env.block.prevrandao.is_none() {
                     // if spec is merge and prevrandao is not set, set it to default
                     env.block.prevrandao = Some(B256::default());
@@ -578,16 +556,9 @@ fn execute_test(path: &Path) -> Result<(), TestError> {
                 env.tx.authorization_list = suite
                     .transaction
                     .authorization_list
-                    .as_ref()
-                    .map(|auth_list| {
-                        AuthorizationList::Recovered(
-                            auth_list
-                                .iter()
-                                .map(|auth| auth.clone().into_recovered())
-                                .collect(),
-                        )
-                    })
-                    .unwrap_or_else(|| AuthorizationList::Signed(Vec::new()));
+                    .clone()
+                    .map(|auth_list| auth_list.into_iter().map(Into::into).collect::<Vec<_>>())
+                    .unwrap_or_default();
 
                 // Run EVM and get the state result.
                 let mut vm = VM::new(VMContext::new(db.clone(), env, spec_id, compile_handler()));
@@ -678,7 +649,7 @@ fn execute_test(path: &Path) -> Result<(), TestError> {
     Ok(())
 }
 
-fn setup_env(name: &str, test: &Test) -> Result<Env, TestError> {
+fn setup_env(name: &str, test: &Test, spec_id: SpecId) -> Result<Env, TestError> {
     let mut env = Env::default();
     env.cfg.chain_id = 1;
     env.block.number = test.env.current_number;
@@ -690,17 +661,25 @@ fn setup_env(name: &str, test: &Test) -> Result<Env, TestError> {
     env.block.prevrandao = test.env.current_random;
     // EIP-4844
     if let Some(current_excess_blob_gas) = test.env.current_excess_blob_gas {
-        env.block
-            .set_blob_excess_gas_and_price(current_excess_blob_gas.to());
+        env.block.set_blob_excess_gas_and_price(
+            current_excess_blob_gas.to(),
+            spec_id.is_enabled_in(SpecId::PRAGUE),
+        );
     } else if let (Some(parent_blob_gas_used), Some(parent_excess_blob_gas)) = (
         test.env.parent_blob_gas_used,
         test.env.parent_excess_blob_gas,
     ) {
-        env.block
-            .set_blob_excess_gas_and_price(calc_excess_blob_gas(
+        env.block.set_blob_excess_gas_and_price(
+            calc_excess_blob_gas(
                 parent_blob_gas_used.to(),
                 parent_excess_blob_gas.to(),
-            ));
+                test.env
+                    .parent_target_blobs_per_block
+                    .map(|i| i.to())
+                    .unwrap_or(TARGET_BLOB_GAS_PER_BLOCK_CANCUN),
+            ),
+            spec_id.is_enabled_in(SpecId::PRAGUE),
+        );
     }
     // tx env
     let to = match test.transaction.to {

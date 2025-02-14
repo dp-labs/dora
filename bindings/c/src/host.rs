@@ -10,6 +10,7 @@ use dora::runtime::host::{
     AccountLoad, CodeLoad, Host, SStoreResult, SStoreStatus, SelfdestructResult, StateLoad,
 };
 use dora::runtime::result::EVMError;
+use dora::SpecId;
 use evmc_sys::{evmc_access_status, evmc_address, evmc_bytes32, evmc_storage_status};
 use evmc_vm::{ExecutionContext, ExecutionMessage};
 use std::mem::transmute;
@@ -23,7 +24,7 @@ pub(crate) struct EvmcDelegateHost<'a> {
 
 impl<'a> EvmcDelegateHost<'a> {
     #[inline]
-    pub(crate) fn new(context: &'a mut ExecutionContext<'a>) -> Self {
+    pub(crate) fn new(context: &'a mut ExecutionContext<'a>, spec_id: SpecId) -> Self {
         let tx_context = context.get_tx_context();
         let chain_id = as_u64_saturated!(U256::from_be_bytes(tx_context.chain_id.bytes));
         let blob_hashes = unsafe {
@@ -50,9 +51,10 @@ impl<'a> EvmcDelegateHost<'a> {
                     basefee: U256::from_be_bytes(tx_context.block_base_fee.bytes),
                     difficulty: U256::from_be_bytes(tx_context.block_prev_randao.bytes),
                     prevrandao: Some(B256::from_slice(&tx_context.block_prev_randao.bytes)),
-                    blob_excess_gas_and_price: Some(BlobExcessGasAndPrice::new(as_u64_saturated!(
-                        U256::from_be_bytes(tx_context.blob_base_fee.bytes)
-                    ))),
+                    blob_excess_gas_and_price: Some(BlobExcessGasAndPrice::new(
+                        as_u64_saturated!(U256::from_be_bytes(tx_context.blob_base_fee.bytes)),
+                        spec_id.is_enabled_in(SpecId::PRAGUE),
+                    )),
                 },
                 tx: TxEnv {
                     caller: evmc_address_to_address(&tx_context.tx_origin),
