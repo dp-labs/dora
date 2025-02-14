@@ -15,122 +15,121 @@ permissions:
   id-token: write
 
 jobs:
-
   build:
     name: Build on ${{ matrix.config.runner }}
     runs-on: ${{ matrix.config.runs_on }}
-    timeout-minutes: 240  # 4 hours
+    timeout-minutes: 240 # 4 hours
 
     strategy:
       fail-fast: true
       matrix:
         config:
-        - {runner: 'CentOS 7', runs_on: 'ubuntu-latest', target-os: 'centos', arch: 'x64'}
-        - {runner: 'Windows Latest', runs_on: 'windows-latest', target-os: 'windows', arch: 'x64'}
+          - { runner: "CentOS 7", runs_on: "ubuntu-latest", target-os: "centos", arch: "x64" }
+          - { runner: "Windows Latest", runs_on: "windows-latest", target-os: "windows", arch: "x64" }
 
     steps:
-    - name: Checkout Repo
-      uses: actions/checkout@v4
-      with:
-        path: llvm-build
+      - name: Checkout Repo
+        uses: actions/checkout@v4
+        with:
+          path: llvm-build
 
-    - name: Checkout LLVM
-      uses: actions/checkout@v4
-      with:
-        repository: llvm/llvm-project
-        path: llvm-project
-        ref: llvmorg-19.1.5
+      - name: Checkout LLVM
+        uses: actions/checkout@v4
+        with:
+          repository: llvm/llvm-project
+          path: llvm-project
+          ref: llvmorg-19.1.5
 
-    - name: Fetch LLVM Commit Hash
-      shell: bash
-      run: |
-        INSTALL_DIR="llvm-19-${{ matrix.config.target-os }}-${{ matrix.config.arch }}"
-        echo "LLVM installation directory name: ${INSTALL_DIR}"
-        echo "llvm_install_dir=${INSTALL_DIR}" >> ${GITHUB_ENV}
+      - name: Fetch LLVM Commit Hash
+        shell: bash
+        run: |
+          INSTALL_DIR="llvm-19-${{ matrix.config.target-os }}-${{ matrix.config.arch }}"
+          echo "LLVM installation directory name: ${INSTALL_DIR}"
+          echo "llvm_install_dir=${INSTALL_DIR}" >> ${GITHUB_ENV}
 
-    - name: Setup QEMU
-      if: matrix.config.target-os != 'windows'
-      uses: docker/setup-qemu-action@v3
-    - name: Setup Docker Buildx
-      id: buildx
-      if: matrix.config.target-os != 'windows'
-      uses: docker/setup-buildx-action@v3
+      - name: Setup QEMU
+        if: matrix.config.target-os != 'windows'
+        uses: docker/setup-qemu-action@v3
+      - name: Setup Docker Buildx
+        id: buildx
+        if: matrix.config.target-os != 'windows'
+        uses: docker/setup-buildx-action@v3
 
-    - name: Set up Python
-      uses: actions/setup-python@v5
-      with:
-        python-version: 3.11
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: 3.11
 
-    - name: Set up MSVC
-      if: matrix.config.arch == 'x64' && (matrix.config.target-os == 'windows')
-      uses: ilammy/msvc-dev-cmd@v1.13.0
-      with:
-        arch: amd64
+      - name: Set up MSVC
+        if: matrix.config.arch == 'x64' && (matrix.config.target-os == 'windows')
+        uses: ilammy/msvc-dev-cmd@v1.13.0
+        with:
+          arch: amd64
 
-    - name: Install Prerequisites
-      shell: bash
-      run: |
-        python3 -m pip install cmake ninja sccache
-        mkdir -p ${{ env.SCCACHE_DIR }}
-        rm -rf ${{ env.SCCACHE_DIR }}/*
+      - name: Install Prerequisites
+        shell: bash
+        run: |
+          python3 -m pip install cmake ninja sccache
+          mkdir -p ${{ env.SCCACHE_DIR }}
+          rm -rf ${{ env.SCCACHE_DIR }}/*
 
-    - name: Enable Cache
-      uses: actions/cache@v4
-      with:
-        path: ${{ env.SCCACHE_DIR }}
-        key: ${{ matrix.config.target-os }}-${{ matrix.config.arch }}-${{ env.short_llvm_commit_hash }}
-        restore-keys: ${{ matrix.config.target-os }}-${{ matrix.config.arch }}-
+      - name: Enable Cache
+        uses: actions/cache@v4
+        with:
+          path: ${{ env.SCCACHE_DIR }}
+          key: ${{ matrix.config.target-os }}-${{ matrix.config.arch }}-${{ env.short_llvm_commit_hash }}
+          restore-keys: ${{ matrix.config.target-os }}-${{ matrix.config.arch }}-
 
-    - name: Configure, Build, Test, and Install LLVM (CentOS)
-      if: matrix.config.target-os == 'centos'
-      run: |
-        docker build --tag llvm-build --build-arg llvm_dir=llvm-project \
-          -f llvm-build/.github/workflows/llvm-build/centos.Dockerfile .
+      - name: Configure, Build, Test, and Install LLVM (CentOS)
+        if: matrix.config.target-os == 'centos'
+        run: |
+          docker build --tag llvm-build --build-arg llvm_dir=llvm-project \
+            -f llvm-build/.github/workflows/llvm-build/centos.Dockerfile .
 
-        # Create temporary container to copy cache and installed artifacts.
-        CONTAINER_ID=$(docker create llvm-build)
-        docker cp "${CONTAINER_ID}:/install" "${{ env.llvm_install_dir }}"
-        tar czf "${{ env.llvm_install_dir }}.tar.gz" "${{ env.llvm_install_dir }}"
+          # Create temporary container to copy cache and installed artifacts.
+          CONTAINER_ID=$(docker create llvm-build)
+          docker cp "${CONTAINER_ID}:/install" "${{ env.llvm_install_dir }}"
+          tar czf "${{ env.llvm_install_dir }}.tar.gz" "${{ env.llvm_install_dir }}"
 
-        # We remove the existing directory, otherwise docker will
-        # create a subdirectory inside the existing directory.
-        rm -rf "${{ env.SCCACHE_DIR }}"
-        docker cp "${CONTAINER_ID}:/sccache" "${{ env.SCCACHE_DIR }}"
-        sudo chown -R "$(id -u -n):$(id -g -n)" "${{ env.SCCACHE_DIR }}"
+          # We remove the existing directory, otherwise docker will
+          # create a subdirectory inside the existing directory.
+          rm -rf "${{ env.SCCACHE_DIR }}"
+          docker cp "${CONTAINER_ID}:/sccache" "${{ env.SCCACHE_DIR }}"
+          sudo chown -R "$(id -u -n):$(id -g -n)" "${{ env.SCCACHE_DIR }}"
 
-        docker rm "${CONTAINER_ID}"
+          docker rm "${CONTAINER_ID}"
 
-    - name: Configure, Build, Test, and Install LLVM (Windows)
-      if: matrix.config.arch == 'x64' && (matrix.config.target-os == 'windows')
-      run: >
-        python3 -m pip install -r llvm-project/mlir/python/requirements.txt
+      - name: Configure, Build, Test, and Install LLVM (Windows)
+        if: matrix.config.arch == 'x64' && (matrix.config.target-os == 'windows')
+        run: >
+          python3 -m pip install -r llvm-project/mlir/python/requirements.txt
 
-        cmake -GNinja -Bllvm-project/build
-        -DCMAKE_BUILD_TYPE=Release
-        -DCMAKE_C_COMPILER=cl
-        -DCMAKE_CXX_COMPILER=cl
-        -DCMAKE_INSTALL_PREFIX="${{ env.llvm_install_dir }}"
-        -DLLVM_BUILD_UTILS=ON
-        -DLLVM_BUILD_TOOLS=ON
-        -DLLVM_ENABLE_ASSERTIONS=ON
-        -DMLIR_ENABLE_BINDINGS_PYTHON=ON
-        -DLLVM_ENABLE_PROJECTS="mlir"
-        -DLLVM_ENABLE_DIA_SDK=OFF
-        -DLLVM_INSTALL_UTILS=ON
-        -DLLVM_TARGETS_TO_BUILD="Native"
-        -DLLVM_ENABLE_TERMINFO=OFF
-        llvm-project/llvm
+          cmake -GNinja -Bllvm-project/build
+          -DCMAKE_BUILD_TYPE=Release
+          -DCMAKE_C_COMPILER=cl
+          -DCMAKE_CXX_COMPILER=cl
+          -DCMAKE_INSTALL_PREFIX="${{ env.llvm_install_dir }}"
+          -DLLVM_BUILD_UTILS=ON
+          -DLLVM_BUILD_TOOLS=ON
+          -DLLVM_ENABLE_ASSERTIONS=ON
+          -DMLIR_ENABLE_BINDINGS_PYTHON=ON
+          -DLLVM_ENABLE_PROJECTS="mlir"
+          -DLLVM_ENABLE_DIA_SDK=OFF
+          -DLLVM_INSTALL_UTILS=ON
+          -DLLVM_TARGETS_TO_BUILD="Native"
+          -DLLVM_ENABLE_TERMINFO=OFF
+          llvm-project/llvm
 
-        ninja -C llvm-project/build install
+          ninja -C llvm-project/build install
 
-        tar czf "${{ env.llvm_install_dir }}.tar.gz" "${{ env.llvm_install_dir }}"
+          tar czf "${{ env.llvm_install_dir }}.tar.gz" "${{ env.llvm_install_dir }}"
 
-    - name: Upload Build Artifacts
-      uses: actions/upload-artifact@v4
-      with:
-        name: llvm-${{ matrix.config.target-os }}-${{ matrix.config.arch }}
-        path: |
-          ${{ github.workspace }}/llvm-*-${{ matrix.config.target-os }}-${{ matrix.config.arch }}.tar.gz
+      - name: Upload Build Artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: llvm-${{ matrix.config.target-os }}-${{ matrix.config.arch }}
+          path: |
+            ${{ github.workspace }}/llvm-*-${{ matrix.config.target-os }}-${{ matrix.config.arch }}.tar.gz
 
-    - name: Dump Sccache Statistics
-      run: sccache --show-stats
+      - name: Dump Sccache Statistics
+        run: sccache --show-stats
