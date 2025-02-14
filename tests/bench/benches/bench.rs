@@ -229,7 +229,7 @@ fn run_uniswapv3_bench(c: &mut Criterion) {
     g.bench_function("dora", |b| {
         b.iter(|| {
             let result = run(env.clone(), db.clone(), SpecId::CANCUN).unwrap();
-            assert!(result.result.is_success());
+            assert!(result.is_success());
         })
     });
 

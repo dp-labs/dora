@@ -11,7 +11,7 @@ use alloy_rlp::RlpEncodable;
 use alloy_rlp::RlpMaxEncodedLen;
 use anyhow::Result;
 use clap::{Args, Parser, Subcommand};
-use dora::call_frame;
+use dora::compile_handler;
 use dora_primitives::alloy_primitives::Parity;
 use dora_primitives::calc_excess_blob_gas;
 use dora_primitives::keccak256;
@@ -34,7 +34,6 @@ use dora_runtime::db::{Database, MemoryDB};
 use dora_runtime::env::Env;
 use dora_runtime::env::TxKind;
 use dora_runtime::executor::RUNTIME_STACK_SIZE;
-use dora_runtime::handler::Handler;
 use dora_runtime::transaction::TransactionType;
 use dora_runtime::vm::VM;
 use hash_db::Hasher;
@@ -43,7 +42,6 @@ use plain_hasher::PlainHasher;
 use serde::de::Visitor;
 use serde::{de, Deserialize, Serialize};
 use std::fmt;
-use std::sync::Arc;
 use std::{
     collections::{BTreeMap, HashMap},
     path::{Path, PathBuf},
@@ -592,14 +590,7 @@ fn execute_test(path: &Path) -> Result<(), TestError> {
                     .unwrap_or_else(|| AuthorizationList::Signed(Vec::new()));
 
                 // Run EVM and get the state result.
-                let mut vm = VM::new(VMContext::new(
-                    db.clone(),
-                    env,
-                    spec_id,
-                    Handler {
-                        call_frame: Arc::new(call_frame),
-                    },
-                ));
+                let mut vm = VM::new(VMContext::new(db.clone(), env, spec_id, compile_handler()));
                 let res = vm.transact_commit();
 
                 let logs_root = log_rlp_hash(res.as_ref().map(|r| r.logs()).unwrap_or_default());

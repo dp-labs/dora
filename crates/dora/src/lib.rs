@@ -20,7 +20,7 @@ pub use dora_runtime::{
     call::CallResult,
     context::VMContext,
     handler::{Frame, Handler},
-    result::EVMError,
+    result::{EVMError, ExecutionResult},
     vm::VM,
 };
 pub use dora_runtime::{context::RuntimeContext, env::TxKind};
@@ -50,20 +50,20 @@ pub fn run<DB: Database + 'static>(
     env: Env,
     db: DB,
     spec_id: SpecId,
-) -> Result<ResultAndState, EVMError> {
-    VM::new(VMContext::new(
-        db,
-        env,
-        spec_id,
-        Handler {
-            call_frame: Arc::new(call_frame),
-        },
-    ))
-    .transact()
+) -> Result<ExecutionResult, EVMError> {
+    VM::new(VMContext::new(db, env, spec_id, compile_handler())).transact_commit()
+}
+
+/// Compile Handler for the VM.
+#[inline]
+pub fn compile_handler<'a, DB: Database + 'a>() -> Handler<'a, DB> {
+    Handler {
+        call_frame: Arc::new(compile_call_frame),
+    }
 }
 
 /// Default frame calling hanlder, using dora compiler and runtime to run EVM contract.
-pub fn call_frame<DB: Database>(
+fn compile_call_frame<DB: Database>(
     frame: Frame,
     ctx: &mut VMContext<'_, DB>,
 ) -> Result<CallResult, EVMError> {
@@ -207,7 +207,7 @@ pub fn run_bytecode_with_calldata(
     calldata: &str,
     initial_gas: u64,
     spec_id: SpecId,
-) -> anyhow::Result<ResultAndState> {
+) -> anyhow::Result<ExecutionResult> {
     let opcodes = hex::decode(program)?;
     let calldata = hex::decode(calldata)?;
     let address = Bytes32::from(40_u32).to_address();
