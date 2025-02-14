@@ -28,6 +28,9 @@ use wasmer::{
     imports, AsStoreMut, AsStoreRef, Exports, Extern, Function, FunctionEnv, Imports,
     Module as WasmModule, Store, Target, VMConfig,
 };
+use wasmer_compiler::types::module::CompileModuleInfo;
+use wasmer_compiler::types::section::SectionIndex;
+use wasmer_compiler::types::symbols::{Symbol, SymbolRegistry};
 use wasmer_compiler::Engine;
 use wasmer_compiler::{
     FunctionBodyData, ModuleEnvironment, ModuleMiddleware, ModuleTranslationState,
@@ -35,8 +38,8 @@ use wasmer_compiler::{
 use wasmer_compiler_cli::store::SubsetTunables;
 use wasmer_types::entity::{EntityRef, PrimaryMap};
 use wasmer_types::{
-    CompileModuleInfo, Features, FunctionIndex, LocalFunctionIndex, MemoryIndex, MemoryStyle,
-    SectionIndex, SignatureIndex, Symbol, SymbolRegistry, TableIndex, TableStyle,
+    Features, FunctionIndex, LocalFunctionIndex, MemoryIndex, MemoryStyle, SignatureIndex,
+    TableIndex, TableStyle,
 };
 use wasmer_vm::VMInstance;
 

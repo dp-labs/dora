@@ -13,14 +13,14 @@ use melior::ir::attribute::{Attribute, StringAttribute, TypeAttribute};
 use melior::ir::{Block, Identifier, Location, Operation, Region};
 use smallvec::SmallVec;
 use wasmer::ExportIndex;
+use wasmer_compiler::types::symbols::{Symbol, SymbolRegistry};
 use wasmer_compiler::{
     wptype_to_type, FunctionBinaryReader, FunctionBodyData, MiddlewareBinaryReader,
     ModuleMiddlewareChain, ModuleTranslationState,
 };
 use wasmer_types::entity::PrimaryMap;
 use wasmer_types::{
-    FunctionIndex, LocalFunctionIndex, MemoryIndex, MemoryStyle, ModuleInfo, Symbol,
-    SymbolRegistry, TableIndex, TableStyle,
+    FunctionIndex, LocalFunctionIndex, MemoryIndex, MemoryStyle, ModuleInfo, TableIndex, TableStyle,
 };
 
 /// Responsible for translating WebAssembly functions into the target intermediate representation
