@@ -32,13 +32,14 @@ use melior::ir::{Block, BlockRef, Location, Region, Type, Value, ValueLike};
 use smallvec::SmallVec;
 use wasmer::wasmparser::MemArg;
 use wasmer_compiler::from_binaryreadererror_wasmerror;
+use wasmer_compiler::types::symbols::SymbolRegistry;
 use wasmer_compiler::wasmparser::Operator;
 use wasmer_compiler::wptype_to_type;
 use wasmer_compiler::{wpheaptype_to_type, ModuleTranslationState};
 use wasmer_types::entity::PrimaryMap;
 use wasmer_types::{
     FunctionIndex, FunctionType, GlobalIndex, MemoryIndex, MemoryStyle, ModuleInfo, SignatureIndex,
-    SymbolRegistry, TableIndex, TableStyle, TrapCode, WasmResult,
+    TableIndex, TableStyle, TrapCode, WasmResult,
 };
 
 macro_rules! op {
