@@ -21,7 +21,7 @@ macro_rules! assert_snapshot {
             &context.mlir_context,
             &mut module.mlir_module,
             &crate::dora::pass::PassOptions {
-                code_size: program.code_size,
+                code_size: program.code_size(),
                 ..Default::default()
             },
         )

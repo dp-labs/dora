@@ -1616,7 +1616,7 @@ fn push2_returndataload() {
         Operation::ReturndataLoad,
     ];
 
-    let program = Program::eof(&Program::operations_to_opcode(&operations));
+    let program = Program::new_eof(&Program::operations_to_opcode(&operations));
 
     let eof = Eof::new(EofBody {
         code_section: vec![Bytes::from(program.to_opcode())],

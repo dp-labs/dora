@@ -956,13 +956,13 @@ operations!(
 ///   the total size of the bytecode.
 #[derive(Debug, Clone)]
 pub struct Program {
-    /// A vector of operations parsed from the bytecode.
-    pub operations: Vec<Operation>,
-    /// The total size of the bytecode (in bytes).
-    pub code_size: u32,
-    /// Whether eof bytecode
-    pub eof: Option<Arc<Eof>>,
-    /// Mapping from program counter to instruction.
+    /// A vector of operations parsed from the bytecode
+    operations: Vec<Operation>,
+    /// The total size of the bytecode (in bytes)
+    code_size: u32,
+    /// Optional field for eof bytecode
+    eof: Option<Arc<Eof>>,
+    /// Mapping from program counter to instruction
     pc_to_index_mapping: FxHashMap<usize, usize>,
 }
 
@@ -998,20 +998,20 @@ impl Program {
     /// Constructs a `Program` from a slice of operations without error checking.
     pub fn from_operations(operations: Vec<Operation>, is_eof: bool) -> Self {
         if is_eof {
-            Self::eof(&Self::operations_to_opcode(&operations))
+            Self::new_eof(&Self::operations_to_opcode(&operations))
         } else {
-            Self::raw(&Self::operations_to_opcode(&operations))
+            Self::new_raw(&Self::operations_to_opcode(&operations))
         }
     }
 
     /// Constructs a `Program` from a slice of raw opcodes without error checking.
-    pub fn raw(opcodes: &[u8]) -> Self {
+    pub fn new_raw(opcodes: &[u8]) -> Self {
         Self::from_opcodes(opcodes, None)
     }
 
     /// Constructs a `Program` from a slice of eof opcodes without error checking.
     /// Note: the opcode bytes do not start with the EOF magic header
-    pub fn eof(opcodes: &[u8]) -> Self {
+    pub fn new_eof(opcodes: &[u8]) -> Self {
         let eof = Self::eof_body(&[opcodes], vec![]).into_eof();
         Self::from_opcodes(opcodes, Some(Arc::new(eof)))
     }
@@ -1022,6 +1022,30 @@ impl Program {
             container_section: containers,
             ..Default::default()
         }
+    }
+
+    /// Gets `operations` field.
+    #[inline]
+    pub fn operations(&self) -> &[Operation] {
+        self.operations.as_ref()
+    }
+
+    /// Gets `code_size` field.
+    #[inline]
+    pub fn code_size(&self) -> u32 {
+        self.code_size
+    }
+
+    // Gets `eof` field.
+    #[inline]
+    pub fn eof(&self) -> Option<Arc<Eof>> {
+        self.eof.clone()
+    }
+
+    /// Whether eof bytecode.
+    #[inline]
+    pub fn is_eof(&self) -> bool {
+        self.eof.is_some()
     }
 
     /// Converts the `Program` into a vector of opcodes.
@@ -1061,12 +1085,6 @@ impl Program {
             }
         }
         false
-    }
-
-    /// Whether eof bytecode
-    #[inline]
-    pub fn is_eof(&self) -> bool {
-        self.eof.is_some()
     }
 
     /// Returns the program counter of the given EOF section index.

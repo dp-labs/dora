@@ -59,7 +59,7 @@ fn run_bench(c: &mut Criterion, bench: &Bench) {
         &context.mlir_context,
         &mut module.mlir_module,
         &dora::pass::PassOptions {
-            code_size: program.code_size,
+            code_size: program.code_size(),
             spec_id,
             ..Default::default()
         },
