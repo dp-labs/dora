@@ -5,11 +5,11 @@ snapshot_kind: text
 ---
 module {
   func.func public @checkRange(%arg0: !llvm.ptr, %arg1: i32, %arg2: i32) -> i32 attributes {llvm.emit_c_interface} {
-    %c1_i64 = arith.constant 1 : i64
-    %0 = llvm.alloca %c1_i64 x i32 : (i64) -> !llvm.ptr
+    %c1_i32 = arith.constant 1 : i32
+    %0 = llvm.alloca %c1_i32 x i32 : (i32) -> !llvm.ptr
     llvm.store %arg1, %0 : i32, !llvm.ptr
-    %c1_i64_0 = arith.constant 1 : i64
-    %1 = llvm.alloca %c1_i64_0 x i32 : (i64) -> !llvm.ptr
+    %c1_i32_0 = arith.constant 1 : i32
+    %1 = llvm.alloca %c1_i32_0 x i32 : (i32) -> !llvm.ptr
     llvm.store %arg2, %1 : i32, !llvm.ptr
     %2 = llvm.getelementptr %arg0[8] : (!llvm.ptr) -> !llvm.ptr, i8
     %3 = llvm.getelementptr %2[0] : (!llvm.ptr) -> !llvm.ptr, i8
@@ -49,8 +49,8 @@ module {
     cf.cond_br %18, ^bb8, ^bb9
   ^bb8:  // pred: ^bb7
     %19 = llvm.load %0 : !llvm.ptr -> i32
-    %c1_i32 = arith.constant 1 : i32
-    %20 = "wasm.add"(%19, %c1_i32) : (i32, i32) -> i32
+    %c1_i32_2 = arith.constant 1 : i32
+    %20 = "wasm.add"(%19, %c1_i32_2) : (i32, i32) -> i32
     llvm.store %20, %0 : i32, !llvm.ptr
     cf.br ^bb4
   ^bb9:  // pred: ^bb7

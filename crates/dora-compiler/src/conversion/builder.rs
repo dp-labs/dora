@@ -984,7 +984,7 @@ impl<'c, 'a> OpBuilder<'c, 'a> {
     /// # Returns
     /// An operation representing the memory allocation.
     pub fn alloca(&self, ty: Ty<'c, 'a>) -> Result<Op<'c, '_>> {
-        let array_size = self.make(self.iconst_64(1))?;
+        let array_size = self.make(self.iconst_32(1))?;
         Ok(llvm::alloca(
             self.context(),
             array_size,

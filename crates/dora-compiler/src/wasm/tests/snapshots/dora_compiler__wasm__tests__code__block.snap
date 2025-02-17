@@ -387,11 +387,11 @@ module {
     ]
   }
   func.func @func(%arg0: !llvm.ptr, %arg1: i32, %arg2: i32) -> i32 {
-    %c1_i64 = arith.constant 1 : i64
-    %0 = llvm.alloca %c1_i64 x i32 : (i64) -> !llvm.ptr
+    %c1_i32 = arith.constant 1 : i32
+    %0 = llvm.alloca %c1_i32 x i32 : (i32) -> !llvm.ptr
     llvm.store %arg1, %0 : i32, !llvm.ptr
-    %c1_i64_0 = arith.constant 1 : i64
-    %1 = llvm.alloca %c1_i64_0 x i32 : (i64) -> !llvm.ptr
+    %c1_i32_0 = arith.constant 1 : i32
+    %1 = llvm.alloca %c1_i32_0 x i32 : (i32) -> !llvm.ptr
     llvm.store %arg2, %1 : i32, !llvm.ptr
     cf.br ^bb1
   ^bb1:  // pred: ^bb0
@@ -634,8 +634,8 @@ module {
     cf.br ^bb2(%2 : i32)
   }
   func.func @f(%arg0: !llvm.ptr, %arg1: i32) -> i32 {
-    %c1_i64 = arith.constant 1 : i64
-    %0 = llvm.alloca %c1_i64 x i32 : (i64) -> !llvm.ptr
+    %c1_i32 = arith.constant 1 : i32
+    %0 = llvm.alloca %c1_i32 x i32 : (i32) -> !llvm.ptr
     llvm.store %arg1, %0 : i32, !llvm.ptr
     cf.br ^bb1
   ^bb1:  // pred: ^bb0
@@ -689,13 +689,13 @@ module {
   }
   func.func public @"as-local.set-value"(%arg0: !llvm.ptr) -> i32 attributes {llvm.emit_c_interface} {
     %c0_i32 = arith.constant 0 : i32
-    %c1_i64 = arith.constant 1 : i64
-    %0 = llvm.alloca %c1_i64 x i32 : (i64) -> !llvm.ptr
+    %c1_i32 = arith.constant 1 : i32
+    %0 = llvm.alloca %c1_i32 x i32 : (i32) -> !llvm.ptr
     llvm.store %c0_i32, %0 : i32, !llvm.ptr
     cf.br ^bb1
   ^bb1:  // pred: ^bb0
-    %c1_i32 = arith.constant 1 : i32
-    cf.br ^bb3(%c1_i32 : i32)
+    %c1_i32_0 = arith.constant 1 : i32
+    cf.br ^bb3(%c1_i32_0 : i32)
   ^bb2(%1: i32):  // pred: ^bb3
     return %1 : i32
   ^bb3(%2: i32):  // pred: ^bb1
@@ -705,13 +705,13 @@ module {
   }
   func.func public @"as-local.tee-value"(%arg0: !llvm.ptr) -> i32 attributes {llvm.emit_c_interface} {
     %c0_i32 = arith.constant 0 : i32
-    %c1_i64 = arith.constant 1 : i64
-    %0 = llvm.alloca %c1_i64 x i32 : (i64) -> !llvm.ptr
+    %c1_i32 = arith.constant 1 : i32
+    %0 = llvm.alloca %c1_i32 x i32 : (i32) -> !llvm.ptr
     llvm.store %c0_i32, %0 : i32, !llvm.ptr
     cf.br ^bb1
   ^bb1:  // pred: ^bb0
-    %c1_i32 = arith.constant 1 : i32
-    cf.br ^bb3(%c1_i32 : i32)
+    %c1_i32_0 = arith.constant 1 : i32
+    cf.br ^bb3(%c1_i32_0 : i32)
   ^bb2(%1: i32):  // pred: ^bb3
     return %1 : i32
   ^bb3(%2: i32):  // pred: ^bb1
@@ -917,16 +917,16 @@ module {
   }
   func.func public @"break-inner"(%arg0: !llvm.ptr) -> i32 attributes {llvm.emit_c_interface} {
     %c0_i32 = arith.constant 0 : i32
-    %c1_i64 = arith.constant 1 : i64
-    %0 = llvm.alloca %c1_i64 x i32 : (i64) -> !llvm.ptr
+    %c1_i32 = arith.constant 1 : i32
+    %0 = llvm.alloca %c1_i32 x i32 : (i32) -> !llvm.ptr
     llvm.store %c0_i32, %0 : i32, !llvm.ptr
     cf.br ^bb1
   ^bb1:  // pred: ^bb0
     %c0_i32_0 = arith.constant 0 : i32
     llvm.store %c0_i32_0, %0 : i32, !llvm.ptr
     %1 = llvm.load %0 : !llvm.ptr -> i32
-    %c1_i32 = arith.constant 1 : i32
-    cf.br ^bb3(%c1_i32 : i32)
+    %c1_i32_1 = arith.constant 1 : i32
+    cf.br ^bb3(%c1_i32_1 : i32)
   ^bb2(%2: i32):  // pred: ^bb8
     return %2 : i32
   ^bb3(%3: i32):  // 2 preds: ^bb1, ^bb4
@@ -1034,13 +1034,13 @@ module {
   }
   func.func public @effects(%arg0: !llvm.ptr) -> i32 attributes {llvm.emit_c_interface} {
     %c0_i32 = arith.constant 0 : i32
-    %c1_i64 = arith.constant 1 : i64
-    %0 = llvm.alloca %c1_i64 x i32 : (i64) -> !llvm.ptr
+    %c1_i32 = arith.constant 1 : i32
+    %0 = llvm.alloca %c1_i32 x i32 : (i32) -> !llvm.ptr
     llvm.store %c0_i32, %0 : i32, !llvm.ptr
     cf.br ^bb1
   ^bb1:  // pred: ^bb0
-    %c1_i32 = arith.constant 1 : i32
-    llvm.store %c1_i32, %0 : i32, !llvm.ptr
+    %c1_i32_0 = arith.constant 1 : i32
+    llvm.store %c1_i32_0, %0 : i32, !llvm.ptr
     %1 = llvm.load %0 : !llvm.ptr -> i32
     %c3_i32 = arith.constant 3 : i32
     %2 = "wasm.mul"(%1, %c3_i32) : (i32, i32) -> i32
