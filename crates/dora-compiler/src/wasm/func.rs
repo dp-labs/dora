@@ -181,7 +181,6 @@ impl FuncTranslator {
                         module_translation,
                         wasm_module,
                         symbol_registry,
-                        _config: config,
                     };
                     let mut last_block = code_start_lock;
                     while backend.state.has_control_frames() {

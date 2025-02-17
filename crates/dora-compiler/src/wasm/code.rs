@@ -1,6 +1,7 @@
 use crate::backend::AtomicBinOp;
 use crate::backend::AtomicOrdering;
 use crate::backend::IntCC;
+use crate::backend::LoadStoreOptions;
 use crate::context::Context;
 use crate::conversion::builder::OpBuilder;
 use crate::errors::Result;
@@ -16,7 +17,6 @@ use super::intrinsics::CtxType;
 use super::intrinsics::FunctionCache;
 use super::intrinsics::GlobalCache;
 use super::ty::{type_to_mlir, type_to_mlir_zero_attribute};
-use super::Config;
 use crate::errors::CompileError;
 use crate::state::ControlFrame;
 use crate::state::ExtraInfo;
@@ -708,8 +708,16 @@ pub struct FunctionCodeCtx<'c, 'a> {
     pub wasm_module: &'a ModuleInfo,
     /// A symbol registry for resolving module symbols.
     pub symbol_registry: &'a dyn SymbolRegistry,
-    /// Configuration settings for the code generation process.
-    pub _config: &'a Config,
+}
+
+impl FunctionCodeCtx<'_, '_> {
+    #[inline]
+    pub(crate) fn is_static_memory_index(&mut self, memory_index: MemoryIndex) -> bool {
+        matches!(
+            self.ctx.memory(memory_index, self.memory_styles),
+            Ok(MemoryCache::Static { base_ptr: _ })
+        )
+    }
 }
 
 pub struct FunctionCodeGenerator;
@@ -747,6 +755,7 @@ impl FunctionCodeGenerator {
     {
         let builder = OpBuilder::new_with_block(&backend.ctx.mlir_context, block);
         let state = &mut backend.state;
+        let vm_ctx = fcx.ctx.vm_ctx;
         if !state.reachable {
             match op {
                 Operator::Block { blockty: _ }
@@ -1088,7 +1097,6 @@ impl FunctionCodeGenerator {
                 let func_index = FunctionIndex::from_u32(function_index);
                 let sigindex = fcx.wasm_module.functions[func_index];
                 let wasm_func_type = &fcx.wasm_module.signatures[sigindex];
-                let vm_ctx = fcx.ctx.vm_ctx;
                 let _import_key = fcx.ctx.get_import_function_info(function_index);
                 let (
                     FunctionCache {
@@ -1262,7 +1270,12 @@ impl FunctionCodeGenerator {
                     region,
                     block,
                 )?;
-                let result = builder.make(builder.load(effective_address, builder.i32_ty()))?;
+                let result = builder.make(builder.load_with_align_and_volatile(
+                    effective_address,
+                    builder.i32_ty(),
+                    1,
+                    fcx.is_static_memory_index(memory_index),
+                ))?;
                 state.push1(result.to_ctx_value());
                 return Ok(block);
             }
@@ -1279,7 +1292,12 @@ impl FunctionCodeGenerator {
                     region,
                     block,
                 )?;
-                let result = builder.make(builder.load(effective_address, builder.i64_ty()))?;
+                let result = builder.make(builder.load_with_align_and_volatile(
+                    effective_address,
+                    builder.i64_ty(),
+                    1,
+                    fcx.is_static_memory_index(memory_index),
+                ))?;
                 state.push1(result.to_ctx_value());
                 return Ok(block);
             }
@@ -1296,10 +1314,11 @@ impl FunctionCodeGenerator {
                     region,
                     block,
                 )?;
-                let result = builder.make(builder.load_with_align(
+                let result = builder.make(builder.load_with_align_and_volatile(
                     effective_address,
                     builder.f32_ty(),
                     1,
+                    fcx.is_static_memory_index(memory_index),
                 ))?;
                 state.push1(result.to_ctx_value());
                 return Ok(block);
@@ -1317,7 +1336,12 @@ impl FunctionCodeGenerator {
                     region,
                     block,
                 )?;
-                let result = builder.make(builder.load(effective_address, builder.f64_ty()))?;
+                let result = builder.make(builder.load_with_align_and_volatile(
+                    effective_address,
+                    builder.f64_ty(),
+                    1,
+                    fcx.is_static_memory_index(memory_index),
+                ))?;
                 state.push1(result.to_ctx_value());
                 return Ok(block);
             }
@@ -1334,7 +1358,12 @@ impl FunctionCodeGenerator {
                     region,
                     block,
                 )?;
-                let result = builder.make(builder.load(effective_address, builder.i8_ty()))?;
+                let result = builder.make(builder.load_with_align_and_volatile(
+                    effective_address,
+                    builder.i8_ty(),
+                    1,
+                    fcx.is_static_memory_index(memory_index),
+                ))?;
                 let result = builder.make(arith::extsi(
                     result,
                     builder.i32_ty(),
@@ -1356,7 +1385,12 @@ impl FunctionCodeGenerator {
                     region,
                     block,
                 )?;
-                let result = builder.make(builder.load(effective_address, builder.i8_ty()))?;
+                let result = builder.make(builder.load_with_align_and_volatile(
+                    effective_address,
+                    builder.i8_ty(),
+                    1,
+                    fcx.is_static_memory_index(memory_index),
+                ))?;
                 let result = builder.make(arith::extui(
                     result,
                     builder.i32_ty(),
@@ -1378,7 +1412,12 @@ impl FunctionCodeGenerator {
                     region,
                     block,
                 )?;
-                let result = builder.make(builder.load(effective_address, builder.i16_ty()))?;
+                let result = builder.make(builder.load_with_align_and_volatile(
+                    effective_address,
+                    builder.i16_ty(),
+                    1,
+                    fcx.is_static_memory_index(memory_index),
+                ))?;
                 let result = builder.make(arith::extsi(
                     result,
                     builder.i32_ty(),
@@ -1400,7 +1439,12 @@ impl FunctionCodeGenerator {
                     region,
                     block,
                 )?;
-                let result = builder.make(builder.load(effective_address, builder.i16_ty()))?;
+                let result = builder.make(builder.load_with_align_and_volatile(
+                    effective_address,
+                    builder.i16_ty(),
+                    1,
+                    fcx.is_static_memory_index(memory_index),
+                ))?;
                 let result = builder.make(arith::extui(
                     result,
                     builder.i32_ty(),
@@ -1422,7 +1466,12 @@ impl FunctionCodeGenerator {
                     region,
                     block,
                 )?;
-                let result = builder.make(builder.load(effective_address, builder.i8_ty()))?;
+                let result = builder.make(builder.load_with_align_and_volatile(
+                    effective_address,
+                    builder.i8_ty(),
+                    1,
+                    fcx.is_static_memory_index(memory_index),
+                ))?;
                 let result = builder.make(arith::extsi(
                     result,
                     builder.i64_ty(),
@@ -1444,7 +1493,12 @@ impl FunctionCodeGenerator {
                     region,
                     block,
                 )?;
-                let result = builder.make(builder.load(effective_address, builder.i8_ty()))?;
+                let result = builder.make(builder.load_with_align_and_volatile(
+                    effective_address,
+                    builder.i8_ty(),
+                    1,
+                    fcx.is_static_memory_index(memory_index),
+                ))?;
                 let result = builder.make(arith::extui(
                     result,
                     builder.i64_ty(),
@@ -1466,7 +1520,12 @@ impl FunctionCodeGenerator {
                     region,
                     block,
                 )?;
-                let result = builder.make(builder.load(effective_address, builder.i16_ty()))?;
+                let result = builder.make(builder.load_with_align_and_volatile(
+                    effective_address,
+                    builder.i16_ty(),
+                    1,
+                    fcx.is_static_memory_index(memory_index),
+                ))?;
                 let result = builder.make(arith::extsi(
                     result,
                     builder.i64_ty(),
@@ -1488,7 +1547,12 @@ impl FunctionCodeGenerator {
                     region,
                     block,
                 )?;
-                let result = builder.make(builder.load(effective_address, builder.i16_ty()))?;
+                let result = builder.make(builder.load_with_align_and_volatile(
+                    effective_address,
+                    builder.i16_ty(),
+                    1,
+                    fcx.is_static_memory_index(memory_index),
+                ))?;
                 let result = builder.make(arith::extui(
                     result,
                     builder.i64_ty(),
@@ -1510,7 +1574,12 @@ impl FunctionCodeGenerator {
                     region,
                     block,
                 )?;
-                let result = builder.make(builder.load(effective_address, builder.i32_ty()))?;
+                let result = builder.make(builder.load_with_align_and_volatile(
+                    effective_address,
+                    builder.i32_ty(),
+                    1,
+                    fcx.is_static_memory_index(memory_index),
+                ))?;
                 let result = builder.make(arith::extsi(
                     result,
                     builder.i64_ty(),
@@ -1532,7 +1601,12 @@ impl FunctionCodeGenerator {
                     region,
                     block,
                 )?;
-                let result = builder.make(builder.load(effective_address, builder.i32_ty()))?;
+                let result = builder.make(builder.load_with_align_and_volatile(
+                    effective_address,
+                    builder.i32_ty(),
+                    1,
+                    fcx.is_static_memory_index(memory_index),
+                ))?;
                 let result = builder.make(arith::extui(
                     result,
                     builder.i64_ty(),
@@ -1554,7 +1628,12 @@ impl FunctionCodeGenerator {
                     region,
                     block,
                 )?;
-                builder.create(builder.store(value, effective_address));
+                builder.create(builder.store_with_align_and_volatile(
+                    value,
+                    effective_address,
+                    1,
+                    fcx.is_static_memory_index(memory_index),
+                ));
                 return Ok(block);
             }
             Operator::I64Store { ref memarg } => {
@@ -1570,7 +1649,12 @@ impl FunctionCodeGenerator {
                     region,
                     block,
                 )?;
-                builder.create(builder.store(value, effective_address));
+                builder.create(builder.store_with_align_and_volatile(
+                    value,
+                    effective_address,
+                    1,
+                    fcx.is_static_memory_index(memory_index),
+                ));
                 return Ok(block);
             }
             Operator::F32Store { ref memarg } => {
@@ -1586,7 +1670,12 @@ impl FunctionCodeGenerator {
                     region,
                     block,
                 )?;
-                builder.create(builder.store_with_align(value, effective_address, 1));
+                builder.create(builder.store_with_align_and_volatile(
+                    value,
+                    effective_address,
+                    1,
+                    fcx.is_static_memory_index(memory_index),
+                ));
                 return Ok(block);
             }
             Operator::F64Store { ref memarg } => {
@@ -1602,7 +1691,12 @@ impl FunctionCodeGenerator {
                     region,
                     block,
                 )?;
-                builder.create(builder.store(value, effective_address));
+                builder.create(builder.store_with_align_and_volatile(
+                    value,
+                    effective_address,
+                    1,
+                    fcx.is_static_memory_index(memory_index),
+                ));
                 return Ok(block);
             }
             Operator::I32Store8 { ref memarg } | Operator::I64Store8 { ref memarg } => {
@@ -1623,7 +1717,12 @@ impl FunctionCodeGenerator {
                     builder.i8_ty(),
                     builder.get_insert_location(),
                 ))?;
-                builder.create(builder.store(value, effective_address));
+                builder.create(builder.store_with_align_and_volatile(
+                    value,
+                    effective_address,
+                    1,
+                    fcx.is_static_memory_index(memory_index),
+                ));
                 return Ok(block);
             }
             Operator::I32Store16 { ref memarg } | Operator::I64Store16 { ref memarg } => {
@@ -1644,7 +1743,12 @@ impl FunctionCodeGenerator {
                     builder.i16_ty(),
                     builder.get_insert_location(),
                 ))?;
-                builder.create(builder.store(value, effective_address));
+                builder.create(builder.store_with_align_and_volatile(
+                    value,
+                    effective_address,
+                    1,
+                    fcx.is_static_memory_index(memory_index),
+                ));
                 return Ok(block);
             }
             Operator::I64Store32 { ref memarg } => {
@@ -1665,7 +1769,12 @@ impl FunctionCodeGenerator {
                     builder.i32_ty(),
                     builder.get_insert_location(),
                 ))?;
-                builder.create(builder.store(value, effective_address));
+                builder.create(builder.store_with_align_and_volatile(
+                    value,
+                    effective_address,
+                    1,
+                    fcx.is_static_memory_index(memory_index),
+                ));
                 return Ok(block);
             }
             Operator::I32Const { value } => {
@@ -1765,7 +1874,7 @@ impl FunctionCodeGenerator {
                             &backend.ctx.mlir_context,
                             symbols::wasm::FUNC_REF,
                         ),
-                        &[fcx.ctx.vm_ctx, index],
+                        &[vm_ctx, index],
                         &[builder.ptr_ty()],
                         builder.get_insert_location(),
                     ))?
@@ -2201,7 +2310,7 @@ impl FunctionCodeGenerator {
                         &backend.ctx.mlir_context,
                         symbols::wasm::MEMORY_INIT,
                     ),
-                    &[fcx.ctx.vm_ctx, mem, segment, dest, src, len],
+                    &[vm_ctx, mem, segment, dest, src, len],
                     &[],
                     builder.get_insert_location(),
                 ));
@@ -2218,7 +2327,7 @@ impl FunctionCodeGenerator {
                         &backend.ctx.mlir_context,
                         symbols::wasm::DATA_DROP,
                     ),
-                    &[fcx.ctx.vm_ctx, segment],
+                    &[vm_ctx, segment],
                     &[],
                     builder.get_insert_location(),
                 ));
@@ -2235,7 +2344,7 @@ impl FunctionCodeGenerator {
                         &backend.ctx.mlir_context,
                         symbols::wasm::ELEM_DROP,
                     ),
-                    &[fcx.ctx.vm_ctx, segment],
+                    &[vm_ctx, segment],
                     &[],
                     builder.get_insert_location(),
                 ));
@@ -2259,7 +2368,7 @@ impl FunctionCodeGenerator {
                             &backend.ctx.mlir_context,
                             symbols::wasm::MEMORY_COPY,
                         ),
-                        &[fcx.ctx.vm_ctx, src_index, dest_pos, src_pos, len],
+                        &[vm_ctx, src_index, dest_pos, src_pos, len],
                         &[],
                         builder.get_insert_location(),
                     ));
@@ -2275,7 +2384,7 @@ impl FunctionCodeGenerator {
                             &backend.ctx.mlir_context,
                             symbols::wasm::IMPORTED_MEMORY_COPY,
                         ),
-                        &[fcx.ctx.vm_ctx, src_index, dest_pos, src_pos, len],
+                        &[vm_ctx, src_index, dest_pos, src_pos, len],
                         &[],
                         builder.get_insert_location(),
                     ));
@@ -2298,7 +2407,7 @@ impl FunctionCodeGenerator {
                             &backend.ctx.mlir_context,
                             symbols::wasm::MEMORY_FILL,
                         ),
-                        &[fcx.ctx.vm_ctx, mem_index, dst, val, len],
+                        &[vm_ctx, mem_index, dst, val, len],
                         &[],
                         builder.get_insert_location(),
                     ));
@@ -2313,7 +2422,7 @@ impl FunctionCodeGenerator {
                             &backend.ctx.mlir_context,
                             symbols::wasm::IMPORTED_MEMORY_FILL,
                         ),
-                        &[fcx.ctx.vm_ctx, mem_index, dst, val, len],
+                        &[vm_ctx, mem_index, dst, val, len],
                         &[],
                         builder.get_insert_location(),
                     ));
@@ -2335,7 +2444,7 @@ impl FunctionCodeGenerator {
                         &backend.ctx.mlir_context,
                         symbols::wasm::TABLE_INIT,
                     ),
-                    &[fcx.ctx.vm_ctx, table, segment, dst, src, len],
+                    &[vm_ctx, table, segment, dst, src, len],
                     &[],
                     builder.get_insert_location(),
                 ));
@@ -2360,7 +2469,7 @@ impl FunctionCodeGenerator {
                         &backend.ctx.mlir_context,
                         symbols::wasm::TABLE_COPY,
                     ),
-                    &[fcx.ctx.vm_ctx, dst_table, src_table, dst, src, len],
+                    &[vm_ctx, dst_table, src_table, dst, src, len],
                     &[],
                     builder.get_insert_location(),
                 ));
@@ -2377,7 +2486,7 @@ impl FunctionCodeGenerator {
                         &backend.ctx.mlir_context,
                         symbols::wasm::TABLE_FILL,
                     ),
-                    &[fcx.ctx.vm_ctx, table, start, elem, len],
+                    &[vm_ctx, table, start, elem, len],
                     &[],
                     builder.get_insert_location(),
                 ));
@@ -2399,7 +2508,7 @@ impl FunctionCodeGenerator {
                             &backend.ctx.mlir_context,
                             symbols::wasm::TABLE_GET,
                         ),
-                        &[fcx.ctx.vm_ctx, table_index, elem],
+                        &[vm_ctx, table_index, elem],
                         &[builder.ptr_ty()],
                         builder.get_insert_location(),
                     ))
@@ -2410,7 +2519,7 @@ impl FunctionCodeGenerator {
                             &backend.ctx.mlir_context,
                             symbols::wasm::IMPORTED_TABLE_GET,
                         ),
-                        &[fcx.ctx.vm_ctx, table_index, elem],
+                        &[vm_ctx, table_index, elem],
                         &[builder.ptr_ty()],
                         builder.get_insert_location(),
                     ))
@@ -2448,7 +2557,7 @@ impl FunctionCodeGenerator {
                             &backend.ctx.mlir_context,
                             symbols::wasm::TABLE_SET,
                         ),
-                        &[fcx.ctx.vm_ctx, table_index, elem, value],
+                        &[vm_ctx, table_index, elem, value],
                         &[],
                         builder.get_insert_location(),
                     ))
@@ -2459,7 +2568,7 @@ impl FunctionCodeGenerator {
                             &backend.ctx.mlir_context,
                             symbols::wasm::IMPORTED_TABLE_SET,
                         ),
-                        &[fcx.ctx.vm_ctx, table_index, elem, value],
+                        &[vm_ctx, table_index, elem, value],
                         &[],
                         builder.get_insert_location(),
                     ))
@@ -2481,7 +2590,7 @@ impl FunctionCodeGenerator {
                             &backend.ctx.mlir_context,
                             symbols::wasm::TABLE_GROW,
                         ),
-                        &[fcx.ctx.vm_ctx, elem, delta, table_index],
+                        &[vm_ctx, elem, delta, table_index],
                         &[builder.i32_ty()],
                         builder.get_insert_location(),
                     ))
@@ -2496,7 +2605,7 @@ impl FunctionCodeGenerator {
                             &backend.ctx.mlir_context,
                             symbols::wasm::IMPORTED_TABLE_GROW,
                         ),
-                        &[fcx.ctx.vm_ctx, elem, delta, table_index],
+                        &[vm_ctx, elem, delta, table_index],
                         &[builder.i32_ty()],
                         builder.get_insert_location(),
                     ))
@@ -2519,7 +2628,7 @@ impl FunctionCodeGenerator {
                             &backend.ctx.mlir_context,
                             symbols::wasm::TABLE_SIZE,
                         ),
-                        &[fcx.ctx.vm_ctx, table_index],
+                        &[vm_ctx, table_index],
                         &[builder.i32_ty()],
                         builder.get_insert_location(),
                     ))
@@ -2534,7 +2643,7 @@ impl FunctionCodeGenerator {
                             &backend.ctx.mlir_context,
                             symbols::wasm::IMPORTED_TABLE_SIZE,
                         ),
-                        &[fcx.ctx.vm_ctx, table_index],
+                        &[vm_ctx, table_index],
                         &[builder.i32_ty()],
                         builder.get_insert_location(),
                     ))
@@ -2557,7 +2666,7 @@ impl FunctionCodeGenerator {
                     .make(func::call(
                         &backend.ctx.mlir_context,
                         FlatSymbolRefAttribute::new(&backend.ctx.mlir_context, symbol),
-                        &[fcx.ctx.vm_ctx, mem],
+                        &[vm_ctx, mem],
                         &[builder.i32_ty()],
                         builder.get_insert_location(),
                     ))?
@@ -2580,7 +2689,7 @@ impl FunctionCodeGenerator {
                     .make(func::call(
                         &backend.ctx.mlir_context,
                         FlatSymbolRefAttribute::new(&backend.ctx.mlir_context, symbol),
-                        &[fcx.ctx.vm_ctx, delta, mem],
+                        &[vm_ctx, delta, mem],
                         &[builder.i32_ty()],
                         builder.get_insert_location(),
                     ))?
@@ -2600,7 +2709,7 @@ impl FunctionCodeGenerator {
                     .make(func::call(
                         &backend.ctx.mlir_context,
                         FlatSymbolRefAttribute::new(&backend.ctx.mlir_context, symbol),
-                        &[fcx.ctx.vm_ctx, memory, dst, count],
+                        &[vm_ctx, memory, dst, count],
                         &[builder.ptr_ty()],
                         builder.get_insert_location(),
                     ))?
@@ -2620,7 +2729,7 @@ impl FunctionCodeGenerator {
                     .make(func::call(
                         &backend.ctx.mlir_context,
                         FlatSymbolRefAttribute::new(&backend.ctx.mlir_context, symbol),
-                        &[fcx.ctx.vm_ctx, memory, dst, val],
+                        &[vm_ctx, memory, dst, val],
                         &[builder.ptr_ty()],
                         builder.get_insert_location(),
                     ))?
@@ -2640,7 +2749,7 @@ impl FunctionCodeGenerator {
                     .make(func::call(
                         &backend.ctx.mlir_context,
                         FlatSymbolRefAttribute::new(&backend.ctx.mlir_context, symbol),
-                        &[fcx.ctx.vm_ctx, memory, dst, val],
+                        &[vm_ctx, memory, dst, val],
                         &[builder.ptr_ty()],
                         builder.get_insert_location(),
                     ))?
@@ -2669,10 +2778,15 @@ impl FunctionCodeGenerator {
                     region,
                     block,
                 )?;
-                let result = builder.make(builder.load_with_ordering(
+                let result = builder.make(builder.load_with_opts(
                     effective_address,
                     builder.i32_ty(),
-                    AtomicOrdering::SequentiallyConsistent,
+                    LoadStoreOptions {
+                        align: Some(4),
+                        volatile: fcx.is_static_memory_index(memory_index),
+                        ordering: Some(AtomicOrdering::SequentiallyConsistent),
+                        ..Default::default()
+                    },
                 ))?;
                 state.push1(result.to_ctx_value());
                 return Ok(block);
@@ -2690,10 +2804,15 @@ impl FunctionCodeGenerator {
                     region,
                     block,
                 )?;
-                let result = builder.make(builder.load_with_ordering(
+                let result = builder.make(builder.load_with_opts(
                     effective_address,
                     builder.i64_ty(),
-                    AtomicOrdering::SequentiallyConsistent,
+                    LoadStoreOptions {
+                        align: Some(8),
+                        volatile: fcx.is_static_memory_index(memory_index),
+                        ordering: Some(AtomicOrdering::SequentiallyConsistent),
+                        ..Default::default()
+                    },
                 ))?;
                 state.push1(result.to_ctx_value());
                 return Ok(block);
@@ -2711,10 +2830,15 @@ impl FunctionCodeGenerator {
                     region,
                     block,
                 )?;
-                let result = builder.make(builder.load_with_ordering(
+                let result = builder.make(builder.load_with_opts(
                     effective_address,
                     builder.i8_ty(),
-                    AtomicOrdering::SequentiallyConsistent,
+                    LoadStoreOptions {
+                        align: Some(1),
+                        volatile: fcx.is_static_memory_index(memory_index),
+                        ordering: Some(AtomicOrdering::SequentiallyConsistent),
+                        ..Default::default()
+                    },
                 ))?;
                 let result = builder.make(arith::extui(
                     result,
@@ -2737,10 +2861,15 @@ impl FunctionCodeGenerator {
                     region,
                     block,
                 )?;
-                let result = builder.make(builder.load_with_ordering(
+                let result = builder.make(builder.load_with_opts(
                     effective_address,
                     builder.i16_ty(),
-                    AtomicOrdering::SequentiallyConsistent,
+                    LoadStoreOptions {
+                        align: Some(2),
+                        volatile: fcx.is_static_memory_index(memory_index),
+                        ordering: Some(AtomicOrdering::SequentiallyConsistent),
+                        ..Default::default()
+                    },
                 ))?;
                 let result = builder.make(arith::extui(
                     result,
@@ -2763,10 +2892,15 @@ impl FunctionCodeGenerator {
                     region,
                     block,
                 )?;
-                let result = builder.make(builder.load_with_ordering(
+                let result = builder.make(builder.load_with_opts(
                     effective_address,
                     builder.i8_ty(),
-                    AtomicOrdering::SequentiallyConsistent,
+                    LoadStoreOptions {
+                        align: Some(1),
+                        volatile: fcx.is_static_memory_index(memory_index),
+                        ordering: Some(AtomicOrdering::SequentiallyConsistent),
+                        ..Default::default()
+                    },
                 ))?;
                 let result = builder.make(arith::extui(
                     result,
@@ -2789,10 +2923,15 @@ impl FunctionCodeGenerator {
                     region,
                     block,
                 )?;
-                let result = builder.make(builder.load_with_ordering(
+                let result = builder.make(builder.load_with_opts(
                     effective_address,
                     builder.i16_ty(),
-                    AtomicOrdering::SequentiallyConsistent,
+                    LoadStoreOptions {
+                        align: Some(2),
+                        volatile: fcx.is_static_memory_index(memory_index),
+                        ordering: Some(AtomicOrdering::SequentiallyConsistent),
+                        ..Default::default()
+                    },
                 ))?;
                 let result = builder.make(arith::extui(
                     result,
@@ -2815,10 +2954,15 @@ impl FunctionCodeGenerator {
                     region,
                     block,
                 )?;
-                let result = builder.make(builder.load_with_ordering(
+                let result = builder.make(builder.load_with_opts(
                     effective_address,
                     builder.i32_ty(),
-                    AtomicOrdering::SequentiallyConsistent,
+                    LoadStoreOptions {
+                        align: Some(4),
+                        volatile: fcx.is_static_memory_index(memory_index),
+                        ordering: Some(AtomicOrdering::SequentiallyConsistent),
+                        ..Default::default()
+                    },
                 ))?;
                 let result = builder.make(arith::extui(
                     result,
@@ -2841,10 +2985,15 @@ impl FunctionCodeGenerator {
                     region,
                     block,
                 )?;
-                builder.create(builder.store_with_ordering(
+                builder.create(builder.store_with_opts(
                     value,
                     effective_address,
-                    AtomicOrdering::SequentiallyConsistent,
+                    LoadStoreOptions {
+                        align: Some(4),
+                        volatile: fcx.is_static_memory_index(memory_index),
+                        ordering: Some(AtomicOrdering::SequentiallyConsistent),
+                        ..Default::default()
+                    },
                 ));
                 return Ok(block);
             }
@@ -2861,10 +3010,15 @@ impl FunctionCodeGenerator {
                     region,
                     block,
                 )?;
-                builder.create(builder.store_with_ordering(
+                builder.create(builder.store_with_opts(
                     value,
                     effective_address,
-                    AtomicOrdering::SequentiallyConsistent,
+                    LoadStoreOptions {
+                        align: Some(8),
+                        volatile: fcx.is_static_memory_index(memory_index),
+                        ordering: Some(AtomicOrdering::SequentiallyConsistent),
+                        ..Default::default()
+                    },
                 ));
                 return Ok(block);
             }
@@ -2886,10 +3040,15 @@ impl FunctionCodeGenerator {
                     builder.i8_ty(),
                     builder.get_insert_location(),
                 ))?;
-                builder.create(builder.store_with_ordering(
+                builder.create(builder.store_with_opts(
                     value,
                     effective_address,
-                    AtomicOrdering::SequentiallyConsistent,
+                    LoadStoreOptions {
+                        align: Some(1),
+                        volatile: fcx.is_static_memory_index(memory_index),
+                        ordering: Some(AtomicOrdering::SequentiallyConsistent),
+                        ..Default::default()
+                    },
                 ));
                 return Ok(block);
             }
@@ -2911,10 +3070,15 @@ impl FunctionCodeGenerator {
                     builder.i16_ty(),
                     builder.get_insert_location(),
                 ))?;
-                builder.create(builder.store_with_ordering(
+                builder.create(builder.store_with_opts(
                     value,
                     effective_address,
-                    AtomicOrdering::SequentiallyConsistent,
+                    LoadStoreOptions {
+                        align: Some(2),
+                        volatile: fcx.is_static_memory_index(memory_index),
+                        ordering: Some(AtomicOrdering::SequentiallyConsistent),
+                        ..Default::default()
+                    },
                 ));
                 return Ok(block);
             }
@@ -2936,10 +3100,15 @@ impl FunctionCodeGenerator {
                     builder.i8_ty(),
                     builder.get_insert_location(),
                 ))?;
-                builder.create(builder.store_with_ordering(
+                builder.create(builder.store_with_opts(
                     value,
                     effective_address,
-                    AtomicOrdering::SequentiallyConsistent,
+                    LoadStoreOptions {
+                        align: Some(1),
+                        volatile: fcx.is_static_memory_index(memory_index),
+                        ordering: Some(AtomicOrdering::SequentiallyConsistent),
+                        ..Default::default()
+                    },
                 ));
                 return Ok(block);
             }
@@ -2961,10 +3130,15 @@ impl FunctionCodeGenerator {
                     builder.i16_ty(),
                     builder.get_insert_location(),
                 ))?;
-                builder.make(builder.store_with_ordering(
+                builder.make(builder.store_with_opts(
                     value,
                     effective_address,
-                    AtomicOrdering::SequentiallyConsistent,
+                    LoadStoreOptions {
+                        align: Some(2),
+                        volatile: fcx.is_static_memory_index(memory_index),
+                        ordering: Some(AtomicOrdering::SequentiallyConsistent),
+                        ..Default::default()
+                    },
                 ))?;
                 return Ok(block);
             }
@@ -2986,10 +3160,15 @@ impl FunctionCodeGenerator {
                     builder.i32_ty(),
                     builder.get_insert_location(),
                 ))?;
-                builder.create(builder.store_with_ordering(
+                builder.create(builder.store_with_opts(
                     value,
                     effective_address,
-                    AtomicOrdering::SequentiallyConsistent,
+                    LoadStoreOptions {
+                        align: Some(4),
+                        volatile: fcx.is_static_memory_index(memory_index),
+                        ordering: Some(AtomicOrdering::SequentiallyConsistent),
+                        ..Default::default()
+                    },
                 ));
                 return Ok(block);
             }

@@ -41,7 +41,7 @@ module {
     %13 = arith.extui %12 : i32 to i64
     %14 = arith.addi %13, %c0_i64 : i64
     %15 = llvm.getelementptr %4[%14] : (!llvm.ptr, i64) -> !llvm.ptr, i8
-    %16 = llvm.load %15 : !llvm.ptr -> i8
+    %16 = llvm.load volatile %15 {alignment = 1 : i64} : !llvm.ptr -> i8
     %17 = arith.extui %16 : i8 to i32
     %c85_i32 = arith.constant 85 : i32
     %18 = arith.cmpi eq, %17, %c85_i32 : i32

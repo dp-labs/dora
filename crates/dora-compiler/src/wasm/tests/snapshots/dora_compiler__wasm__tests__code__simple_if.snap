@@ -28,7 +28,7 @@ module {
     %9 = arith.addi %8, %c0_i64 : i64
     %10 = llvm.getelementptr %4[%9] : (!llvm.ptr, i64) -> !llvm.ptr, i8
     %11 = arith.trunci %c0_i32_2 : i32 to i8
-    llvm.store %11, %10 : i8, !llvm.ptr
+    llvm.store volatile %11, %10 {alignment = 1 : i64} : i8, !llvm.ptr
     cf.br ^bb2
   ^bb4:  // pred: ^bb1
     cf.br ^bb5

@@ -722,7 +722,7 @@ module {
     %4 = arith.extui %3 : i32 to i64
     %5 = arith.addi %4, %c0_i64 : i64
     %6 = llvm.getelementptr %2[%5] : (!llvm.ptr, i64) -> !llvm.ptr, i8
-    llvm.store %c1_i32, %6 : i32, !llvm.ptr
+    llvm.store volatile %c1_i32, %6 {alignment = 1 : i64} : i32, !llvm.ptr
     cf.br ^bb2
   ^bb2:  // pred: ^bb1
     return
@@ -739,7 +739,7 @@ module {
     %4 = arith.extui %c10_i32 : i32 to i64
     %5 = arith.addi %4, %c0_i64 : i64
     %6 = llvm.getelementptr %2[%5] : (!llvm.ptr, i64) -> !llvm.ptr, i8
-    llvm.store %3, %6 : i32, !llvm.ptr
+    llvm.store volatile %3, %6 {alignment = 1 : i64} : i32, !llvm.ptr
     cf.br ^bb2
   ^bb2:  // pred: ^bb1
     return
@@ -830,7 +830,7 @@ module {
     %4 = arith.extui %3 : i32 to i64
     %5 = arith.addi %4, %c0_i64 : i64
     %6 = llvm.getelementptr %2[%5] : (!llvm.ptr, i64) -> !llvm.ptr, i8
-    %7 = llvm.load %6 : !llvm.ptr -> i32
+    %7 = llvm.load volatile %6 {alignment = 1 : i64} : !llvm.ptr -> i32
     cf.br ^bb2(%7 : i32)
   ^bb2(%8: i32):  // pred: ^bb1
     return %8 : i32

@@ -1061,7 +1061,7 @@ module {
     %7 = arith.extui %c1_i32 : i32 to i64
     %8 = arith.addi %7, %c0_i64 : i64
     %9 = llvm.getelementptr %2[%8] : (!llvm.ptr, i64) -> !llvm.ptr, i8
-    %10 = llvm.load %9 : !llvm.ptr -> i32
+    %10 = llvm.load volatile %9 {alignment = 1 : i64} : !llvm.ptr -> i32
     cf.br ^bb3(%10 : i32)
   }
   func.func public @"as-loadN-address"(%arg0: !llvm.ptr) -> i32 attributes {llvm.emit_c_interface} {
@@ -1084,7 +1084,7 @@ module {
     %7 = arith.extui %c30_i32 : i32 to i64
     %8 = arith.addi %7, %c0_i64 : i64
     %9 = llvm.getelementptr %2[%8] : (!llvm.ptr, i64) -> !llvm.ptr, i8
-    %10 = llvm.load %9 : !llvm.ptr -> i8
+    %10 = llvm.load volatile %9 {alignment = 1 : i64} : !llvm.ptr -> i8
     %11 = arith.extsi %10 : i8 to i32
     cf.br ^bb3(%11 : i32)
   }
@@ -1109,7 +1109,7 @@ module {
     %7 = arith.extui %c30_i32 : i32 to i64
     %8 = arith.addi %7, %c0_i64 : i64
     %9 = llvm.getelementptr %2[%8] : (!llvm.ptr, i64) -> !llvm.ptr, i8
-    llvm.store %c7_i32, %9 : i32, !llvm.ptr
+    llvm.store volatile %c7_i32, %9 {alignment = 1 : i64} : i32, !llvm.ptr
     %c-1_i32 = arith.constant -1 : i32
     cf.br ^bb3(%c-1_i32 : i32)
   }
@@ -1134,7 +1134,7 @@ module {
     %7 = arith.extui %c2_i32 : i32 to i64
     %8 = arith.addi %7, %c0_i64 : i64
     %9 = llvm.getelementptr %2[%8] : (!llvm.ptr, i64) -> !llvm.ptr, i8
-    llvm.store %c31_i32, %9 : i32, !llvm.ptr
+    llvm.store volatile %c31_i32, %9 {alignment = 1 : i64} : i32, !llvm.ptr
     %c-1_i32 = arith.constant -1 : i32
     cf.br ^bb3(%c-1_i32 : i32)
   }
@@ -1160,7 +1160,7 @@ module {
     %8 = arith.addi %7, %c0_i64 : i64
     %9 = llvm.getelementptr %2[%8] : (!llvm.ptr, i64) -> !llvm.ptr, i8
     %10 = arith.trunci %c7_i32 : i32 to i8
-    llvm.store %10, %9 : i8, !llvm.ptr
+    llvm.store volatile %10, %9 {alignment = 1 : i64} : i8, !llvm.ptr
     %c-1_i32 = arith.constant -1 : i32
     cf.br ^bb3(%c-1_i32 : i32)
   }
@@ -1186,7 +1186,7 @@ module {
     %8 = arith.addi %7, %c0_i64 : i64
     %9 = llvm.getelementptr %2[%8] : (!llvm.ptr, i64) -> !llvm.ptr, i8
     %10 = arith.trunci %c33_i32 : i32 to i16
-    llvm.store %10, %9 : i16, !llvm.ptr
+    llvm.store volatile %10, %9 {alignment = 1 : i64} : i16, !llvm.ptr
     %c-1_i32 = arith.constant -1 : i32
     cf.br ^bb3(%c-1_i32 : i32)
   }
