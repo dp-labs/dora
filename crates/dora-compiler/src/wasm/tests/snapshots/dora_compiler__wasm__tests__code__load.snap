@@ -405,58 +405,59 @@ module {
     %5 = llvm.getelementptr %arg0[16] : (!llvm.ptr) -> !llvm.ptr, i8
     %6 = llvm.getelementptr %arg0[24] : (!llvm.ptr) -> !llvm.ptr, i8
     %7 = llvm.load %5 : !llvm.ptr -> !llvm.ptr
-    %8 = llvm.load %6 : !llvm.ptr -> i32
+    %8 = llvm.load %6 : !llvm.ptr -> i64
+    %9 = arith.trunci %8 : i64 to i32
     cf.br ^bb1
   ^bb1:  // pred: ^bb0
     %c0_i32 = arith.constant 0 : i32
     %c0_i64 = arith.constant 0 : i64
-    %9 = arith.extui %c0_i32 : i32 to i64
-    %10 = arith.addi %9, %c0_i64 : i64
-    %11 = llvm.getelementptr %2[%10] : (!llvm.ptr, i64) -> !llvm.ptr, i8
-    %12 = llvm.load volatile %11 {alignment = 1 : i64} : !llvm.ptr -> i32
+    %10 = arith.extui %c0_i32 : i32 to i64
+    %11 = arith.addi %10, %c0_i64 : i64
+    %12 = llvm.getelementptr %2[%11] : (!llvm.ptr, i64) -> !llvm.ptr, i8
+    %13 = llvm.load volatile %12 {alignment = 1 : i64} : !llvm.ptr -> i32
     %c2_i32 = arith.constant 2 : i32
     %c3_i32 = arith.constant 3 : i32
     %c0_i32_0 = arith.constant 0 : i32
-    %13 = arith.cmpi ult, %c0_i32_0, %8 : i32
-    cf.cond_br %13, ^bb3, ^bb4
-  ^bb2(%14: i32):  // pred: ^bb9
-    return %14 : i32
+    %14 = arith.cmpi ult, %c0_i32_0, %9 : i32
+    cf.cond_br %14, ^bb3, ^bb4
+  ^bb2(%15: i32):  // pred: ^bb9
+    return %15 : i32
   ^bb3:  // 2 preds: ^bb1, ^bb4
-    %15 = llvm.getelementptr %7[%c0_i32_0] : (!llvm.ptr, i32) -> !llvm.ptr, i8
-    %16 = llvm.load %15 : !llvm.ptr -> !llvm.ptr
-    %17 = llvm.load %16 : !llvm.ptr -> i32
+    %16 = llvm.getelementptr %7[%c0_i32_0] : (!llvm.ptr, i32) -> !llvm.ptr, i8
+    %17 = llvm.load %16 : !llvm.ptr -> !llvm.ptr
+    %18 = llvm.load %17 : !llvm.ptr -> i32
     %c0_i32_1 = arith.constant 0 : i32
-    %18 = arith.cmpi eq, %17, %c0_i32_1 : i32
-    cf.cond_br %18, ^bb6, ^bb5
+    %19 = arith.cmpi eq, %18, %c0_i32_1 : i32
+    cf.cond_br %19, ^bb6, ^bb5
   ^bb4:  // pred: ^bb1
     %c3_i32_2 = arith.constant 3 : i32
     call @dora_fn_wasm_raise_trap(%c3_i32_2) : (i32) -> ()
     cf.br ^bb3
   ^bb5:  // 2 preds: ^bb3, ^bb6
-    %19 = llvm.getelementptr %16[0] : (!llvm.ptr) -> !llvm.ptr, i8
-    %20 = llvm.getelementptr %16[8] : (!llvm.ptr) -> !llvm.ptr, i8
-    %21 = llvm.getelementptr %16[16] : (!llvm.ptr) -> !llvm.ptr, i8
-    %22 = llvm.load %19 : !llvm.ptr -> !llvm.ptr
-    %23 = llvm.load %21 : !llvm.ptr -> !llvm.ptr
-    %24 = llvm.load %22 : !llvm.ptr -> i32
+    %20 = llvm.getelementptr %17[0] : (!llvm.ptr) -> !llvm.ptr, i8
+    %21 = llvm.getelementptr %17[8] : (!llvm.ptr) -> !llvm.ptr, i8
+    %22 = llvm.getelementptr %17[16] : (!llvm.ptr) -> !llvm.ptr, i8
+    %23 = llvm.load %20 : !llvm.ptr -> !llvm.ptr
+    %24 = llvm.load %22 : !llvm.ptr -> !llvm.ptr
+    %25 = llvm.load %23 : !llvm.ptr -> i32
     %c0_i32_3 = arith.constant 0 : i32
-    %25 = arith.cmpi eq, %24, %c0_i32_3 : i32
-    cf.cond_br %25, ^bb8, ^bb7
+    %26 = arith.cmpi eq, %25, %c0_i32_3 : i32
+    cf.cond_br %26, ^bb8, ^bb7
   ^bb6:  // pred: ^bb3
     %c4_i32 = arith.constant 4 : i32
     call @dora_fn_wasm_raise_trap(%c4_i32) : (i32) -> ()
     cf.br ^bb5
   ^bb7:  // 2 preds: ^bb5, ^bb8
-    %26 = llvm.load %20 : !llvm.ptr -> i32
-    %27 = arith.cmpi ne, %4, %26 : i32
-    cf.cond_br %27, ^bb10, ^bb9
+    %27 = llvm.load %21 : !llvm.ptr -> i32
+    %28 = arith.cmpi ne, %4, %27 : i32
+    cf.cond_br %28, ^bb10, ^bb9
   ^bb8:  // pred: ^bb5
     %c3_i32_4 = arith.constant 3 : i32
     call @dora_fn_wasm_raise_trap(%c3_i32_4) : (i32) -> ()
     cf.br ^bb7
   ^bb9:  // 2 preds: ^bb7, ^bb10
-    %28 = llvm.call %22(%23, %12, %c2_i32, %c3_i32) vararg(!llvm.func<i32 (...)>) : !llvm.ptr, (!llvm.ptr, i32, i32, i32) -> i32
-    cf.br ^bb2(%28 : i32)
+    %29 = llvm.call %23(%24, %13, %c2_i32, %c3_i32) vararg(!llvm.func<i32 (...)>) : !llvm.ptr, (!llvm.ptr, i32, i32, i32) -> i32
+    cf.br ^bb2(%29 : i32)
   ^bb10:  // pred: ^bb7
     %c5_i32 = arith.constant 5 : i32
     call @dora_fn_wasm_raise_trap(%c5_i32) : (i32) -> ()
@@ -471,58 +472,59 @@ module {
     %5 = llvm.getelementptr %arg0[16] : (!llvm.ptr) -> !llvm.ptr, i8
     %6 = llvm.getelementptr %arg0[24] : (!llvm.ptr) -> !llvm.ptr, i8
     %7 = llvm.load %5 : !llvm.ptr -> !llvm.ptr
-    %8 = llvm.load %6 : !llvm.ptr -> i32
+    %8 = llvm.load %6 : !llvm.ptr -> i64
+    %9 = arith.trunci %8 : i64 to i32
     cf.br ^bb1
   ^bb1:  // pred: ^bb0
     %c1_i32 = arith.constant 1 : i32
     %c0_i32 = arith.constant 0 : i32
     %c0_i64 = arith.constant 0 : i64
-    %9 = arith.extui %c0_i32 : i32 to i64
-    %10 = arith.addi %9, %c0_i64 : i64
-    %11 = llvm.getelementptr %2[%10] : (!llvm.ptr, i64) -> !llvm.ptr, i8
-    %12 = llvm.load volatile %11 {alignment = 1 : i64} : !llvm.ptr -> i32
+    %10 = arith.extui %c0_i32 : i32 to i64
+    %11 = arith.addi %10, %c0_i64 : i64
+    %12 = llvm.getelementptr %2[%11] : (!llvm.ptr, i64) -> !llvm.ptr, i8
+    %13 = llvm.load volatile %12 {alignment = 1 : i64} : !llvm.ptr -> i32
     %c3_i32 = arith.constant 3 : i32
     %c0_i32_0 = arith.constant 0 : i32
-    %13 = arith.cmpi ult, %c0_i32_0, %8 : i32
-    cf.cond_br %13, ^bb3, ^bb4
-  ^bb2(%14: i32):  // pred: ^bb9
-    return %14 : i32
+    %14 = arith.cmpi ult, %c0_i32_0, %9 : i32
+    cf.cond_br %14, ^bb3, ^bb4
+  ^bb2(%15: i32):  // pred: ^bb9
+    return %15 : i32
   ^bb3:  // 2 preds: ^bb1, ^bb4
-    %15 = llvm.getelementptr %7[%c0_i32_0] : (!llvm.ptr, i32) -> !llvm.ptr, i8
-    %16 = llvm.load %15 : !llvm.ptr -> !llvm.ptr
-    %17 = llvm.load %16 : !llvm.ptr -> i32
+    %16 = llvm.getelementptr %7[%c0_i32_0] : (!llvm.ptr, i32) -> !llvm.ptr, i8
+    %17 = llvm.load %16 : !llvm.ptr -> !llvm.ptr
+    %18 = llvm.load %17 : !llvm.ptr -> i32
     %c0_i32_1 = arith.constant 0 : i32
-    %18 = arith.cmpi eq, %17, %c0_i32_1 : i32
-    cf.cond_br %18, ^bb6, ^bb5
+    %19 = arith.cmpi eq, %18, %c0_i32_1 : i32
+    cf.cond_br %19, ^bb6, ^bb5
   ^bb4:  // pred: ^bb1
     %c3_i32_2 = arith.constant 3 : i32
     call @dora_fn_wasm_raise_trap(%c3_i32_2) : (i32) -> ()
     cf.br ^bb3
   ^bb5:  // 2 preds: ^bb3, ^bb6
-    %19 = llvm.getelementptr %16[0] : (!llvm.ptr) -> !llvm.ptr, i8
-    %20 = llvm.getelementptr %16[8] : (!llvm.ptr) -> !llvm.ptr, i8
-    %21 = llvm.getelementptr %16[16] : (!llvm.ptr) -> !llvm.ptr, i8
-    %22 = llvm.load %19 : !llvm.ptr -> !llvm.ptr
-    %23 = llvm.load %21 : !llvm.ptr -> !llvm.ptr
-    %24 = llvm.load %22 : !llvm.ptr -> i32
+    %20 = llvm.getelementptr %17[0] : (!llvm.ptr) -> !llvm.ptr, i8
+    %21 = llvm.getelementptr %17[8] : (!llvm.ptr) -> !llvm.ptr, i8
+    %22 = llvm.getelementptr %17[16] : (!llvm.ptr) -> !llvm.ptr, i8
+    %23 = llvm.load %20 : !llvm.ptr -> !llvm.ptr
+    %24 = llvm.load %22 : !llvm.ptr -> !llvm.ptr
+    %25 = llvm.load %23 : !llvm.ptr -> i32
     %c0_i32_3 = arith.constant 0 : i32
-    %25 = arith.cmpi eq, %24, %c0_i32_3 : i32
-    cf.cond_br %25, ^bb8, ^bb7
+    %26 = arith.cmpi eq, %25, %c0_i32_3 : i32
+    cf.cond_br %26, ^bb8, ^bb7
   ^bb6:  // pred: ^bb3
     %c4_i32 = arith.constant 4 : i32
     call @dora_fn_wasm_raise_trap(%c4_i32) : (i32) -> ()
     cf.br ^bb5
   ^bb7:  // 2 preds: ^bb5, ^bb8
-    %26 = llvm.load %20 : !llvm.ptr -> i32
-    %27 = arith.cmpi ne, %4, %26 : i32
-    cf.cond_br %27, ^bb10, ^bb9
+    %27 = llvm.load %21 : !llvm.ptr -> i32
+    %28 = arith.cmpi ne, %4, %27 : i32
+    cf.cond_br %28, ^bb10, ^bb9
   ^bb8:  // pred: ^bb5
     %c3_i32_4 = arith.constant 3 : i32
     call @dora_fn_wasm_raise_trap(%c3_i32_4) : (i32) -> ()
     cf.br ^bb7
   ^bb9:  // 2 preds: ^bb7, ^bb10
-    %28 = llvm.call %22(%23, %c1_i32, %12, %c3_i32) vararg(!llvm.func<i32 (...)>) : !llvm.ptr, (!llvm.ptr, i32, i32, i32) -> i32
-    cf.br ^bb2(%28 : i32)
+    %29 = llvm.call %23(%24, %c1_i32, %13, %c3_i32) vararg(!llvm.func<i32 (...)>) : !llvm.ptr, (!llvm.ptr, i32, i32, i32) -> i32
+    cf.br ^bb2(%29 : i32)
   ^bb10:  // pred: ^bb7
     %c5_i32 = arith.constant 5 : i32
     call @dora_fn_wasm_raise_trap(%c5_i32) : (i32) -> ()
@@ -537,58 +539,59 @@ module {
     %5 = llvm.getelementptr %arg0[16] : (!llvm.ptr) -> !llvm.ptr, i8
     %6 = llvm.getelementptr %arg0[24] : (!llvm.ptr) -> !llvm.ptr, i8
     %7 = llvm.load %5 : !llvm.ptr -> !llvm.ptr
-    %8 = llvm.load %6 : !llvm.ptr -> i32
+    %8 = llvm.load %6 : !llvm.ptr -> i64
+    %9 = arith.trunci %8 : i64 to i32
     cf.br ^bb1
   ^bb1:  // pred: ^bb0
     %c1_i32 = arith.constant 1 : i32
     %c2_i32 = arith.constant 2 : i32
     %c0_i32 = arith.constant 0 : i32
     %c0_i64 = arith.constant 0 : i64
-    %9 = arith.extui %c0_i32 : i32 to i64
-    %10 = arith.addi %9, %c0_i64 : i64
-    %11 = llvm.getelementptr %2[%10] : (!llvm.ptr, i64) -> !llvm.ptr, i8
-    %12 = llvm.load volatile %11 {alignment = 1 : i64} : !llvm.ptr -> i32
+    %10 = arith.extui %c0_i32 : i32 to i64
+    %11 = arith.addi %10, %c0_i64 : i64
+    %12 = llvm.getelementptr %2[%11] : (!llvm.ptr, i64) -> !llvm.ptr, i8
+    %13 = llvm.load volatile %12 {alignment = 1 : i64} : !llvm.ptr -> i32
     %c0_i32_0 = arith.constant 0 : i32
-    %13 = arith.cmpi ult, %c0_i32_0, %8 : i32
-    cf.cond_br %13, ^bb3, ^bb4
-  ^bb2(%14: i32):  // pred: ^bb9
-    return %14 : i32
+    %14 = arith.cmpi ult, %c0_i32_0, %9 : i32
+    cf.cond_br %14, ^bb3, ^bb4
+  ^bb2(%15: i32):  // pred: ^bb9
+    return %15 : i32
   ^bb3:  // 2 preds: ^bb1, ^bb4
-    %15 = llvm.getelementptr %7[%c0_i32_0] : (!llvm.ptr, i32) -> !llvm.ptr, i8
-    %16 = llvm.load %15 : !llvm.ptr -> !llvm.ptr
-    %17 = llvm.load %16 : !llvm.ptr -> i32
+    %16 = llvm.getelementptr %7[%c0_i32_0] : (!llvm.ptr, i32) -> !llvm.ptr, i8
+    %17 = llvm.load %16 : !llvm.ptr -> !llvm.ptr
+    %18 = llvm.load %17 : !llvm.ptr -> i32
     %c0_i32_1 = arith.constant 0 : i32
-    %18 = arith.cmpi eq, %17, %c0_i32_1 : i32
-    cf.cond_br %18, ^bb6, ^bb5
+    %19 = arith.cmpi eq, %18, %c0_i32_1 : i32
+    cf.cond_br %19, ^bb6, ^bb5
   ^bb4:  // pred: ^bb1
     %c3_i32 = arith.constant 3 : i32
     call @dora_fn_wasm_raise_trap(%c3_i32) : (i32) -> ()
     cf.br ^bb3
   ^bb5:  // 2 preds: ^bb3, ^bb6
-    %19 = llvm.getelementptr %16[0] : (!llvm.ptr) -> !llvm.ptr, i8
-    %20 = llvm.getelementptr %16[8] : (!llvm.ptr) -> !llvm.ptr, i8
-    %21 = llvm.getelementptr %16[16] : (!llvm.ptr) -> !llvm.ptr, i8
-    %22 = llvm.load %19 : !llvm.ptr -> !llvm.ptr
-    %23 = llvm.load %21 : !llvm.ptr -> !llvm.ptr
-    %24 = llvm.load %22 : !llvm.ptr -> i32
+    %20 = llvm.getelementptr %17[0] : (!llvm.ptr) -> !llvm.ptr, i8
+    %21 = llvm.getelementptr %17[8] : (!llvm.ptr) -> !llvm.ptr, i8
+    %22 = llvm.getelementptr %17[16] : (!llvm.ptr) -> !llvm.ptr, i8
+    %23 = llvm.load %20 : !llvm.ptr -> !llvm.ptr
+    %24 = llvm.load %22 : !llvm.ptr -> !llvm.ptr
+    %25 = llvm.load %23 : !llvm.ptr -> i32
     %c0_i32_2 = arith.constant 0 : i32
-    %25 = arith.cmpi eq, %24, %c0_i32_2 : i32
-    cf.cond_br %25, ^bb8, ^bb7
+    %26 = arith.cmpi eq, %25, %c0_i32_2 : i32
+    cf.cond_br %26, ^bb8, ^bb7
   ^bb6:  // pred: ^bb3
     %c4_i32 = arith.constant 4 : i32
     call @dora_fn_wasm_raise_trap(%c4_i32) : (i32) -> ()
     cf.br ^bb5
   ^bb7:  // 2 preds: ^bb5, ^bb8
-    %26 = llvm.load %20 : !llvm.ptr -> i32
-    %27 = arith.cmpi ne, %4, %26 : i32
-    cf.cond_br %27, ^bb10, ^bb9
+    %27 = llvm.load %21 : !llvm.ptr -> i32
+    %28 = arith.cmpi ne, %4, %27 : i32
+    cf.cond_br %28, ^bb10, ^bb9
   ^bb8:  // pred: ^bb5
     %c3_i32_3 = arith.constant 3 : i32
     call @dora_fn_wasm_raise_trap(%c3_i32_3) : (i32) -> ()
     cf.br ^bb7
   ^bb9:  // 2 preds: ^bb7, ^bb10
-    %28 = llvm.call %22(%23, %c1_i32, %c2_i32, %12) vararg(!llvm.func<i32 (...)>) : !llvm.ptr, (!llvm.ptr, i32, i32, i32) -> i32
-    cf.br ^bb2(%28 : i32)
+    %29 = llvm.call %23(%24, %c1_i32, %c2_i32, %13) vararg(!llvm.func<i32 (...)>) : !llvm.ptr, (!llvm.ptr, i32, i32, i32) -> i32
+    cf.br ^bb2(%29 : i32)
   ^bb10:  // pred: ^bb7
     %c5_i32 = arith.constant 5 : i32
     call @dora_fn_wasm_raise_trap(%c5_i32) : (i32) -> ()
@@ -603,7 +606,8 @@ module {
     %5 = llvm.getelementptr %arg0[16] : (!llvm.ptr) -> !llvm.ptr, i8
     %6 = llvm.getelementptr %arg0[24] : (!llvm.ptr) -> !llvm.ptr, i8
     %7 = llvm.load %5 : !llvm.ptr -> !llvm.ptr
-    %8 = llvm.load %6 : !llvm.ptr -> i32
+    %8 = llvm.load %6 : !llvm.ptr -> i64
+    %9 = arith.trunci %8 : i64 to i32
     cf.br ^bb1
   ^bb1:  // pred: ^bb0
     %c1_i32 = arith.constant 1 : i32
@@ -611,50 +615,50 @@ module {
     %c3_i32 = arith.constant 3 : i32
     %c0_i32 = arith.constant 0 : i32
     %c0_i64 = arith.constant 0 : i64
-    %9 = arith.extui %c0_i32 : i32 to i64
-    %10 = arith.addi %9, %c0_i64 : i64
-    %11 = llvm.getelementptr %2[%10] : (!llvm.ptr, i64) -> !llvm.ptr, i8
-    %12 = llvm.load volatile %11 {alignment = 1 : i64} : !llvm.ptr -> i32
-    %13 = arith.cmpi ult, %12, %8 : i32
-    cf.cond_br %13, ^bb3, ^bb4
-  ^bb2(%14: i32):  // pred: ^bb9
-    return %14 : i32
+    %10 = arith.extui %c0_i32 : i32 to i64
+    %11 = arith.addi %10, %c0_i64 : i64
+    %12 = llvm.getelementptr %2[%11] : (!llvm.ptr, i64) -> !llvm.ptr, i8
+    %13 = llvm.load volatile %12 {alignment = 1 : i64} : !llvm.ptr -> i32
+    %14 = arith.cmpi ult, %13, %9 : i32
+    cf.cond_br %14, ^bb3, ^bb4
+  ^bb2(%15: i32):  // pred: ^bb9
+    return %15 : i32
   ^bb3:  // 2 preds: ^bb1, ^bb4
-    %15 = llvm.getelementptr %7[%12] : (!llvm.ptr, i32) -> !llvm.ptr, i8
-    %16 = llvm.load %15 : !llvm.ptr -> !llvm.ptr
-    %17 = llvm.load %16 : !llvm.ptr -> i32
+    %16 = llvm.getelementptr %7[%13] : (!llvm.ptr, i32) -> !llvm.ptr, i8
+    %17 = llvm.load %16 : !llvm.ptr -> !llvm.ptr
+    %18 = llvm.load %17 : !llvm.ptr -> i32
     %c0_i32_0 = arith.constant 0 : i32
-    %18 = arith.cmpi eq, %17, %c0_i32_0 : i32
-    cf.cond_br %18, ^bb6, ^bb5
+    %19 = arith.cmpi eq, %18, %c0_i32_0 : i32
+    cf.cond_br %19, ^bb6, ^bb5
   ^bb4:  // pred: ^bb1
     %c3_i32_1 = arith.constant 3 : i32
     call @dora_fn_wasm_raise_trap(%c3_i32_1) : (i32) -> ()
     cf.br ^bb3
   ^bb5:  // 2 preds: ^bb3, ^bb6
-    %19 = llvm.getelementptr %16[0] : (!llvm.ptr) -> !llvm.ptr, i8
-    %20 = llvm.getelementptr %16[8] : (!llvm.ptr) -> !llvm.ptr, i8
-    %21 = llvm.getelementptr %16[16] : (!llvm.ptr) -> !llvm.ptr, i8
-    %22 = llvm.load %19 : !llvm.ptr -> !llvm.ptr
-    %23 = llvm.load %21 : !llvm.ptr -> !llvm.ptr
-    %24 = llvm.load %22 : !llvm.ptr -> i32
+    %20 = llvm.getelementptr %17[0] : (!llvm.ptr) -> !llvm.ptr, i8
+    %21 = llvm.getelementptr %17[8] : (!llvm.ptr) -> !llvm.ptr, i8
+    %22 = llvm.getelementptr %17[16] : (!llvm.ptr) -> !llvm.ptr, i8
+    %23 = llvm.load %20 : !llvm.ptr -> !llvm.ptr
+    %24 = llvm.load %22 : !llvm.ptr -> !llvm.ptr
+    %25 = llvm.load %23 : !llvm.ptr -> i32
     %c0_i32_2 = arith.constant 0 : i32
-    %25 = arith.cmpi eq, %24, %c0_i32_2 : i32
-    cf.cond_br %25, ^bb8, ^bb7
+    %26 = arith.cmpi eq, %25, %c0_i32_2 : i32
+    cf.cond_br %26, ^bb8, ^bb7
   ^bb6:  // pred: ^bb3
     %c4_i32 = arith.constant 4 : i32
     call @dora_fn_wasm_raise_trap(%c4_i32) : (i32) -> ()
     cf.br ^bb5
   ^bb7:  // 2 preds: ^bb5, ^bb8
-    %26 = llvm.load %20 : !llvm.ptr -> i32
-    %27 = arith.cmpi ne, %4, %26 : i32
-    cf.cond_br %27, ^bb10, ^bb9
+    %27 = llvm.load %21 : !llvm.ptr -> i32
+    %28 = arith.cmpi ne, %4, %27 : i32
+    cf.cond_br %28, ^bb10, ^bb9
   ^bb8:  // pred: ^bb5
     %c3_i32_3 = arith.constant 3 : i32
     call @dora_fn_wasm_raise_trap(%c3_i32_3) : (i32) -> ()
     cf.br ^bb7
   ^bb9:  // 2 preds: ^bb7, ^bb10
-    %28 = llvm.call %22(%23, %c1_i32, %c2_i32, %c3_i32) vararg(!llvm.func<i32 (...)>) : !llvm.ptr, (!llvm.ptr, i32, i32, i32) -> i32
-    cf.br ^bb2(%28 : i32)
+    %29 = llvm.call %23(%24, %c1_i32, %c2_i32, %c3_i32) vararg(!llvm.func<i32 (...)>) : !llvm.ptr, (!llvm.ptr, i32, i32, i32) -> i32
+    cf.br ^bb2(%29 : i32)
   ^bb10:  // pred: ^bb7
     %c5_i32 = arith.constant 5 : i32
     call @dora_fn_wasm_raise_trap(%c5_i32) : (i32) -> ()

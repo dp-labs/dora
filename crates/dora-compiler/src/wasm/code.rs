@@ -3434,6 +3434,7 @@ impl FunctionCodeGenerator {
                     )?;
                 }
                 let builder = OpBuilder::new_with_block(ctx, in_bounds_continue_block);
+                // We assume the table has the `funcref` (pointer to `anyfunc`) element type.
                 let funcref_ptr = builder
                     .make(builder.gep_dynamic(
                         table_base,

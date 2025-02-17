@@ -253,22 +253,24 @@ impl<'c, 'a> OpBuilder<'c, 'a> {
         self.intrinsics.i257_ty
     }
 
-    /// Returns the index type intrinsic.
+    /// Returns the index type intrinsic with the fixed 64-bit widih.
     #[inline]
     pub fn index_ty(&self) -> Type<'c> {
         self.intrinsics.index_ty
     }
 
-    /// Returns the usize type intrinsic.
+    /// Returns the isize type intrinsic (The pointer-sized signed integer type).
+    /// The size of this primitive is how many bytes it takes to reference any location in memory. For example, on a 32 bit target, this is 4 bytes and on a 64 bit target, this is 8 bytes.
     #[inline]
     pub fn usize_ty(&self) -> Type<'c> {
-        self.intrinsics.index_ty
+        self.intrinsics.isize_ty
     }
 
-    /// Returns the isize type intrinsic.
+    /// Returns the isize type intrinsic (The pointer-sized signed integer type).
+    /// The size of this primitive is how many bytes it takes to reference any location in memory. For example, on a 32 bit target, this is 4 bytes and on a 64 bit target, this is 8 bytes.
     #[inline]
     pub fn isize_ty(&self) -> Type<'c> {
-        self.intrinsics.index_ty
+        self.intrinsics.isize_ty
     }
 
     /// Returns the f32 type intrinsic.
