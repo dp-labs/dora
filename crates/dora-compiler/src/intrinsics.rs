@@ -25,6 +25,7 @@ pub struct Intrinsics<'ctx> {
     pub i128_ty: Type<'ctx>,
     pub i256_ty: Type<'ctx>,
     pub i257_ty: Type<'ctx>,
+    pub isize_ty: Type<'ctx>,
     pub f32_ty: Type<'ctx>,
     pub f64_ty: Type<'ctx>,
     pub index_ty: Type<'ctx>,
@@ -51,6 +52,7 @@ impl<'ctx> Intrinsics<'ctx> {
         let i128_ty = IntegerType::new(context, 128).into();
         let i256_ty = IntegerType::new(context, 256).into();
         let i257_ty = IntegerType::new(context, 257).into();
+        let isize_ty = IntegerType::new(context, std::mem::size_of::<isize>() as u32 * 8).into();
         let f32_ty = Type::float32(context);
         let f64_ty = Type::float64(context);
         let index_ty = Type::index(context);
@@ -68,6 +70,7 @@ impl<'ctx> Intrinsics<'ctx> {
             i128_ty,
             i256_ty,
             i257_ty,
+            isize_ty,
             f32_ty,
             f64_ty,
             index_ty,

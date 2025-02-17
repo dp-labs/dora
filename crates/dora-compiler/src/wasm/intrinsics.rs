@@ -7,6 +7,7 @@ use crate::conversion::builder::OpBuilder;
 use crate::intrinsics::Intrinsics;
 use crate::value::ToContextValue;
 use anyhow::Result;
+use melior::dialect::arith;
 use melior::ir::r#type::Type;
 use melior::ir::{Value, ValueLike};
 use melior::{dialect::llvm::r#type::r#struct, ir::r#type::FunctionType};
@@ -396,7 +397,14 @@ impl<'c, 'a> CtxType<'c, 'a> {
         let (ptr_to_base_ptr, ptr_to_bounds) = self.table_prepare(index)?;
         let builder = &self.cache_builder;
         let base_ptr = builder.make(builder.load(ptr_to_base_ptr, builder.ptr_ty()))?;
-        let bounds = builder.make(builder.load(ptr_to_bounds, builder.i32_ty()))?;
+        let mut bounds = builder.make(builder.load(ptr_to_bounds, builder.isize_ty()))?;
+        if builder.int_ty_width(bounds.r#type())? != 32 {
+            bounds = builder.make(arith::trunci(
+                bounds,
+                builder.i32_ty(),
+                builder.get_insert_location(),
+            ))?;
+        }
         unsafe {
             Ok((
                 Value::from_raw(base_ptr.to_raw()),
