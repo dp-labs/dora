@@ -1,4 +1,4 @@
-use crate::backend::{AtomicOrdering, IntCC, TypeMethods};
+use crate::backend::{AtomicOrdering, IntCC, LoadStoreOptions, TypeMethods};
 use crate::errors::{CompileError, Result};
 use crate::intrinsics::Intrinsics;
 use crate::value::{IntoContextOperation, ToContextValue};
@@ -7,7 +7,7 @@ use dora_ir::IRTypes;
 use melior::dialect::arith::CmpiPredicate;
 use melior::dialect::llvm::attributes::Linkage;
 use melior::dialect::llvm::r#type::r#struct;
-use melior::dialect::llvm::{AllocaOptions, LoadStoreOptions};
+use melior::dialect::llvm::AllocaOptions;
 use melior::dialect::{arith, func, llvm};
 use melior::ir::attribute::{
     DenseI32ArrayAttribute, FlatSymbolRefAttribute, FloatAttribute, IntegerAttribute,
@@ -713,7 +713,7 @@ impl<'c, 'a> OpBuilder<'c, 'a> {
             ptr,
             ty,
             self.intrinsics.unknown_loc,
-            LoadStoreOptions::default(),
+            llvm::LoadStoreOptions::default(),
         )
     }
 
@@ -733,8 +733,37 @@ impl<'c, 'a> OpBuilder<'c, 'a> {
             ptr,
             ty,
             self.intrinsics.unknown_loc,
-            LoadStoreOptions::default()
+            llvm::LoadStoreOptions::default()
                 .align(Some(IntegerAttribute::new(self.i64_ty(), align as i64))),
+        )
+    }
+
+    /// Loads a value from the specified pointer with alignment and set it volatile.
+    ///
+    /// # Parameters
+    /// - `ptr`: The pointer from which to load the value.
+    /// - `ty`: The type of the value to load.
+    /// - `align`: Sets an alignment.
+    /// - `volatile`: Whether the load/store operation is volatile.
+    ///
+    /// # Returns
+    /// An operation representing the load operation.
+    #[inline]
+    pub fn load_with_align_and_volatile(
+        &self,
+        ptr: Val<'c, 'a>,
+        ty: Ty<'c, 'a>,
+        align: u64,
+        volatile: bool,
+    ) -> Op<'c, '_> {
+        llvm::load(
+            self.context(),
+            ptr,
+            ty,
+            self.intrinsics.unknown_loc,
+            llvm::LoadStoreOptions::default()
+                .align(Some(IntegerAttribute::new(self.i64_ty(), align as i64)))
+                .volatile(volatile),
         )
     }
 
@@ -743,7 +772,7 @@ impl<'c, 'a> OpBuilder<'c, 'a> {
     /// # Parameters
     /// - `ptr`: The pointer from which to load the value.
     /// - `ty`: The type of the value to load.
-    /// - `order`: The atomic order of the load op.
+    /// - `ordering`: The atomic order of the load op.
     ///
     /// # Returns
     /// An operation representing the load operation.
@@ -751,19 +780,60 @@ impl<'c, 'a> OpBuilder<'c, 'a> {
         &self,
         ptr: Val<'c, 'a>,
         ty: Ty<'c, 'a>,
-        order: AtomicOrdering,
+        ordering: AtomicOrdering,
     ) -> Op<'c, '_> {
         let mut load_op = llvm::load(
             self.context(),
             ptr,
             ty,
             self.intrinsics.unknown_loc,
-            LoadStoreOptions::default(),
+            llvm::LoadStoreOptions::default(),
         );
         load_op.set_attribute(
             "ordering",
-            StringAttribute::new(self.context(), &order.attr_str()).into(),
+            StringAttribute::new(self.context(), &ordering.attr_str()).into(),
         );
+        load_op
+    }
+
+    /// Loads a value from the specified pointer with the load operaion options.
+    ///
+    /// # Parameters
+    /// - `ptr`: The pointer from which to load the value.
+    /// - `ty`: The type of the value to load.
+    /// - `opts`: The load operation options.
+    ///
+    /// # Returns
+    /// An operation representing the load operation.
+    pub fn load_with_opts(
+        &self,
+        ptr: Val<'c, 'a>,
+        ty: Ty<'c, 'a>,
+        opts: LoadStoreOptions,
+    ) -> Op<'c, '_> {
+        let llvm_load_store_opts = llvm::LoadStoreOptions::default();
+        if opts.nontemporal {
+            llvm_load_store_opts.nontemporal(opts.nontemporal);
+        }
+        if opts.volatile {
+            llvm_load_store_opts.volatile(opts.volatile);
+        }
+        if let Some(align) = opts.align {
+            llvm_load_store_opts.align(Some(IntegerAttribute::new(self.i64_ty(), align as i64)));
+        }
+        let mut load_op = llvm::load(
+            self.context(),
+            ptr,
+            ty,
+            self.intrinsics.unknown_loc,
+            llvm_load_store_opts,
+        );
+        if let Some(ordering) = opts.ordering {
+            load_op.set_attribute(
+                "ordering",
+                StringAttribute::new(self.context(), &ordering.attr_str()).into(),
+            );
+        }
         load_op
     }
 
@@ -782,7 +852,7 @@ impl<'c, 'a> OpBuilder<'c, 'a> {
             value,
             ptr,
             self.intrinsics.unknown_loc,
-            LoadStoreOptions::default(),
+            llvm::LoadStoreOptions::default(),
         )
     }
 
@@ -802,17 +872,46 @@ impl<'c, 'a> OpBuilder<'c, 'a> {
             value,
             ptr,
             self.intrinsics.unknown_loc,
-            LoadStoreOptions::default()
+            llvm::LoadStoreOptions::default()
                 .align(Some(IntegerAttribute::new(self.i64_ty(), align as i64))),
         )
     }
 
-    /// Stores a value at the specified pointer  with the atomic ordering option.
+    /// Stores a value at the specified pointer with alignment and set it volatile.
     ///
     /// # Parameters
     /// - `value`: The value to store.
     /// - `ptr`: The pointer where the value should be stored.
-    /// - `order`: The atomic order of the load op.
+    /// - `align`: Sets an alignment.
+    /// - `volatile`: Whether the load/store operation is volatile.
+    ///
+    /// # Returns
+    /// An operation representing the store operation.
+    #[inline]
+    pub fn store_with_align_and_volatile(
+        &self,
+        value: Val<'c, 'a>,
+        ptr: Val<'c, 'a>,
+        align: u64,
+        volatile: bool,
+    ) -> Op<'c, '_> {
+        llvm::store(
+            self.context(),
+            value,
+            ptr,
+            self.intrinsics.unknown_loc,
+            llvm::LoadStoreOptions::default()
+                .align(Some(IntegerAttribute::new(self.i64_ty(), align as i64)))
+                .volatile(volatile),
+        )
+    }
+
+    /// Stores a value at the specified pointer with the atomic ordering option.
+    ///
+    /// # Parameters
+    /// - `value`: The value to store.
+    /// - `ptr`: The pointer where the value should be stored.
+    /// - `ordering`: The atomic order of the load op.
     ///
     /// # Returns
     /// An operation representing the store operation.
@@ -820,19 +919,60 @@ impl<'c, 'a> OpBuilder<'c, 'a> {
         &self,
         value: Val<'c, 'a>,
         ptr: Val<'c, 'a>,
-        order: AtomicOrdering,
+        ordering: AtomicOrdering,
     ) -> Op<'c, '_> {
         let mut store_op = llvm::store(
             self.context(),
             value,
             ptr,
             self.intrinsics.unknown_loc,
-            LoadStoreOptions::default(),
+            llvm::LoadStoreOptions::default(),
         );
         store_op.set_attribute(
             "ordering",
-            StringAttribute::new(self.context(), &order.attr_str()).into(),
+            StringAttribute::new(self.context(), &ordering.attr_str()).into(),
         );
+        store_op
+    }
+
+    /// Stores a value at the specified pointer with the store option.
+    ///
+    /// # Parameters
+    /// - `value`: The value to store.
+    /// - `ptr`: The pointer where the value should be stored.
+    /// - `opts`: The store operation options.
+    ///
+    /// # Returns
+    /// An operation representing the load operation.
+    pub fn store_with_opts(
+        &self,
+        value: Val<'c, 'a>,
+        ptr: Val<'c, 'a>,
+        opts: LoadStoreOptions,
+    ) -> Op<'c, '_> {
+        let llvm_load_store_opts = llvm::LoadStoreOptions::default();
+        if opts.nontemporal {
+            llvm_load_store_opts.nontemporal(opts.nontemporal);
+        }
+        if opts.volatile {
+            llvm_load_store_opts.volatile(opts.volatile);
+        }
+        if let Some(align) = opts.align {
+            llvm_load_store_opts.align(Some(IntegerAttribute::new(self.i64_ty(), align as i64)));
+        }
+        let mut store_op = llvm::store(
+            self.context(),
+            value,
+            ptr,
+            self.intrinsics.unknown_loc,
+            llvm_load_store_opts,
+        );
+        if let Some(ordering) = opts.ordering {
+            store_op.set_attribute(
+                "ordering",
+                StringAttribute::new(self.context(), &ordering.attr_str()).into(),
+            );
+        }
         store_op
     }
 
@@ -946,7 +1086,7 @@ impl<'c, 'a> OpBuilder<'c, 'a> {
                 rtn_ptr,
                 r#type,
                 self.get_insert_location(),
-                LoadStoreOptions::default(),
+                llvm::LoadStoreOptions::default(),
             ))?
             .to_ctx_value())
     }

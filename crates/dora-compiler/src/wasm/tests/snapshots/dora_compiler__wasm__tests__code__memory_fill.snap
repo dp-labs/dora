@@ -40,7 +40,7 @@ module {
     %12 = arith.extui %11 : i32 to i64
     %13 = arith.addi %12, %c0_i64 : i64
     %14 = llvm.getelementptr %4[%13] : (!llvm.ptr, i64) -> !llvm.ptr, i8
-    %15 = llvm.load %14 : !llvm.ptr -> i8
+    %15 = llvm.load volatile %14 {alignment = 1 : i64} : !llvm.ptr -> i8
     %16 = arith.extui %15 : i8 to i32
     %c85_i32 = arith.constant 85 : i32
     %17 = "wasm.eq"(%16, %c85_i32) : (i32, i32) -> i32

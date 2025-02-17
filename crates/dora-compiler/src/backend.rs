@@ -125,6 +125,19 @@ impl AtomicBinOp {
     }
 }
 
+/// Load and store operation options.
+#[derive(Debug, Clone, Default)]
+pub struct LoadStoreOptions {
+    /// Alignment requirement for load/store operations.
+    pub align: Option<u64>,
+    /// Whether the load/store operation is volatile.
+    pub volatile: bool,
+    /// Whether the load/store operation is non-temporal (bypassing cache).
+    pub nontemporal: bool,
+    /// Atomic ordering for load/store operations.
+    pub ordering: Option<AtomicOrdering>,
+}
+
 /// Linkage type.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Linkage {
