@@ -1,11 +1,12 @@
 ---
 source: crates/dora-compiler/src/wasm/tests/conversion.rs
 expression: op
+snapshot_kind: text
 ---
 module {
   func.func public @nearest(%arg0: !llvm.ptr, %arg1: f32) -> f32 attributes {llvm.emit_c_interface} {
-    %c1_i64 = arith.constant 1 : i64
-    %0 = llvm.alloca %c1_i64 x f32 : (i64) -> !llvm.ptr
+    %c1_i32 = arith.constant 1 : i32
+    %0 = llvm.alloca %c1_i32 x f32 : (i32) -> !llvm.ptr
     llvm.store %arg1, %0 : f32, !llvm.ptr
     cf.br ^bb1
   ^bb1:  // pred: ^bb0

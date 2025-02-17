@@ -12,8 +12,8 @@ module {
     return
   }
   func.func public @"get-externref"(%arg0: !llvm.ptr, %arg1: i32) -> !llvm.ptr attributes {llvm.emit_c_interface} {
-    %c1_i64 = arith.constant 1 : i64
-    %0 = llvm.alloca %c1_i64 x i32 : (i64) -> !llvm.ptr
+    %c1_i32 = arith.constant 1 : i32
+    %0 = llvm.alloca %c1_i32 x i32 : (i32) -> !llvm.ptr
     llvm.store %arg1, %0 : i32, !llvm.ptr
     cf.br ^bb1
   ^bb1:  // pred: ^bb0
@@ -26,25 +26,25 @@ module {
     return %4 : !llvm.ptr
   }
   func.func public @"get-funcref"(%arg0: !llvm.ptr, %arg1: i32) -> !llvm.ptr attributes {llvm.emit_c_interface} {
-    %c1_i64 = arith.constant 1 : i64
-    %0 = llvm.alloca %c1_i64 x i32 : (i64) -> !llvm.ptr
+    %c1_i32 = arith.constant 1 : i32
+    %0 = llvm.alloca %c1_i32 x i32 : (i32) -> !llvm.ptr
     llvm.store %arg1, %0 : i32, !llvm.ptr
     cf.br ^bb1
   ^bb1:  // pred: ^bb0
     %1 = llvm.load %0 : !llvm.ptr -> i32
-    %c1_i32 = arith.constant 1 : i32
-    %2 = call @dora_fn_wasm_table_get(%arg0, %c1_i32, %1) : (!llvm.ptr, i32, i32) -> !llvm.ptr
+    %c1_i32_0 = arith.constant 1 : i32
+    %2 = call @dora_fn_wasm_table_get(%arg0, %c1_i32_0, %1) : (!llvm.ptr, i32, i32) -> !llvm.ptr
     %3 = llvm.bitcast %2 : !llvm.ptr to !llvm.ptr
     cf.br ^bb2(%3 : !llvm.ptr)
   ^bb2(%4: !llvm.ptr):  // pred: ^bb1
     return %4 : !llvm.ptr
   }
   func.func public @"set-externref"(%arg0: !llvm.ptr, %arg1: i32, %arg2: !llvm.ptr) attributes {llvm.emit_c_interface} {
-    %c1_i64 = arith.constant 1 : i64
-    %0 = llvm.alloca %c1_i64 x i32 : (i64) -> !llvm.ptr
+    %c1_i32 = arith.constant 1 : i32
+    %0 = llvm.alloca %c1_i32 x i32 : (i32) -> !llvm.ptr
     llvm.store %arg1, %0 : i32, !llvm.ptr
-    %c1_i64_0 = arith.constant 1 : i64
-    %1 = llvm.alloca %c1_i64_0 x !llvm.ptr : (i64) -> !llvm.ptr
+    %c1_i32_0 = arith.constant 1 : i32
+    %1 = llvm.alloca %c1_i32_0 x !llvm.ptr : (i32) -> !llvm.ptr
     llvm.store %arg2, %1 : !llvm.ptr, !llvm.ptr
     cf.br ^bb1
   ^bb1:  // pred: ^bb0
@@ -57,45 +57,45 @@ module {
     return
   }
   func.func public @"set-funcref"(%arg0: !llvm.ptr, %arg1: i32, %arg2: !llvm.ptr) attributes {llvm.emit_c_interface} {
-    %c1_i64 = arith.constant 1 : i64
-    %0 = llvm.alloca %c1_i64 x i32 : (i64) -> !llvm.ptr
+    %c1_i32 = arith.constant 1 : i32
+    %0 = llvm.alloca %c1_i32 x i32 : (i32) -> !llvm.ptr
     llvm.store %arg1, %0 : i32, !llvm.ptr
-    %c1_i64_0 = arith.constant 1 : i64
-    %1 = llvm.alloca %c1_i64_0 x !llvm.ptr : (i64) -> !llvm.ptr
+    %c1_i32_0 = arith.constant 1 : i32
+    %1 = llvm.alloca %c1_i32_0 x !llvm.ptr : (i32) -> !llvm.ptr
     llvm.store %arg2, %1 : !llvm.ptr, !llvm.ptr
     cf.br ^bb1
   ^bb1:  // pred: ^bb0
     %2 = llvm.load %0 : !llvm.ptr -> i32
     %3 = llvm.load %1 : !llvm.ptr -> !llvm.ptr
-    %c1_i32 = arith.constant 1 : i32
-    call @dora_fn_wasm_table_set(%arg0, %c1_i32, %2, %3) : (!llvm.ptr, i32, i32, !llvm.ptr) -> ()
+    %c1_i32_1 = arith.constant 1 : i32
+    call @dora_fn_wasm_table_set(%arg0, %c1_i32_1, %2, %3) : (!llvm.ptr, i32, i32, !llvm.ptr) -> ()
     cf.br ^bb2
   ^bb2:  // pred: ^bb1
     return
   }
   func.func public @"set-funcref-from"(%arg0: !llvm.ptr, %arg1: i32, %arg2: i32) attributes {llvm.emit_c_interface} {
-    %c1_i64 = arith.constant 1 : i64
-    %0 = llvm.alloca %c1_i64 x i32 : (i64) -> !llvm.ptr
+    %c1_i32 = arith.constant 1 : i32
+    %0 = llvm.alloca %c1_i32 x i32 : (i32) -> !llvm.ptr
     llvm.store %arg1, %0 : i32, !llvm.ptr
-    %c1_i64_0 = arith.constant 1 : i64
-    %1 = llvm.alloca %c1_i64_0 x i32 : (i64) -> !llvm.ptr
+    %c1_i32_0 = arith.constant 1 : i32
+    %1 = llvm.alloca %c1_i32_0 x i32 : (i32) -> !llvm.ptr
     llvm.store %arg2, %1 : i32, !llvm.ptr
     cf.br ^bb1
   ^bb1:  // pred: ^bb0
     %2 = llvm.load %0 : !llvm.ptr -> i32
     %3 = llvm.load %1 : !llvm.ptr -> i32
-    %c1_i32 = arith.constant 1 : i32
-    %4 = call @dora_fn_wasm_table_get(%arg0, %c1_i32, %3) : (!llvm.ptr, i32, i32) -> !llvm.ptr
-    %5 = llvm.bitcast %4 : !llvm.ptr to !llvm.ptr
     %c1_i32_1 = arith.constant 1 : i32
-    call @dora_fn_wasm_table_set(%arg0, %c1_i32_1, %2, %5) : (!llvm.ptr, i32, i32, !llvm.ptr) -> ()
+    %4 = call @dora_fn_wasm_table_get(%arg0, %c1_i32_1, %3) : (!llvm.ptr, i32, i32) -> !llvm.ptr
+    %5 = llvm.bitcast %4 : !llvm.ptr to !llvm.ptr
+    %c1_i32_2 = arith.constant 1 : i32
+    call @dora_fn_wasm_table_set(%arg0, %c1_i32_2, %2, %5) : (!llvm.ptr, i32, i32, !llvm.ptr) -> ()
     cf.br ^bb2
   ^bb2:  // pred: ^bb1
     return
   }
   func.func public @"is_null-funcref"(%arg0: !llvm.ptr, %arg1: i32) -> i32 attributes {llvm.emit_c_interface} {
-    %c1_i64 = arith.constant 1 : i64
-    %0 = llvm.alloca %c1_i64 x i32 : (i64) -> !llvm.ptr
+    %c1_i32 = arith.constant 1 : i32
+    %0 = llvm.alloca %c1_i32 x i32 : (i32) -> !llvm.ptr
     llvm.store %arg1, %0 : i32, !llvm.ptr
     cf.br ^bb1
   ^bb1:  // pred: ^bb0

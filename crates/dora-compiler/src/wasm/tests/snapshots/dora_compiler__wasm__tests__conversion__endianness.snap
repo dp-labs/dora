@@ -5,11 +5,11 @@ snapshot_kind: text
 ---
 module {
   func.func @i16_store_little(%arg0: !llvm.ptr, %arg1: i32, %arg2: i32) {
-    %c1_i64 = arith.constant 1 : i64
-    %0 = llvm.alloca %c1_i64 x i32 : (i64) -> !llvm.ptr
+    %c1_i32 = arith.constant 1 : i32
+    %0 = llvm.alloca %c1_i32 x i32 : (i32) -> !llvm.ptr
     llvm.store %arg1, %0 : i32, !llvm.ptr
-    %c1_i64_0 = arith.constant 1 : i64
-    %1 = llvm.alloca %c1_i64_0 x i32 : (i64) -> !llvm.ptr
+    %c1_i32_0 = arith.constant 1 : i32
+    %1 = llvm.alloca %c1_i32_0 x i32 : (i32) -> !llvm.ptr
     llvm.store %arg2, %1 : i32, !llvm.ptr
     %2 = llvm.getelementptr %arg0[32] : (!llvm.ptr) -> !llvm.ptr, i8
     %3 = llvm.getelementptr %2[0] : (!llvm.ptr) -> !llvm.ptr, i8
@@ -25,8 +25,8 @@ module {
     %10 = arith.trunci %6 : i32 to i8
     llvm.store volatile %10, %9 {alignment = 1 : i64} : i8, !llvm.ptr
     %11 = llvm.load %0 : !llvm.ptr -> i32
-    %c1_i32 = arith.constant 1 : i32
-    %12 = arith.addi %11, %c1_i32 : i32
+    %c1_i32_1 = arith.constant 1 : i32
+    %12 = arith.addi %11, %c1_i32_1 : i32
     %13 = llvm.load %1 : !llvm.ptr -> i32
     %c8_i32 = arith.constant 8 : i32
     %c31_i32 = arith.constant 31 : i32
@@ -38,9 +38,9 @@ module {
       %c0_i32 = arith.constant 0 : i32
       scf.yield %c0_i32 : i32
     }
-    %c0_i64_1 = arith.constant 0 : i64
+    %c0_i64_2 = arith.constant 0 : i64
     %16 = arith.extui %12 : i32 to i64
-    %17 = arith.addi %16, %c0_i64_1 : i64
+    %17 = arith.addi %16, %c0_i64_2 : i64
     %18 = llvm.getelementptr %4[%17] : (!llvm.ptr, i64) -> !llvm.ptr, i8
     %19 = arith.trunci %15 : i32 to i8
     llvm.store volatile %19, %18 {alignment = 1 : i64} : i8, !llvm.ptr
@@ -49,11 +49,11 @@ module {
     return
   }
   func.func @i32_store_little(%arg0: !llvm.ptr, %arg1: i32, %arg2: i32) {
-    %c1_i64 = arith.constant 1 : i64
-    %0 = llvm.alloca %c1_i64 x i32 : (i64) -> !llvm.ptr
+    %c1_i32 = arith.constant 1 : i32
+    %0 = llvm.alloca %c1_i32 x i32 : (i32) -> !llvm.ptr
     llvm.store %arg1, %0 : i32, !llvm.ptr
-    %c1_i64_0 = arith.constant 1 : i64
-    %1 = llvm.alloca %c1_i64_0 x i32 : (i64) -> !llvm.ptr
+    %c1_i32_0 = arith.constant 1 : i32
+    %1 = llvm.alloca %c1_i32_0 x i32 : (i32) -> !llvm.ptr
     llvm.store %arg2, %1 : i32, !llvm.ptr
     cf.br ^bb1
   ^bb1:  // pred: ^bb0
@@ -80,11 +80,11 @@ module {
     return
   }
   func.func @i64_store_little(%arg0: !llvm.ptr, %arg1: i32, %arg2: i64) {
-    %c1_i64 = arith.constant 1 : i64
-    %0 = llvm.alloca %c1_i64 x i32 : (i64) -> !llvm.ptr
+    %c1_i32 = arith.constant 1 : i32
+    %0 = llvm.alloca %c1_i32 x i32 : (i32) -> !llvm.ptr
     llvm.store %arg1, %0 : i32, !llvm.ptr
-    %c1_i64_0 = arith.constant 1 : i64
-    %1 = llvm.alloca %c1_i64_0 x i64 : (i64) -> !llvm.ptr
+    %c1_i32_0 = arith.constant 1 : i32
+    %1 = llvm.alloca %c1_i32_0 x i64 : (i32) -> !llvm.ptr
     llvm.store %arg2, %1 : i64, !llvm.ptr
     cf.br ^bb1
   ^bb1:  // pred: ^bb0
@@ -113,8 +113,8 @@ module {
     return
   }
   func.func @i16_load_little(%arg0: !llvm.ptr, %arg1: i32) -> i32 {
-    %c1_i64 = arith.constant 1 : i64
-    %0 = llvm.alloca %c1_i64 x i32 : (i64) -> !llvm.ptr
+    %c1_i32 = arith.constant 1 : i32
+    %0 = llvm.alloca %c1_i32 x i32 : (i32) -> !llvm.ptr
     llvm.store %arg1, %0 : i32, !llvm.ptr
     %1 = llvm.getelementptr %arg0[32] : (!llvm.ptr) -> !llvm.ptr, i8
     %2 = llvm.getelementptr %1[0] : (!llvm.ptr) -> !llvm.ptr, i8
@@ -129,11 +129,11 @@ module {
     %8 = llvm.load volatile %7 {alignment = 1 : i64} : !llvm.ptr -> i8
     %9 = arith.extui %8 : i8 to i32
     %10 = llvm.load %0 : !llvm.ptr -> i32
-    %c1_i32 = arith.constant 1 : i32
-    %11 = arith.addi %10, %c1_i32 : i32
-    %c0_i64_0 = arith.constant 0 : i64
+    %c1_i32_0 = arith.constant 1 : i32
+    %11 = arith.addi %10, %c1_i32_0 : i32
+    %c0_i64_1 = arith.constant 0 : i64
     %12 = arith.extui %11 : i32 to i64
-    %13 = arith.addi %12, %c0_i64_0 : i64
+    %13 = arith.addi %12, %c0_i64_1 : i64
     %14 = llvm.getelementptr %3[%13] : (!llvm.ptr, i64) -> !llvm.ptr, i8
     %15 = llvm.load volatile %14 {alignment = 1 : i64} : !llvm.ptr -> i8
     %16 = arith.extui %15 : i8 to i32
@@ -153,8 +153,8 @@ module {
     return %20 : i32
   }
   func.func @i32_load_little(%arg0: !llvm.ptr, %arg1: i32) -> i32 {
-    %c1_i64 = arith.constant 1 : i64
-    %0 = llvm.alloca %c1_i64 x i32 : (i64) -> !llvm.ptr
+    %c1_i32 = arith.constant 1 : i32
+    %0 = llvm.alloca %c1_i32 x i32 : (i32) -> !llvm.ptr
     llvm.store %arg1, %0 : i32, !llvm.ptr
     cf.br ^bb1
   ^bb1:  // pred: ^bb0
@@ -180,8 +180,8 @@ module {
     return %9 : i32
   }
   func.func @i64_load_little(%arg0: !llvm.ptr, %arg1: i32) -> i64 {
-    %c1_i64 = arith.constant 1 : i64
-    %0 = llvm.alloca %c1_i64 x i32 : (i64) -> !llvm.ptr
+    %c1_i32 = arith.constant 1 : i32
+    %0 = llvm.alloca %c1_i32 x i32 : (i32) -> !llvm.ptr
     llvm.store %arg1, %0 : i32, !llvm.ptr
     cf.br ^bb1
   ^bb1:  // pred: ^bb0
@@ -209,8 +209,8 @@ module {
     return %11 : i64
   }
   func.func public @i32_load16_s(%arg0: !llvm.ptr, %arg1: i32) -> i32 attributes {llvm.emit_c_interface} {
-    %c1_i64 = arith.constant 1 : i64
-    %0 = llvm.alloca %c1_i64 x i32 : (i64) -> !llvm.ptr
+    %c1_i32 = arith.constant 1 : i32
+    %0 = llvm.alloca %c1_i32 x i32 : (i32) -> !llvm.ptr
     llvm.store %arg1, %0 : i32, !llvm.ptr
     %1 = llvm.getelementptr %arg0[32] : (!llvm.ptr) -> !llvm.ptr, i8
     %2 = llvm.getelementptr %1[0] : (!llvm.ptr) -> !llvm.ptr, i8
@@ -232,8 +232,8 @@ module {
     return %10 : i32
   }
   func.func public @i32_load16_u(%arg0: !llvm.ptr, %arg1: i32) -> i32 attributes {llvm.emit_c_interface} {
-    %c1_i64 = arith.constant 1 : i64
-    %0 = llvm.alloca %c1_i64 x i32 : (i64) -> !llvm.ptr
+    %c1_i32 = arith.constant 1 : i32
+    %0 = llvm.alloca %c1_i32 x i32 : (i32) -> !llvm.ptr
     llvm.store %arg1, %0 : i32, !llvm.ptr
     %1 = llvm.getelementptr %arg0[32] : (!llvm.ptr) -> !llvm.ptr, i8
     %2 = llvm.getelementptr %1[0] : (!llvm.ptr) -> !llvm.ptr, i8
@@ -255,8 +255,8 @@ module {
     return %10 : i32
   }
   func.func public @i32_load(%arg0: !llvm.ptr, %arg1: i32) -> i32 attributes {llvm.emit_c_interface} {
-    %c1_i64 = arith.constant 1 : i64
-    %0 = llvm.alloca %c1_i64 x i32 : (i64) -> !llvm.ptr
+    %c1_i32 = arith.constant 1 : i32
+    %0 = llvm.alloca %c1_i32 x i32 : (i32) -> !llvm.ptr
     llvm.store %arg1, %0 : i32, !llvm.ptr
     %1 = llvm.getelementptr %arg0[32] : (!llvm.ptr) -> !llvm.ptr, i8
     %2 = llvm.getelementptr %1[0] : (!llvm.ptr) -> !llvm.ptr, i8
@@ -277,8 +277,8 @@ module {
     return %9 : i32
   }
   func.func public @i64_load16_s(%arg0: !llvm.ptr, %arg1: i64) -> i64 attributes {llvm.emit_c_interface} {
-    %c1_i64 = arith.constant 1 : i64
-    %0 = llvm.alloca %c1_i64 x i64 : (i64) -> !llvm.ptr
+    %c1_i32 = arith.constant 1 : i32
+    %0 = llvm.alloca %c1_i32 x i64 : (i32) -> !llvm.ptr
     llvm.store %arg1, %0 : i64, !llvm.ptr
     %1 = llvm.getelementptr %arg0[32] : (!llvm.ptr) -> !llvm.ptr, i8
     %2 = llvm.getelementptr %1[0] : (!llvm.ptr) -> !llvm.ptr, i8
@@ -301,8 +301,8 @@ module {
     return %11 : i64
   }
   func.func public @i64_load16_u(%arg0: !llvm.ptr, %arg1: i64) -> i64 attributes {llvm.emit_c_interface} {
-    %c1_i64 = arith.constant 1 : i64
-    %0 = llvm.alloca %c1_i64 x i64 : (i64) -> !llvm.ptr
+    %c1_i32 = arith.constant 1 : i32
+    %0 = llvm.alloca %c1_i32 x i64 : (i32) -> !llvm.ptr
     llvm.store %arg1, %0 : i64, !llvm.ptr
     %1 = llvm.getelementptr %arg0[32] : (!llvm.ptr) -> !llvm.ptr, i8
     %2 = llvm.getelementptr %1[0] : (!llvm.ptr) -> !llvm.ptr, i8
@@ -325,8 +325,8 @@ module {
     return %11 : i64
   }
   func.func public @i64_load32_s(%arg0: !llvm.ptr, %arg1: i64) -> i64 attributes {llvm.emit_c_interface} {
-    %c1_i64 = arith.constant 1 : i64
-    %0 = llvm.alloca %c1_i64 x i64 : (i64) -> !llvm.ptr
+    %c1_i32 = arith.constant 1 : i32
+    %0 = llvm.alloca %c1_i32 x i64 : (i32) -> !llvm.ptr
     llvm.store %arg1, %0 : i64, !llvm.ptr
     %1 = llvm.getelementptr %arg0[32] : (!llvm.ptr) -> !llvm.ptr, i8
     %2 = llvm.getelementptr %1[0] : (!llvm.ptr) -> !llvm.ptr, i8
@@ -349,8 +349,8 @@ module {
     return %11 : i64
   }
   func.func public @i64_load32_u(%arg0: !llvm.ptr, %arg1: i64) -> i64 attributes {llvm.emit_c_interface} {
-    %c1_i64 = arith.constant 1 : i64
-    %0 = llvm.alloca %c1_i64 x i64 : (i64) -> !llvm.ptr
+    %c1_i32 = arith.constant 1 : i32
+    %0 = llvm.alloca %c1_i32 x i64 : (i32) -> !llvm.ptr
     llvm.store %arg1, %0 : i64, !llvm.ptr
     %1 = llvm.getelementptr %arg0[32] : (!llvm.ptr) -> !llvm.ptr, i8
     %2 = llvm.getelementptr %1[0] : (!llvm.ptr) -> !llvm.ptr, i8
@@ -373,8 +373,8 @@ module {
     return %11 : i64
   }
   func.func public @i64_load(%arg0: !llvm.ptr, %arg1: i64) -> i64 attributes {llvm.emit_c_interface} {
-    %c1_i64 = arith.constant 1 : i64
-    %0 = llvm.alloca %c1_i64 x i64 : (i64) -> !llvm.ptr
+    %c1_i32 = arith.constant 1 : i32
+    %0 = llvm.alloca %c1_i32 x i64 : (i32) -> !llvm.ptr
     llvm.store %arg1, %0 : i64, !llvm.ptr
     %1 = llvm.getelementptr %arg0[32] : (!llvm.ptr) -> !llvm.ptr, i8
     %2 = llvm.getelementptr %1[0] : (!llvm.ptr) -> !llvm.ptr, i8
@@ -395,8 +395,8 @@ module {
     return %9 : i64
   }
   func.func public @f32_load(%arg0: !llvm.ptr, %arg1: f32) -> f32 attributes {llvm.emit_c_interface} {
-    %c1_i64 = arith.constant 1 : i64
-    %0 = llvm.alloca %c1_i64 x f32 : (i64) -> !llvm.ptr
+    %c1_i32 = arith.constant 1 : i32
+    %0 = llvm.alloca %c1_i32 x f32 : (i32) -> !llvm.ptr
     llvm.store %arg1, %0 : f32, !llvm.ptr
     %1 = llvm.getelementptr %arg0[32] : (!llvm.ptr) -> !llvm.ptr, i8
     %2 = llvm.getelementptr %1[0] : (!llvm.ptr) -> !llvm.ptr, i8
@@ -418,8 +418,8 @@ module {
     return %10 : f32
   }
   func.func public @f64_load(%arg0: !llvm.ptr, %arg1: f64) -> f64 attributes {llvm.emit_c_interface} {
-    %c1_i64 = arith.constant 1 : i64
-    %0 = llvm.alloca %c1_i64 x f64 : (i64) -> !llvm.ptr
+    %c1_i32 = arith.constant 1 : i32
+    %0 = llvm.alloca %c1_i32 x f64 : (i32) -> !llvm.ptr
     llvm.store %arg1, %0 : f64, !llvm.ptr
     %1 = llvm.getelementptr %arg0[32] : (!llvm.ptr) -> !llvm.ptr, i8
     %2 = llvm.getelementptr %1[0] : (!llvm.ptr) -> !llvm.ptr, i8
@@ -441,8 +441,8 @@ module {
     return %10 : f64
   }
   func.func public @i32_store16(%arg0: !llvm.ptr, %arg1: i32) -> i32 attributes {llvm.emit_c_interface} {
-    %c1_i64 = arith.constant 1 : i64
-    %0 = llvm.alloca %c1_i64 x i32 : (i64) -> !llvm.ptr
+    %c1_i32 = arith.constant 1 : i32
+    %0 = llvm.alloca %c1_i32 x i32 : (i32) -> !llvm.ptr
     llvm.store %arg1, %0 : i32, !llvm.ptr
     %1 = llvm.getelementptr %arg0[32] : (!llvm.ptr) -> !llvm.ptr, i8
     %2 = llvm.getelementptr %1[0] : (!llvm.ptr) -> !llvm.ptr, i8
@@ -464,8 +464,8 @@ module {
     return %10 : i32
   }
   func.func public @i32_store(%arg0: !llvm.ptr, %arg1: i32) -> i32 attributes {llvm.emit_c_interface} {
-    %c1_i64 = arith.constant 1 : i64
-    %0 = llvm.alloca %c1_i64 x i32 : (i64) -> !llvm.ptr
+    %c1_i32 = arith.constant 1 : i32
+    %0 = llvm.alloca %c1_i32 x i32 : (i32) -> !llvm.ptr
     llvm.store %arg1, %0 : i32, !llvm.ptr
     %1 = llvm.getelementptr %arg0[32] : (!llvm.ptr) -> !llvm.ptr, i8
     %2 = llvm.getelementptr %1[0] : (!llvm.ptr) -> !llvm.ptr, i8
@@ -486,8 +486,8 @@ module {
     return %9 : i32
   }
   func.func public @i64_store16(%arg0: !llvm.ptr, %arg1: i64) -> i64 attributes {llvm.emit_c_interface} {
-    %c1_i64 = arith.constant 1 : i64
-    %0 = llvm.alloca %c1_i64 x i64 : (i64) -> !llvm.ptr
+    %c1_i32 = arith.constant 1 : i32
+    %0 = llvm.alloca %c1_i32 x i64 : (i32) -> !llvm.ptr
     llvm.store %arg1, %0 : i64, !llvm.ptr
     %1 = llvm.getelementptr %arg0[32] : (!llvm.ptr) -> !llvm.ptr, i8
     %2 = llvm.getelementptr %1[0] : (!llvm.ptr) -> !llvm.ptr, i8
@@ -510,8 +510,8 @@ module {
     return %11 : i64
   }
   func.func public @i64_store32(%arg0: !llvm.ptr, %arg1: i64) -> i64 attributes {llvm.emit_c_interface} {
-    %c1_i64 = arith.constant 1 : i64
-    %0 = llvm.alloca %c1_i64 x i64 : (i64) -> !llvm.ptr
+    %c1_i32 = arith.constant 1 : i32
+    %0 = llvm.alloca %c1_i32 x i64 : (i32) -> !llvm.ptr
     llvm.store %arg1, %0 : i64, !llvm.ptr
     %1 = llvm.getelementptr %arg0[32] : (!llvm.ptr) -> !llvm.ptr, i8
     %2 = llvm.getelementptr %1[0] : (!llvm.ptr) -> !llvm.ptr, i8
@@ -534,8 +534,8 @@ module {
     return %11 : i64
   }
   func.func public @i64_store(%arg0: !llvm.ptr, %arg1: i64) -> i64 attributes {llvm.emit_c_interface} {
-    %c1_i64 = arith.constant 1 : i64
-    %0 = llvm.alloca %c1_i64 x i64 : (i64) -> !llvm.ptr
+    %c1_i32 = arith.constant 1 : i32
+    %0 = llvm.alloca %c1_i32 x i64 : (i32) -> !llvm.ptr
     llvm.store %arg1, %0 : i64, !llvm.ptr
     %1 = llvm.getelementptr %arg0[32] : (!llvm.ptr) -> !llvm.ptr, i8
     %2 = llvm.getelementptr %1[0] : (!llvm.ptr) -> !llvm.ptr, i8
@@ -556,8 +556,8 @@ module {
     return %9 : i64
   }
   func.func public @f32_store(%arg0: !llvm.ptr, %arg1: f32) -> f32 attributes {llvm.emit_c_interface} {
-    %c1_i64 = arith.constant 1 : i64
-    %0 = llvm.alloca %c1_i64 x f32 : (i64) -> !llvm.ptr
+    %c1_i32 = arith.constant 1 : i32
+    %0 = llvm.alloca %c1_i32 x f32 : (i32) -> !llvm.ptr
     llvm.store %arg1, %0 : f32, !llvm.ptr
     %1 = llvm.getelementptr %arg0[32] : (!llvm.ptr) -> !llvm.ptr, i8
     %2 = llvm.getelementptr %1[0] : (!llvm.ptr) -> !llvm.ptr, i8
@@ -579,8 +579,8 @@ module {
     return %10 : f32
   }
   func.func public @f64_store(%arg0: !llvm.ptr, %arg1: f64) -> f64 attributes {llvm.emit_c_interface} {
-    %c1_i64 = arith.constant 1 : i64
-    %0 = llvm.alloca %c1_i64 x f64 : (i64) -> !llvm.ptr
+    %c1_i32 = arith.constant 1 : i32
+    %0 = llvm.alloca %c1_i32 x f64 : (i32) -> !llvm.ptr
     llvm.store %arg1, %0 : f64, !llvm.ptr
     %1 = llvm.getelementptr %arg0[32] : (!llvm.ptr) -> !llvm.ptr, i8
     %2 = llvm.getelementptr %1[0] : (!llvm.ptr) -> !llvm.ptr, i8

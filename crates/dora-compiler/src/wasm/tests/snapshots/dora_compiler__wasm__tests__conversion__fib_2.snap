@@ -5,14 +5,14 @@ snapshot_kind: text
 ---
 module {
   func.func public @fib(%arg0: !llvm.ptr, %arg1: i64) -> i64 attributes {llvm.emit_c_interface} {
-    %c1_i64 = arith.constant 1 : i64
-    %0 = llvm.alloca %c1_i64 x i64 : (i64) -> !llvm.ptr
+    %c1_i32 = arith.constant 1 : i32
+    %0 = llvm.alloca %c1_i32 x i64 : (i32) -> !llvm.ptr
     llvm.store %arg1, %0 : i64, !llvm.ptr
     cf.br ^bb1
   ^bb1:  // pred: ^bb0
     %1 = llvm.load %0 : !llvm.ptr -> i64
-    %c1_i64_0 = arith.constant 1 : i64
-    %2 = arith.cmpi ule, %1, %c1_i64_0 : i64
+    %c1_i64 = arith.constant 1 : i64
+    %2 = arith.cmpi ule, %1, %c1_i64 : i64
     %3 = arith.extui %2 : i1 to i64
     %4 = arith.trunci %3 : i64 to i32
     %c0_i32 = arith.constant 0 : i32
@@ -21,16 +21,16 @@ module {
   ^bb2(%6: i64):  // pred: ^bb5
     return %6 : i64
   ^bb3:  // pred: ^bb1
-    %c1_i64_1 = arith.constant 1 : i64
-    cf.br ^bb5(%c1_i64_1 : i64)
+    %c1_i64_0 = arith.constant 1 : i64
+    cf.br ^bb5(%c1_i64_0 : i64)
   ^bb4:  // pred: ^bb1
     %7 = llvm.load %0 : !llvm.ptr -> i64
     %c2_i64 = arith.constant 2 : i64
     %8 = arith.subi %7, %c2_i64 : i64
     %9 = call @fib(%arg0, %8) : (!llvm.ptr, i64) -> i64
     %10 = llvm.load %0 : !llvm.ptr -> i64
-    %c1_i64_2 = arith.constant 1 : i64
-    %11 = arith.subi %10, %c1_i64_2 : i64
+    %c1_i64_1 = arith.constant 1 : i64
+    %11 = arith.subi %10, %c1_i64_1 : i64
     %12 = call @fib(%arg0, %11) : (!llvm.ptr, i64) -> i64
     %13 = arith.addi %9, %12 : i64
     cf.br ^bb5(%13 : i64)
