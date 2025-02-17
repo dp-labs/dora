@@ -1033,11 +1033,11 @@ module {
   ^bb2(%11: i32):  // pred: ^bb9
     return %11 : i32
   ^bb3:  // 2 preds: ^bb1, ^bb4
-    %12 = llvm.getelementptr %4[%9] : (!llvm.ptr, i32) -> !llvm.ptr, i8
+    %12 = llvm.getelementptr inbounds %4[%9] : (!llvm.ptr, i32) -> !llvm.ptr, !llvm.ptr
     %13 = llvm.load %12 : !llvm.ptr -> !llvm.ptr
-    %14 = llvm.load %13 : !llvm.ptr -> i32
-    %c0_i32 = arith.constant 0 : i32
-    %15 = arith.cmpi eq, %14, %c0_i32 : i32
+    %14 = llvm.ptrtoint %13 : !llvm.ptr to i64
+    %c0_i64 = arith.constant 0 : i64
+    %15 = arith.cmpi eq, %14, %c0_i64 : i64
     cf.cond_br %15, ^bb6, ^bb5
   ^bb4:  // pred: ^bb1
     %c3_i32 = arith.constant 3 : i32
@@ -1049,9 +1049,9 @@ module {
     %18 = llvm.getelementptr %13[16] : (!llvm.ptr) -> !llvm.ptr, i8
     %19 = llvm.load %16 : !llvm.ptr -> !llvm.ptr
     %20 = llvm.load %18 : !llvm.ptr -> !llvm.ptr
-    %21 = llvm.load %19 : !llvm.ptr -> i32
-    %c0_i32_0 = arith.constant 0 : i32
-    %22 = arith.cmpi eq, %21, %c0_i32_0 : i32
+    %21 = llvm.ptrtoint %19 : !llvm.ptr to i64
+    %c0_i64_0 = arith.constant 0 : i64
+    %22 = arith.cmpi eq, %21, %c0_i64_0 : i64
     cf.cond_br %22, ^bb8, ^bb7
   ^bb6:  // pred: ^bb3
     %c4_i32 = arith.constant 4 : i32
@@ -1473,11 +1473,11 @@ module {
   ^bb2(%11: i32):  // pred: ^bb9
     return %11 : i32
   ^bb3:  // 2 preds: ^bb1, ^bb4
-    %12 = llvm.getelementptr %4[%9] : (!llvm.ptr, i32) -> !llvm.ptr, i8
+    %12 = llvm.getelementptr inbounds %4[%9] : (!llvm.ptr, i32) -> !llvm.ptr, !llvm.ptr
     %13 = llvm.load %12 : !llvm.ptr -> !llvm.ptr
-    %14 = llvm.load %13 : !llvm.ptr -> i32
-    %c0_i32 = arith.constant 0 : i32
-    %15 = arith.cmpi eq, %14, %c0_i32 : i32
+    %14 = llvm.ptrtoint %13 : !llvm.ptr to i64
+    %c0_i64 = arith.constant 0 : i64
+    %15 = arith.cmpi eq, %14, %c0_i64 : i64
     cf.cond_br %15, ^bb6, ^bb5
   ^bb4:  // pred: ^bb1
     %c3_i32 = arith.constant 3 : i32
@@ -1489,9 +1489,9 @@ module {
     %18 = llvm.getelementptr %13[16] : (!llvm.ptr) -> !llvm.ptr, i8
     %19 = llvm.load %16 : !llvm.ptr -> !llvm.ptr
     %20 = llvm.load %18 : !llvm.ptr -> !llvm.ptr
-    %21 = llvm.load %19 : !llvm.ptr -> i32
-    %c0_i32_0 = arith.constant 0 : i32
-    %22 = arith.cmpi eq, %21, %c0_i32_0 : i32
+    %21 = llvm.ptrtoint %19 : !llvm.ptr to i64
+    %c0_i64_0 = arith.constant 0 : i64
+    %22 = arith.cmpi eq, %21, %c0_i64_0 : i64
     cf.cond_br %22, ^bb8, ^bb7
   ^bb6:  // pred: ^bb3
     %c4_i32 = arith.constant 4 : i32
@@ -1733,11 +1733,11 @@ module {
   ^bb2(%11: i32):  // pred: ^bb9
     return %11 : i32
   ^bb3:  // 2 preds: ^bb1, ^bb4
-    %12 = llvm.getelementptr %4[%9] : (!llvm.ptr, i32) -> !llvm.ptr, i8
+    %12 = llvm.getelementptr inbounds %4[%9] : (!llvm.ptr, i32) -> !llvm.ptr, !llvm.ptr
     %13 = llvm.load %12 : !llvm.ptr -> !llvm.ptr
-    %14 = llvm.load %13 : !llvm.ptr -> i32
-    %c0_i32 = arith.constant 0 : i32
-    %15 = arith.cmpi eq, %14, %c0_i32 : i32
+    %14 = llvm.ptrtoint %13 : !llvm.ptr to i64
+    %c0_i64 = arith.constant 0 : i64
+    %15 = arith.cmpi eq, %14, %c0_i64 : i64
     cf.cond_br %15, ^bb6, ^bb5
   ^bb4:  // pred: ^bb1
     %c3_i32 = arith.constant 3 : i32
@@ -1749,9 +1749,9 @@ module {
     %18 = llvm.getelementptr %13[16] : (!llvm.ptr) -> !llvm.ptr, i8
     %19 = llvm.load %16 : !llvm.ptr -> !llvm.ptr
     %20 = llvm.load %18 : !llvm.ptr -> !llvm.ptr
-    %21 = llvm.load %19 : !llvm.ptr -> i32
-    %c0_i32_0 = arith.constant 0 : i32
-    %22 = arith.cmpi eq, %21, %c0_i32_0 : i32
+    %21 = llvm.ptrtoint %19 : !llvm.ptr to i64
+    %c0_i64_0 = arith.constant 0 : i64
+    %22 = arith.cmpi eq, %21, %c0_i64_0 : i64
     cf.cond_br %22, ^bb8, ^bb7
   ^bb6:  // pred: ^bb3
     %c4_i32 = arith.constant 4 : i32
@@ -1993,11 +1993,11 @@ module {
   ^bb2(%11: i32):  // pred: ^bb9
     return %11 : i32
   ^bb3:  // 2 preds: ^bb1, ^bb4
-    %12 = llvm.getelementptr %4[%9] : (!llvm.ptr, i32) -> !llvm.ptr, i8
+    %12 = llvm.getelementptr inbounds %4[%9] : (!llvm.ptr, i32) -> !llvm.ptr, !llvm.ptr
     %13 = llvm.load %12 : !llvm.ptr -> !llvm.ptr
-    %14 = llvm.load %13 : !llvm.ptr -> i32
-    %c0_i32 = arith.constant 0 : i32
-    %15 = arith.cmpi eq, %14, %c0_i32 : i32
+    %14 = llvm.ptrtoint %13 : !llvm.ptr to i64
+    %c0_i64 = arith.constant 0 : i64
+    %15 = arith.cmpi eq, %14, %c0_i64 : i64
     cf.cond_br %15, ^bb6, ^bb5
   ^bb4:  // pred: ^bb1
     %c3_i32 = arith.constant 3 : i32
@@ -2009,9 +2009,9 @@ module {
     %18 = llvm.getelementptr %13[16] : (!llvm.ptr) -> !llvm.ptr, i8
     %19 = llvm.load %16 : !llvm.ptr -> !llvm.ptr
     %20 = llvm.load %18 : !llvm.ptr -> !llvm.ptr
-    %21 = llvm.load %19 : !llvm.ptr -> i32
-    %c0_i32_0 = arith.constant 0 : i32
-    %22 = arith.cmpi eq, %21, %c0_i32_0 : i32
+    %21 = llvm.ptrtoint %19 : !llvm.ptr to i64
+    %c0_i64_0 = arith.constant 0 : i64
+    %22 = arith.cmpi eq, %21, %c0_i64_0 : i64
     cf.cond_br %22, ^bb8, ^bb7
   ^bb6:  // pred: ^bb3
     %c4_i32 = arith.constant 4 : i32

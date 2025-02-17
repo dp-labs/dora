@@ -101,9 +101,9 @@ module {
   ^bb1:  // pred: ^bb0
     %1 = llvm.load %0 : !llvm.ptr -> i32
     %2 = call @"get-funcref"(%arg0, %1) : (!llvm.ptr, i32) -> !llvm.ptr
-    %3 = llvm.load %2 : !llvm.ptr -> i32
-    %c0_i32 = arith.constant 0 : i32
-    %4 = arith.cmpi eq, %3, %c0_i32 : i32
+    %3 = llvm.ptrtoint %2 : !llvm.ptr to i64
+    %c0_i64 = arith.constant 0 : i64
+    %4 = arith.cmpi eq, %3, %c0_i64 : i64
     %5 = arith.extui %4 : i1 to i32
     cf.br ^bb2(%5 : i32)
   ^bb2(%6: i32):  // pred: ^bb1

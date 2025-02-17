@@ -7,6 +7,7 @@ use crate::{
 use anyhow::{anyhow, Result};
 use dora_primitives::SpecId;
 use std::fmt::Debug;
+use std::panic::{catch_unwind, AssertUnwindSafe};
 use wasmer_vm::VMContext;
 
 /// Artifact represents an abstraction of a compilation product for EVM/WASM bytecode.
@@ -217,16 +218,26 @@ impl SymbolArtifact {
         Args: Sized,
         Ret: Sized,
     {
-        let func_ptr = self.executor.lookup(name);
-        match &self.executor.kind {
-            ExecuteKind::EVM => Err(anyhow!(
-                "The compiled code kind is EVM, and it's not WASM kind"
-            )),
-            ExecuteKind::WASM(vm_inst) => set_runtime_context(runtime_context, || {
-                let func: fn(*mut VMContext, Args) -> Ret =
-                    unsafe { std::mem::transmute(func_ptr) };
-                Ok(func(vm_inst.read().vmctx_ptr(), args))
-            }),
+        let closure: Box<dyn FnOnce() -> Result<Ret>> = Box::new(move || {
+            let func_ptr = self.executor.lookup(name);
+            match &self.executor.kind {
+                ExecuteKind::EVM => Err(anyhow!(
+                    "The compiled code kind is EVM, and it's not WASM kind"
+                )),
+                ExecuteKind::WASM(vm_inst) => set_runtime_context(runtime_context, || {
+                    let func: fn(*mut VMContext, Args) -> Ret =
+                        unsafe { std::mem::transmute(func_ptr) };
+                    Ok(func(vm_inst.read().vmctx_ptr(), args))
+                }),
+            }
+        });
+        let prev_hook = std::panic::take_hook();
+        std::panic::set_hook(Box::new(|_| {}));
+        let result = catch_unwind(AssertUnwindSafe(closure));
+        std::panic::set_hook(prev_hook);
+        match result {
+            Ok(result) => result,
+            Err(err) => Err(anyhow::anyhow!(crate::wasm::trap::err_to_str(err))),
         }
     }
 }

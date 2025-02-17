@@ -6,6 +6,7 @@ pub mod env;
 pub mod errors;
 pub mod host;
 pub mod ptr;
+pub mod trap;
 
 /// Define a struct `WASMInstance` to represent a WASM instance for the dora runtime.
 #[derive(Debug)]
