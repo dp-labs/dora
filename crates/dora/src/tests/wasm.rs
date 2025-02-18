@@ -758,11 +758,11 @@ fn test_wasm_call_indirect() -> Result<()> {
     generate_test_cases!(
         &artifact,
         [
-            ("type-i32", (), 0x132, i32),
-            // TODO: call indirect error deal.
-            // ("type-i64", (), 0x164, i64),
-            // ("type-f32", (), 0xf32 as f32, f32),
-            // ("type-f64", (), 0xf64 as f64, f64),
+            ("type-i32", (), 0x132_i32, i32),
+            ("type-i64", (), 0x164_i64, i64),
+            ("type-f32", (), 0xf32 as f32, f32),
+            ("type-f64", (), 0xf64 as f64, f64),
+            // TODO: test errors on macos.
             // ("type-index", (), 100, i64),
         ]
     );

@@ -3436,10 +3436,10 @@ impl FunctionCodeGenerator {
                 let builder = OpBuilder::new_with_block(ctx, in_bounds_continue_block);
                 // We assume the table has the `funcref` (pointer to `anyfunc`) element type.
                 let funcref_ptr = builder
-                    .make(builder.gep_dynamic(
+                    .make(builder.inbounds_gep_dynamic(
                         table_base,
                         &[func_index],
-                        builder.i8_ty(),
+                        builder.ptr_ty(),
                         builder.ptr_ty(),
                     ))?
                     .to_ctx_value();
@@ -3643,10 +3643,12 @@ impl FunctionCodeGenerator {
                     builder.get_insert_location(),
                 ))?;
 
-                let current_length =
-                    builder.make(builder.load(ptr_to_current_length, builder.i32_ty()))?;
-                let current_length =
-                    builder.make(arith::extui(current_length, builder.i64_ty(), location))?;
+                let mut current_length =
+                    builder.make(builder.load(ptr_to_current_length, builder.isize_ty()))?;
+                if builder.int_ty_width(current_length.r#type())? != 64 {
+                    current_length =
+                        builder.make(arith::extui(current_length, builder.i64_ty(), location))?;
+                }
 
                 let ptr_in_bounds = builder.make(builder.icmp(
                     IntCC::UnsignedLessThan,

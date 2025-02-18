@@ -10,9 +10,9 @@ use melior::ir::{
 };
 use wasmer_types::TrapCode;
 
+use crate::conversion::rewriter::Rewriter;
 use crate::errors::Result;
 use crate::value::ToContextValue;
-use crate::{backend::IntCC, conversion::rewriter::Rewriter};
 use crate::{backend::TypeMethods, context::Context, conversion::builder::OpBuilder, state::State};
 
 use super::intrinsics::WASMIntrinsics;
@@ -164,14 +164,12 @@ pub(crate) fn is_zero<'c, 'a>(
             .result(0)?
             .to_ctx_value())
     } else {
-        // WASM pointer type
-        let value = builder.make(builder.load(value, builder.i32_ty()))?;
-        let result = builder.make(builder.icmp_imm(IntCC::Equal, value, 0)?)?;
+        let result = builder.make(builder.is_null(value)?)?;
         Ok(unsafe { Value::from_raw(result.to_raw()) })
     }
 }
 
-pub(crate) fn trap<'c, 'a>(
+pub fn trap<'c, 'a>(
     builder: &OpBuilder<'c, 'a>,
     code: TrapCode,
     continue_block: BlockRef<'c, 'a>,
@@ -186,6 +184,19 @@ pub(crate) fn trap<'c, 'a>(
         builder.get_insert_location(),
     ));
     builder.create(cf::br(&continue_block, &[], builder.get_insert_location()));
+    Ok(())
+}
+
+pub fn trap_call(builder: &OpBuilder<'_, '_>, code: TrapCode) -> Result<()> {
+    let ctx = builder.ctx;
+    let code = builder.make(builder.iconst_32(code as _))?;
+    builder.create(func::call(
+        ctx,
+        FlatSymbolRefAttribute::new(ctx, symbols::wasm::RAISE_TRAP),
+        &[code],
+        &[],
+        builder.get_insert_location(),
+    ));
     Ok(())
 }
 

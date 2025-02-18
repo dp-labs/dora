@@ -93,7 +93,7 @@
     (call_indirect (type $out-i32) (i32.const 0))
   )
   (func (export "type-i64") (result i64)
-    (call_indirect (type $out-i64) (i32.const 0))
+    (call_indirect (type $out-i64) (i32.const 1))
   )
   (func (export "type-f32") (result f32)
     (call_indirect (type $out-f32) (i32.const 2))

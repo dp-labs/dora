@@ -700,6 +700,16 @@ impl<'c, 'a> OpBuilder<'c, 'a> {
         Ok(self.icmp(cond, lhs, rhs.result(0)?.to_ctx_value()))
     }
 
+    /// Check whether the pointer value is an null pointer
+    pub fn is_null(&self, ptr: Val<'c, 'a>) -> Result<Op<'c, 'a>> {
+        let ptr_to_int_op = OperationBuilder::new("llvm.ptrtoint", self.intrinsics.unknown_loc)
+            .add_results(&[self.isize_ty()])
+            .add_operands(&[ptr])
+            .build()?;
+        let ptr_int_val = self.make(ptr_to_int_op)?.to_ctx_value();
+        self.icmp_imm(IntCC::Equal, ptr_int_val, 0)
+    }
+
     /// Loads a value from the specified pointer.
     ///
     /// # Parameters
@@ -1044,6 +1054,32 @@ impl<'c, 'a> OpBuilder<'c, 'a> {
             result_type,
             self.get_insert_location(),
         )
+    }
+
+    /// Creates a `llvm.getelementptr` operation with the inbounds option.
+    ///
+    /// # Parameters
+    /// - `ptr`: The base pointer (`Val`) from which the field's offset is computed.
+    /// - `indices`: The dynamic indices of the field relative to the base pointer.
+    /// - `element_type`: The element type of the field value due to the offset.
+    /// - `result_type`: The expected type of the field value to be loaded.
+    pub fn inbounds_gep_dynamic<const N: usize>(
+        &self,
+        ptr: Val<'c, 'a>,
+        indices: &[Val<'c, '_>; N],
+        element_type: Type<'c>,
+        result_type: Type<'c>,
+    ) -> Op<'c, '_> {
+        let mut op = llvm::get_element_ptr_dynamic(
+            self.context(),
+            ptr,
+            indices,
+            element_type,
+            result_type,
+            self.get_insert_location(),
+        );
+        op.set_attribute("inbounds", Attribute::unit(self.context()));
+        op
     }
 
     /// Retrieves the value of a field from a given pointer at a specified offset and interprets it as a specific type.
