@@ -1,5 +1,6 @@
 use dora_ir::IRTypes;
 use dora_runtime::symbols;
+use dora_runtime::wasm::trap::TrapCode;
 use melior::dialect::{
     arith::{self, CmpfPredicate, CmpiPredicate},
     cf, func,
@@ -8,7 +9,6 @@ use melior::ir::{
     attribute::FlatSymbolRefAttribute, r#type::IntegerType, BlockRef, OperationRef, Region, Type,
     TypeLike, Value, ValueLike,
 };
-use wasmer_types::TrapCode;
 
 use crate::conversion::rewriter::Rewriter;
 use crate::errors::Result;
@@ -198,6 +198,18 @@ pub fn trap_call(builder: &OpBuilder<'_, '_>, code: TrapCode) -> Result<()> {
         builder.get_insert_location(),
     ));
     Ok(())
+}
+
+pub fn gas_limit<'c, 'a>(builder: &OpBuilder<'c, 'a>) -> Result<Value<'c, 'a>> {
+    let ctx = builder.ctx;
+    let value = builder.make(func::call(
+        ctx,
+        FlatSymbolRefAttribute::new(ctx, symbols::wasm::GAS_LIMIT),
+        &[],
+        &[builder.i64_ty()],
+        builder.get_insert_location(),
+    ))?;
+    Ok(value.to_ctx_value())
 }
 
 /// Convert floating point vector to integer and saturate when out of range.

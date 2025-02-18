@@ -12,7 +12,7 @@ macro_rules! build_wasm_code {
         let wasm_code = wat2wasm($code).unwrap();
         let $artifact = build_wasm_artifact::<MemoryDB>(&wasm_code.to_vec().into()).unwrap();
     };
-    ($code:ident, $artifact:ident, $runtime_context:ident, $gas:ident) => {
+    ($code:ident, $artifact:ident, $runtime_context:ident) => {
         let wasm_code = wat2wasm($code).unwrap();
         let $artifact = build_wasm_artifact::<MemoryDB>(&wasm_code.to_vec().into()).unwrap();
         // Run WASM code with env.
@@ -25,8 +25,8 @@ macro_rules! build_wasm_code {
             false,
             &mut host,
             SpecId::CANCUN,
+            u64::MAX,
         );
-        let $gas = INIT_GAS;
     };
 }
 
@@ -57,7 +57,6 @@ macro_rules! generate_calldata_test_cases {
 #[test]
 #[cfg(target_os = "linux")]
 fn test_wasm_brainfuck_with_host_functions() {
-    use crate::tests::INIT_GAS;
     use dora_primitives::Bytecode;
     use dora_primitives::SpecId;
     use dora_runtime::context::Contract;
@@ -66,9 +65,9 @@ fn test_wasm_brainfuck_with_host_functions() {
     use dora_runtime::host::DummyHost;
 
     let code = include_bytes!("../../../dora-compiler/src/wasm/tests/suites/brainfuck.wat");
-    build_wasm_code!(code, artifact, runtime_context, gas);
+    build_wasm_code!(code, artifact, runtime_context);
     let result: i32 = artifact
-        .execute_wasm_func_with_context("user_entrypoint", 0, runtime_context, gas)
+        .execute_wasm_func_with_context("user_entrypoint", 0, runtime_context)
         .unwrap();
     assert_eq!(result, 0);
 }

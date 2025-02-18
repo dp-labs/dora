@@ -704,6 +704,11 @@ pub fn gas_left(mut _env: WASMEnvMut) -> EscapeResult<u64> {
     Ok(gas)
 }
 
+/// Gets the limit gas of the execution.
+pub fn gas_limit() -> u64 {
+    with_runtime_context(|runtime_context| runtime_context.gas_limit())
+}
+
 /// Gets the address of the account that called the program.
 pub fn msg_sender(
     mut env: WASMEnvMut,

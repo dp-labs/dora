@@ -7,11 +7,9 @@ use crate::conversion::builder::OpBuilder;
 use crate::errors::Result;
 use crate::intrinsics::{is_f32_arithmetic, is_f64_arithmetic};
 use crate::value::ToContextValue;
-use crate::wasm::backend::trap;
 use crate::wasm::intrinsics::MemoryCache;
 
-use super::backend::is_zero;
-use super::backend::WASMBackend;
+use super::backend::{is_zero, trap, trap_call, WASMBackend};
 use super::func::FuncTranslator;
 use super::intrinsics::CtxType;
 use super::intrinsics::FunctionCache;
@@ -22,9 +20,11 @@ use crate::state::ControlFrame;
 use crate::state::ExtraInfo;
 use crate::state::IfElseState;
 use crate::state::PhiValue;
+use crate::wasm::meter::op_gas_cost;
 use dora_runtime::symbols;
+use dora_runtime::wasm::trap::TrapCode;
 use melior::dialect::ods;
-use melior::dialect::{arith, cf, func, llvm};
+use melior::dialect::{arith, cf, func, llvm, scf};
 use melior::ir::attribute::DenseI64ArrayAttribute;
 use melior::ir::attribute::FlatSymbolRefAttribute;
 use melior::ir::attribute::StringAttribute;
@@ -39,7 +39,7 @@ use wasmer_compiler::{wpheaptype_to_type, ModuleTranslationState};
 use wasmer_types::entity::PrimaryMap;
 use wasmer_types::{
     FunctionIndex, FunctionType, GlobalIndex, MemoryIndex, MemoryStyle, ModuleInfo, SignatureIndex,
-    TableIndex, TableStyle, TrapCode, WasmResult,
+    TableIndex, TableStyle, WasmResult,
 };
 
 macro_rules! op {
@@ -748,6 +748,7 @@ impl FunctionCodeGenerator {
         backend: &mut WASMBackend<'c>,
         region: &'c Region<'c>,
         block: BlockRef<'c, 'a>,
+        gas_counter_ptr: Option<Value<'c, 'a>>,
         _source_loc: u32,
     ) -> Result<BlockRef<'c, 'a>>
     where
@@ -778,6 +779,44 @@ impl FunctionCodeGenerator {
                 _ => {
                     return Ok(block);
                 }
+            }
+        } else {
+            // Insert the gas metering block
+            if let Some(gas_counter_ptr) = gas_counter_ptr {
+                let location = builder.get_insert_location();
+                let gas_value = builder.make(builder.iconst_64(op_gas_cost(&op) as i64))?;
+                let gas_counter = builder.make(builder.load(gas_counter_ptr, builder.i64_ty()))?;
+                let flag = builder.make(arith::cmpi(
+                    builder.context(),
+                    arith::CmpiPredicate::Ult,
+                    gas_counter,
+                    gas_value,
+                    location,
+                ))?;
+                // Out of gas check.
+                builder.create(scf::r#if(
+                    flag,
+                    &[],
+                    {
+                        let region = Region::new();
+                        let block = region.append_block(Block::new(&[]));
+                        let builder = OpBuilder::new_with_block(&backend.ctx.mlir_context, block);
+                        trap_call(&builder, TrapCode::OutOfGas)?;
+                        builder.create(scf::r#yield(&[], location));
+                        region
+                    },
+                    {
+                        let region = Region::new();
+                        let block = region.append_block(Block::new(&[]));
+                        let builder = OpBuilder::new_with_block(&backend.ctx.mlir_context, block);
+                        let new_gas_counter =
+                            builder.make(arith::subi(gas_counter, gas_value, location))?;
+                        builder.create(builder.store(new_gas_counter, gas_counter_ptr));
+                        builder.create(scf::r#yield(&[], location));
+                        region
+                    },
+                    location,
+                ));
             }
         }
         match op {

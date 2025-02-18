@@ -80,9 +80,10 @@ pub(crate) fn run_result_with_spec(operations: Vec<Operation>, spec_id: SpecId) 
         None,
     );
     let mut host = DummyHost::new(env);
-    let mut runtime_context = RuntimeContext::new(contract, 1, false, false, &mut host, spec_id);
+    let mut runtime_context =
+        RuntimeContext::new(contract, 1, false, false, &mut host, spec_id, initial_gas);
     runtime_context.set_returndata(vec![0xDD; 64]);
-    run_with_context::<MemoryDB>(&mut runtime_context, initial_gas).unwrap();
+    run_with_context::<MemoryDB>(&mut runtime_context).unwrap();
     TestResult {
         status: runtime_context.status(),
         memory: runtime_context.memory().to_owned(),
@@ -101,18 +102,18 @@ pub(crate) fn run_result_with_spec_eof(eof: Eof, spec_id: SpecId) -> TestResult 
     let mut env = Env::default();
     env.tx.gas_limit = INIT_GAS;
     env.tx.data = Bytes::from_static(&[0xCC; 64]);
-    let initial_gas = env.tx.gas_limit;
     let contract =
         Contract::new_with_env(&env, Bytecode::EVM(EVMBytecode::Eof(Arc::new(eof))), None);
     let mut host = DummyHost::new(env);
-    let mut runtime_context = RuntimeContext::new(contract, 1, false, false, &mut host, spec_id);
+    let mut runtime_context =
+        RuntimeContext::new(contract, 1, false, false, &mut host, spec_id, INIT_GAS);
     runtime_context.set_returndata(vec![0xDD; 64]);
-    run_with_context::<MemoryDB>(&mut runtime_context, initial_gas).unwrap();
+    run_with_context::<MemoryDB>(&mut runtime_context).unwrap();
     TestResult {
         status: runtime_context.status(),
         memory: runtime_context.memory().to_owned(),
         output: runtime_context.return_values().to_vec(),
-        gas_used: initial_gas - runtime_context.gas_remaining(),
+        gas_used: INIT_GAS - runtime_context.gas_remaining(),
         host,
     }
 }

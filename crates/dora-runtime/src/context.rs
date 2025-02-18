@@ -15,6 +15,7 @@ use crate::handler::{Frame, Handler};
 use crate::host::{AccountLoad, CodeLoad, Host, SStoreResult, SelfdestructResult, StateLoad};
 use crate::journaled_state::{JournalCheckpoint, JournalEntry, JournaledState};
 use crate::result::EVMError;
+use crate::wasm::host::gas_limit;
 use crate::{gas, symbols, ExitStatusCode};
 use dora_primitives::{
     keccak256, Address, Bytecode, Bytes, Bytes32, Precompile, PrecompileErrors, PrecompileSpecId,
@@ -938,7 +939,7 @@ impl<DB: Database> Host for VMContext<'_, DB> {
 /// - `is_eof_init`: A boolean flag indicating whether the context is EOF init.
 /// - `spec_id`: The EVM spec ID from [SpecId].
 /// ```
-#[derive(Debug, Default, Clone)]
+#[derive(Debug, Clone)]
 pub struct InnerContext {
     /// Represents the mutable, byte-addressable memory used during contract execution.
     /// This memory is accessible by smart contracts for reading and writing data.
@@ -949,6 +950,8 @@ pub struct InnerContext {
     /// * It contains the output bytes of call sub call.
     /// * When this interpreter finishes execution it contains the output bytes of this contract.
     returndata: Vec<u8>,
+    /// The limit gas for the current execution.
+    gas_limit: u64,
     /// The remaining gas for the current execution.
     gas_remaining: Option<u64>,
     /// The total gas to be refunded at the end of execution.
@@ -965,6 +968,24 @@ pub struct InnerContext {
     pub is_eof_init: bool,
     /// VM spec id
     pub spec_id: SpecId,
+}
+
+impl Default for InnerContext {
+    fn default() -> Self {
+        Self {
+            gas_limit: u64::MAX,
+            memory: Default::default(),
+            returndata: Default::default(),
+            gas_remaining: Default::default(),
+            gas_refunded: Default::default(),
+            exit_status: Default::default(),
+            result: Default::default(),
+            depth: Default::default(),
+            is_static: Default::default(),
+            is_eof_init: Default::default(),
+            spec_id: Default::default(),
+        }
+    }
 }
 
 /// The runtime context for smart contract execution, encapsulating the environment and execution state.
@@ -1204,6 +1225,7 @@ impl<'a> RuntimeContext<'a> {
         is_eof_init: bool,
         host: &'a mut dyn Host,
         spec_id: SpecId,
+        gas_limit: u64,
     ) -> Self {
         Self {
             inner: InnerContext {
@@ -1212,6 +1234,7 @@ impl<'a> RuntimeContext<'a> {
                 memory: Vec::with_capacity(4 * 1024),
                 is_static,
                 is_eof_init,
+                gas_limit,
                 ..Default::default()
             },
             host,
@@ -1263,6 +1286,20 @@ impl<'a> RuntimeContext<'a> {
             .exit_status
             .clone()
             .unwrap_or(ExitStatusCode::Return)
+    }
+
+    /// The limit gas of the execution.
+    #[inline]
+    pub fn gas_limit(&self) -> u64 {
+        self.inner.gas_limit
+    }
+
+    /// The used gas at the end of execution.
+    #[inline]
+    pub fn gas_used(&self) -> u64 {
+        self.inner
+            .gas_limit
+            .saturating_sub(self.inner.gas_remaining.unwrap_or_default())
     }
 
     /// The remaining gas at the end of execution.
@@ -2749,6 +2786,7 @@ impl RuntimeContext<'_> {
                     symbols::wasm::RAISE_TRAP,
                     wasmer_vm::libcalls::wasmer_vm_raise_trap as *const _,
                 ),
+                (symbols::wasm::GAS_LIMIT, gas_limit as *const _),
             ];
 
             for (symbol, signature) in symbols_and_signatures {

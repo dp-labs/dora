@@ -76,7 +76,15 @@ fn run_bench(c: &mut Criterion, bench: &Bench) {
     env.tx.caller = address!("6666000000000000000000000000000000000000");
     let contract = Contract::new_with_env(&env, Bytecode::new(program.to_opcode().into()), None);
     let mut host = DummyHost::new(env);
-    let mut context = RuntimeContext::new(contract, 1, false, false, &mut host, SpecId::CANCUN);
+    let mut context = RuntimeContext::new(
+        contract,
+        1,
+        false,
+        false,
+        &mut host,
+        SpecId::CANCUN,
+        gas_limit,
+    );
     let executor = Executor::new(module.module(), Default::default(), ExecuteKind::EVM);
     let func = executor.get_evm_main_entrypoint();
     let ctx = black_box(&mut context);
