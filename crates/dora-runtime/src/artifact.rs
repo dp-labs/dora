@@ -43,7 +43,6 @@ pub trait Artifact: Default + Debug + Clone {
     fn execute(
         &self,
         runtime_context: &mut RuntimeContext,
-        initial_gas: &mut u64,
         stack: &mut Stack,
         stack_size: &mut u64,
     ) -> u8;
@@ -95,15 +94,15 @@ impl Artifact for SymbolArtifact {
     fn execute(
         &self,
         runtime_context: &mut RuntimeContext,
-        initial_gas: &mut u64,
         stack: &mut Stack,
         stack_size: &mut u64,
     ) -> u8 {
         let ptr = self.executor.get_main_entrypoint_ptr();
         match &self.executor.kind {
             ExecuteKind::EVM => {
+                let mut initial_gas = runtime_context.gas_limit();
                 let func: EVMMainFunc = unsafe { std::mem::transmute(ptr) };
-                func(runtime_context, initial_gas, stack, stack_size)
+                func(runtime_context, &mut initial_gas, stack, stack_size)
             }
             ExecuteKind::WASM(vm_inst) => {
                 let func: WASMMainFunc = unsafe { std::mem::transmute(ptr) };
@@ -144,8 +143,8 @@ impl SymbolArtifact {
                 false,
                 &mut host,
                 SpecId::default(),
+                u64::MAX,
             ),
-            u64::MAX,
         )
     }
 
@@ -184,8 +183,8 @@ impl SymbolArtifact {
                 false,
                 &mut host,
                 SpecId::default(),
+                u64::MAX,
             ),
-            u64::MAX,
         )
     }
 
@@ -211,8 +210,6 @@ impl SymbolArtifact {
         name: &str,
         args: Args,
         runtime_context: RuntimeContext,
-        // TODO: gas meter.
-        _initial_gas: u64,
     ) -> Result<Ret>
     where
         Args: Sized,

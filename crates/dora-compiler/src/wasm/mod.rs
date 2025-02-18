@@ -6,6 +6,7 @@ pub(crate) mod conversion;
 pub mod errors;
 pub(crate) mod func;
 pub mod intrinsics;
+pub mod meter;
 pub mod pass;
 pub mod state;
 pub(crate) mod symbols;
@@ -440,5 +441,14 @@ impl SymbolRegistry for ShortNames {
 #[derive(Debug, Clone, Default)]
 pub struct Config {
     /// A collection of middleware components that modify the behavior of the compiler.
-    pub(crate) middlewares: Vec<Arc<dyn ModuleMiddleware>>,
+    pub middlewares: Vec<Arc<dyn ModuleMiddleware>>,
+    /// A flag indicating whether to perform gas metering during compilation.
+    pub gas_metering: bool,
+}
+
+impl Config {
+    pub fn gas_metering(mut self, gas_metering: bool) -> Self {
+        self.gas_metering = gas_metering;
+        self
+    }
 }

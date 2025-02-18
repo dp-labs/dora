@@ -86,14 +86,9 @@ fn compile_call_frame<DB: Database>(
         frame.is_eof_init,
         ctx,
         spec_id,
+        frame.gas_limit,
     );
-    let mut initial_gas = frame.gas_limit;
-    artifact.execute(
-        &mut runtime_context,
-        &mut initial_gas,
-        &mut Stack::new(),
-        &mut 0,
-    );
+    artifact.execute(&mut runtime_context, &mut Stack::new(), &mut 0);
     Ok(CallResult::new_with_runtime_context_and_gas_limit(
         &runtime_context,
         frame.gas_limit,
@@ -101,16 +96,12 @@ fn compile_call_frame<DB: Database>(
 }
 
 /// Run transaction with the runtime context.
-pub fn run_with_context<DB: Database>(
-    runtime_context: &mut RuntimeContext,
-    initial_gas: u64,
-) -> anyhow::Result<u8> {
+pub fn run_with_context<DB: Database>(runtime_context: &mut RuntimeContext) -> anyhow::Result<u8> {
     let artifact: DB::Artifact = build_artifact::<DB>(
         &runtime_context.contract.code,
         runtime_context.inner.spec_id,
     )?;
-    let mut initial_gas = initial_gas;
-    Ok(artifact.execute(runtime_context, &mut initial_gas, &mut Stack::new(), &mut 0))
+    Ok(artifact.execute(runtime_context, &mut Stack::new(), &mut 0))
 }
 
 /// Build opcode to the artifact

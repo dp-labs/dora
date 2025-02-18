@@ -144,6 +144,7 @@ pub(crate) fn declare_symbols(context: &MLIRContext, module: &MLIRModule) {
         (symbols::wasm::DATA_DROP, &[ptr_type, uint32], &[]),
         (symbols::wasm::ELEM_DROP, &[ptr_type, uint32], &[]),
         (symbols::wasm::RAISE_TRAP, &[uint32], &[]),
+        (symbols::wasm::GAS_LIMIT, &[], &[uint64]),
     ];
 
     for (name, input_types, output_types) in function_signatures.iter() {

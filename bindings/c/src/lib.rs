@@ -67,6 +67,7 @@ impl EvmcVm for DoraVM {
             code.starts_with(&EOF_MAGIC_BYTES),
             &mut host,
             spec_id,
+            message.gas() as u64,
         );
         let mut artifacts = ARTIFACTS.lock().unwrap();
         let artifact = if let Some(artifact) =
@@ -84,13 +85,7 @@ impl EvmcVm for DoraVM {
             artifact
         };
         drop(artifacts);
-        let mut initial_gas = message.gas() as u64;
-        artifact.execute(
-            &mut runtime_context,
-            &mut initial_gas,
-            &mut Stack::new(),
-            &mut 0,
-        );
+        artifact.execute(&mut runtime_context, &mut Stack::new(), &mut 0);
         // Runtime errors
         let exit_code = runtime_context.status();
         if exit_code.is_ok() {

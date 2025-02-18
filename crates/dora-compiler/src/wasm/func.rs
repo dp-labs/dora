@@ -1,4 +1,4 @@
-use super::backend::WASMBackend;
+use super::backend::{gas_limit, WASMBackend};
 use super::code::{FunctionCodeCtx, FunctionCodeGenerator};
 use super::intrinsics::CtxType;
 use super::ty::{type_to_mlir, type_to_mlir_zero_attribute};
@@ -114,6 +114,7 @@ impl FuncTranslator {
                             .generate_function_middleware_chain(*local_func_index),
                     );
                     let builder = OpBuilder::new_with_block(&context.mlir_context, setup_block);
+                    // Setup function parameters
                     let mut params = vec![];
                     for idx in 0..wasm_fn_type.params().len() {
                         let ty = wasm_fn_type.params()[idx];
@@ -124,6 +125,7 @@ impl FuncTranslator {
                         builder.create(builder.store(value.into(), value_ptr));
                         params.push((ty, value_ptr));
                     }
+                    // Setup function local variables
                     let mut locals = vec![];
                     let num_locals = reader.read_local_count()?;
                     for _ in 0..num_locals {
@@ -146,6 +148,15 @@ impl FuncTranslator {
                             locals.push((mlir_ty, value_ptr));
                         }
                     }
+                    // Setup gas meter counter context value and out of gas trap block
+                    let gas_counter_ptr = if config.gas_metering {
+                        let gas_limit = gas_limit(&builder)?;
+                        let gas_counter_ptr = builder.make(builder.alloca(builder.i64_ty())?)?;
+                        builder.create(builder.store(gas_limit, gas_counter_ptr));
+                        Some(gas_counter_ptr)
+                    } else {
+                        None
+                    };
                     let mut params_locals = params.clone();
                     params_locals.extend(locals.iter().cloned());
                     let mut backend = WASMBackend::new(context);
@@ -184,14 +195,17 @@ impl FuncTranslator {
                     };
                     let mut last_block = code_start_lock;
                     while backend.state.has_control_frames() {
+                        // The next WASM operator
                         let pos = reader.current_position() as u32;
                         let op = reader.read_operator()?;
+                        // Op translation
                         let end_block = FunctionCodeGenerator::translate_op(
                             op,
                             &mut fcx,
                             &mut backend,
                             &region,
                             last_block,
+                            gas_counter_ptr,
                             pos,
                         )?;
                         last_block = end_block;

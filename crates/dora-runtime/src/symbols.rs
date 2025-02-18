@@ -89,4 +89,5 @@ pub mod wasm {
     pub const DATA_DROP: &str = "dora_fn_wasm_data_drop";
     pub const ELEM_DROP: &str = "dora_fn_wasm_elem_drop";
     pub const RAISE_TRAP: &str = "dora_fn_wasm_raise_trap";
+    pub const GAS_LIMIT: &str = "dora_fn_wasm_gas_limit";
 }
