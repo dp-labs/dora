@@ -10,6 +10,8 @@ pub enum Escape {
     Memory(MemoryAccessError),
     #[error("internal error: `{0}`")]
     Internal(String),
+    #[error("out of gas")]
+    OutOfGas,
     #[error("exit early: `{0}`")]
     Exit(u8),
 }

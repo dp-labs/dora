@@ -7,6 +7,7 @@ use super::ptr::GuestPtr;
 use super::{
     env::{WASMEnv, WASMEnvMut},
     errors::{Escape, EscapeResult, MaybeEscape},
+    memory::MemoryModel,
 };
 use crate::account::EMPTY_CODE_HASH_BYTES;
 use crate::call::{CallKind, CallMessage, CallResult};
@@ -1046,7 +1047,25 @@ pub fn tx_ink_price(mut _env: WASMEnvMut) -> u32 {
     0
 }
 
-// TODO: gas meter for WASM memory
-pub fn pay_for_memory_grow(mut _env: WASMEnvMut, _memory: u32) {}
+/// Pay for the WASM memory grow gas cost
+pub fn pay_for_memory_grow(mut _env: WASMEnvMut, pages: u16) -> MaybeEscape {
+    if pages == 0 {
+        Ok(())
+    } else {
+        let model = MemoryModel::default();
+        let gas = model.gas_cost(pages, 0, 0);
+        with_runtime_context(|runtime_context| {
+            let gas_limit = runtime_context.gas_limit();
+            if gas > gas_limit {
+                Err(Escape::OutOfGas)
+            } else {
+                runtime_context.update_gas_limit(gas_limit);
+                Ok(())
+            }
+        })
+    }
+}
 
-pub fn storage_flush_cache(mut _env: WASMEnvMut, _clear: u32) {}
+pub fn storage_flush_cache(mut _env: WASMEnvMut, _clear: u32) {
+    // Nothing to do here
+}
