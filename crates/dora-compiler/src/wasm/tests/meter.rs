@@ -32,6 +32,11 @@ macro_rules! assert_snapshot {
 }
 
 #[test]
+fn console_fib() {
+    assert_snapshot!(include_str!("suites/console_fib.wat"));
+}
+
+#[test]
 fn fib() {
     assert_snapshot!(include_str!("suites/fib.wat"));
 }

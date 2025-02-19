@@ -389,9 +389,9 @@ impl<'a, DB: Database> VMContext<'a, DB> {
             .selfdestruct(address, target, &mut self.db)
     }
 
-    fn call_frame(&mut self, frame: Frame) -> Result<CallResult, EVMError> {
-        let call_frame_func = self.handler.call_frame.clone();
-        call_frame_func(frame, self)
+    fn invoke_call_handler(&mut self, frame: Frame) -> Result<CallResult, EVMError> {
+        let call_handler = self.handler.call_handler.clone();
+        call_handler(frame, self)
     }
 
     #[inline]
@@ -505,7 +505,7 @@ impl<'a, DB: Database> VMContext<'a, DB> {
                         bytecode,
                         Some(code_hash),
                     );
-                    let call_result = self.call_frame(Frame {
+                    let call_result = self.invoke_call_handler(Frame {
                         contract,
                         gas_limit: msg.gas_limit,
                         is_static: msg.is_static,
@@ -574,7 +574,7 @@ impl<'a, DB: Database> VMContext<'a, DB> {
                         bytecode,
                         Some(code_hash),
                     );
-                    let call_result = self.call_frame(Frame {
+                    let call_result = self.invoke_call_handler(Frame {
                         contract,
                         gas_limit: msg.gas_limit,
                         is_static: msg.is_static,
@@ -652,7 +652,7 @@ impl<'a, DB: Database> VMContext<'a, DB> {
                     caller: msg.caller,
                     call_value: msg.value,
                 };
-                let mut call_result = self.call_frame(Frame {
+                let mut call_result = self.invoke_call_handler(Frame {
                     contract,
                     gas_limit: msg.gas_limit,
                     is_static: msg.is_static,
@@ -739,7 +739,7 @@ impl<'a, DB: Database> VMContext<'a, DB> {
                     caller: msg.caller,
                     call_value: msg.value,
                 };
-                let mut call_result = self.call_frame(Frame {
+                let mut call_result = self.invoke_call_handler(Frame {
                     contract,
                     gas_limit: msg.gas_limit,
                     is_static: msg.is_static,
