@@ -1288,6 +1288,12 @@ impl<'a> RuntimeContext<'a> {
             .unwrap_or(ExitStatusCode::Return)
     }
 
+    /// Update the limit gas of the execution.
+    #[inline]
+    pub fn update_gas_limit(&mut self, gas_limit: u64) {
+        self.inner.gas_limit = gas_limit
+    }
+
     /// The limit gas of the execution.
     #[inline]
     pub fn gas_limit(&self) -> u64 {
