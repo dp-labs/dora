@@ -58,12 +58,12 @@ pub fn run<DB: Database + 'static>(
 #[inline]
 pub fn compile_handler<'a, DB: Database + 'a>() -> Handler<'a, DB> {
     Handler {
-        call_frame: Arc::new(compile_call_frame),
+        call_handler: Arc::new(compile_call_handler),
     }
 }
 
-/// Default frame calling hanlder, using dora compiler and runtime to run EVM contract.
-fn compile_call_frame<DB: Database>(
+/// Default frame calling hanlder, using dora compiler and runtime to run EVM and WASM contract.
+fn compile_call_handler<DB: Database>(
     frame: Frame,
     ctx: &mut VMContext<'_, DB>,
 ) -> Result<CallResult, EVMError> {
@@ -73,7 +73,6 @@ fn compile_call_frame<DB: Database>(
     let artifact = if let Ok(Some(artifact)) = artifact {
         artifact
     } else {
-        // Issue: https://github.com/dp-labs/dora/issues/135
         let artifact = build_artifact::<DB>(&frame.contract.code, ctx.spec_id())
             .map_err(|e| EVMError::Custom(e.to_string()))?;
         ctx.db.set_artifact(code_hash, artifact.clone());

@@ -623,6 +623,11 @@ fn console() {
 }
 
 #[test]
+fn console_fib() {
+    assert_snapshot!(include_str!("suites/console_fib.wat"));
+}
+
+#[test]
 fn counter_contract() {
     assert_snapshot!(include_str!("suites/counter.wat"));
 }

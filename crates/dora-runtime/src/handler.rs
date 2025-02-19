@@ -30,5 +30,5 @@ pub type CallFrameHandle<'a, DB> =
 /// sections of the code.
 pub struct Handler<'a, DB: Database> {
     /// Call frame handler.
-    pub call_frame: CallFrameHandle<'a, DB>,
+    pub call_handler: CallFrameHandle<'a, DB>,
 }
