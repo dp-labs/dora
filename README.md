@@ -39,7 +39,10 @@ VM is ideal for blockchain applications like:
 - AI inference
 - Cross-chain protocols
 
-Check out contract examples [here](./examples/).
+## Examples
+
+- Check out EVM and WASM contract examples [here](./examples/).
+- Check out Foundry, Hardhat and Rust toolchain examples [here](https://github.com/dp-labs/examples).
 
 ## Benchmarks
 

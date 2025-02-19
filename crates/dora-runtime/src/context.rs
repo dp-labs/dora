@@ -1235,6 +1235,7 @@ impl<'a> RuntimeContext<'a> {
                 is_static,
                 is_eof_init,
                 gas_limit,
+                gas_remaining: Some(gas_limit),
                 ..Default::default()
             },
             host,

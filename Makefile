@@ -41,6 +41,7 @@ dist:
 	cp bindings/c/include/dora.h dist/include
 	cp bindings/c/README.md dist/include/README.md
 
+	# Windows dynamic and static libs
 	if [ -f $(TARGET_DIR)/dora_c.dll ]; then \
 		cp $(TARGET_DIR)/dora_c.dll dist/lib/dora_c.dll ;\
 	fi
@@ -49,6 +50,7 @@ dist:
 		cp $(TARGET_DIR)/dora_c.dll.lib dist/lib/dora_c.dll.lib ;\
 	fi
 
+	# MacOS dynamic and static libs
 	if [ -f $(TARGET_DIR)/dora_c.lib ]; then \
 		cp $(TARGET_DIR)/dora_c.lib dist/lib/dora_c.lib ;\
 	fi
@@ -57,6 +59,7 @@ dist:
 		cp $(TARGET_DIR)/libdora_c.dylib dist/lib/libdora_c.dylib ;\
 	fi
 
+	# Linux dynamic and static libs
 	if [ -f $(TARGET_DIR)/libdora_c.so ]; then \
 		cp $(TARGET_DIR)/libdora_c.so dist/lib/libdora_c.so ;\
 	fi
@@ -65,6 +68,7 @@ dist:
 		cp $(TARGET_DIR)/libdora_c.a dist/lib/libdora_c.a ;\
 	fi
 
+	# Package artifact to the tarball
 	tar -C dist -zcvf dora.tar.gz bin lib include
 	mv dora.tar.gz dist
 	rm -rf dist/bin dist/include dist/lib
