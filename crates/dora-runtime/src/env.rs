@@ -4,7 +4,7 @@ use std::cmp::min;
 
 use crate::{
     gas,
-    result::{EVMError, InvalidHeader},
+    result::{InvalidHeader, VMError},
     transaction::TransactionType,
 };
 
@@ -21,13 +21,12 @@ use dora_primitives::{
     calc_blob_gasprice, Address, Bytes, SignedAuthorization, SpecId, B256, GAS_PER_BLOB, U256,
 };
 
-/// Represents the execution environment for the EVM, including block, transaction, and EVM configuration.
-///
-/// The `Env` struct contains the environment in which the Ethereum Virtual Machine (EVM) operates. It holds
-/// configuration settings specific to the EVM, the current block being processed, and the transaction being executed.
+/// Represents the execution environment for the EVM/WASM, including block, transaction, and VM configuration.
+/// It holds configuration settings specific to the VM, the current block being processed, and the transaction
+/// being executed.
 ///
 /// # Fields:
-/// - `cfg`: EVM configuration, including chain ID.
+/// - `cfg`: VM configuration, including chain ID.
 /// - `block`: Information about the current block, such as block number, timestamp, and coinbase.
 /// - `tx`: Details about the current transaction, including caller, gas limit, and transaction type.
 ///
@@ -37,7 +36,7 @@ use dora_primitives::{
 /// ```
 #[derive(Clone, Debug, Default)]
 pub struct Env {
-    /// EVM configuration.
+    /// VM configuration.
     pub cfg: CfgEnv,
     /// Block information.
     pub block: BlockEnv,
@@ -155,7 +154,7 @@ impl Env {
     }
 
     /// Validate initial transaction gas.
-    pub fn validate_initial_tx_gas(&self, spec_id: SpecId) -> Result<u64, EVMError> {
+    pub fn validate_initial_tx_gas(&self, spec_id: SpecId) -> Result<u64, VMError> {
         let is_create = self.tx.transact_to.is_create();
         let authorization_list_num = if self.tx.tx_type == TransactionType::Eip7702 {
             self.tx.authorization_list_len() as u64
@@ -171,7 +170,7 @@ impl Env {
         );
         // Additional check to see if limit is big enough to cover initial gas.
         if initial_gas_cost > self.tx.gas_limit {
-            return Err(EVMError::Transaction(
+            return Err(VMError::Transaction(
                 InvalidTransaction::CallGasCostMoreThanGasLimit,
             ));
         }
@@ -245,10 +244,10 @@ impl Env {
     }
 }
 
-/// Configuration settings for the EVM, including chain ID.
+/// Configuration settings for the VM, including chain ID.
 ///
-/// The `CfgEnv` struct holds the configuration details specific to the EVM instance, such as the chain ID.
-/// It allows the EVM to distinguish between different blockchain networks and environments.
+/// The `CfgEnv` struct holds the configuration details specific to the VM instance, such as the chain ID.
+/// It allows the VM to distinguish between different blockchain networks and environments.
 ///
 /// # Fields:
 /// - `chain_id`: The unique identifier for the blockchain network (e.g., 1 for Ethereum mainnet).
@@ -259,7 +258,7 @@ impl Env {
 /// ```
 #[derive(Clone, Debug)]
 pub struct CfgEnv {
-    /// Chain ID of the EVM, it will be compared to the transaction's Chain ID.
+    /// Chain ID of the VM, it will be compared to the transaction's Chain ID.
     /// Chain ID is introduced EIP-155
     pub chain_id: u64,
     /// If some it will effects EIP-170: Contract code size limit. Useful to increase this because of tests.
@@ -305,9 +304,9 @@ impl CfgEnv {
     }
 }
 
-/// Information about the current block being processed in the EVM, including block number and timestamp.
+/// Information about the current block being processed in the VM, including block number and timestamp.
 ///
-/// The `BlockEnv` struct holds various parameters related to the current block being executed in the EVM.
+/// The `BlockEnv` struct holds various parameters related to the current block being executed in the VM.
 /// This includes details like the block number, the address of the block's coinbase (miner), the timestamp,
 /// and more advanced fields like blob gas prices.
 ///

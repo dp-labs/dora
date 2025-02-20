@@ -1,11 +1,10 @@
 //! This test checks result status and gas costs
 
 use dora_compiler::evm::{program::Operation, Program};
-use dora_primitives::{spec::SpecId, Address, Bytes, Bytes32, Eof, EofBody, B256, U256};
-use dora_runtime::{
-    constants::MAX_STACK_SIZE,
-    context::{Log, LogData},
+use dora_primitives::{
+    spec::SpecId, Address, Bytes, Bytes32, Eof, EofBody, Log, LogData, B256, U256,
 };
+use dora_runtime::constants::MAX_STACK_SIZE;
 
 use crate::tests::utils::{run_result, run_result_eof, run_result_with_spec};
 
@@ -1206,7 +1205,10 @@ fn log0_data() {
         result.logs(),
         &[Log {
             address: Address::default(),
-            data: LogData::new_unchecked(vec![], Bytes32::from(0xAABB_u16).to_be_bytes().to_vec()),
+            data: LogData::new_unchecked(
+                vec![],
+                Bytes32::from(0xAABB_u16).to_be_bytes().to_vec().into()
+            ),
         }]
     );
 }
@@ -1228,7 +1230,7 @@ fn log1_1() {
         result.logs(),
         &[Log {
             address: Address::default(),
-            data: LogData::new_unchecked(vec![B256::ZERO], vec![]),
+            data: LogData::new_unchecked(vec![B256::ZERO], Bytes::default()),
         }]
     );
 }
@@ -1252,7 +1254,7 @@ fn log1_2() {
             address: Address::default(),
             data: LogData::new_unchecked(
                 vec![Bytes32::from(0xFFFFFFFF_FFFFFFFF_FFFFFFFF_u128).to_b256()],
-                vec![0; 50]
+                vec![0; 50].into()
             ),
         }]
     );
@@ -1276,7 +1278,7 @@ fn log2_1() {
         result.logs(),
         &[Log {
             address: Address::default(),
-            data: LogData::new_unchecked(vec![B256::ZERO; 2], vec![]),
+            data: LogData::new_unchecked(vec![B256::ZERO; 2], Bytes::default()),
         }]
     );
 }
@@ -1300,7 +1302,7 @@ fn log3_1() {
         result.logs(),
         &[Log {
             address: Address::default(),
-            data: LogData::new_unchecked(vec![B256::ZERO; 3], vec![]),
+            data: LogData::new_unchecked(vec![B256::ZERO; 3], Bytes::default()),
         }]
     );
 }
@@ -1325,7 +1327,7 @@ fn log4_1() {
         result.logs(),
         &[Log {
             address: Address::default(),
-            data: LogData::new_unchecked(vec![B256::ZERO; 4], vec![]),
+            data: LogData::new_unchecked(vec![B256::ZERO; 4], Bytes::default()),
         }]
     );
 }

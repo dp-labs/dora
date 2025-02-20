@@ -13,20 +13,20 @@ use crate::{
     db::{Database, DatabaseError},
     env::{CfgEnv, TxEnv},
     result::{
-        EVMError, ExecutionResult, HaltReason, InvalidTransaction, OutOfGasError, Output,
-        ResultAndState, SuccessReason,
+        ExecutionResult, HaltReason, InvalidTransaction, OutOfGasError, Output, ResultAndState,
+        SuccessReason, VMError,
     },
     transaction::TransactionType,
     ExitStatusCode,
 };
 
-/// EVM instance containing internal VM context and run actions
+/// EVM/WASM instance containing internal VM context and run actions
 pub struct VM<'a, DB: Database> {
     pub context: VMContext<'a, DB>,
 }
 
 impl<'a, DB: Database> VM<'a, DB> {
-    /// Create new EVM.
+    /// Create a new VM.
     pub fn new(context: VMContext<DB>) -> VM<DB> {
         VM { context }
     }
@@ -41,7 +41,7 @@ impl<'a, DB: Database> VM<'a, DB> {
     ///
     /// This function will validate the transaction.
     #[inline]
-    pub fn transact(&mut self) -> Result<ResultAndState, EVMError> {
+    pub fn transact(&mut self) -> Result<ResultAndState, VMError> {
         let initial_gas_cost = self.preverify_transaction().inspect_err(|_| {
             self.clear();
         })?;
@@ -52,7 +52,7 @@ impl<'a, DB: Database> VM<'a, DB> {
     }
 
     /// Commit the changes to the database.
-    pub fn transact_commit(&mut self) -> Result<ExecutionResult, EVMError> {
+    pub fn transact_commit(&mut self) -> Result<ExecutionResult, VMError> {
         let ResultAndState { result, state } = self.transact()?;
         self.context.db.commit(state);
         Ok(result)
@@ -60,7 +60,7 @@ impl<'a, DB: Database> VM<'a, DB> {
 
     /// Pre verify transaction inner.
     #[inline]
-    fn preverify_transaction(&mut self) -> Result<u64, EVMError> {
+    fn preverify_transaction(&mut self) -> Result<u64, VMError> {
         self.context.env.validate_transaction()?;
         let initial_gas_cost = self.context.env.validate_initial_tx_gas(self.spec_id())?;
         self.validate_tx_against_state()?;
@@ -69,20 +69,20 @@ impl<'a, DB: Database> VM<'a, DB> {
 
     /// Validates transaction against the state.
     #[inline]
-    fn validate_tx_against_state(&mut self) -> Result<(), EVMError> {
+    fn validate_tx_against_state(&mut self) -> Result<(), VMError> {
         let tx_caller = self.context.env.tx.caller;
         let caller_account = self
             .context
             .journaled_state
             .load_code(tx_caller, &mut self.context.db)
-            .map_err(|_| EVMError::Database(DatabaseError))?;
+            .map_err(|_| VMError::Database(DatabaseError))?;
 
         Self::validate_tx_against_account(
             caller_account.data,
             &self.context.env.tx,
             &self.context.env.cfg,
         )
-        .map_err(EVMError::Transaction)?;
+        .map_err(VMError::Transaction)?;
 
         Ok(())
     }
@@ -138,7 +138,7 @@ impl<'a, DB: Database> VM<'a, DB> {
     }
 
     /// Transact pre-verified transaction.
-    fn transact_preverified(&mut self, initial_gas_cost: u64) -> Result<ResultAndState, EVMError> {
+    fn transact_preverified(&mut self, initial_gas_cost: u64) -> Result<ResultAndState, VMError> {
         let ctx = &mut self.context;
         // Pre execution
         {

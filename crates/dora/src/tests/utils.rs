@@ -1,9 +1,11 @@
 use std::sync::Arc;
 
 use dora_compiler::evm::{program::Operation, Program};
-use dora_primitives::{spec::SpecId, Address, Bytecode, Bytes, Bytes32, EVMBytecode, Eof, U256};
+use dora_primitives::{
+    spec::SpecId, Address, Bytecode, Bytes, Bytes32, EVMBytecode, Eof, Log, U256,
+};
 use dora_runtime::{
-    context::{Contract, Log, RuntimeContext},
+    context::{Contract, RuntimeContext},
     db::MemoryDB,
     env::{Env, TxKind},
     host::{DummyHost, Host},

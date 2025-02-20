@@ -11,6 +11,7 @@ pub mod handler;
 pub mod host;
 pub mod journaled_state;
 pub mod result;
+pub mod stack;
 pub mod symbols;
 pub mod transaction;
 pub mod vm;
@@ -47,7 +48,7 @@ pub enum ExitStatusCode {
     OutOfGas = 0x50,
     /// Out of gas error encountered during memory expansion.
     MemoryOOG,
-    /// The memory limit of the EVM has been exceeded.
+    /// The memory limit of the VM has been exceeded.
     MemoryLimitOOG,
     /// Out of gas error encountered during the execution of a precompiled contract.
     PrecompileOOG,
@@ -63,7 +64,7 @@ pub enum ExitStatusCode {
     InvalidFEOpcode,
     /// Invalid jump destination. Dynamic jumps points to invalid not jumpdest opcode.
     InvalidJump,
-    /// The feature or opcode is not activated in this version of the EVM.
+    /// The feature or opcode is not activated in this version of the VM.
     NotActivated,
     /// Attempting to pop a value from an empty stack.
     StackUnderflow,

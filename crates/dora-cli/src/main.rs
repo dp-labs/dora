@@ -17,13 +17,13 @@ struct Cli {
 
 #[derive(Subcommand)]
 enum Commands {
-    /// Run Dora with given parameters
+    /// Run Dora EVM or WASM bytecode with given parameters
     Run(RunArgs),
 }
 
 #[derive(Args)]
 struct RunArgs {
-    /// Path to the contract file,
+    /// Path to the contract file (EVM hex bin format file or WASM files).
     /// or hex text of the contract (Classified by 0x prefix)
     contract: String,
 
@@ -31,7 +31,7 @@ struct RunArgs {
     #[clap(long)]
     hex_file: bool,
 
-    /// Skip validating EOF code (Default is true)
+    /// Skip validating EVM EOF code (Default is true)
     #[clap(long, default_value = "true")]
     no_validate: bool,
 

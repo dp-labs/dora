@@ -681,7 +681,6 @@ macro_rules! atomicrmw_cmpxchg_op {
 ///     module_translation: &module_translation_state,
 ///     wasm_module: &wasm_module_info,
 ///     symbol_registry: &symbol_registry_impl,
-///     config: &wasm_config,
 /// };
 /// ```
 ///

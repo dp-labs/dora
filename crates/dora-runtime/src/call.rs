@@ -43,7 +43,7 @@ impl From<ExtCallType> for CallKind {
     }
 }
 
-/// The message describing an EVM call, including a zero-depth calls from a transaction origin.
+/// The message describing a VM call, including a zero-depth calls from a transaction origin.
 #[derive(Debug, Clone)]
 pub struct CallMessage {
     /// The kind of of the execution.
@@ -80,7 +80,7 @@ impl CallMessage {
     }
 }
 
-/// The EVM call result.
+/// The VM call result.
 #[derive(Debug, Clone)]
 pub struct CallResult {
     /// The execution status code.

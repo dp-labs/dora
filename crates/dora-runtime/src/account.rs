@@ -208,7 +208,7 @@ impl Account {
     /// Checks if the account has been marked as touched.
     ///
     /// Touched accounts are those that have been accessed or modified during the current transaction,
-    /// and are relevant for cleanup or other logic within the EVM.
+    /// and are relevant for cleanup or other logic within the VM.
     ///
     /// # Returns:
     /// - `true` if the account is marked as touched.

@@ -1,10 +1,10 @@
-use crate::{context::Log, db::DatabaseError, journaled_state::State};
+use crate::{db::DatabaseError, journaled_state::State};
 use core::fmt;
-use dora_primitives::{Address, Bytes};
+use dora_primitives::{Address, Bytes, Log};
 use ruint::aliases::U256;
 use std::{boxed::Box, fmt::Debug, string::String};
 
-/// Represents the result of an EVM execution along with the updated account state.
+/// Represents the result of an VM execution along with the updated account state.
 ///
 /// This struct holds two fields:
 /// - `result`: The `ExecutionResult` indicating the status of the transaction.
@@ -17,7 +17,7 @@ pub struct ResultAndState {
     pub state: State,
 }
 
-/// Represents the result of executing a transaction in the EVM.
+/// Represents the result of executing a transaction in the VM.
 ///
 /// This enum contains three possible outcomes:
 /// - `Success`: The transaction executed successfully.
@@ -227,7 +227,7 @@ impl Output {
     }
 }
 
-/// Represents errors that can occur during EVM execution.
+/// Represents errors that can occur during VM execution.
 ///
 /// This enum covers various error categories:
 /// - `Transaction`: Errors related to transaction validation.
@@ -236,7 +236,7 @@ impl Output {
 /// - `Custom`: A custom error message.
 /// - `Precompile`: Errors occurring within a precompiled contract.
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
-pub enum EVMError {
+pub enum VMError {
     Transaction(InvalidTransaction),
     Header(InvalidHeader),
     Database(DatabaseError),
@@ -244,7 +244,7 @@ pub enum EVMError {
     Precompile(String),
 }
 
-impl fmt::Display for EVMError {
+impl fmt::Display for VMError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             Self::Transaction(e) => write!(f, "transaction validation error: {}", e),
@@ -255,13 +255,13 @@ impl fmt::Display for EVMError {
     }
 }
 
-impl From<InvalidTransaction> for EVMError {
+impl From<InvalidTransaction> for VMError {
     fn from(value: InvalidTransaction) -> Self {
         Self::Transaction(value)
     }
 }
 
-impl From<InvalidHeader> for EVMError {
+impl From<InvalidHeader> for VMError {
     fn from(value: InvalidHeader) -> Self {
         Self::Header(value)
     }
@@ -368,9 +368,9 @@ pub enum SuccessReason {
     EofReturnContract,
 }
 
-/// Represents the reason for halting EVM execution.
+/// Represents the reason for halting VM execution.
 ///
-/// This enum contains various reasons that can cause the EVM to halt:
+/// This enum contains various reasons that can cause the VM to halt:
 /// - `OutOfGas`: Execution ran out of gas (with different subtypes).
 /// - `OpcodeNotFound`: Invalid opcode encountered.
 /// - `InvalidFEOpcode`: Invalid front-end opcode encountered.
@@ -453,11 +453,11 @@ impl HaltReason {
     }
 }
 
-/// Represents out-of-gas errors during EVM execution.
+/// Represents out-of-gas errors during VM execution.
 ///
 /// This enum specifies various out-of-gas scenarios:
 /// - `Basic`: Generic out-of-gas error during execution.
-/// - `MemoryLimit`: Memory expansion exceeded the EVM's memory limit.
+/// - `MemoryLimit`: Memory expansion exceeded the VM's memory limit.
 /// - `Memory`: Insufficient gas for memory expansion.
 /// - `Precompile`: Out-of-gas in a precompiled contract.
 /// - `Create`: Out-of-gas during contract creation.
@@ -466,7 +466,7 @@ impl HaltReason {
 pub enum OutOfGasError {
     /// Basic Out-of-Gas error during execution.
     Basic,
-    /// Out-of-Gas due to memory expansion exceeding the EVM's memory limit.
+    /// Out-of-Gas due to memory expansion exceeding the VM's memory limit.
     MemoryLimit,
     /// Out-of-Gas due to insufficient gas for memory expansion.
     Memory,

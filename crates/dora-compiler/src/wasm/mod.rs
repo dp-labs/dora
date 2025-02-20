@@ -45,28 +45,11 @@ use wasmer_types::{
 use wasmer_vm::VMInstance;
 
 use crate::errors::CompileError;
-use crate::{Context, Module};
+use crate::{Compiler, Context, Module};
 
 /// Represents a WebAssembly (Wasm) to LLVM/MLIR compiler. The `WASMCompiler` struct is responsible for
 /// compiling WebAssembly code into LLVM/MLIR, leveraging the configuration provided at the time of
 /// instantiation.
-///
-/// # Fields:
-/// - `config`: The configuration settings for the compiler, encapsulated in the `Config` struct.
-///
-/// # Example Usage:
-/// ```no_check
-/// let config = Config {
-///     enable_nan_canonicalization: true,
-///     enable_verifier: false,
-///     opt_level: OptimizationLevel::O2,
-///     middlewares: vec![],
-/// };
-/// let wasm_compiler = WASMCompiler::new(config);
-///
-/// // Access the compiler's configuration
-/// let compiler_config = wasm_compiler.config();
-/// ```
 ///
 /// # Notes:
 /// - The `WASMCompiler` struct encapsulates all compiler functionality for transforming WebAssembly bytecode
@@ -76,11 +59,51 @@ use crate::{Context, Module};
 #[derive(Debug, Clone)]
 pub struct WASMCompiler<'c> {
     /// The MLIR context used for generating operations and managing their lifetime. It encapsulates the state
-    /// of the MLIR infrastructure, including types, modules, and operations. This context is tied to the
-    /// lifetime `'c` of the EVMCompiler.
+    /// of the MLIR infrastructure, including types, modules, and operations.
     pub ctx: &'c Context,
-    /// The configuration settings for the Wasm compiler.
-    pub config: Config,
+    /// The compile options for the WASM compiler.
+    pub opts: WASMCompileOptions,
+}
+
+impl<'c> Compiler for WASMCompiler<'c> {
+    type Module = [u8];
+    type Compilation = Module<'c>;
+    type CompileError = CompileError;
+
+    fn name(&self) -> &str {
+        "wasm-bytecode-to-mlir-wasm-dialect-compiler"
+    }
+
+    fn compile(&self, module: &Self::Module) -> Result<Self::Compilation, Self::CompileError> {
+        let target = Target::default();
+        let tunables = SubsetTunables::for_target(&target);
+        let environ = ModuleEnvironment::new();
+        let translation = environ
+            .translate(module)
+            .map_err(|err| CompileError::Codegen(err.to_string()))?;
+        let module = translation.module;
+        let memory_styles: PrimaryMap<MemoryIndex, MemoryStyle> = module
+            .memories
+            .values()
+            .map(|memory_type| tunables.memory_style(memory_type))
+            .collect();
+        let table_styles: PrimaryMap<TableIndex, TableStyle> = module
+            .tables
+            .values()
+            .map(|table_type| tunables.table_style(table_type))
+            .collect();
+        let compile_info = CompileModuleInfo {
+            module: Arc::new(module),
+            features: Features::default(),
+            memory_styles,
+            table_styles,
+        };
+        self.compile_module(
+            &compile_info,
+            translation.module_translation_state.as_ref().unwrap(),
+            translation.function_body_inputs,
+        )
+    }
 }
 
 impl<'c> WASMCompiler<'c> {
@@ -93,8 +116,8 @@ impl<'c> WASMCompiler<'c> {
     /// # Returns:
     /// - A `WASMCompiler` instance initialized with the provided configuration.
     #[inline]
-    pub fn new(ctx: &'c Context, config: Config) -> WASMCompiler<'c> {
-        WASMCompiler { ctx, config }
+    pub fn new(ctx: &'c Context, opts: WASMCompileOptions) -> WASMCompiler<'c> {
+        WASMCompiler { ctx, opts }
     }
 
     /// Retrieves the configuration for this `WASMCompiler`.
@@ -107,8 +130,8 @@ impl<'c> WASMCompiler<'c> {
     /// let compiler_config = wasm_compiler.config();
     /// ```
     #[inline]
-    pub fn config(&self) -> &Config {
-        &self.config
+    pub fn config(&self) -> &WASMCompileOptions {
+        &self.opts
     }
 
     /// Compile the WASM bytes using LLVM/MLIR.
@@ -161,7 +184,7 @@ impl<'c> WASMCompiler<'c> {
             .map(|(i, input)| {
                 FuncTranslator::translate(
                     self.ctx,
-                    &self.config,
+                    &self.opts,
                     wasm_module,
                     module_translation,
                     i,
@@ -427,26 +450,24 @@ impl SymbolRegistry for ShortNames {
 ///
 /// # Example Usage:
 /// ```no_check
-/// let config = Config {
-///     enable_nan_canonicalization: true,
-///     enable_verifier: true,
-///     opt_level: OptimizationLevel::O3,
+/// let opts = WASMCompileOptions {
 ///     middlewares: vec![],
+///     gas_metering: false,
 /// };
 /// ```
 ///
 /// # Notes:
-/// - The `Config` struct is essential for controlling the behavior of the `WASMCompiler`. You can tune the
+/// - The `WASMCompileOptions` struct is essential for controlling the behavior of the `WASMCompiler`. You can tune the
 ///   compilation process by adjusting these fields based on the requirements of your WebAssembly module.
 #[derive(Debug, Clone, Default)]
-pub struct Config {
+pub struct WASMCompileOptions {
     /// A collection of middleware components that modify the behavior of the compiler.
     pub middlewares: Vec<Arc<dyn ModuleMiddleware>>,
     /// A flag indicating whether to perform gas metering during compilation.
     pub gas_metering: bool,
 }
 
-impl Config {
+impl WASMCompileOptions {
     pub fn gas_metering(mut self, gas_metering: bool) -> Self {
         self.gas_metering = gas_metering;
         self

@@ -1,14 +1,14 @@
 //！Reference: https://github.com/WebAssembly/spec/tree/main/test/core
 use crate::context::Context;
-use crate::wasm::{Config, WASMCompiler};
+use crate::wasm::{WASMCompileOptions, WASMCompiler};
 use wasmer::wat2wasm;
 
 macro_rules! assert_snapshot {
     ($code:expr) => {
         let context = Context::new();
-        let compiler = WASMCompiler::new(&context, Config::default());
+        let compiler = WASMCompiler::new(&context, WASMCompileOptions::default());
         let wasm_bytes = wat2wasm($code.as_bytes()).unwrap();
-        // Compile EVM Bytecode to MLIR EVM Dialect
+        // Compile WASM Bytecode to MLIR EVM Dialect
         let module = compiler
             .compile(&wasm_bytes)
             .expect("failed to compile program");
