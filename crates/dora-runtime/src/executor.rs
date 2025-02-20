@@ -2,7 +2,6 @@
 
 use crate::constants::MAIN_ENTRYPOINT;
 use crate::context::{EVMMainFunc, RuntimeContext, WASMMainFunc};
-use crate::stack::Stack;
 use crate::wasm::WASMInstance;
 use dora_primitives::config::OptimizationLevel;
 use melior::ir::Module;
@@ -23,15 +22,6 @@ pub const RUNTIME_STACK_SIZE: usize = 64 * 1024 * 1024;
 /// The `Executor` is responsible for managing the execution engine and invoking the main entry point of the compiled
 /// code. It serves as the core execution unit, executing the EVM/WASM bytecode compiled via MLIR within the provided
 /// `RuntimeContext`.
-///
-/// # Fields:
-/// - `engine`: An instance of `ExecutionEngine`, used to execute the compiled EVM/WASM bytecode.
-///
-/// # Example Usage:
-/// ```no_check
-/// let executor = Executor::new(&module, &runtime_ctx, OptimizationLevel::Default);
-/// let result = executor.execute(&mut runtime_ctx, initial_gas);
-/// ```
 #[derive(Default, Debug, Clone)]
 pub struct Executor {
     engine: ExecutionEngine,
@@ -81,43 +71,6 @@ impl Executor {
             ExecuteKind::WASM(_) => RuntimeContext::register_wasm_symbols(&engine),
         }
         Self { engine, kind }
-    }
-
-    /// Executes the main entry point of the compiled EVM/WASM code.
-    ///
-    /// This function calls the main entry point of the compiled module with the provided `RuntimeContext`
-    /// and initial gas amount. It retrieves the main entry function pointer and executes it with the supplied
-    /// parameters.
-    ///
-    /// # Arguments:
-    /// - `context`: A mutable reference to the `RuntimeContext`, which holds the environment for the execution.
-    /// - `initial_gas`: The initial amount of gas available for the execution.
-    ///
-    /// # Returns:
-    /// - `u8`: The result code from executing the main entry point, typically indicating success or failure.
-    ///
-    /// # Example Usage:
-    /// ```no_check
-    /// let result_code = executor.execute(&mut runtime_ctx, initial_gas);
-    /// ```
-    pub fn execute(
-        &self,
-        context: &mut RuntimeContext,
-        initial_gas: &mut u64,
-        stack: &mut Stack,
-        stack_size: &mut u64,
-    ) -> u8 {
-        match &self.kind {
-            ExecuteKind::EVM => {
-                let main_fn = self.get_evm_main_entrypoint();
-                main_fn(context, initial_gas, stack, stack_size)
-            }
-            ExecuteKind::WASM(vm_inst) => {
-                let main_fn = self.get_wasm_main_entrypoint();
-                main_fn(vm_inst.read().vmctx_ptr());
-                0
-            }
-        }
     }
 
     /// Retrieves the EVM main entry point function from the execution engine.

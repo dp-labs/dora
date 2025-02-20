@@ -7,3 +7,4 @@ Firstly, you can follow the [readme](../../README.md) documents to install or bu
 - [Factorial](./factorial/)
 - [Keccak Hash](./keccak/)
 - [Array Sort](./sort/)
+- [ERC20](./erc20/)

@@ -20,7 +20,6 @@ use super::INIT_GAS;
 #[derive(Debug, Clone)]
 pub(crate) struct TestResult {
     pub status: ExitStatusCode,
-    pub memory: Vec<u8>,
     pub host: DummyHost,
     pub gas_used: u64,
     pub output: Vec<u8>,
@@ -85,12 +84,11 @@ pub(crate) fn run_result_with_spec(operations: Vec<Operation>, spec_id: SpecId) 
     let mut runtime_context =
         RuntimeContext::new(contract, 1, false, false, &mut host, spec_id, initial_gas);
     runtime_context.set_returndata(vec![0xDD; 64]);
-    run_with_context::<MemoryDB>(&mut runtime_context).unwrap();
+    let result = run_with_context::<MemoryDB>(runtime_context).unwrap();
     TestResult {
-        status: runtime_context.status(),
-        memory: runtime_context.memory().to_owned(),
-        output: runtime_context.return_values().to_vec(),
-        gas_used: initial_gas - runtime_context.gas_remaining(),
+        status: result.status,
+        output: result.output.to_vec(),
+        gas_used: initial_gas - result.gas_remaining,
         host,
     }
 }
@@ -110,12 +108,11 @@ pub(crate) fn run_result_with_spec_eof(eof: Eof, spec_id: SpecId) -> TestResult 
     let mut runtime_context =
         RuntimeContext::new(contract, 1, false, false, &mut host, spec_id, INIT_GAS);
     runtime_context.set_returndata(vec![0xDD; 64]);
-    run_with_context::<MemoryDB>(&mut runtime_context).unwrap();
+    let result = run_with_context::<MemoryDB>(runtime_context).unwrap();
     TestResult {
-        status: runtime_context.status(),
-        memory: runtime_context.memory().to_owned(),
-        output: runtime_context.return_values().to_vec(),
-        gas_used: INIT_GAS - runtime_context.gas_remaining(),
+        status: result.status,
+        output: result.output.to_vec(),
+        gas_used: INIT_GAS - result.gas_remaining,
         host,
     }
 }

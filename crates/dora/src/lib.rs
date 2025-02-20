@@ -75,11 +75,11 @@ fn compile_call_handler<DB: Database>(
         artifact
     } else {
         let artifact = build_artifact::<DB>(&frame.contract.code, ctx.spec_id())
-            .map_err(|e| VMError::Custom(e.to_string()))?;
+            .map_err(|e| VMError::Compile(e.to_string()))?;
         ctx.db.set_artifact(code_hash, artifact.clone());
         artifact
     };
-    let mut runtime_context = RuntimeContext::new(
+    let runtime_context = RuntimeContext::new(
         frame.contract,
         frame.depth,
         frame.is_static,
@@ -88,11 +88,9 @@ fn compile_call_handler<DB: Database>(
         spec_id,
         frame.gas_limit,
     );
-    artifact.execute(&mut runtime_context, &mut Stack::new(), &mut 0);
-    Ok(CallResult::new_with_runtime_context_and_gas_limit(
-        &runtime_context,
-        frame.gas_limit,
-    ))
+    artifact
+        .execute(runtime_context)
+        .map_err(|err| VMError::Handler(err.to_string()))
 }
 
 /// Run hex-encoded EVM or WASM bytecode with custom calldata and return the execution result and final state.
@@ -129,12 +127,14 @@ pub fn run_bytecode_hex(
 }
 
 /// Run transaction with the runtime context.
-pub fn run_with_context<DB: Database>(runtime_context: &mut RuntimeContext) -> anyhow::Result<u8> {
+pub fn run_with_context<DB: Database>(
+    runtime_context: RuntimeContext,
+) -> anyhow::Result<CallResult> {
     let artifact: DB::Artifact = build_artifact::<DB>(
         &runtime_context.contract.code,
         runtime_context.inner.spec_id,
     )?;
-    Ok(artifact.execute(runtime_context, &mut Stack::new(), &mut 0))
+    artifact.execute(runtime_context)
 }
 
 /// Build the EVM or WASM bytecode to the native artifact.

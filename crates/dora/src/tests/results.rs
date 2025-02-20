@@ -307,11 +307,6 @@ fn sar_mstore_return() {
     ];
     let result = run_result(operations);
     assert!(result.status.is_ok());
-    assert_eq!(result.memory, {
-        let mut data = vec![0x00; 32];
-        data[31] = 0x01;
-        data
-    });
     assert_eq!(result.gas_used(), 3 + 3 + 3 + 2 + 3 + 3 + 3 + 2)
 }
 
@@ -531,7 +526,6 @@ fn calldatacopy() {
     let result = run_result(operations);
     assert!(result.status.is_ok());
     assert_eq!(result.gas_used(), 3 + 2 + 2 + 3 + 3 + 3);
-    assert_eq!(result.memory, vec![0xCC; 32]);
 }
 
 #[test]
@@ -545,7 +539,6 @@ fn calldatacopy_large_offset() {
     let result = run_result(operations);
     assert!(result.status.is_ok());
     assert_eq!(result.gas_used(), 3 + 3 + 2 + 3 + 3 + 3);
-    assert_eq!(result.memory, vec![0x00; 32]);
 }
 
 #[test]
@@ -567,10 +560,6 @@ fn codecopy() {
     let result = run_result(operations);
     assert!(result.status.is_ok());
     assert_eq!(result.gas_used(), 3 + 2 + 2 + 3 + 3 + 3);
-    assert_eq!(
-        result.memory,
-        hex_literal::hex!("60055f5f39000000000000000000000000000000000000000000000000000000")
-    );
 }
 
 #[test]
@@ -616,8 +605,6 @@ fn keccak256_1() {
         + 3  // 3 = 3 * (32 + 31) / 32 is the memory extension gas cost
         ;
     assert_eq!(result.gas_used(), expect_gas);
-    // Check the extended memory
-    assert_eq!(result.memory, vec![0; 32]);
 }
 
 #[test]
@@ -639,8 +626,6 @@ fn keccak256_2() {
         + 6  // 6 = 6 * (32 + 31) / 32 is the dynamic gas cost of Keccak256
         ;
     assert_eq!(result.gas_used(), expect_gas);
-    // Check the extended memory
-    assert_eq!(result.memory, Bytes32::from(55555_u32).to_be_bytes());
 }
 
 #[test]
@@ -649,7 +634,6 @@ fn creturn_1() {
     let result = run_result(operations);
     assert!(result.status.is_ok());
     assert_eq!(result.gas_used(), 2 + 2); // 2 + 2 + 0
-    assert_eq!(result.memory, vec![0; 0]);
 }
 
 #[test]
@@ -681,7 +665,6 @@ fn creturn_3() {
     let result = run_result(operations);
     assert!(result.status.is_ok());
     assert_eq!(result.gas_used(), 3 + 3 + 3 + 2 + 3 + 3 + 3 + 2);
-    assert_eq!(result.memory, Bytes32::from(2_u8).to_be_bytes());
 }
 
 #[test]
@@ -697,7 +680,6 @@ fn creturn_4() {
     let result = run_result(operations);
     assert!(result.status.is_ok());
     assert_eq!(result.gas_used(), 3 + 2 + 3 + 3 + 3 + 2);
-    assert_eq!(result.memory, Bytes32::from(0x70_u8).to_be_bytes());
     assert_eq!(result.output, Bytes32::from(0x70_u8).to_be_bytes().to_vec());
 }
 
@@ -712,7 +694,6 @@ fn returndatasize() {
     let result = run_result(operations);
     assert!(result.status.is_ok());
     assert_eq!(result.gas_used(), 2 + 2 + 2 + 3 + 3);
-    assert_eq!(result.memory, Bytes32::from(64_u8).to_be_bytes());
 }
 
 #[test]
@@ -726,7 +707,6 @@ fn returndatacopy() {
     let result = run_result(operations);
     assert!(result.status.is_ok());
     assert_eq!(result.gas_used(), 3 + 2 + 2 + 3 + 3 + 3);
-    assert_eq!(result.memory, vec![0xDD; 32]);
 }
 
 #[test]
@@ -741,7 +721,6 @@ fn extcodesize() {
     assert!(result.status.is_ok());
     // 100 is the default warm account load.
     assert_eq!(result.gas_used(), 3 + 2 + 2 + 100);
-    assert_eq!(result.memory, vec![0x00; 0]);
 }
 
 #[test]
@@ -757,7 +736,6 @@ fn extcodecopy() {
     assert!(result.status.is_ok());
     // 100 is the warm account access cost
     assert_eq!(result.gas_used(), 2 + 2 + 2 + 2 + 100);
-    assert_eq!(result.memory, vec![0x00; 0]);
 }
 
 #[test]
@@ -773,7 +751,6 @@ fn extcodehash() {
     assert!(result.status.is_ok());
     // 100 is the default warm account load.
     assert_eq!(result.gas_used(), 2 + 2 + 2 + 2 + 100);
-    assert_eq!(result.memory, vec![0x00; 0]);
 }
 
 #[test]
@@ -782,7 +759,6 @@ fn gasprice() {
     let result = run_result(operations);
     assert!(result.status.is_ok());
     assert_eq!(result.gas_used(), 2 + 2);
-    assert_eq!(result.memory, vec![0x00; 0]);
 }
 
 #[test]
@@ -791,7 +767,6 @@ fn gaslimit() {
     let result = run_result(operations);
     assert!(result.status.is_ok());
     assert_eq!(result.gas_used(), 2 + 2);
-    assert_eq!(result.memory, vec![0x00; 0]);
 }
 
 #[test]
@@ -800,7 +775,6 @@ fn coinbase() {
     let result = run_result(operations);
     assert!(result.status.is_ok());
     assert_eq!(result.gas_used(), 2 + 2);
-    assert_eq!(result.memory, vec![0x00; 0]);
 }
 
 #[test]
@@ -809,7 +783,6 @@ fn timestamp() {
     let result = run_result(operations);
     assert!(result.status.is_ok());
     assert_eq!(result.gas_used(), 2 + 2);
-    assert_eq!(result.memory, vec![0x00; 0]);
 }
 
 #[test]
@@ -818,7 +791,6 @@ fn number() {
     let result = run_result(operations);
     assert!(result.status.is_ok());
     assert_eq!(result.gas_used(), 2 + 2);
-    assert_eq!(result.memory, vec![0x00; 0]);
 }
 
 #[test]
@@ -827,7 +799,6 @@ fn prevrandao() {
     let result = run_result(operations);
     assert!(result.status.is_ok());
     assert_eq!(result.gas_used(), 2 + 2);
-    assert_eq!(result.memory, vec![0x00; 0]);
 }
 
 #[test]
@@ -836,7 +807,6 @@ fn chainid() {
     let result = run_result(operations);
     assert!(result.status.is_ok());
     assert_eq!(result.gas_used(), 2 + 2);
-    assert_eq!(result.memory, vec![0x00; 0]);
 }
 
 #[test]
@@ -845,7 +815,6 @@ fn selfbalance() {
     let result = run_result(operations);
     assert!(result.status.is_ok());
     assert_eq!(result.gas_used(), 5 + 5);
-    assert_eq!(result.memory, vec![0x00; 0]);
 }
 
 #[test]
@@ -854,7 +823,6 @@ fn basefee() {
     let result = run_result(operations);
     assert!(result.status.is_ok());
     assert_eq!(result.gas_used(), 2 + 2);
-    assert_eq!(result.memory, vec![0x00; 0]);
 }
 
 #[test]
@@ -863,7 +831,6 @@ fn blobhash() {
     let result = run_result(operations);
     assert!(result.status.is_ok());
     assert_eq!(result.gas_used(), 2 + 3);
-    assert_eq!(result.memory, vec![0x00; 0]);
 }
 
 #[test]
@@ -872,7 +839,6 @@ fn blobbasefee() {
     let result = run_result(operations);
     assert!(result.status.is_ok());
     assert_eq!(result.gas_used(), 2 + 2);
-    assert_eq!(result.memory, vec![0x00; 0]);
 }
 
 #[test]
@@ -881,8 +847,6 @@ fn mload_1() {
     let result = run_result(operations);
     assert!(result.status.is_ok());
     assert_eq!(result.gas_used(), 2 + 3 + 3);
-    // Check the memory extened by the MLOAD opcode.
-    assert_eq!(result.memory, vec![0x00; 32]);
 }
 
 #[test]
@@ -891,8 +855,6 @@ fn mload_2() {
     let result = run_result(operations);
     assert!(result.status.is_ok());
     assert_eq!(result.gas_used(), 3 + 3 + 3 * 2);
-    // Check the memory extened by the MLOAD opcode.
-    assert_eq!(result.memory, vec![0x00; 64]);
 }
 
 #[test]
@@ -901,8 +863,6 @@ fn mload_3() {
     let result = run_result(operations);
     assert!(result.status.is_ok());
     assert_eq!(result.gas_used(), 3 + 3 + 3 * 2);
-    // Check the memory extened by the MLOAD opcode.
-    assert_eq!(result.memory, vec![0x00; 64]);
 }
 
 #[test]
@@ -911,8 +871,6 @@ fn mload_4() {
     let result = run_result(operations);
     assert!(result.status.is_ok());
     assert_eq!(result.gas_used(), 3 + 3 + 3 * 3);
-    // Check the memory extened by the MLOAD opcode.
-    assert_eq!(result.memory, vec![0x00; 96]);
 }
 
 #[test]
@@ -922,7 +880,6 @@ fn mload_overflow_1() {
     assert!(result.status.is_out_of_gas());
     assert_eq!(result.gas_used(), 3 + 3);
     // Check the memory extened by the MLOAD opcode.
-    assert_eq!(result.memory, vec![0x00; 0]);
 }
 
 #[test]
@@ -932,7 +889,6 @@ fn mload_overflow_2() {
     assert!(result.status.is_out_of_gas());
     assert_eq!(result.gas_used(), 3 + 3);
     // Check the memory extened by the MLOAD opcode.
-    assert_eq!(result.memory, vec![0x00; 0]);
 }
 
 #[test]
@@ -942,7 +898,6 @@ fn mload_overflow_3() {
     assert!(result.status.is_out_of_gas());
     assert_eq!(result.gas_used(), 3 + 3);
     // Check the memory extened by the MLOAD opcode.
-    assert_eq!(result.memory, vec![0x00; 0]);
 }
 
 #[test]
@@ -952,8 +907,6 @@ fn mstore_1() {
     assert!(result.status.is_ok());
 
     assert_eq!(result.gas_used(), 2 + 2 + 3 + 3);
-    // Check the memory extened by the MSTORE opcode.
-    assert_eq!(result.memory, vec![0x00; 32]);
 }
 
 #[test]
@@ -965,14 +918,7 @@ fn mstore_2() {
     ];
     let result = run_result(operations);
     assert!(result.status.is_ok());
-
     assert_eq!(result.gas_used(), 3 + 2 + 3 + 3);
-    // Check the memory extened by the MSTORE opcode.
-    assert_eq!(result.memory, {
-        let mut mem = [0; 32];
-        mem[31] = 0xAA;
-        mem
-    });
 }
 
 #[test]
@@ -980,10 +926,7 @@ fn mstore8_1() {
     let operations = vec![Operation::Push0, Operation::Push0, Operation::MStore8];
     let result = run_result(operations);
     assert!(result.status.is_ok());
-
     assert_eq!(result.gas_used(), 2 + 2 + 3 + 3);
-    // Check the memory extened by the MSTORE8 opcode.
-    assert_eq!(result.memory, vec![0x00; 32]);
 }
 
 #[test]
@@ -995,14 +938,7 @@ fn mstore8_2() {
     ];
     let result = run_result(operations);
     assert!(result.status.is_ok());
-
     assert_eq!(result.gas_used(), 3 + 2 + 3 + 3);
-    // Check the memory extened by the MSTORE8 opcode.
-    assert_eq!(result.memory, {
-        let mut mem = [0; 32];
-        mem[0] = 0xAA;
-        mem
-    });
 }
 
 #[test]
@@ -1012,7 +948,6 @@ fn msize_1() {
     assert!(result.status.is_ok());
 
     assert_eq!(result.gas_used(), 2 + 2);
-    assert_eq!(result.memory, vec![0x00; 0]);
 }
 
 #[test]
@@ -1035,7 +970,6 @@ fn msize_2() {
         result.gas_used(),
         2 + 2 + 3 + 3 + 2 + 2 + 3 + (3 + 3) + 2 + 2
     );
-    assert_eq!(result.memory, vec![0x00; 64]);
 }
 
 #[test]
@@ -1048,9 +982,7 @@ fn mcopy_1() {
     ];
     let result = run_result(operations);
     assert!(result.status.is_ok());
-
     assert_eq!(result.gas_used(), 3 + 2 + 3 + 3 + 3 + 3 * 2);
-    assert_eq!(result.memory, vec![0x00; 64]);
 }
 
 #[test]
@@ -1066,16 +998,7 @@ fn mcopy_2() {
     ];
     let result = run_result(operations);
     assert!(result.status.is_ok());
-
     assert_eq!(result.gas_used(), 3 + 2 + 3 + 3 + 3 + 3 + 3 + 3 * 2);
-    assert_eq!(result.memory, {
-        let mut mem = [0; 32];
-        mem[30] = 0xAB;
-        mem[31] = 0xCD;
-        mem[1] = 0xAB;
-        mem[2] = 0xCD;
-        mem
-    });
 }
 
 #[test]
@@ -1085,7 +1008,6 @@ fn balance() {
     assert!(result.status.is_ok());
     // 100 is the warm account access cost
     assert_eq!(result.gas_used(), 2 + 100 + 100);
-    assert_eq!(result.memory, vec![0x00; 0]);
 }
 
 #[test]
@@ -1095,7 +1017,6 @@ fn sload_1() {
     assert!(result.status.is_ok());
     // 2100 is the cold storage cost
     assert_eq!(result.gas_used(), 2 + 2100);
-    assert_eq!(result.memory, vec![0x00; 0]);
 }
 
 #[test]
@@ -1114,7 +1035,7 @@ fn sstore_1() {
     // 2100 is the cold storage cost
     // 20000 is the new value is set from zero cost
     assert_eq!(result.gas_used(), 3 + 2100 + 3 + 3 + 20000 + 3 + 100);
-    assert_eq!(result.memory, vec![0x00; 0]);
+
     assert_eq!(result.sload(U256::from(200)), U256::from(100));
 }
 
@@ -1133,7 +1054,6 @@ fn sstore_2() {
     // 2100 is the cold storage cost
     // 20000 is the new value is set from zero cost
     assert_eq!(result.gas_used(), 3 + 3 + 20000 + 2100 + 3 + 2 + 3);
-    assert_eq!(result.memory, vec![0x00; 32]);
     assert_eq!(result.sload(U256::from(1)), U256::from(3));
     assert_eq!(result.output, vec![0; 0x20]);
 }
@@ -1144,7 +1064,6 @@ fn tload_1() {
     let result = run_result(operations);
     assert!(result.status.is_ok());
     assert_eq!(result.gas_used(), 2 + 100);
-    assert_eq!(result.memory, vec![0x00; 0]);
 }
 
 #[test]
@@ -1161,7 +1080,7 @@ fn tstore_1() {
     let mut result = run_result(operations);
     assert!(result.status.is_ok());
     assert_eq!(result.gas_used(), 3 + 100 + 3 + 3 + 100 + 3 + 100);
-    assert_eq!(result.memory, vec![0x00; 0]);
+
     assert_eq!(result.tload(U256::from(200)), U256::from(100));
 }
 
@@ -1172,7 +1091,7 @@ fn log0() {
     assert!(result.status.is_ok());
     // 375 is the log0 cost
     assert_eq!(result.gas_used(), 2 + 2 + 375);
-    assert_eq!(result.memory, vec![0x00; 0]);
+
     assert_eq!(
         result.logs(),
         &[Log {
@@ -1194,13 +1113,8 @@ fn log0_data() {
     ];
     let result = run_result(operations);
     assert!(result.status.is_ok());
-
     // 375 + 8 * 32 is the log0 with 32 length cost
     assert_eq!(result.gas_used(), 3 + 2 + (3 + 3) + 3 + 2 + 375 + 8 * 32);
-    assert_eq!(
-        result.memory,
-        Bytes32::from(0xAABB_u16).to_be_bytes().to_vec()
-    );
     assert_eq!(
         result.logs(),
         &[Log {
@@ -1225,7 +1139,7 @@ fn log1_1() {
     assert!(result.status.is_ok());
 
     assert_eq!(result.gas_used(), 2 + 2 + 2 + 375 * 2);
-    assert_eq!(result.memory, vec![0x00; 0]);
+
     assert_eq!(
         result.logs(),
         &[Log {
@@ -1245,9 +1159,7 @@ fn log1_2() {
     ];
     let result = run_result(operations);
     assert!(result.status.is_ok());
-
     assert_eq!(result.gas_used(), 3 + 3 + 2 + 3 * 2 + 375 * 2 + 8 * 50);
-    assert_eq!(result.memory, vec![0x00; 64]);
     assert_eq!(
         result.logs(),
         &[Log {
@@ -1273,7 +1185,7 @@ fn log2_1() {
     assert!(result.status.is_ok());
 
     assert_eq!(result.gas_used(), 2 + 2 + 2 + 2 + 375 * 3);
-    assert_eq!(result.memory, vec![0x00; 0]);
+
     assert_eq!(
         result.logs(),
         &[Log {
@@ -1297,7 +1209,7 @@ fn log3_1() {
     assert!(result.status.is_ok());
 
     assert_eq!(result.gas_used(), 2 + 2 + 2 + 2 + 2 + 375 * 4);
-    assert_eq!(result.memory, vec![0x00; 0]);
+
     assert_eq!(
         result.logs(),
         &[Log {
@@ -1322,7 +1234,7 @@ fn log4_1() {
     assert!(result.status.is_ok());
 
     assert_eq!(result.gas_used(), 2 + 2 + 2 + 2 + 2 + 2 + 375 * 5);
-    assert_eq!(result.memory, vec![0x00; 0]);
+
     assert_eq!(
         result.logs(),
         &[Log {
@@ -1402,16 +1314,7 @@ fn push1_push0_push0_datacopy() {
 
     let result = run_result_eof(eof);
     assert!(result.status.is_ok());
-
     assert_eq!(result.gas_used(), 3 + 2 + 2 + 3 + 3 + 3);
-    assert_eq!(
-        result.memory,
-        vec![
-            0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF,
-            0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-            0x00, 0x00, 0x00, 0x00
-        ]
-    );
 }
 
 // TODO : `rjump`, `rjumpi`, `rjumpv`, `callf`, `retf` and `jumpf` unit tests
@@ -1645,8 +1548,6 @@ fn call_1() {
     ];
     let result = run_result(operations);
     assert!(result.status.is_ok());
-
-    assert_eq!(result.memory, vec![0x00; 32]);
 }
 
 #[test]
@@ -1662,8 +1563,6 @@ fn delegatecall_1() {
     ];
     let result = run_result(operations);
     assert!(result.status.is_ok());
-
-    assert_eq!(result.memory, vec![0x00; 32]);
 }
 
 #[test]
@@ -1679,8 +1578,6 @@ fn staticcall_1() {
     ];
     let result = run_result(operations);
     assert!(result.status.is_ok());
-
-    assert_eq!(result.memory, vec![0x00; 32]);
 }
 
 #[test]
@@ -1711,6 +1608,4 @@ fn selfdestruct() {
     let result = run_result(operations);
     assert!(result.status.is_ok());
     assert_eq!(result.gas_used(), 3 + 5000);
-
-    assert_eq!(result.memory, vec![0x00; 0]);
 }

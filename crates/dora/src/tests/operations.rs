@@ -1880,9 +1880,8 @@ fn returndatacopy() {
         INIT_GAS,
     );
     runtime_context.set_returndata(vec![0; calldata_size as usize]);
-    run_with_context::<MemoryDB>(&mut runtime_context).unwrap();
-    let status = runtime_context.status();
-    assert!(status.is_ok());
+    let result = run_with_context::<MemoryDB>(runtime_context).unwrap();
+    assert!(result.status.is_ok());
 }
 
 #[test]
@@ -1960,9 +1959,8 @@ fn returndatacopy_out_of_bounds() {
         INIT_GAS,
     );
     runtime_context.set_returndata(vec![0; (calldata_size - 10) as usize]);
-    run_with_context::<MemoryDB>(&mut runtime_context).unwrap();
-    let status = runtime_context.status();
-    assert!(status.is_error());
+    let result = run_with_context::<MemoryDB>(runtime_context).unwrap();
+    assert!(result.status.is_error());
 }
 
 #[test]
