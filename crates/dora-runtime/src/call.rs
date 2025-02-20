@@ -125,12 +125,9 @@ impl CallResult {
 
     /// New a call result with the runtime context and gas limit
     #[inline]
-    pub fn new_with_runtime_context_and_gas_limit(
-        runtime_context: &RuntimeContext,
-        gas_limit: u64,
-    ) -> Self {
+    pub fn new_with_runtime_context(runtime_context: &RuntimeContext) -> Self {
         Self {
-            gas_limit,
+            gas_limit: runtime_context.gas_limit(),
             status: runtime_context.status(),
             gas_remaining: runtime_context.gas_remaining(),
             gas_refunded: runtime_context.gas_refunded(),

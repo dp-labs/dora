@@ -10,7 +10,6 @@ use dora::{
         call::CallKind,
         context::{Contract, RuntimeContext},
         db::MemoryDB,
-        stack::Stack,
         ExitStatusCode,
     },
 };
@@ -61,7 +60,7 @@ impl EvmcVm for DoraVM {
             call_value: Bytes32::from_be_bytes(message.value().bytes).into_u256(),
         };
         let mut host = EvmcDelegateHost::new(context, spec_id);
-        let mut runtime_context = RuntimeContext::new(
+        let runtime_context = RuntimeContext::new(
             contract,
             message.depth() as usize,
             false,
@@ -86,21 +85,23 @@ impl EvmcVm for DoraVM {
             artifact
         };
         drop(artifacts);
-        artifact.execute(&mut runtime_context, &mut Stack::new(), &mut 0);
+        let Ok(result) = artifact.execute(runtime_context) else {
+            return ExecutionResult::failure();
+        };
         // Runtime errors
-        let exit_code = runtime_context.status();
+        let exit_code = result.status;
         if exit_code.is_ok() {
             ExecutionResult::success(
-                runtime_context.gas_remaining() as i64,
-                runtime_context.gas_refunded() as i64,
-                Some(runtime_context.return_values()),
+                result.gas_remaining as i64,
+                result.gas_refunded,
+                Some(&result.output),
             )
         } else if exit_code.is_revert() {
             ExecutionResult::new(
                 status_to_evmc_status(exit_code),
-                runtime_context.gas_remaining() as i64,
+                result.gas_remaining as i64,
                 0,
-                Some(runtime_context.return_values()),
+                Some(&result.output),
             )
         } else if exit_code.is_error() {
             ExecutionResult::new(status_to_evmc_status(exit_code), 0, 0, None)

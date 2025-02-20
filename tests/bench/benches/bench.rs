@@ -1,6 +1,6 @@
 #![allow(missing_docs)]
 
-use ::dora::{build_artifact, run, WASMCompiler};
+use ::dora::{build_artifact, run, Artifact, WASMCompiler};
 use criterion::{
     criterion_group, criterion_main, measurement::WallTime, BenchmarkGroup, Criterion,
 };
@@ -14,6 +14,7 @@ use dora_primitives::{
     address, fixed_bytes, uint, Address, Bytecode, B256, U256, WASM_MAGIC_BYTES,
 };
 use dora_primitives::{spec::SpecId, Bytes};
+use dora_runtime::artifact::SymbolArtifact;
 use dora_runtime::constants::env::DORA_DISABLE_CONSOLE;
 use dora_runtime::context::{Contract, RuntimeContext};
 use dora_runtime::db::{Database, MemoryDB};
@@ -143,31 +144,28 @@ fn run_wasm_bench(c: &mut Criterion, bench: &Bench) {
     env.tx.transact_to = TxKind::Call(Address::left_padding_from(&[40]));
     env.tx.caller = address!("6666000000000000000000000000000000000000");
     let contract = Contract::new_with_env(&env, Bytecode::new(bytecode.to_vec().into()), None);
-    let mut host = DummyHost::new(env);
-    let mut context = RuntimeContext::new(
-        contract,
-        1,
-        false,
-        false,
-        &mut host,
-        SpecId::CANCUN,
-        gas_limit,
-    );
     let instance = compiler.build_instance(bytecode).unwrap();
     let executor = Executor::new(
         module.module(),
         Default::default(),
         ExecuteKind::new_wasm(instance),
     );
-    let ctx = black_box(&mut context);
-
+    let artifact = SymbolArtifact::new(executor);
     std::env::set_var(DORA_DISABLE_CONSOLE, "true");
-
     g.bench_function("dora", |b| {
         b.iter(|| {
-            let mut gas = black_box(gas_limit);
-            executor.execute(ctx, &mut gas, &mut Stack::new(), &mut 0);
-            assert!(ctx.status().is_ok());
+            let mut host = DummyHost::new(env.clone());
+            let context = RuntimeContext::new(
+                contract.clone(),
+                1,
+                false,
+                false,
+                &mut host,
+                SpecId::CANCUN,
+                gas_limit,
+            );
+            let result = artifact.execute(black_box(context)).unwrap();
+            assert!(result.status.is_ok());
         })
     });
     if let Some(native) = *native {

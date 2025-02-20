@@ -240,8 +240,9 @@ pub enum VMError {
     Transaction(InvalidTransaction),
     Header(InvalidHeader),
     Database(DatabaseError),
-    Custom(String),
+    Compile(String),
     Precompile(String),
+    Handler(String),
 }
 
 impl fmt::Display for VMError {
@@ -250,7 +251,9 @@ impl fmt::Display for VMError {
             Self::Transaction(e) => write!(f, "transaction validation error: {}", e),
             Self::Header(e) => write!(f, "header validation error: {}", e),
             Self::Database(e) => write!(f, "database error: {}", e),
-            Self::Custom(e) | Self::Precompile(e) => write!(f, "{}", e),
+            Self::Handler(e) => write!(f, "handler error: {}", e),
+            Self::Compile(e) => write!(f, "compile error: {}", e),
+            Self::Precompile(e) => write!(f, "{}", e),
         }
     }
 }

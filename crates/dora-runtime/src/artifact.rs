@@ -1,9 +1,11 @@
 use crate::{
-    context::{Contract, EVMMainFunc, RuntimeContext, WASMMainFunc},
+    call::CallResult,
+    constants::MAIN_ENTRYPOINT,
+    context::{Contract, EVMMainFunc, RuntimeContext},
     executor::{ExecuteKind, Executor},
     host::DummyHost,
     stack::Stack,
-    wasm::context::set_runtime_context,
+    wasm::context::{set_runtime_context, with_runtime_context},
 };
 use anyhow::{anyhow, Result};
 use dora_primitives::SpecId;
@@ -41,12 +43,7 @@ pub trait Artifact: Default + Debug + Clone {
     ///
     /// # Returns
     /// A u8 value, typically representing an execution status or error code.
-    fn execute(
-        &self,
-        runtime_context: &mut RuntimeContext,
-        stack: &mut Stack,
-        stack_size: &mut u64,
-    ) -> u8;
+    fn execute(&self, runtime_context: RuntimeContext) -> Result<CallResult>;
 }
 
 /// A memory artifact that represents a compiled symbol as a raw pointer.
@@ -92,23 +89,30 @@ impl Artifact for SymbolArtifact {
     /// It assumes that the stored entry_ptr is valid and points to a correctly compiled
     /// function matching the MainFunc<DB> signature. Incorrect use could lead to undefined behavior.
     #[inline]
-    fn execute(
-        &self,
-        runtime_context: &mut RuntimeContext,
-        stack: &mut Stack,
-        stack_size: &mut u64,
-    ) -> u8 {
+    fn execute(&self, mut context: RuntimeContext) -> Result<CallResult> {
         let ptr = self.executor.get_main_entrypoint_ptr();
+        if ptr.is_null() {
+            return Err(anyhow::anyhow!("function main not found"));
+        }
         match &self.executor.kind {
             ExecuteKind::EVM => {
-                let mut initial_gas = runtime_context.gas_limit();
+                let mut initial_gas = context.gas_limit();
                 let func: EVMMainFunc = unsafe { std::mem::transmute(ptr) };
-                func(runtime_context, &mut initial_gas, stack, stack_size)
+                func(&mut context, &mut initial_gas, &mut Stack::new(), &mut 0);
+                Ok(CallResult {
+                    status: context.status(),
+                    gas_limit: context.gas_limit(),
+                    gas_remaining: context.gas_remaining(),
+                    gas_refunded: context.gas_refunded(),
+                    output: context.return_bytes(),
+                    create_address: None,
+                })
             }
-            ExecuteKind::WASM(vm_inst) => {
-                let func: WASMMainFunc = unsafe { std::mem::transmute(ptr) };
-                func(vm_inst.read().vmctx_ptr());
-                0
+            ExecuteKind::WASM(_) => {
+                // Note: default WASM entrypoint is `fn main() -> ()`, no args and return values.
+                let (_, result): ((), _) =
+                    self.execute_wasm_func_with_context_result(MAIN_ENTRYPOINT, (), context)?;
+                Ok(result)
             }
         }
     }
@@ -189,19 +193,7 @@ impl SymbolArtifact {
         )
     }
 
-    /// Executes the WASM compiled code represented by this artifact.
-    ///
-    /// This method demonstrates the primary advantage of the SymbolArtifact:
-    /// direct execution of pre-compiled code without any additional compilation step.
-    ///
-    /// # Arguments
-    /// * `name` - The name of the WASM function to execute.
-    /// * `args` - The arguments to pass to the WASM function.
-    /// * `runtime_context` - The runtime context to use during execution.
-    /// * `initial_gas` - The initial gas limit for execution (currently unused).
-    ///
-    /// # Returns
-    /// * `Result<Ret>` - The result of the WASM function execution, or an error if the function fails.
+    /// Executes the WASM compiled code represented by this artifact with the runtime context.
     ///
     /// # Safety
     /// This function uses `unsafe` to transmute a function pointer, which is inherently unsafe.
@@ -218,6 +210,9 @@ impl SymbolArtifact {
     {
         let closure: Box<dyn FnOnce() -> Result<Ret>> = Box::new(move || {
             let func_ptr = self.executor.lookup(name);
+            if func_ptr.is_null() {
+                return Err(anyhow::anyhow!("function {name} not found"));
+            }
             match &self.executor.kind {
                 ExecuteKind::EVM => Err(anyhow!(
                     "The compiled code kind is EVM, and it's not WASM kind"
@@ -226,6 +221,51 @@ impl SymbolArtifact {
                     let func: fn(*mut VMContext, Args) -> Ret =
                         unsafe { std::mem::transmute(func_ptr) };
                     Ok(func(vm_inst.read().vmctx_ptr(), args))
+                }),
+            }
+        });
+        let prev_hook = std::panic::take_hook();
+        std::panic::set_hook(Box::new(|_| {}));
+        let result = catch_unwind(AssertUnwindSafe(closure));
+        std::panic::set_hook(prev_hook);
+        match result {
+            Ok(result) => result,
+            Err(err) => Err(anyhow::anyhow!(crate::wasm::trap::err_to_str(err))),
+        }
+    }
+
+    /// Executes the WASM compiled code represented by this artifact with the runtime context and result.
+    ///
+    /// # Safety
+    /// This function uses `unsafe` to transmute a function pointer, which is inherently unsafe.
+    /// Ensure that the function pointer is valid and that the arguments and return types match the expected types.
+    pub fn execute_wasm_func_with_context_result<Args, Ret>(
+        &self,
+        name: &str,
+        args: Args,
+        runtime_context: RuntimeContext,
+    ) -> Result<(Ret, CallResult)>
+    where
+        Args: Sized,
+        Ret: Sized,
+    {
+        let closure: Box<dyn FnOnce() -> Result<(Ret, CallResult)>> = Box::new(move || {
+            let func_ptr = self.executor.lookup(name);
+            if func_ptr.is_null() {
+                return Err(anyhow::anyhow!("function {name} not found"));
+            }
+            match &self.executor.kind {
+                ExecuteKind::EVM => Err(anyhow!(
+                    "The compiled code kind is EVM, and it's not WASM kind"
+                )),
+                ExecuteKind::WASM(vm_inst) => set_runtime_context(runtime_context, || {
+                    let func: fn(*mut VMContext, Args) -> Ret =
+                        unsafe { std::mem::transmute(func_ptr) };
+                    let func_result = func(vm_inst.read().vmctx_ptr(), args);
+                    let call_result = with_runtime_context(|runtime_context| {
+                        CallResult::new_with_runtime_context(runtime_context)
+                    });
+                    Ok((func_result, call_result))
                 }),
             }
         });
