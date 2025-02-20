@@ -1,11 +1,11 @@
-use dora_primitives::{Address, Bytes, Bytes32};
+use dora_primitives::{Address, Bytes, Bytes32, Log};
 use rustc_hash::FxHashMap;
 use std::ops::{Deref, DerefMut};
 use std::{collections::hash_map::Entry, fmt::Debug};
 
 use crate::call::{CallKind, CallMessage, CallResult};
-use crate::result::EVMError;
-use crate::{context::Log, env::Env};
+use crate::env::Env;
+use crate::result::VMError;
 
 /// The [`Host`] trait defines the interface for interacting with the Dora runtime environment.
 ///
@@ -63,7 +63,7 @@ pub trait Host {
     fn log(&mut self, log: Log);
 
     /// Host for the call-like insturctions e.g., `CALL`, `CREATE`, etc.
-    fn call(&mut self, msg: CallMessage) -> Result<CallResult, EVMError>;
+    fn call(&mut self, msg: CallMessage) -> Result<CallResult, VMError>;
 }
 
 /// Result of a `set_storage` action.
@@ -367,7 +367,8 @@ impl Host for DummyHost {
         Some(Default::default())
     }
 
-    fn call(&mut self, msg: CallMessage) -> Result<CallResult, EVMError> {
+    #[inline]
+    fn call(&mut self, msg: CallMessage) -> Result<CallResult, VMError> {
         Ok(match msg.kind {
             CallKind::EofCreate
             | CallKind::ReturnContract

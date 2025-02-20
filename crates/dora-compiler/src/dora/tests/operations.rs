@@ -1,6 +1,6 @@
 use crate::context::Context;
 use crate::evm::program::{Operation, Program};
-use crate::evm::{CompileOptions, EVMCompiler};
+use crate::evm::{EVMCompileOptions, EVMCompiler};
 use crate::Compiler;
 use num_bigint::BigInt;
 use num_bigint::BigUint;
@@ -12,9 +12,9 @@ macro_rules! assert_snapshot {
     ($operations:expr, $is_eof:expr) => {
         let program = Program::from_operations($operations, $is_eof);
         let context = Context::new();
-        let compiler = EVMCompiler::new(&context);
+        let compiler = EVMCompiler::new(&context, EVMCompileOptions::default());
         let mut module = compiler
-            .compile(&program, &(), &CompileOptions::default())
+            .compile(&program)
             .expect("failed to compile program");
         crate::evm::pass::run(&context.mlir_context, &mut module.mlir_module).unwrap();
         crate::dora::pass::run(

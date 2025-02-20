@@ -1,5 +1,5 @@
 use crate::evm::program::Operation;
-use crate::evm::{CompileOptions, EVMCompiler, Program};
+use crate::evm::{EVMCompileOptions, EVMCompiler, Program};
 use crate::pass::run;
 use crate::Compiler;
 use crate::{context::Context, dora::storage::STORAGE_MEMORY_MAP_CODE};
@@ -15,16 +15,15 @@ macro_rules! assert_snapshot {
     ($operations:expr, $is_eof:expr) => {
         let program = Program::from_operations($operations, $is_eof);
         let context = Context::new();
-        let compiler = EVMCompiler::new(&context);
+        let compiler = EVMCompiler::new(
+            &context,
+            EVMCompileOptions {
+                inline: true,
+                ..Default::default()
+            },
+        );
         let mut module = compiler
-            .compile(
-                &program,
-                &(),
-                &CompileOptions {
-                    inline: true,
-                    ..Default::default()
-                },
-            )
+            .compile(&program)
             .expect("failed to compile program");
         crate::evm::pass::run(&context.mlir_context, &mut module.mlir_module).unwrap();
         crate::dora::pass::run_storage_pass(&context.mlir_context, &mut module.mlir_module)

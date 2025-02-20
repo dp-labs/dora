@@ -2,7 +2,7 @@ use super::backend::{gas_limit, WASMBackend};
 use super::code::{FunctionCodeCtx, FunctionCodeGenerator};
 use super::intrinsics::CtxType;
 use super::ty::{type_to_mlir, type_to_mlir_zero_attribute};
-use super::Config;
+use super::WASMCompileOptions;
 use super::{intrinsics::WASMIntrinsics, ty::func_type_to_mlir};
 use crate::context::Context;
 use crate::conversion::builder::OpBuilder;
@@ -38,7 +38,6 @@ use wasmer_types::{
 /// ```no_check
 /// let func_translator = FuncTranslator {
 ///     context: /* Context instance */,
-///     config: /* Config instance */,
 /// };
 ///
 /// // Use func_translator to translate WebAssembly functions into the target IR.
@@ -77,7 +76,7 @@ impl FuncTranslator {
     #[allow(clippy::too_many_arguments)]
     pub(crate) fn translate<'c>(
         context: &'c Context,
-        config: &'c Config,
+        opts: &'c WASMCompileOptions,
         wasm_module: &'c ModuleInfo,
         module_translation: &'c ModuleTranslationState,
         local_func_index: &'c LocalFunctionIndex,
@@ -109,8 +108,7 @@ impl FuncTranslator {
                         function_body.module_offset,
                     );
                     reader.set_middleware_chain(
-                        config
-                            .middlewares
+                        opts.middlewares
                             .generate_function_middleware_chain(*local_func_index),
                     );
                     let builder = OpBuilder::new_with_block(&context.mlir_context, setup_block);
@@ -149,7 +147,7 @@ impl FuncTranslator {
                         }
                     }
                     // Setup gas meter counter context value and out of gas trap block
-                    let gas_counter_ptr = if config.gas_metering {
+                    let gas_counter_ptr = if opts.gas_metering {
                         let gas_limit = gas_limit(&builder)?;
                         let gas_counter_ptr = builder.make(builder.alloca(builder.i64_ty())?)?;
                         builder.create(builder.store(gas_limit, gas_counter_ptr));

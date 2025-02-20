@@ -1,5 +1,4 @@
 use std::cmp::min;
-use std::fmt;
 
 use crate::account::{Account, EMPTY_CODE_HASH_BYTES};
 use crate::call::{CallKind, CallMessage, CallResult};
@@ -14,53 +13,14 @@ use crate::executor::ExecutionEngine;
 use crate::handler::{Frame, Handler};
 use crate::host::{AccountLoad, CodeLoad, Host, SStoreResult, SelfdestructResult, StateLoad};
 use crate::journaled_state::{JournalCheckpoint, JournalEntry, JournaledState};
-use crate::result::EVMError;
+use crate::result::VMError;
+use crate::stack::Stack;
 use crate::wasm::host::gas_limit;
 use crate::{gas, symbols, ExitStatusCode};
 use dora_primitives::{
-    keccak256, Address, Bytecode, Bytes, Bytes32, Precompile, PrecompileErrors, PrecompileSpecId,
-    Precompiles, SpecId, B256, U256,
+    as_u64_saturated, as_usize_saturated, keccak256, Address, Bytecode, Bytes, Bytes32, Log,
+    LogData, Precompile, PrecompileErrors, PrecompileSpecId, Precompiles, SpecId, B256, U256,
 };
-
-/// Converts a `U256` value to a `u64`, saturating to `MAX` if the value is too large.
-#[macro_export]
-macro_rules! as_u64_saturated {
-    ($v:expr) => {
-        match $v.as_limbs() {
-            x => {
-                if (x[1] == 0) & (x[2] == 0) & (x[3] == 0) {
-                    x[0]
-                } else {
-                    u64::MAX
-                }
-            }
-        }
-    };
-}
-
-/// Converts a [U256] value to a [usize], saturating to [MAX][usize] if the value is too large.
-#[macro_export]
-macro_rules! as_usize_saturated {
-    ($v:expr) => {
-        usize::try_from($crate::as_u64_saturated!($v)).unwrap_or(usize::MAX)
-    };
-}
-
-#[repr(C)]
-pub struct Stack([Bytes32; MAX_STACK_SIZE]);
-
-impl Stack {
-    #[inline]
-    pub const fn new() -> Self {
-        Self([Bytes32::ZERO; MAX_STACK_SIZE])
-    }
-}
-
-impl Default for Stack {
-    fn default() -> Self {
-        Self::new()
-    }
-}
 
 /// Function type for the EVM main entrypoint of the generated code.
 pub type EVMMainFunc = extern "C" fn(
@@ -123,7 +83,7 @@ impl<'a, DB: Database> VMContext<'a, DB> {
 
     /// Load accounts
     #[inline]
-    pub fn load_accounts(&mut self) -> Result<(), EVMError> {
+    pub fn load_accounts(&mut self) -> Result<(), VMError> {
         // load coinbase
         // EIP-3651: Warm COINBASE. Starts the `COINBASE` address warm
         if self.spec_id().is_enabled_in(SpecId::SHANGHAI) {
@@ -145,7 +105,7 @@ impl<'a, DB: Database> VMContext<'a, DB> {
 
         // Load access list
         self.load_access_list()
-            .map_err(|_| EVMError::Database(DatabaseError))?;
+            .map_err(|_| VMError::Database(DatabaseError))?;
         Ok(())
     }
 
@@ -159,13 +119,13 @@ impl<'a, DB: Database> VMContext<'a, DB> {
     }
 
     /// Deducts the caller balance to the transaction limit.
-    pub fn deduct_caller(&mut self) -> Result<(), EVMError> {
+    pub fn deduct_caller(&mut self) -> Result<(), VMError> {
         let caller = self.env.tx.caller;
         // load caller's account.
         let mut caller_account = self
             .journaled_state
             .load_account(caller, &mut self.db)
-            .map_err(|_| EVMError::Database(DatabaseError))?;
+            .map_err(|_| VMError::Database(DatabaseError))?;
 
         let is_call = self.env.tx.transact_to.is_call();
 
@@ -207,7 +167,7 @@ impl<'a, DB: Database> VMContext<'a, DB> {
         &mut self,
         gas_remaining: u64,
         gas_refunded: i64,
-    ) -> Result<(), EVMError> {
+    ) -> Result<(), VMError> {
         let caller = self.env.tx.caller;
         let effective_gas_price = self.env.effective_gas_price();
 
@@ -215,7 +175,7 @@ impl<'a, DB: Database> VMContext<'a, DB> {
         let caller_account = self
             .journaled_state
             .load_account(caller, &mut self.db)
-            .map_err(|_| EVMError::Database(DatabaseError))?;
+            .map_err(|_| VMError::Database(DatabaseError))?;
 
         caller_account.data.info.balance =
             caller_account.data.info.balance.saturating_add(
@@ -226,7 +186,7 @@ impl<'a, DB: Database> VMContext<'a, DB> {
     }
 
     /// Reward beneficiary with gas fee.
-    pub fn reward_beneficiary(&mut self, gas_used: u64, gas_refunded: i64) -> Result<(), EVMError> {
+    pub fn reward_beneficiary(&mut self, gas_used: u64, gas_refunded: i64) -> Result<(), VMError> {
         let beneficiary = self.env.block.coinbase;
         let effective_gas_price = self.env.effective_gas_price();
 
@@ -241,7 +201,7 @@ impl<'a, DB: Database> VMContext<'a, DB> {
         let coinbase_account = self
             .journaled_state
             .load_account(beneficiary, &mut self.db)
-            .map_err(|_| EVMError::Database(DatabaseError))?;
+            .map_err(|_| VMError::Database(DatabaseError))?;
 
         coinbase_account.data.mark_touch();
         coinbase_account.data.info.balance = coinbase_account
@@ -389,7 +349,7 @@ impl<'a, DB: Database> VMContext<'a, DB> {
             .selfdestruct(address, target, &mut self.db)
     }
 
-    fn invoke_call_handler(&mut self, frame: Frame) -> Result<CallResult, EVMError> {
+    fn invoke_call_handler(&mut self, frame: Frame) -> Result<CallResult, VMError> {
         let call_handler = self.handler.call_handler.clone();
         call_handler(frame, self)
     }
@@ -406,7 +366,7 @@ impl<'a, DB: Database> VMContext<'a, DB> {
         address: Address,
         calldata: &Bytes,
         gas_limit: u64,
-    ) -> Result<Option<CallResult>, EVMError> {
+    ) -> Result<Option<CallResult>, VMError> {
         let result = match self.precompiles.get(&address) {
             Some(precompile) => {
                 let Precompile::Standard(func) = precompile else {
@@ -432,14 +392,14 @@ impl<'a, DB: Database> VMContext<'a, DB> {
                 };
             }
             Err(PrecompileErrors::Fatal { msg }) => {
-                return Err(EVMError::Precompile(msg));
+                return Err(VMError::Precompile(msg));
             }
         }
         Ok(Some(call_result))
     }
 
     /// Handle frame sub call.
-    pub fn call(&mut self, msg: CallMessage) -> Result<CallResult, EVMError> {
+    pub fn call(&mut self, msg: CallMessage) -> Result<CallResult, VMError> {
         // Check depth
         if self.journaled_state.depth() > CALL_STACK_LIMIT {
             return Ok(CallResult::new_with_gas_limit_and_status(
@@ -458,7 +418,7 @@ impl<'a, DB: Database> VMContext<'a, DB> {
                     // Create the checkpont for the sub call.
                     if msg.value.is_zero() {
                         self.load_account(msg.recipient)
-                            .map_err(|_| EVMError::Database(DatabaseError))?;
+                            .map_err(|_| VMError::Database(DatabaseError))?;
                         self.journaled_state.touch(&msg.recipient);
                     } else {
                         // Transfer value from caller to called account. As value get transferred
@@ -466,7 +426,7 @@ impl<'a, DB: Database> VMContext<'a, DB> {
                         if let Some(status) = self
                             .journaled_state
                             .transfer(&msg.caller, &msg.recipient, msg.value, &mut self.db)
-                            .map_err(|_| EVMError::Database(DatabaseError))?
+                            .map_err(|_| VMError::Database(DatabaseError))?
                         {
                             self.journaled_state.checkpoint_revert(checkpoint);
                             return Ok(CallResult::new_with_gas_limit_and_status(
@@ -489,7 +449,7 @@ impl<'a, DB: Database> VMContext<'a, DB> {
                     let account = self
                         .journaled_state
                         .load_code(msg.code_address, &mut self.db)
-                        .map_err(|_| EVMError::Database(DatabaseError))?;
+                        .map_err(|_| VMError::Database(DatabaseError))?;
                     let code_hash = account.info.code_hash;
                     let bytecode = account.info.code.clone().unwrap_or_default();
                     if bytecode.is_empty() {
@@ -527,7 +487,7 @@ impl<'a, DB: Database> VMContext<'a, DB> {
                     // Create the checkpont for the sub call.
                     if msg.value.is_zero() {
                         self.load_account(msg.recipient)
-                            .map_err(|_| EVMError::Database(DatabaseError))?;
+                            .map_err(|_| VMError::Database(DatabaseError))?;
                         self.journaled_state.touch(&msg.recipient);
                     } else {
                         // Transfer value from caller to called account. As value get transferred
@@ -535,7 +495,7 @@ impl<'a, DB: Database> VMContext<'a, DB> {
                         if let Some(status) = self
                             .journaled_state
                             .transfer(&msg.caller, &msg.recipient, msg.value, &mut self.db)
-                            .map_err(|_| EVMError::Database(DatabaseError))?
+                            .map_err(|_| VMError::Database(DatabaseError))?
                         {
                             self.journaled_state.checkpoint_revert(checkpoint);
                             return Ok(CallResult::new_with_gas_limit_and_status(
@@ -558,7 +518,7 @@ impl<'a, DB: Database> VMContext<'a, DB> {
                     let account = self
                         .journaled_state
                         .load_code(msg.code_address, &mut self.db)
-                        .map_err(|_| EVMError::Database(DatabaseError))?;
+                        .map_err(|_| VMError::Database(DatabaseError))?;
                     let code_hash = account.info.code_hash;
                     let bytecode = account.info.code.clone().unwrap_or_default();
                     if bytecode.is_empty() {
@@ -590,7 +550,7 @@ impl<'a, DB: Database> VMContext<'a, DB> {
                 // Fetch balance of caller.
                 let caller_balance = self
                     .balance(msg.caller)
-                    .map_err(|_| EVMError::Database(DatabaseError))?;
+                    .map_err(|_| VMError::Database(DatabaseError))?;
                 // Check if caller has enough balance to send to the created contract.
                 if caller_balance.data < msg.value {
                     return Ok(CallResult::new_with_gas_limit_and_status(
@@ -626,7 +586,7 @@ impl<'a, DB: Database> VMContext<'a, DB> {
                 }
                 // Warm load account.
                 self.load_account(created_address)
-                    .map_err(|_| EVMError::Database(DatabaseError))?;
+                    .map_err(|_| VMError::Database(DatabaseError))?;
                 // Create account, transfer funds and make the journal checkpoint.
                 let checkpoint = match self.journaled_state.create_account_checkpoint(
                     msg.caller,
@@ -677,7 +637,7 @@ impl<'a, DB: Database> VMContext<'a, DB> {
                 // Fetch balance of caller.
                 let caller_balance = self
                     .balance(msg.caller)
-                    .map_err(|_| EVMError::Database(DatabaseError))?;
+                    .map_err(|_| VMError::Database(DatabaseError))?;
                 // Check if caller has enough balance to send to the created contract.
                 if caller_balance.data < msg.value {
                     return Ok(CallResult::new_with_gas_limit_and_status(
@@ -713,7 +673,7 @@ impl<'a, DB: Database> VMContext<'a, DB> {
                 }
                 // Warm load account.
                 self.load_account(created_address)
-                    .map_err(|_| EVMError::Database(DatabaseError))?;
+                    .map_err(|_| VMError::Database(DatabaseError))?;
                 // Create account, transfer funds and make the journal checkpoint.
                 let checkpoint = match self.journaled_state.create_account_checkpoint(
                     msg.caller,
@@ -915,16 +875,12 @@ impl<DB: Database> Host for VMContext<'_, DB> {
     }
 
     #[inline]
-    fn call(&mut self, msg: CallMessage) -> Result<CallResult, EVMError> {
+    fn call(&mut self, msg: CallMessage) -> Result<CallResult, VMError> {
         self.call(msg)
     }
 }
 
 /// The internal execution context, which holds the memory, gas, and program state during contract execution.
-///
-/// [`InnerContext`] contains critical data used to manage the execution environment of smart contracts
-/// or other EVM-related programs.
-///
 /// It tracks the execution memory, return data, remaining gas, logs, and exit status.
 ///
 /// # Fields:
@@ -1016,7 +972,7 @@ pub struct Contract {
     /// Address of the account the bytecode was loaded from. This can be different from target_address
     /// in the case of DELEGATECALL or CALLCODE
     pub code_address: Address,
-    /// Caller of the EVM.
+    /// Caller of the VM.
     pub caller: Address,
     /// Value send to contract from transaction or from CALL opcodes.
     pub call_value: U256,
@@ -1064,94 +1020,6 @@ impl Contract {
             ..Default::default()
         }
     }
-}
-
-/// Represents log data generated by contract execution, including topics and data.
-///
-/// `LogData` is used to represent the log entries emitted by contracts during execution.
-/// Each log entry can have multiple topics and a binary data field, which can be indexed
-/// by listeners or other contracts.
-///
-/// # Fields:
-/// - `topics`: A vector of `U256` values representing indexed topics.
-/// - `data`: A binary vector representing the data associated with the log entry.
-///
-/// # Example Usage:
-/// ```no_check
-/// let log_data = LogData {
-///     topics: vec![U256::from(0x123), Bytes32::from(0x456)],
-///     data: vec![0xDE, 0xAD, 0xBE, 0xEF],
-/// };
-/// ```
-#[derive(Clone, Default, Eq, PartialEq, Hash)]
-pub struct LogData {
-    pub topics: Vec<B256>,
-    pub data: Vec<u8>,
-}
-
-impl fmt::Debug for LogData {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        f.debug_struct("LogData")
-            .field("topics", &self.topics)
-            // Use the hex output format
-            .field("data", &hex::encode(&self.data))
-            .finish()
-    }
-}
-
-impl LogData {
-    /// Creates a new log, without length-checking. This allows creation of
-    /// invalid logs. May be safely used when the length of the topic list is
-    /// known to be 4 or less.
-    #[inline]
-    pub const fn new_unchecked(topics: Vec<B256>, data: Vec<u8>) -> Self {
-        Self { topics, data }
-    }
-
-    /// Creates a new log.
-    #[inline]
-    pub fn new(topics: Vec<B256>, data: Vec<u8>) -> Option<Self> {
-        let this = Self::new_unchecked(topics, data);
-        this.is_valid().then_some(this)
-    }
-
-    /// Creates a new empty log.
-    #[inline]
-    pub const fn empty() -> Self {
-        Self {
-            topics: Vec::new(),
-            data: Vec::new(),
-        }
-    }
-
-    /// True if valid, false otherwise.
-    #[inline]
-    pub fn is_valid(&self) -> bool {
-        self.topics.len() <= 4
-    }
-}
-
-/// Represents a log entry created during contract execution.
-///
-/// A log entry consists of the emitting contract's address and the log data (including topics and data).
-/// It is emitted during contract execution and can be processed by listeners or other contracts after
-/// the transaction is completed.
-///
-/// # Fields:
-/// - `address`: The address of the contract that emitted the log.
-/// - `data`: The log data containing topics and binary data.
-///
-/// # Example Usage:
-/// ```no_check
-/// let log = Log {
-///     address: Address::from_low_u64_be(0x123),
-///     data: LogData::default(),
-/// };
-/// ```
-#[derive(Clone, Debug, Default, Eq, PartialEq, Hash)]
-pub struct Log {
-    pub address: Address,
-    pub data: LogData,
 }
 
 /// A generic struct to represent the result of a runtime function call.
@@ -1205,7 +1073,7 @@ impl<'a> RuntimeContext<'a> {
     ///
     /// # Parameters
     ///
-    /// - `env`: The environment in which the EVM execution is taking place.
+    /// - `env`: The environment in which the EVM/WASM execution is taking place.
     /// - `journal`: A mutable log of state changes made during execution.
     /// - `call_frame`: The frame associated with the current execution call.
     ///
@@ -2017,7 +1885,7 @@ impl RuntimeContext<'_> {
         };
         self.host.log(Log {
             address: self.contract.target_address,
-            data: LogData { data, topics },
+            data: LogData::new_unchecked(topics, data.into()),
         });
     }
 

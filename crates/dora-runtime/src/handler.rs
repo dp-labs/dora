@@ -4,7 +4,7 @@ use crate::{
     call::CallResult,
     context::{Contract, VMContext},
     db::Database,
-    result::EVMError,
+    result::VMError,
 };
 
 #[derive(Debug)]
@@ -24,7 +24,7 @@ pub struct Frame {
 }
 
 pub type CallFrameHandle<'a, DB> =
-    Arc<dyn Fn(Frame, &mut VMContext<'a, DB>) -> Result<CallResult, EVMError> + 'a>;
+    Arc<dyn Fn(Frame, &mut VMContext<'a, DB>) -> Result<CallResult, VMError> + 'a>;
 
 /// Handler acts as a proxy and allow to define different behavior for different
 /// sections of the code.

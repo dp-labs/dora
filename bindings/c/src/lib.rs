@@ -8,8 +8,9 @@ use dora::{
     runtime::{
         artifact::{Artifact, SymbolArtifact},
         call::CallKind,
-        context::{Contract, RuntimeContext, Stack},
+        context::{Contract, RuntimeContext},
         db::MemoryDB,
+        stack::Stack,
         ExitStatusCode,
     },
 };

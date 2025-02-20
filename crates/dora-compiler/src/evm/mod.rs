@@ -51,32 +51,11 @@ mod tests;
 /// into MLIR (Multi-Level Intermediate Representation) operations. It encapsulates the MLIR context and
 /// EVM-specific intrinsic types required during compilation.
 ///
-/// # Fields:
-/// - `ctx`: A reference to the `Context` in which the MLIR operations will be generated. This context manages
-///   the state and lifetime of MLIR constructs, including types, operations, and modules. The lifetime `'c`
-///   is tied to the compiler's context.
-/// - `intrinsics`: A set of EVM intrinsic types (e.g., integer and floating-point types) that are used during
-///   the compilation process. These types are necessary to generate correct MLIR operations for EVM instructions.
-///
 /// # Purpose:
 /// The [`EVMCompiler`] serves as the main entry point for compiling EVM bytecode into MLIR-based representations.
 /// It relies on the provided context (`ctx`) to manage the lifetime and validity of MLIR operations, and uses
 /// intrinsic types (`intrinsics`) to map EVM constructs into the appropriate MLIR types. This struct simplifies
 /// the process of working with MLIR when targeting EVM execution models.
-///
-/// # Example Usage:
-/// ```no_check
-/// let evm_compiler = EVMCompiler {
-///     ctx: &mlir_context,
-///     intrinsics: Intrinsics {
-///         i1_ty: mlir_i1_type,
-///         i32_ty: mlir_i32_type,
-///         // Other intrinsic types...
-///         unknown_loc: mlir_unknown_location,
-///     },
-/// };
-/// // Use the `evm_compiler` to translate EVM bytecode into MLIR operations.
-/// ```
 ///
 /// # Notes:
 /// - The `ctx` field provides access to the MLIR context, which is crucial for managing the state of the
@@ -87,21 +66,14 @@ mod tests;
 ///   away the details of managing the context and intrinsic types.
 pub struct EVMCompiler<'c> {
     /// The MLIR context used for generating operations and managing their lifetime. It encapsulates the state
-    /// of the MLIR infrastructure, including types, modules, and operations. This context is tied to the
-    /// lifetime `'c` of the EVMCompiler.
+    /// of the MLIR infrastructure, including types, modules, and operations.
     pub ctx: &'c Context,
-    /// The intrinsic types specific to the EVM execution model, such as integer and floating-point types.
-    /// These are used to translate EVM operations into the corresponding MLIR types during compilation.
-    pub intrinsics: Intrinsics<'c>,
-    /// Check for stack overflow or underflow errors. Note that there is no need to check for EOF Bytecode,
-    /// as stack operations are statically determined at compile time.
-    pub stack_bound_checks: bool,
+    /// The compile options for the EVM compiler.
+    pub opts: EVMCompileOptions,
 }
 
 impl<'c> Compiler for EVMCompiler<'c> {
     type Module = Program;
-    type Target = ();
-    type Options = CompileOptions;
     type Compilation = MLIRModule<'c>;
     type CompileError = CompileError;
 
@@ -112,8 +84,6 @@ impl<'c> Compiler for EVMCompiler<'c> {
     fn compile(
         &self,
         module: &Self::Module,
-        _target: &Self::Target,
-        _options: &Self::Options,
     ) -> std::result::Result<Self::Compilation, Self::CompileError> {
         let context = &self.ctx.mlir_context;
 
@@ -129,7 +99,7 @@ impl<'c> Compiler for EVMCompiler<'c> {
 
         let mlir_module = Module::from_operation(op).expect("module failed to create");
 
-        self.compile_module(&mlir_module, module, _options)?;
+        self.compile_module(&mlir_module, module)?;
 
         Ok(MLIRModule::new(mlir_module))
     }
@@ -140,15 +110,12 @@ impl<'c> EVMCompiler<'c> {
     ///
     /// # Parameters
     /// * `ctx` - A reference to the context in which the compiler operates.
+    /// * `opts` - Compile options for the compiler.
     ///
     /// # Returns
     /// A new instance of [`EVMCompiler`].
-    pub fn new(ctx: &'c Context) -> Self {
-        Self {
-            intrinsics: Intrinsics::declare(ctx),
-            ctx,
-            stack_bound_checks: true,
-        }
+    pub fn new(ctx: &'c Context, opts: EVMCompileOptions) -> Self {
+        Self { ctx, opts }
     }
 
     /// Generates operation functions for the EVM compiler.
@@ -178,10 +145,10 @@ impl<'c> EVMCompiler<'c> {
     /// is returned.
     pub fn generate_op_functions(
         context: &'c Context,
-        intrinsics: &'c Intrinsics,
         program: &Program,
-        options: &<EVMCompiler<'c> as Compiler>::Options,
+        opts: &EVMCompileOptions,
     ) -> Result<FxHashMap<usize, melior::ir::Operation<'c>>> {
+        let intrinsics = Intrinsics::declare(context);
         let location = intrinsics.unknown_loc;
         let mut op_funcs: FxHashMap<usize, melior::ir::Operation> = FxHashMap::default();
         for (i, op) in program.operations().iter().enumerate() {
@@ -233,7 +200,7 @@ impl<'c> EVMCompiler<'c> {
                 let mut ctx =
                     CtxType::new_op_func_ctx(context, &op_func_region, &setup_block, program)?;
                 let (start_block, end_block) =
-                    EVMCompiler::generate_code_for_op(&mut ctx, &op_func_region, i, op, options)?;
+                    EVMCompiler::generate_code_for_op(&mut ctx, &op_func_region, i, op, opts)?;
                 setup_block.append_operation(cf::br(&start_block, &[], location));
                 let return_block = op_func_region.append_block(Block::new(&[]));
                 end_block.append_operation(cf::br(&return_block, &[], location));
@@ -273,9 +240,9 @@ impl<'c> EVMCompiler<'c> {
         region: &'c Region<'c>,
         index: usize,
         op: &Operation,
-        options: &<EVMCompiler<'c> as Compiler>::Options,
+        opts: &EVMCompileOptions,
     ) -> Result<(BlockRef<'c, 'c>, BlockRef<'c, 'c>)> {
-        let op_infos = op_info_map(options.spec_id);
+        let op_infos = op_info_map(opts.spec_id);
         let op_info = op_infos[op.opcode()];
         // Single operation function does not contains multiple operation blocks
         let start_block = if ctx.operation_blocks.is_empty() {
@@ -298,12 +265,12 @@ impl<'c> EVMCompiler<'c> {
         let mut op_start_block = start_block;
 
         // Static gas metering needs to be done before stack checking.
-        if options.gas_metering {
+        if opts.gas_metering {
             op_start_block = Self::gas_metering_block(ctx, region, op_start_block, op, &op_info)?;
         }
 
         // Stack overflow/underflow check.
-        if !ctx.program.is_eof() && options.stack_bound_checks {
+        if !ctx.program.is_eof() && opts.stack_bound_checks {
             op_start_block = Self::stack_bound_checks_block(ctx, region, op_start_block, op)?;
         }
 
@@ -589,16 +556,12 @@ impl<'c> EVMCompiler<'c> {
         Ok(end_block)
     }
 
-    fn compile_module(
-        &self,
-        module: &Module,
-        program: &Program,
-        options: &<EVMCompiler<'c> as Compiler>::Options,
-    ) -> Result<()> {
+    fn compile_module(&self, module: &Module, program: &Program) -> Result<()> {
         let context = &self.ctx.mlir_context;
-        let uint8 = self.intrinsics.i8_ty;
-        let ptr_type = self.intrinsics.ptr_ty;
-        let location = self.intrinsics.unknown_loc;
+        let builder = OpBuilder::new(context);
+        let uint8 = builder.i8_ty();
+        let ptr_type = builder.ptr_ty();
+        let location = builder.unknown_loc();
         // Build the main function
         let main_func = func::func(
             context,
@@ -638,11 +601,11 @@ impl<'c> EVMCompiler<'c> {
             CtxType::new_main_func_ctx(self.ctx, module, &main_region, &setup_block, program)?;
         let mut last_block = setup_block;
         // Generate all opcode with the inline mode.
-        if options.inline {
+        if self.opts.inline {
             // Generate code for the program
             for (i, op) in ctx.program.operations().iter().enumerate() {
                 let (start_block, end_block) =
-                    EVMCompiler::generate_code_for_op(&mut ctx, &main_region, i, op, options)?;
+                    EVMCompiler::generate_code_for_op(&mut ctx, &main_region, i, op, &self.opts)?;
                 // Register the jump dest block.
                 if let Operation::Jumpdest { pc } = op {
                     ctx.register_jump_destination(*pc, start_block);
@@ -655,8 +618,7 @@ impl<'c> EVMCompiler<'c> {
             last_block.append_operation(cf::br(&return_block, &[], location));
         } else {
             // Generate opcode functions for the program
-            let op_funcs =
-                EVMCompiler::generate_op_functions(self.ctx, &self.intrinsics, program, options)?;
+            let op_funcs = EVMCompiler::generate_op_functions(self.ctx, program, &self.opts)?;
             let mut result = last_block
                 .append_operation(arith::constant(
                     context,
@@ -686,8 +648,13 @@ impl<'c> EVMCompiler<'c> {
                         | Operation::Push(_)
                         | Operation::PC { .. }
                 ) {
-                    let (start_block, end_block) =
-                        EVMCompiler::generate_code_for_op(&mut ctx, &main_region, i, op, options)?;
+                    let (start_block, end_block) = EVMCompiler::generate_code_for_op(
+                        &mut ctx,
+                        &main_region,
+                        i,
+                        op,
+                        &self.opts,
+                    )?;
                     let is_stop = last_block
                         .append_operation(arith::cmpi(
                             context,
@@ -818,13 +785,11 @@ impl<'c> EVMCompiler<'c> {
 /// Represents the options used during the compilation process.
 /// This struct encapsulates various settings that can be adjusted to customize the compilation behavior.
 #[derive(Debug)]
-pub struct CompileOptions {
+pub struct EVMCompileOptions {
     /// Specification IDs and their activation block.
     ///
     /// Information was obtained from the [Ethereum Execution Specifications](https://github.com/ethereum/execution-specs)
     pub spec_id: SpecId,
-    /// A flag indicating whether to do validation for possible eof bytecode before compilation.
-    pub validate_eof: bool,
     /// A flag indicating whether to perform gas metering during compilation.
     pub gas_metering: bool,
     /// Check for stack overflow or underflow errors. Note that there is no need to check for EOF Bytecode,
@@ -834,11 +799,10 @@ pub struct CompileOptions {
     pub inline: bool,
 }
 
-impl Default for CompileOptions {
+impl Default for EVMCompileOptions {
     fn default() -> Self {
         Self {
             spec_id: SpecId::CANCUN,
-            validate_eof: true,
             gas_metering: true,
             stack_bound_checks: true,
             inline: false,

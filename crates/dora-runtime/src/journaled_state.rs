@@ -3,18 +3,17 @@ use std::{collections::hash_map::Entry, mem};
 
 use crate::{
     account::{Account, EMPTY_CODE_HASH, EMPTY_CODE_HASH_BYTES},
-    context::Log,
     db::{Database, StorageSlot},
     host::{AccountLoad, CodeLoad, SStoreResult, SStoreSlot, SelfdestructResult, StateLoad},
     ExitStatusCode,
 };
-use dora_primitives::{keccak256, Address, Bytecode, Bytes, Bytes32, SpecId, B256, U256};
+use dora_primitives::{keccak256, Address, Bytecode, Bytes, Bytes32, Log, SpecId, B256, U256};
 use rustc_hash::{FxHashMap, FxHashSet};
 
 pub type State = FxHashMap<Address, Account>;
 pub type TransientStorage = FxHashMap<(Address, Bytes32), Bytes32>;
 
-/// A journal of state changes internal to the EVM.
+/// A journal of state changes internal to the VM.
 #[derive(Debug, Clone)]
 pub struct JournaledState {
     /// The current state.
@@ -240,7 +239,7 @@ impl JournaledState {
     ///
     /// # Panics
     ///
-    /// Panics if the caller is not loaded inside of the EVM state.
+    /// Panics if the caller is not loaded inside of the VM state.
     /// This is should have been done inside `create_inner`.
     #[inline]
     pub fn create_account_checkpoint(
@@ -810,7 +809,7 @@ impl JournaledState {
 /// Journal entries that are used to track changes to the state and are used to revert it.
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub enum JournalEntry {
-    /// Used to mark account that is warm inside EVM in regards to EIP-2929 AccessList.
+    /// Used to mark account that is warm inside VM in regards to EIP-2929 AccessList.
     /// Action: We will add Account to state.
     /// Revert: we will remove account from state.
     AccountWarmed { address: Address },

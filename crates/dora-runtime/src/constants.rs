@@ -11,11 +11,12 @@ pub const VERSIONED_HASH_VERSION_KZG: u8 = 0x01;
 pub const TARGET_BLOB_NUMBER_PER_BLOCK: u64 = 3;
 /// Max number of blobs per block
 pub const MAX_BLOB_NUMBER_PER_BLOCK: u64 = 2 * TARGET_BLOB_NUMBER_PER_BLOCK;
-/// Number of block hashes that EVM can access in the past (pre-Prague).
+/// Number of block hashes that the VM can access in the past (pre-Prague).
 pub const BLOCK_HASH_HISTORY: u64 = 256;
 
 pub mod env {
     pub const DORA_TRACING: &str = "DORA_TRACING";
+    pub const DORA_DISABLE_CONSOLE: &str = "DORA_DISABLE_CONSOLE";
 }
 
 pub mod gas_cost {

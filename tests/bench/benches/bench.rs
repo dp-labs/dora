@@ -1,33 +1,42 @@
 #![allow(missing_docs)]
 
-use ::dora::{build_artifact, run};
+use ::dora::{build_artifact, run, WASMCompiler};
 use criterion::{
     criterion_group, criterion_main, measurement::WallTime, BenchmarkGroup, Criterion,
 };
 use dora_bench::benches::{get_benches, Bench};
 use dora_bench::contract::erc20::ERC20Contract;
 use dora_bench::contract::uniswapv3;
-use dora_compiler::evm::{CompileOptions, Program};
-use dora_compiler::{dora, evm, pass, Compiler, Context, EVMCompiler};
-use dora_primitives::{address, fixed_bytes, uint, Address, Bytecode, B256, U256};
+use dora_compiler::evm::{EVMCompileOptions, Program};
+use dora_compiler::wasm::WASMCompileOptions;
+use dora_compiler::{dora, evm, pass, wasm, Compiler, Context, EVMCompiler};
+use dora_primitives::{
+    address, fixed_bytes, uint, Address, Bytecode, B256, U256, WASM_MAGIC_BYTES,
+};
 use dora_primitives::{spec::SpecId, Bytes};
-use dora_runtime::context::{Contract, RuntimeContext, Stack};
+use dora_runtime::constants::env::DORA_DISABLE_CONSOLE;
+use dora_runtime::context::{Contract, RuntimeContext};
 use dora_runtime::db::{Database, MemoryDB};
 use dora_runtime::env::{Env, TxEnv, TxKind};
 use dora_runtime::executor::{ExecuteKind, Executor};
 use dora_runtime::host::DummyHost;
+use dora_runtime::stack::Stack;
 use rustc_hash::FxHashMap;
 use std::hint::black_box;
 use std::time::Duration;
 
 fn bench(c: &mut Criterion) {
     for bench in &get_benches() {
-        run_bench(c, bench);
+        if bench.bytecode.starts_with(&WASM_MAGIC_BYTES) {
+            run_wasm_bench(c, bench);
+        } else {
+            run_evm_bench(c, bench);
+        }
     }
-    run_uniswapv3_bench(c);
+    run_evm_uniswapv3_bench(c);
 }
 
-fn run_bench(c: &mut Criterion, bench: &Bench) {
+fn run_evm_bench(c: &mut Criterion, bench: &Bench) {
     let Bench {
         name,
         bytecode,
@@ -38,21 +47,17 @@ fn run_bench(c: &mut Criterion, bench: &Bench) {
     let mut g = mk_group(c, name);
     let spec_id = SpecId::CANCUN;
     let context = Context::new();
-    let compiler = EVMCompiler::new(&context);
+    let compiler = EVMCompiler::new(
+        &context,
+        EVMCompileOptions {
+            spec_id,
+            stack_bound_checks: false,
+            gas_metering: false,
+            ..Default::default()
+        },
+    );
     let program = Program::from_opcodes(bytecode, None);
-    let mut module = compiler
-        .compile(
-            &program,
-            &(),
-            &CompileOptions {
-                spec_id,
-                validate_eof: false,
-                stack_bound_checks: false,
-                gas_metering: false,
-                ..Default::default()
-            },
-        )
-        .unwrap();
+    let mut module = compiler.compile(&program).unwrap();
     // Lowering the EVM dialect to MLIR builtin dialects.
     evm::pass::run(&context.mlir_context, &mut module.mlir_module).unwrap();
     dora::pass::run(
@@ -68,7 +73,7 @@ fn run_bench(c: &mut Criterion, bench: &Bench) {
     pass::run(&context.mlir_context, &mut module.mlir_module).unwrap();
     debug_assert!(module.mlir_module.as_operation().verify());
     let gas_limit = 2_000_000;
-    // New the EVM run environment.
+    // New the run environment.
     let mut env: Env = Default::default();
     env.tx.gas_limit = gas_limit;
     env.tx.data = Bytes::from(calldata.to_vec());
@@ -103,7 +108,76 @@ fn run_bench(c: &mut Criterion, bench: &Bench) {
     g.finish();
 }
 
-fn run_uniswapv3_bench(c: &mut Criterion) {
+fn run_wasm_bench(c: &mut Criterion, bench: &Bench) {
+    let Bench {
+        name,
+        bytecode,
+        calldata,
+        native,
+    } = bench;
+
+    let mut g = mk_group(c, name);
+    let spec_id = SpecId::CANCUN;
+    let context = Context::new();
+    let compiler = WASMCompiler::new(&context, WASMCompileOptions::default());
+    let mut module = compiler.compile(bytecode).unwrap();
+    // Lowering the WASM dialect to MLIR builtin dialects.
+    wasm::pass::run(&context.mlir_context, &mut module.mlir_module).unwrap();
+    dora::pass::run(
+        &context.mlir_context,
+        &mut module.mlir_module,
+        &dora::pass::PassOptions {
+            code_size: bytecode.len() as u32,
+            spec_id,
+            ..Default::default()
+        },
+    )
+    .unwrap();
+    pass::run(&context.mlir_context, &mut module.mlir_module).unwrap();
+    debug_assert!(module.mlir_module.as_operation().verify());
+    let gas_limit = 2_000_000;
+    // New the run environment.
+    let mut env: Env = Default::default();
+    env.tx.gas_limit = gas_limit;
+    env.tx.data = Bytes::from(calldata.to_vec());
+    env.tx.transact_to = TxKind::Call(Address::left_padding_from(&[40]));
+    env.tx.caller = address!("6666000000000000000000000000000000000000");
+    let contract = Contract::new_with_env(&env, Bytecode::new(bytecode.to_vec().into()), None);
+    let mut host = DummyHost::new(env);
+    let mut context = RuntimeContext::new(
+        contract,
+        1,
+        false,
+        false,
+        &mut host,
+        SpecId::CANCUN,
+        gas_limit,
+    );
+    let instance = compiler.build_instance(bytecode).unwrap();
+    let executor = Executor::new(
+        module.module(),
+        Default::default(),
+        ExecuteKind::new_wasm(instance),
+    );
+    let ctx = black_box(&mut context);
+
+    std::env::set_var(DORA_DISABLE_CONSOLE, "true");
+
+    g.bench_function("dora", |b| {
+        b.iter(|| {
+            let mut gas = black_box(gas_limit);
+            executor.execute(ctx, &mut gas, &mut Stack::new(), &mut 0);
+            assert!(ctx.status().is_ok());
+        })
+    });
+    if let Some(native) = *native {
+        g.bench_function("native", |b| b.iter(native));
+    }
+
+    g.finish();
+}
+
+fn run_evm_uniswapv3_bench(c: &mut Criterion) {
     let addresses = vec![Address::new(rand::random()); 5];
     let seller = addresses[0];
 

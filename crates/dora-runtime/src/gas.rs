@@ -60,10 +60,10 @@ pub fn sstore_cost(spec_id: SpecId, result: &SStoreResult, gas: u64, is_cold: bo
     }
 }
 
-/// Calculates the gas cost of the `SSTORE` opcode based on the EVM specification and storage conditions.
+/// Calculates the gas cost of the `SSTORE` opcode based on the VM specification and storage conditions.
 ///
 /// # Parameters
-/// - `spec_id`: The current EVM specification identifier.
+/// - `spec_id`: The current VM specification identifier.
 /// - `original`: The original value of the storage slot.
 /// - `current`: The current value of the storage slot.
 /// - `new`: The new value being written to the storage slot.
@@ -148,7 +148,7 @@ fn frontier_sstore_status_cost(status: &SStoreStatus) -> u64 {
     }
 }
 
-/// Calculates the refund amount for the `SSTORE` opcode based on the EVM specification.
+/// Calculates the refund amount for the `SSTORE` opcode based on the VM specification.
 #[inline]
 pub fn sstore_refund(spec_id: SpecId, result: &SStoreResult) -> i64 {
     match result {
@@ -162,10 +162,10 @@ pub fn sstore_refund(spec_id: SpecId, result: &SStoreResult) -> i64 {
     }
 }
 
-/// Calculates the refund amount for the `SSTORE` opcode based on the EVM specification.
+/// Calculates the refund amount for the `SSTORE` opcode based on the VM specification.
 ///
 /// # Parameters
-/// - `spec_id`: The current EVM specification identifier.
+/// - `spec_id`: The current VM specification identifier.
 /// - `original`: The original value of the storage slot.
 /// - `current`: The current value of the storage slot.
 /// - `new`: The new value being written.
@@ -219,10 +219,10 @@ pub fn sstore_slot_refund(spec_id: SpecId, original: U256, current: U256, new: U
     refund
 }
 
-/// Calculates the refund amount for the `SSTORE` opcode based on the EVM specification.
+/// Calculates the refund amount for the `SSTORE` opcode based on the VM specification.
 ///
 /// # Parameters
-/// - `spec_id`: The current EVM specification identifier.
+/// - `spec_id`: The current VM specification identifier.
 /// - `status`: The status of the `SSTORE` opcode.
 ///
 /// # Returns
@@ -287,10 +287,10 @@ pub const fn initcode_cost(len: u64) -> Option<u64> {
     cost_per_word(len, INITCODE_WORD_COST)
 }
 
-/// Calculates the `SLOAD` cost based on the EVM specification.
+/// Calculates the `SLOAD` cost based on the VM specification.
 ///
 /// # Parameters
-/// - `spec_id`: The current EVM specification identifier.
+/// - `spec_id`: The current VM specification identifier.
 /// - `is_cold`: Indicates whether the storage access is cold.
 ///
 /// # Returns
@@ -312,7 +312,7 @@ pub const fn sload_cost(spec_id: SpecId, is_cold: bool) -> u64 {
     }
 }
 
-/// Calculates the gas cost for the `EXTCODESIZE` opcode based on the EVM specification.
+/// Calculates the gas cost for the `EXTCODESIZE` opcode based on the VM specification.
 ///
 /// The gas cost depends on the specification version and whether the account access is considered
 /// "cold" (not accessed recently) or "warm" (already accessed in the current execution context).
@@ -378,13 +378,13 @@ pub const fn extcodecopy_gas_cost(spec_id: SpecId, load: CodeLoad<()>) -> u64 {
     }
 }
 
-/// Calculates the balance store gas cost for an EVM operation based on the specification version and access type.
+/// Calculates the balance store gas cost for an VM operation based on the specification version and access type.
 ///
-/// The gas cost varies depending on the EVM specification and whether the operation involves
+/// The gas cost varies depending on the VM specification and whether the operation involves
 /// a "cold" or "warm" account access.
 ///
 /// ### Parameters:
-/// - `spec_id`: The current EVM specification version.
+/// - `spec_id`: The current VM specification version.
 /// - `is_cold`: Boolean indicating whether the access is cold.
 ///
 /// ### Returns:
@@ -406,10 +406,10 @@ pub const fn balance_gas_cost(spec_id: SpecId, is_cold: bool) -> u64 {
 /// Calculates the gas cost for the `EXTCODEHASH` opcode based on the specification version
 /// and access type.
 ///
-/// The gas cost depends on the EVM specification version and whether the access is "cold" or "warm."
+/// The gas cost depends on the VM specification version and whether the access is "cold" or "warm."
 ///
 /// ### Parameters:
-/// - `spec_id`: The current EVM specification version.
+/// - `spec_id`: The current VM specification version.
 /// - `is_cold`: Boolean indicating whether the access is cold.
 ///
 /// ### Returns:
@@ -432,7 +432,7 @@ pub const fn extcodehash_gas_cost(spec_id: SpecId, load: CodeLoad<()>) -> u64 {
 /// and the self destruct result returned by the host.
 ///
 /// ### Parameters:
-/// - `spec_id`: The current EVM specification version.
+/// - `spec_id`: The current VM specification version.
 /// - `res`: The self destruct result returned by the host.
 ///
 /// ### Returns:

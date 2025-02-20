@@ -1,4 +1,4 @@
-use crate::run_bytecode_with_calldata;
+use crate::run_bytecode_hex;
 use dora_primitives::spec::SpecId;
 
 mod bytecode;
@@ -14,8 +14,7 @@ const INIT_GAS: u64 = 1_000_000_000;
 
 #[test]
 fn test_counter() {
-    let result =
-        run_bytecode_with_calldata(COUNTER_BYTECODE_HEX, "d09de08a", INIT_GAS, SpecId::CANCUN);
+    let result = run_bytecode_hex(COUNTER_BYTECODE_HEX, "d09de08a", INIT_GAS, SpecId::CANCUN);
     let result = result.as_ref().unwrap();
     assert!(result.is_success(), "{:?}", result);
 }
@@ -48,7 +47,7 @@ fn test_counter() {
 /// ```
 #[test]
 fn test_erc20_transfer() {
-    let result = run_bytecode_with_calldata(
+    let result = run_bytecode_hex(
         ERC20_TRANSFER_BYTECODE_HEX,
         "30627b7c",
         INIT_GAS,

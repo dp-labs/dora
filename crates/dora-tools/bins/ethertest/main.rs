@@ -20,9 +20,8 @@ use dora_primitives::Bytecode;
 use dora_primitives::Bytes;
 use dora_primitives::EvmStorageSlot;
 use dora_primitives::SignedAuthorization;
-use dora_primitives::{Address, B256, U256};
+use dora_primitives::{Address, Log, B256, U256};
 use dora_runtime::account::Account;
-use dora_runtime::context::Log;
 use dora_runtime::context::VMContext;
 use dora_runtime::db::{Database, MemoryDB};
 use dora_runtime::env::Env;
@@ -260,18 +259,8 @@ pub enum TestErrorKind {
 }
 
 fn log_rlp_hash(logs: &[Log]) -> B256 {
-    let logs: Vec<dora_primitives::Log> = logs
-        .iter()
-        .map(|l| dora_primitives::Log {
-            address: l.address,
-            data: dora_primitives::LogData::new_unchecked(
-                l.data.topics.clone(),
-                l.data.data.clone().into(),
-            ),
-        })
-        .collect();
-    let mut out = Vec::with_capacity(alloy_rlp::list_length(&logs));
-    alloy_rlp::encode_list(&logs, &mut out);
+    let mut out = Vec::with_capacity(alloy_rlp::list_length(logs));
+    alloy_rlp::encode_list(logs, &mut out);
     B256::from_slice(dora_primitives::keccak256(&out).as_slice())
 }
 
@@ -560,7 +549,7 @@ fn execute_test(path: &Path) -> Result<(), TestError> {
                     .map(|auth_list| auth_list.into_iter().map(Into::into).collect::<Vec<_>>())
                     .unwrap_or_default();
 
-                // Run EVM and get the state result.
+                // Run the VM and get the state result.
                 let mut vm = VM::new(VMContext::new(db.clone(), env, spec_id, compile_handler()));
                 let res = vm.transact_commit();
 

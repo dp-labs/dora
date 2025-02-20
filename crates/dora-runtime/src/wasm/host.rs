@@ -11,10 +11,13 @@ use super::{
 };
 use crate::account::EMPTY_CODE_HASH_BYTES;
 use crate::call::{CallKind, CallMessage, CallResult};
+use crate::constants::env::DORA_DISABLE_CONSOLE;
 use crate::constants::CallType;
-use crate::context::{Log, LogData, RuntimeContext};
-use crate::{as_u64_saturated, ExitStatusCode};
-use dora_primitives::{keccak256 as native_keccak256, Address, Bytes32, B256, U256};
+use crate::context::RuntimeContext;
+use crate::ExitStatusCode;
+use dora_primitives::{
+    as_u64_saturated, keccak256 as native_keccak256, Address, Bytes32, Log, LogData, B256, U256,
+};
 use wasmer::{Memory, MemoryAccessError, MemoryView, Pages, StoreMut, WasmPtr};
 
 /// Represents host information including the environment, memory, and store.
@@ -633,7 +636,7 @@ pub fn create2(
     Ok(())
 }
 
-/// Emits an EVM log with the given number of topics and data.
+/// Emits the log with the given number of topics and data.
 pub fn emit_log(
     mut env: WASMEnvMut,
     data: GuestPtr, // *const u8,
@@ -646,16 +649,13 @@ pub fn emit_log(
     with_runtime_context(|runtime_context| {
         runtime_context.host.log(Log {
             address: runtime_context.contract.target_address,
-            data: LogData {
-                data,
-                topics: vec![],
-            },
+            data: LogData::new_unchecked(vec![], data.into()),
         });
     });
     Ok(())
 }
 
-/// Emits an EVM log with the given number of topics and data.
+/// Emits the log with the given number of topics and data.
 #[allow(clippy::too_many_arguments)]
 pub fn emit_log_event(
     mut env: WASMEnvMut,
@@ -693,7 +693,7 @@ pub fn emit_log_event(
     with_runtime_context(|runtime_context| {
         runtime_context.host.log(Log {
             address: runtime_context.contract.target_address,
-            data: LogData { data, topics },
+            data: LogData::new_unchecked(topics, data.into()),
         });
     });
     Ok(())
@@ -814,7 +814,7 @@ pub fn call_data_size(mut _env: WASMEnvMut) -> EscapeResult<u32> {
     Ok(data.len() as u32)
 }
 
-/// Copies the bytes of the last EVM call or deployment return result.
+/// Copies the bytes of the last VM call or deployment return result.
 pub fn return_data_copy(
     mut env: WASMEnvMut,
     dest: GuestPtr, // *mut u8,
@@ -882,14 +882,16 @@ pub fn debug_i64(_env: WASMEnvMut, value: i64) {
 
 /// Prints a UTF-8 encoded string to the console. Only available in debug mode.
 pub fn debug_bytes(mut env: WASMEnvMut, bytes: GuestPtr, len: u32) -> MaybeEscape {
-    let host = HostInfo::from_env(&mut env)?;
-    let data = host.read_slice(bytes, len)?;
-    let string = String::from_utf8_lossy(&data);
-    println!("{string}");
+    if std::env::var(DORA_DISABLE_CONSOLE).is_err() {
+        let host = HostInfo::from_env(&mut env)?;
+        let data = host.read_slice(bytes, len)?;
+        let string = String::from_utf8_lossy(&data);
+        println!("{string}");
+    }
     Ok(())
 }
 
-/// Returns the length of the last EVM call or deployment return result.
+/// Returns the length of the last VM call or deployment return result.
 pub fn return_data_size(mut _env: WASMEnvMut) -> u32 {
     with_runtime_context(|runtime_context| runtime_context.return_data_size() as u32)
 }

@@ -1,7 +1,8 @@
 #![allow(clippy::arc_with_non_send_sync)]
 
 use crate::constants::MAIN_ENTRYPOINT;
-use crate::context::{EVMMainFunc, RuntimeContext, Stack, WASMMainFunc};
+use crate::context::{EVMMainFunc, RuntimeContext, WASMMainFunc};
+use crate::stack::Stack;
 use crate::wasm::WASMInstance;
 use dora_primitives::config::OptimizationLevel;
 use melior::ir::Module;
@@ -17,14 +18,14 @@ use std::sync::Arc;
 /// The stack size at runtime, used for recursive program execution to prevent stack overflow
 pub const RUNTIME_STACK_SIZE: usize = 64 * 1024 * 1024;
 
-/// A struct that wraps around the MLIR-based execution engine for executing compiled EVM and WASM code.
+/// A struct that wraps around the MLIR-based execution engine for executing compiled EVM/WASM bytecode.
 ///
 /// The `Executor` is responsible for managing the execution engine and invoking the main entry point of the compiled
-/// code. It serves as the core execution unit, executing the EVM bytecode compiled via MLIR within the provided
+/// code. It serves as the core execution unit, executing the EVM/WASM bytecode compiled via MLIR within the provided
 /// `RuntimeContext`.
 ///
 /// # Fields:
-/// - `engine`: An instance of `ExecutionEngine`, used to execute the compiled EVM and WASM bytecode.
+/// - `engine`: An instance of `ExecutionEngine`, used to execute the compiled EVM/WASM bytecode.
 ///
 /// # Example Usage:
 /// ```no_check
@@ -62,7 +63,7 @@ impl Executor {
     /// and registers symbols required by the `RuntimeContext`.
     ///
     /// # Arguments:
-    /// - `module`: A reference to the MLIR `Module` containing the compiled EVM bytecode.
+    /// - `module`: A reference to the MLIR `Module` containing the compiled EVM/WASM bytecode.
     /// - `runtime_ctx`: A reference to the `RuntimeContext`, which provides the execution environment.
     /// - `opt_level`: The optimization level to be applied during the execution of the bytecode.
     ///
@@ -82,7 +83,7 @@ impl Executor {
         Self { engine, kind }
     }
 
-    /// Executes the main entry point of the compiled EVM code.
+    /// Executes the main entry point of the compiled EVM/WASM code.
     ///
     /// This function calls the main entry point of the compiled module with the provided `RuntimeContext`
     /// and initial gas amount. It retrieves the main entry function pointer and executes it with the supplied

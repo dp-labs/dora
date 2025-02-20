@@ -1,15 +1,13 @@
 // Copyright 2024 The Dora Authors.
 // Licensed under the Apache License, Version 2.0.
 
-use dora::primitives::{Address, Bytes, Bytes32, B256, U256};
-use dora::runtime::as_u64_saturated;
+use dora::primitives::{as_u64_saturated, Address, Bytes, Bytes32, Log, B256, U256};
 use dora::runtime::call::{CallMessage, CallResult};
-use dora::runtime::context::Log;
 use dora::runtime::env::{BlobExcessGasAndPrice, BlockEnv, CfgEnv, Env, TxEnv};
 use dora::runtime::host::{
     AccountLoad, CodeLoad, Host, SStoreResult, SStoreStatus, SelfdestructResult, StateLoad,
 };
-use dora::runtime::result::EVMError;
+use dora::runtime::result::VMError;
 use dora::SpecId;
 use evmc_sys::{evmc_access_status, evmc_address, evmc_bytes32, evmc_storage_status};
 use evmc_vm::{ExecutionContext, ExecutionMessage};
@@ -224,7 +222,7 @@ impl Host for EvmcDelegateHost<'_> {
                 &addr,
                 &log.data.data,
                 &log.data
-                    .topics
+                    .topics()
                     .iter()
                     .map(|t| transmute(t.0))
                     .collect::<Vec<evmc_bytes32>>(),
@@ -232,7 +230,7 @@ impl Host for EvmcDelegateHost<'_> {
         }
     }
 
-    fn call(&mut self, msg: CallMessage) -> Result<CallResult, EVMError> {
+    fn call(&mut self, msg: CallMessage) -> Result<CallResult, VMError> {
         unsafe {
             let result = self.context.call(&ExecutionMessage::new(
                 call_kind_to_evmc_msg_kind(msg.kind),

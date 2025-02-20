@@ -1,7 +1,8 @@
 use crate::{
-    context::{Contract, EVMMainFunc, RuntimeContext, Stack, WASMMainFunc},
+    context::{Contract, EVMMainFunc, RuntimeContext, WASMMainFunc},
     executor::{ExecuteKind, Executor},
     host::DummyHost,
+    stack::Stack,
     wasm::context::set_runtime_context,
 };
 use anyhow::{anyhow, Result};

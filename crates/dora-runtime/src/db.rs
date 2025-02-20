@@ -138,7 +138,7 @@ pub trait DatabaseCommit {
 /// initial state (`original_value`) and its current state (`present_value`).
 ///
 /// The `is_cold` field is used to track whether the storage slot has been accessed recently,
-/// which is relevant for gas cost calculations in EVM.
+/// which is relevant for gas cost calculations.
 ///
 /// # Fields:
 /// - `original_value`: The value originally stored in the slot.
@@ -669,18 +669,18 @@ pub enum AccountState {
     /// Before Spurious Dragon hardfork there was a difference between empty and not existing.
     /// And we are flagging it here.
     NotExisting,
-    /// EVM touched this account. For newer hardfork this means it can be cleared/removed from state.
+    /// VM touched this account. For newer hardfork this means it can be cleared/removed from state.
     Touched,
-    /// EVM cleared storage of this account, mostly by selfdestruct, we don't ask database for storage slots
+    /// VM cleared storage of this account, mostly by selfdestruct, we don't ask database for storage slots
     /// and assume they are U256::ZERO
     StorageCleared,
-    /// EVM didn't interacted with this account
+    /// VM didn't interacted with this account
     #[default]
     None,
 }
 
 impl AccountState {
-    /// Returns `true` if EVM cleared storage of this account
+    /// Returns `true` if VM cleared storage of this account
     pub fn is_storage_cleared(&self) -> bool {
         matches!(self, AccountState::StorageCleared)
     }
