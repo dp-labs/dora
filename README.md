@@ -12,7 +12,7 @@ Dora is a modular machine layer designed to bring real-world computing use cases
 
 ## Status
 
-Dora is currently in the MVP stage, with support for EVM functionalities. It is actively under development and will soon be ready for production use.
+Dora is currently in the MVP stage, with support for EVM and WASM functionalities. It is actively under development and will soon be ready for production use.
 
 ## Why
 
