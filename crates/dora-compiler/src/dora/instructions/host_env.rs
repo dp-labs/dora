@@ -6,11 +6,7 @@ use crate::{
 };
 use dora_runtime::symbols;
 use melior::{
-    dialect::{
-        arith::{self},
-        func,
-        llvm::{self},
-    },
+    dialect::{arith, func, llvm},
     ir::{
         attribute::{FlatSymbolRefAttribute, TypeAttribute},
         operation::OperationRef,

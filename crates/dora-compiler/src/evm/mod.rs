@@ -786,7 +786,7 @@ impl<'c> EVMCompiler<'c> {
 /// This struct encapsulates various settings that can be adjusted to customize the compilation behavior.
 #[derive(Debug)]
 pub struct EVMCompileOptions {
-    /// Specification IDs and their activation block.
+    /// EVM Specification ID
     ///
     /// Information was obtained from the [Ethereum Execution Specifications](https://github.com/ethereum/execution-specs)
     pub spec_id: SpecId,
@@ -807,6 +807,26 @@ impl Default for EVMCompileOptions {
             stack_bound_checks: true,
             inline: false,
         }
+    }
+}
+
+impl EVMCompileOptions {
+    /// Set the EVM spec ID.
+    pub fn spec_id(mut self, spec_id: SpecId) -> Self {
+        self.spec_id = spec_id;
+        self
+    }
+
+    /// Set whether to perform gas metering during compilation.
+    pub fn gas_metering(mut self, gas_metering: bool) -> Self {
+        self.gas_metering = gas_metering;
+        self
+    }
+
+    /// Set whether to check for stack overflow or underflow errors.
+    pub fn stack_bound_checks(mut self, stack_bound_checks: bool) -> Self {
+        self.stack_bound_checks = stack_bound_checks;
+        self
     }
 }
 
