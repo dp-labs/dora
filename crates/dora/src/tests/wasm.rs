@@ -32,6 +32,7 @@ macro_rules! generate_test_cases {
     };
 }
 
+#[allow(unused_macros)]
 macro_rules! generate_error_test_cases {
     ($artifact:expr, [ $(($func_name:expr, $arg:expr, $expect:expr)),* $(,)? ]) => {
         $(
