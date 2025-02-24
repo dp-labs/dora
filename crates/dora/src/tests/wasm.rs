@@ -805,8 +805,7 @@ fn test_wasm_call_indirect() -> Result<()> {
             ("type-i64", (), 0x164_i64, i64),
             ("type-f32", (), 0xf32 as f32, f32),
             ("type-f64", (), 0xf64 as f64, f64),
-            // TODO: test errors on macos.
-            // ("type-index", (), 100, i64),
+            ("type-index", (), 100, i64),
         ]
     );
     #[cfg(target_os = "linux")]
