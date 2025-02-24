@@ -174,12 +174,12 @@ fn test_wasm_address() -> Result<()> {
             ("8u_good3", 65507, 0, i32),
             ("8u_good4", 65507, 0, i32),
             ("8u_good5", 65507, 0, i32),
+            // Out of bounds memory access error
+            // ("32_good5", 65508, (), ())
+            // ("8u_good3", -1, (), ())
+            // ("8u_bad", 0, (), ())
         ]
     );
-    // TODO: Out of bounds memory access error deal
-    // assert!(artifact.execute_wasm_func("32_good5", 65508).is_err());
-    // assert!(artifact.execute_wasm_func("8u_good3", -1).is_err());
-    // assert!(artifact.execute_wasm_func("8u_bad", 0).is_err());
     Ok(())
 }
 
@@ -4195,8 +4195,11 @@ fn test_wasm_alloc() -> Result<()> {
             // vec_drain
             ("vec_drain", 0, 0, i32),
             ("vec_drain", 10, 10, i32),
+            // vec_sort
             ("vec_sort", 0, 0, i32),
             ("vec_sort", 10, 1, i32),
+            // string format: TODO: fix test errors on macos.
+            // ("string_format", (), 1, i32),
         ]
     );
     Ok(())
@@ -4216,15 +4219,50 @@ fn test_wasm_console() -> Result<()> {
 fn test_wasm_counter_contract() -> Result<()> {
     let code = include_bytes!("../../../dora-compiler/src/wasm/tests/suites/counter.wat");
     build_wasm_code!(code, artifact);
+    use alloy_sol_types::{sol, SolCall};
+    use dora_primitives::U256;
+    use ICounter::{numberCall, setNumberCall};
+
+    sol! {
+        interface ICounter  {
+            function number() external view returns (uint256);
+            function setNumber(uint256 new_number) external;
+        }
+    }
+    let number_call_data = numberCall {}.abi_encode();
+    let set_number_call_data = setNumberCall {
+        new_number: U256::from(10_u32),
+    }
+    .abi_encode();
     generate_calldata_test_cases!(
         &artifact,
         [
             // No calldata, expect the revert code 1
             ("user_entrypoint", 0, 1, i32, hex!("")),
-            // wrong function ABI, expect the revert code 1
-            // ("user_entrypoint", 4, 1, i32, hex!("AABBCCDD")),
-            // increment function ABI
-            // ("user_entrypoint", 4, 0, i32, hex!("d09de08a")),
+            // Wrong function ABI, expect the revert code 1
+            ("user_entrypoint", 4, 1, i32, hex!("AABBCCDD")),
+            // Call number function ABI
+            (
+                "user_entrypoint",
+                number_call_data.len(),
+                0,
+                i32,
+                &number_call_data
+            ),
+            (
+                "user_entrypoint",
+                set_number_call_data.len(),
+                0,
+                i32,
+                &set_number_call_data
+            ),
+            (
+                "user_entrypoint",
+                number_call_data.len(),
+                0,
+                i32,
+                &number_call_data
+            ),
         ]
     );
     Ok(())
@@ -4236,11 +4274,64 @@ fn test_wasm_counter_contract() -> Result<()> {
 fn test_wasm_erc20_contract() -> Result<()> {
     let code = include_bytes!("../../../dora-compiler/src/wasm/tests/suites/erc20.wat");
     build_wasm_code!(code, artifact);
+    use alloy_sol_types::{sol, SolCall};
+    use dora_primitives::U256;
+    use IErc20::{nameCall, symbolCall};
+    use IStylusTestToken::{burnCall, mintCall};
+
+    sol! {
+        interface IErc20  {
+            function name() external pure returns (string memory);
+            function symbol() external pure returns (string memory);
+            function decimals() external pure returns (uint8);
+            function totalSupply() external view returns (uint256);
+            function balanceOf(address owner) external view returns (uint256);
+            function transfer(address to, uint256 value) external returns (bool);
+            function transferFrom(address from, address to, uint256 value) external returns (bool);
+            function approve(address spender, uint256 value) external returns (bool);
+            function allowance(address owner, address spender) external view returns (uint256);
+            error InsufficientBalance(address, uint256, uint256);
+            error InsufficientAllowance(address, address, uint256, uint256);
+        }
+        interface IStylusTestToken is IErc20  {
+            function mint(uint256 value) external;
+            function mintTo(address to, uint256 value) external;
+            function burn(uint256 value) external;
+            error InsufficientBalance(address, uint256, uint256);
+            error InsufficientAllowance(address, address, uint256, uint256);
+        }
+    }
+
     generate_calldata_test_cases!(
         &artifact,
         [
             // No calldata, expect the revert code 1
             ("call", (), 1, i32, hex!("")),
+            // Wrong function ABI, expect the revert code 1
+            ("call", (), 1, i32, hex!("AABBCCDD")),
+            ("call", (), 0, i32, nameCall {}.abi_encode()),
+            ("call", (), 0, i32, symbolCall {}.abi_encode()),
+            (
+                "call",
+                (),
+                0,
+                i32,
+                mintCall {
+                    value: U256::from(10_u32)
+                }
+                .abi_encode()
+            ),
+            // No enough value.
+            (
+                "call",
+                (),
+                1,
+                i32,
+                burnCall {
+                    value: U256::from(10_u32)
+                }
+                .abi_encode()
+            ),
         ]
     );
     Ok(())

@@ -190,6 +190,7 @@ impl FuncTranslator {
                         module_translation,
                         wasm_module,
                         symbol_registry,
+                        static_memory_bound_check: opts.static_memory_bound_check,
                     };
                     let mut last_block = code_start_lock;
                     while backend.state.has_control_frames() {

@@ -465,11 +465,20 @@ pub struct WASMCompileOptions {
     pub middlewares: Vec<Arc<dyn ModuleMiddleware>>,
     /// A flag indicating whether to perform gas metering during compilation.
     pub gas_metering: bool,
+    /// Whether to check static memory bound and offset gaurd.
+    pub static_memory_bound_check: bool,
 }
 
 impl WASMCompileOptions {
+    /// Set whether to perform gas metering during compilation.
     pub fn gas_metering(mut self, gas_metering: bool) -> Self {
         self.gas_metering = gas_metering;
+        self
+    }
+
+    /// Set whether to check static memory bound and offset gaurd.
+    pub fn static_memory_bound_check(mut self, static_memory_bound_check: bool) -> Self {
+        self.static_memory_bound_check = static_memory_bound_check;
         self
     }
 }

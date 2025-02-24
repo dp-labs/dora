@@ -211,7 +211,9 @@ impl SymbolArtifact {
         let closure: Box<dyn FnOnce() -> Result<Ret>> = Box::new(move || {
             let func_ptr = self.executor.lookup(name);
             if func_ptr.is_null() {
-                return Err(anyhow::anyhow!("function {name} not found"));
+                return Err(anyhow::anyhow!(
+                    "function {name} not found in the WASM module"
+                ));
             }
             match &self.executor.kind {
                 ExecuteKind::EVM => Err(anyhow!(
@@ -252,7 +254,9 @@ impl SymbolArtifact {
         let closure: Box<dyn FnOnce() -> Result<(Ret, CallResult)>> = Box::new(move || {
             let func_ptr = self.executor.lookup(name);
             if func_ptr.is_null() {
-                return Err(anyhow::anyhow!("function {name} not found"));
+                return Err(anyhow::anyhow!(
+                    "function {name} not found in the WASM module"
+                ));
             }
             match &self.executor.kind {
                 ExecuteKind::EVM => Err(anyhow!(

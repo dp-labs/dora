@@ -496,7 +496,7 @@ impl<'c, 'a> CtxType<'c, 'a> {
         }
         self.cached_globals
             .get(&index)
-            .ok_or_else(|| anyhow::anyhow!("wasm global not found"))
+            .ok_or_else(|| anyhow::anyhow!("wasm global {} not found", index.as_u32()))
             .cloned()
     }
 
