@@ -1227,7 +1227,54 @@ fn test_wasm_conversions() -> Result<()> {
                 3.142,
                 f32
             ),
-            // TODO f32.reinterpret_i32, f64.reinterpret_i64, i32.reinterpret_f32, i64.reinterpret_f64
+            (
+                "f32.reinterpret_i32",
+                0,
+                0_f32,
+                f32
+            ),
+            (
+                "f32.reinterpret_i32",
+                1,
+                1e-45_f32,
+                f32
+            ),
+            (
+                "f64.reinterpret_i64",
+                0,
+                0_f64,
+                f64
+            ),
+            (
+                "f64.reinterpret_i64",
+                1,
+                5e-324_f64,
+                f64
+            ),
+            (
+                "i32.reinterpret_f32",
+                0_f32,
+                0,
+                i32
+            ),
+            (
+                "i32.reinterpret_f32",
+                1.1_f32,
+                1066192077,
+                i32
+            ),
+            (
+                "i64.reinterpret_f64",
+                0_f64,
+                0,
+                i64
+            ),
+            (
+                "i64.reinterpret_f64",
+                1.1_f64,
+                4607632778762754458,
+                i64
+            )
         ]
     );
     Ok(())
