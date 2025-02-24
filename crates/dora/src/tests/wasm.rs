@@ -1143,12 +1143,12 @@ fn test_wasm_conversions() -> Result<()> {
                 42.0,
                 f64
             ),
-            // (
-            //     "f64.convert_i64_s",
-            //     -148,
-            //     -148.0,
-            //     f64
-            // ),
+            (
+                "f64.convert_i64_s",
+                -148_i64,
+                -148.0,
+                f64
+            ),
             (
                 "f64.convert_i64_s",
                 i64::MAX,
@@ -1209,12 +1209,12 @@ fn test_wasm_conversions() -> Result<()> {
                 3.142_f32 as f64,
                 f64
             ),
-            // (
-            //     "f64.promote_f32",
-            //     -2.718_f32,
-            //     -2.718_f64,
-            //     f64
-            // ),
+            (
+                "f64.promote_f32",
+                -2.718_f32,
+                -2.7179999351501465_f64,
+                f64
+            ),
             (
                 "f64.promote_f32",
                 f32::MAX,
