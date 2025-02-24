@@ -143,26 +143,23 @@ pub fn build_artifact<DB: Database>(
     spec_id: SpecId,
 ) -> anyhow::Result<DB::Artifact> {
     match code {
-        Bytecode::EVM(code) => build_evm_artifact::<DB>(code, spec_id),
-        Bytecode::WASM(code) => build_wasm_artifact::<DB>(code),
+        Bytecode::EVM(code) => {
+            build_evm_artifact::<DB>(code, EVMCompileOptions::default().spec_id(spec_id))
+        }
+        Bytecode::WASM(code) => build_wasm_artifact::<DB>(code, WASMCompileOptions::default()),
     }
 }
 
 /// Build the EVM bytecode to the artifact
 pub fn build_evm_artifact<DB: Database>(
     code: &EVMBytecode,
-    spec_id: SpecId,
+    opts: EVMCompileOptions,
 ) -> anyhow::Result<DB::Artifact> {
+    let spec_id = opts.spec_id;
     // Compile the contract code
     let program = Program::from_opcodes(code.bytecode(), code.eof().cloned());
     let context = Context::new();
-    let compiler = EVMCompiler::new(
-        &context,
-        EVMCompileOptions {
-            spec_id,
-            ..Default::default()
-        },
-    );
+    let compiler = EVMCompiler::new(&context, opts);
     let mut module = compiler.compile(&program)?;
     // Lowering the EVM dialect to MLIR builtin dialects.
     evm::pass::run(&context.mlir_context, &mut module.mlir_module)?;
@@ -182,9 +179,12 @@ pub fn build_evm_artifact<DB: Database>(
 }
 
 /// Build WASM opcode to the artifact
-pub fn build_wasm_artifact<DB: Database>(code: &WASMBytecode) -> anyhow::Result<DB::Artifact> {
+pub fn build_wasm_artifact<DB: Database>(
+    code: &WASMBytecode,
+    opts: WASMCompileOptions,
+) -> anyhow::Result<DB::Artifact> {
     let context = Context::new();
-    let compiler = WASMCompiler::new(&context, WASMCompileOptions::default());
+    let compiler = WASMCompiler::new(&context, opts);
     // Compile WASM Bytecode to MLIR WASM Dialect
     let mut module = compiler.compile(code)?;
     let instance = compiler.build_instance(code)?;

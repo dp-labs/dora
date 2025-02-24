@@ -1,7 +1,6 @@
 //！Reference: https://github.com/WebAssembly/spec/tree/main/test/core
 
-use crate::build_wasm_artifact;
-use crate::MemoryDB;
+use crate::{build_wasm_artifact, MemoryDB, WASMCompileOptions};
 use anyhow::Result;
 #[cfg(target_os = "linux")]
 use hex_literal::hex;
@@ -10,23 +9,15 @@ use wasmer::wat2wasm;
 macro_rules! build_wasm_code {
     ($code:ident, $artifact:ident) => {
         let wasm_code = wat2wasm($code).unwrap();
-        let $artifact = build_wasm_artifact::<MemoryDB>(&wasm_code.to_vec().into()).unwrap();
+        let $artifact = build_wasm_artifact::<MemoryDB>(
+            &wasm_code.to_vec().into(),
+            WASMCompileOptions::default(),
+        )
+        .unwrap();
     };
-    ($code:ident, $artifact:ident, $runtime_context:ident) => {
+    ($code:ident, $artifact:ident, $opts:expr) => {
         let wasm_code = wat2wasm($code).unwrap();
-        let $artifact = build_wasm_artifact::<MemoryDB>(&wasm_code.to_vec().into()).unwrap();
-        // Run WASM code with env.
-        let env = Env::default();
-        let mut host = DummyHost::new(env);
-        let $runtime_context = RuntimeContext::new(
-            Contract::new_with_env(&host.env, Bytecode::new(wasm_code.to_vec().into()), None),
-            1,
-            false,
-            false,
-            &mut host,
-            SpecId::CANCUN,
-            u64::MAX,
-        );
+        let $artifact = build_wasm_artifact::<MemoryDB>(&wasm_code.to_vec().into(), $opts).unwrap();
     };
 }
 
@@ -36,6 +27,19 @@ macro_rules! generate_test_cases {
             {
                 let result: $ty = $artifact.execute_wasm_func($func_name, $arg)?;
                 assert_eq!(result, $expect, "Function: {} {:?} test failed.", $func_name, $arg);
+            }
+        )*
+    };
+}
+
+#[allow(unused_macros)]
+macro_rules! generate_error_test_cases {
+    ($artifact:expr, [ $(($func_name:expr, $arg:expr, $expect:expr)),* $(,)? ]) => {
+        $(
+            {
+                let result: Result<(), _> = $artifact.execute_wasm_func($func_name, $arg);
+                let error = result.err().unwrap().to_string();
+                assert!(error.contains($expect), "Function: {} {:?} test failed, actual: {}, expect: {}", $func_name, $arg, error, $expect);
             }
         )*
     };
@@ -57,18 +61,9 @@ macro_rules! generate_calldata_test_cases {
 #[test]
 #[cfg(target_os = "linux")]
 fn test_wasm_brainfuck_with_host_functions() {
-    use dora_primitives::Bytecode;
-    use dora_primitives::SpecId;
-    use dora_runtime::context::Contract;
-    use dora_runtime::context::RuntimeContext;
-    use dora_runtime::env::Env;
-    use dora_runtime::host::DummyHost;
-
     let code = include_bytes!("../../../dora-compiler/src/wasm/tests/suites/brainfuck.wat");
-    build_wasm_code!(code, artifact, runtime_context);
-    let result: i32 = artifact
-        .execute_wasm_func_with_context("user_entrypoint", 0, runtime_context)
-        .unwrap();
+    build_wasm_code!(code, artifact);
+    let result: i32 = artifact.execute_wasm_func("user_entrypoint", 0).unwrap();
     assert_eq!(result, 0);
 }
 
@@ -134,7 +129,11 @@ fn test_wasm_global_value() -> Result<()> {
 #[test]
 fn test_wasm_address() -> Result<()> {
     let code = include_bytes!("../../../dora-compiler/src/wasm/tests/suites/address.wat");
-    build_wasm_code!(code, artifact);
+    build_wasm_code!(
+        code,
+        artifact,
+        WASMCompileOptions::default().static_memory_bound_check(true)
+    );
     generate_test_cases!(
         &artifact,
         [
@@ -174,10 +173,29 @@ fn test_wasm_address() -> Result<()> {
             ("8u_good3", 65507, 0, i32),
             ("8u_good4", 65507, 0, i32),
             ("8u_good5", 65507, 0, i32),
+        ]
+    );
+    #[cfg(target_os = "linux")]
+    generate_error_test_cases!(
+        &artifact,
+        [
             // Out of bounds memory access error
-            // ("32_good5", 65508, (), ())
-            // ("8u_good3", -1, (), ())
-            // ("8u_bad", 0, (), ())
+            ("32_good5", 65508, "out of bounds memory access"),
+            ("8u_good3", -1, "out of bounds memory access"),
+            ("8s_good3", -1, "out of bounds memory access"),
+            ("16u_good3", -1, "out of bounds memory access"),
+            ("16s_good3", -1, "out of bounds memory access"),
+            ("32_good3", -1, "out of bounds memory access"),
+            ("8u_bad", 0, "out of bounds memory access"),
+            ("8s_bad", 0, "out of bounds memory access"),
+            ("16u_bad", 0, "out of bounds memory access"),
+            ("16s_bad", 0, "out of bounds memory access"),
+            ("32_bad", 0, "out of bounds memory access"),
+            ("8u_bad", 1, "out of bounds memory access"),
+            ("8s_bad", 1, "out of bounds memory access"),
+            ("16u_bad", 1, "out of bounds memory access"),
+            ("16s_bad", 1, "out of bounds memory access"),
+            ("32_bad", 1, "out of bounds memory access"),
         ]
     );
     Ok(())
@@ -3743,22 +3761,20 @@ fn test_wasm_memory_fill() -> Result<()> {
 #[test]
 fn test_wasm_memory_grow() -> Result<()> {
     let code = include_bytes!("../../../dora-compiler/src/wasm/tests/suites/memory_grow.wat");
-    build_wasm_code!(code, artifact);
+    build_wasm_code!(
+        code,
+        artifact,
+        WASMCompileOptions::default().static_memory_bound_check(true)
+    );
     generate_test_cases!(
         &artifact,
         [
             ("size", (), 0, i32),
-            // ("store_at_zero", (), (), ()),  // assert_trap "out of bounds memory access"
-            // ("load_at_zero", (), (), ()),  // assert_trap "out of bounds memory access"
-            // ("store_at_page_size", (), (), ()),  // assert_trap "out of bounds memory access"
-            // ("load_at_page_size", (), (), ()),  // assert_trap "out of bounds memory access"
             ("grow", (1,), 0, i32),
             ("size", (), 1, i32),
             ("load_at_zero", (), 0, i32),
             ("store_at_zero", (), (), ()),
             ("load_at_zero", (), 2, i32),
-            // ("store_at_page_size", (), (), ()),  // assert_trap "out of bounds memory access"
-            // ("load_at_page_size", (), (), ()),  // assert_trap "out of bounds memory access"
             ("grow", (4,), 1, i32),
             ("size", (), 5, i32),
             ("load_at_zero", (), 2, i32),
@@ -3767,6 +3783,30 @@ fn test_wasm_memory_grow() -> Result<()> {
             ("load_at_page_size", (), 0, i32),
             ("store_at_page_size", (), (), ()),
             ("load_at_page_size", (), 3, i32),
+        ]
+    );
+    build_wasm_code!(
+        code,
+        artifact,
+        WASMCompileOptions::default().static_memory_bound_check(true)
+    );
+    #[cfg(target_os = "linux")]
+    generate_error_test_cases!(
+        &artifact,
+        [
+            ("store_at_zero", (), "out of bounds memory access"),
+            ("load_at_zero", (), "out of bounds memory access"),
+            ("store_at_page_size", (), "out of bounds memory access"),
+            ("load_at_page_size", (), "out of bounds memory access"),
+        ]
+    );
+    artifact.execute_wasm_func::<(), ()>("grow", ()).unwrap();
+    #[cfg(target_os = "linux")]
+    generate_error_test_cases!(
+        &artifact,
+        [
+            ("store_at_page_size", (), "out of bounds memory access"),
+            ("load_at_page_size", (), "out of bounds memory access"),
         ]
     );
     Ok(())

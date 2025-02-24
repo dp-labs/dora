@@ -198,6 +198,7 @@ impl SymbolArtifact {
     /// # Safety
     /// This function uses `unsafe` to transmute a function pointer, which is inherently unsafe.
     /// Ensure that the function pointer is valid and that the arguments and return types match the expected types.
+    #[inline]
     pub fn execute_wasm_func_with_context<Args, Ret>(
         &self,
         name: &str,
@@ -208,32 +209,8 @@ impl SymbolArtifact {
         Args: Sized,
         Ret: Sized,
     {
-        let closure: Box<dyn FnOnce() -> Result<Ret>> = Box::new(move || {
-            let func_ptr = self.executor.lookup(name);
-            if func_ptr.is_null() {
-                return Err(anyhow::anyhow!(
-                    "function {name} not found in the WASM module"
-                ));
-            }
-            match &self.executor.kind {
-                ExecuteKind::EVM => Err(anyhow!(
-                    "The compiled code kind is EVM, and it's not WASM kind"
-                )),
-                ExecuteKind::WASM(vm_inst) => set_runtime_context(runtime_context, || {
-                    let func: fn(*mut VMContext, Args) -> Ret =
-                        unsafe { std::mem::transmute(func_ptr) };
-                    Ok(func(vm_inst.read().vmctx_ptr(), args))
-                }),
-            }
-        });
-        let prev_hook = std::panic::take_hook();
-        std::panic::set_hook(Box::new(|_| {}));
-        let result = catch_unwind(AssertUnwindSafe(closure));
-        std::panic::set_hook(prev_hook);
-        match result {
-            Ok(result) => result,
-            Err(err) => Err(anyhow::anyhow!(crate::wasm::trap::err_to_str(err))),
-        }
+        let (ret, _) = self.execute_wasm_func_with_context_result(name, args, runtime_context)?;
+        Ok(ret)
     }
 
     /// Executes the WASM compiled code represented by this artifact with the runtime context and result.

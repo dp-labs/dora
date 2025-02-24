@@ -13,7 +13,7 @@ use melior::dialect::func;
 use melior::ir::attribute::FlatSymbolRefAttribute;
 use melior::{
     dialect::{
-        arith::{self},
+        arith,
         llvm::{self, LoadStoreOptions},
         ods,
     },

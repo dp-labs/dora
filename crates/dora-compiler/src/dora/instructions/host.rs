@@ -12,10 +12,7 @@ use crate::{check_runtime_error, ensure_non_staticcall, gas_or_fail, if_here};
 use dora_runtime::symbols;
 use dora_runtime::ExitStatusCode;
 use melior::{
-    dialect::{
-        arith::{self},
-        func,
-    },
+    dialect::{arith, func},
     ir::{
         attribute::{FlatSymbolRefAttribute, TypeAttribute},
         operation::OperationRef,

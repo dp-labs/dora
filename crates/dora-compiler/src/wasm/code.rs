@@ -31,6 +31,7 @@ use melior::ir::attribute::StringAttribute;
 use melior::ir::{Block, BlockRef, Location, Region, Type, Value, ValueLike};
 use smallvec::SmallVec;
 use wasmer::wasmparser::MemArg;
+use wasmer::WASM_PAGE_SIZE;
 use wasmer_compiler::from_binaryreadererror_wasmerror;
 use wasmer_compiler::types::symbols::SymbolRegistry;
 use wasmer_compiler::wasmparser::Operator;
@@ -3721,11 +3722,7 @@ impl FunctionCodeGenerator {
                 ptr_to_current_length,
             } => {
                 let value_size_v = builder.make(builder.iconst_64(value_size as i64))?;
-                let load_offset_end = builder.make(arith::addi(
-                    offset,
-                    value_size_v,
-                    builder.get_insert_location(),
-                ))?;
+                let load_offset_end = builder.make(arith::addi(offset, value_size_v, location))?;
 
                 let mut current_length =
                     builder.make(builder.load(ptr_to_current_length, builder.isize_ty()))?;
@@ -3749,7 +3746,7 @@ impl FunctionCodeGenerator {
                     &not_in_bounds_block,
                     &[],
                     &[],
-                    builder.get_insert_location(),
+                    location,
                 ));
                 // Raise the memory OOB error
                 {
@@ -3770,15 +3767,34 @@ impl FunctionCodeGenerator {
             MemoryCache::Static { base_ptr } => {
                 if fcx.static_memory_bound_check {
                     let value_size_v = builder.make(builder.iconst_64(value_size as i64))?;
-                    let load_offset_end = builder.make(arith::addi(
-                        offset,
-                        value_size_v,
-                        builder.get_insert_location(),
+                    let load_offset_end =
+                        builder.make(arith::addi(offset, value_size_v, location))?;
+                    let symbol = if fcx.wasm_module.local_memory_index(memory_index).is_some() {
+                        symbols::wasm::MEMORY_SIZE
+                    } else {
+                        symbols::wasm::IMPORTED_MEMORY_SIZE
+                    };
+                    let mem = builder
+                        .create(builder.iconst_32(memory_index.as_u32() as i32))
+                        .result(0)?
+                        .into();
+                    let page_size = builder
+                        .make(func::call(
+                            ctx,
+                            FlatSymbolRefAttribute::new(ctx, symbol),
+                            &[fcx.ctx.vm_ctx, mem],
+                            &[builder.i32_ty()],
+                            location,
+                        ))?
+                        .to_ctx_value();
+                    let page_size =
+                        builder.make(arith::extui(page_size, builder.i64_ty(), location))?;
+                    // WASM page sizes are fixed to be 64KiB = 65536
+                    let current_length = builder.make(arith::muli(
+                        page_size,
+                        builder.make(builder.iconst_64(WASM_PAGE_SIZE as i64))?,
+                        location,
                     ))?;
-                    let current_length = builder
-                        .make(builder.iconst_64(
-                            fcx.memory_styles[memory_index].offset_guard_size() as i64,
-                        ))?;
                     let ptr_in_bounds = builder.make(builder.icmp(
                         IntCC::UnsignedLessThan,
                         load_offset_end,

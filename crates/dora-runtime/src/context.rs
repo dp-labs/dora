@@ -16,6 +16,7 @@ use crate::journaled_state::{JournalCheckpoint, JournalEntry, JournaledState};
 use crate::result::VMError;
 use crate::stack::Stack;
 use crate::wasm::host::gas_limit;
+use crate::wasm::trap::wasm_raise_trap;
 use crate::{gas, symbols, ExitStatusCode};
 use dora_primitives::{
     as_u64_saturated, as_usize_saturated, keccak256, Address, Bytecode, Bytes, Bytes32, Log,
@@ -2657,10 +2658,7 @@ impl RuntimeContext<'_> {
                     symbols::wasm::ELEM_DROP,
                     wasmer_vm::libcalls::wasmer_vm_elem_drop as *const _,
                 ),
-                (
-                    symbols::wasm::RAISE_TRAP,
-                    wasmer_vm::libcalls::wasmer_vm_raise_trap as *const _,
-                ),
+                (symbols::wasm::RAISE_TRAP, wasm_raise_trap as *const _),
                 (symbols::wasm::GAS_LIMIT, gas_limit as *const _),
             ];
 
