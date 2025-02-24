@@ -272,20 +272,21 @@ macro_rules! atomicrmw_op {
             $region,
             $block,
         )?;
-        let result = $builder.make(
+        let builder = OpBuilder::new_with_block($builder.context(), block);
+        let result = builder.make(
             ods::llvm::atomicrmw(
-                $builder.context(),
-                $builder.i32_ty(),
+                builder.context(),
+                builder.i32_ty(),
                 effective_address,
                 value,
-                StringAttribute::new($builder.context(), AtomicBinOp::$op.attr_str().as_str())
+                StringAttribute::new(builder.context(), AtomicBinOp::$op.attr_str().as_str())
                     .into(),
                 StringAttribute::new(
                     $builder.context(),
                     AtomicOrdering::SequentiallyConsistent.attr_str().as_str(),
                 )
                 .into(),
-                $builder.get_insert_location(),
+                builder.get_insert_location(),
             )
             .into(),
         )?;
@@ -305,32 +306,33 @@ macro_rules! atomicrmw_op {
             $region,
             $block,
         )?;
-        let value = $builder.make(arith::trunci(
+        let builder = OpBuilder::new_with_block($builder.context(), block);
+        let value = builder.make(arith::trunci(
             value,
             $builder.i8_ty(),
             $builder.get_insert_location(),
         ))?;
-        let result = $builder.make(
+        let result = builder.make(
             ods::llvm::atomicrmw(
-                $builder.context(),
-                $builder.i8_ty(),
+                builder.context(),
+                builder.i8_ty(),
                 effective_address,
                 value,
-                StringAttribute::new($builder.context(), AtomicBinOp::$op.attr_str().as_str())
+                StringAttribute::new(builder.context(), AtomicBinOp::$op.attr_str().as_str())
                     .into(),
                 StringAttribute::new(
-                    $builder.context(),
+                    builder.context(),
                     AtomicOrdering::SequentiallyConsistent.attr_str().as_str(),
                 )
                 .into(),
-                $builder.get_insert_location(),
+                builder.get_insert_location(),
             )
             .into(),
         )?;
-        let result = $builder.make(arith::extui(
+        let result = builder.make(arith::extui(
             result,
-            $builder.i32_ty(),
-            $builder.get_insert_location(),
+            builder.i32_ty(),
+            builder.get_insert_location(),
         ))?;
         $state.push1_extra(result.to_ctx_value(), ExtraInfo::arithmetic_f32());
         return Ok(block);
@@ -348,32 +350,33 @@ macro_rules! atomicrmw_op {
             $region,
             $block,
         )?;
-        let value = $builder.make(arith::trunci(
+        let builder = OpBuilder::new_with_block($builder.context(), block);
+        let value = builder.make(arith::trunci(
             value,
             $builder.i16_ty(),
             $builder.get_insert_location(),
         ))?;
-        let result = $builder.make(
+        let result = builder.make(
             ods::llvm::atomicrmw(
-                $builder.context(),
-                $builder.i16_ty(),
+                builder.context(),
+                builder.i16_ty(),
                 effective_address,
                 value,
-                StringAttribute::new($builder.context(), AtomicBinOp::$op.attr_str().as_str())
+                StringAttribute::new(builder.context(), AtomicBinOp::$op.attr_str().as_str())
                     .into(),
                 StringAttribute::new(
-                    $builder.context(),
+                    builder.context(),
                     AtomicOrdering::SequentiallyConsistent.attr_str().as_str(),
                 )
                 .into(),
-                $builder.get_insert_location(),
+                builder.get_insert_location(),
             )
             .into(),
         )?;
-        let result = $builder.make(arith::extui(
+        let result = builder.make(arith::extui(
             result,
-            $builder.i32_ty(),
-            $builder.get_insert_location(),
+            builder.i32_ty(),
+            builder.get_insert_location(),
         ))?;
         $state.push1_extra(result.to_ctx_value(), ExtraInfo::arithmetic_f32());
         return Ok(block);
@@ -391,20 +394,21 @@ macro_rules! atomicrmw_op {
             $region,
             $block,
         )?;
-        let result = $builder.make(
+        let builder = OpBuilder::new_with_block($builder.context(), block);
+        let result = builder.make(
             ods::llvm::atomicrmw(
-                $builder.context(),
-                $builder.i64_ty(),
+                builder.context(),
+                builder.i64_ty(),
                 effective_address,
                 value,
-                StringAttribute::new($builder.context(), AtomicBinOp::$op.attr_str().as_str())
+                StringAttribute::new(builder.context(), AtomicBinOp::$op.attr_str().as_str())
                     .into(),
                 StringAttribute::new(
-                    $builder.context(),
+                    builder.context(),
                     AtomicOrdering::SequentiallyConsistent.attr_str().as_str(),
                 )
                 .into(),
-                $builder.get_insert_location(),
+                builder.get_insert_location(),
             )
             .into(),
         )?;
@@ -424,32 +428,33 @@ macro_rules! atomicrmw_op {
             $region,
             $block,
         )?;
-        let value = $builder.make(arith::trunci(
+        let builder = OpBuilder::new_with_block($builder.context(), block);
+        let value = builder.make(arith::trunci(
             value,
-            $builder.i8_ty(),
-            $builder.get_insert_location(),
+            builder.i8_ty(),
+            builder.get_insert_location(),
         ))?;
         let result = $builder.make(
             ods::llvm::atomicrmw(
-                $builder.context(),
-                $builder.i8_ty(),
+                builder.context(),
+                builder.i8_ty(),
                 effective_address,
                 value,
-                StringAttribute::new($builder.context(), AtomicBinOp::$op.attr_str().as_str())
+                StringAttribute::new(builder.context(), AtomicBinOp::$op.attr_str().as_str())
                     .into(),
                 StringAttribute::new(
                     $builder.context(),
                     AtomicOrdering::SequentiallyConsistent.attr_str().as_str(),
                 )
                 .into(),
-                $builder.get_insert_location(),
+                builder.get_insert_location(),
             )
             .into(),
         )?;
-        let result = $builder.make(arith::extui(
+        let result = builder.make(arith::extui(
             result,
-            $builder.i64_ty(),
-            $builder.get_insert_location(),
+            builder.i64_ty(),
+            builder.get_insert_location(),
         ))?;
         $state.push1_extra(result.to_ctx_value(), ExtraInfo::arithmetic_f64());
         return Ok(block);
@@ -467,32 +472,33 @@ macro_rules! atomicrmw_op {
             $region,
             $block,
         )?;
-        let value = $builder.make(arith::trunci(
+        let builder = OpBuilder::new_with_block($builder.context(), block);
+        let value = builder.make(arith::trunci(
             value,
-            $builder.i16_ty(),
-            $builder.get_insert_location(),
+            builder.i16_ty(),
+            builder.get_insert_location(),
         ))?;
         let result = $builder.make(
             ods::llvm::atomicrmw(
                 $builder.context(),
-                $builder.i16_ty(),
+                builder.i16_ty(),
                 effective_address,
                 value,
-                StringAttribute::new($builder.context(), AtomicBinOp::$op.attr_str().as_str())
+                StringAttribute::new(builder.context(), AtomicBinOp::$op.attr_str().as_str())
                     .into(),
                 StringAttribute::new(
                     $builder.context(),
                     AtomicOrdering::SequentiallyConsistent.attr_str().as_str(),
                 )
                 .into(),
-                $builder.get_insert_location(),
+                builder.get_insert_location(),
             )
             .into(),
         )?;
-        let result = $builder.make(arith::extui(
+        let result = builder.make(arith::extui(
             value,
-            $builder.i64_ty(),
-            $builder.get_insert_location(),
+            builder.i64_ty(),
+            builder.get_insert_location(),
         ))?;
         $state.push1_extra(result.to_ctx_value(), ExtraInfo::arithmetic_f64());
         return Ok(block);
@@ -510,32 +516,33 @@ macro_rules! atomicrmw_op {
             $region,
             $block,
         )?;
-        let value = $builder.make(arith::trunci(
+        let builder = OpBuilder::new_with_block($builder.context(), block);
+        let value = builder.make(arith::trunci(
             value,
-            $builder.i32_ty(),
-            $builder.get_insert_location(),
+            builder.i32_ty(),
+            builder.get_insert_location(),
         ))?;
         let result = $builder.make(
             ods::llvm::atomicrmw(
-                $builder.context(),
-                $builder.i32_ty(),
+                builder.context(),
+                builder.i32_ty(),
                 effective_address,
                 value,
-                StringAttribute::new($builder.context(), AtomicBinOp::$op.attr_str().as_str())
+                StringAttribute::new(builder.context(), AtomicBinOp::$op.attr_str().as_str())
                     .into(),
                 StringAttribute::new(
-                    $builder.context(),
+                    builder.context(),
                     AtomicOrdering::SequentiallyConsistent.attr_str().as_str(),
                 )
                 .into(),
-                $builder.get_insert_location(),
+                builder.get_insert_location(),
             )
             .into(),
         )?;
-        let result = $builder.make(arith::extui(
+        let result = builder.make(arith::extui(
             value,
-            $builder.i64_ty(),
-            $builder.get_insert_location(),
+            builder.i64_ty(),
+            builder.get_insert_location(),
         ))?;
         $state.push1_extra(result.to_ctx_value(), ExtraInfo::arithmetic_f64());
         return Ok(block);
@@ -556,30 +563,31 @@ macro_rules! atomicrmw_cmpxchg_op {
             $region,
             $block,
         )?;
+        let builder = OpBuilder::new_with_block($builder.context(), block);
         let ordering = StringAttribute::new(
-            $builder.context(),
+            builder.context(),
             AtomicOrdering::SequentiallyConsistent.attr_str().as_str(),
         )
         .into();
-        let result = $builder.make(
+        let result = builder.make(
             ods::llvm::cmpxchg(
-                $builder.context(),
-                $builder.$ty_func(),
+                builder.context(),
+                builder.$ty_func(),
                 effective_address,
                 cmp,
                 new,
                 ordering,
                 ordering,
-                $builder.get_insert_location(),
+                builder.get_insert_location(),
             )
             .into(),
         )?;
-        let result = $builder.make(llvm::extract_value(
-            $builder.context(),
+        let result = builder.make(llvm::extract_value(
+            builder.context(),
             result,
-            DenseI64ArrayAttribute::new($builder.context(), &[0]),
-            $builder.$ty_func(),
-            $builder.get_insert_location(),
+            DenseI64ArrayAttribute::new(builder.context(), &[0]),
+            builder.$ty_func(),
+            builder.get_insert_location(),
         ))?;
         $state.push1(result.to_ctx_value());
         return Ok(block);
@@ -598,25 +606,26 @@ macro_rules! atomicrmw_cmpxchg_op {
             $region,
             $block,
         )?;
+        let builder = OpBuilder::new_with_block($builder.context(), block);
         let ordering = StringAttribute::new(
             $builder.context(),
             AtomicOrdering::SequentiallyConsistent.attr_str().as_str(),
         )
         .into();
-        let cmp = $builder.make(arith::trunci(
+        let cmp = builder.make(arith::trunci(
             cmp,
-            $builder.$narrow_ty_func(),
-            $builder.get_insert_location(),
+            builder.$narrow_ty_func(),
+            builder.get_insert_location(),
         ))?;
-        let new = $builder.make(arith::trunci(
+        let new = builder.make(arith::trunci(
             new,
-            $builder.$narrow_ty_func(),
-            $builder.get_insert_location(),
+            builder.$narrow_ty_func(),
+            builder.get_insert_location(),
         ))?;
-        let result = $builder.make(
+        let result = builder.make(
             ods::llvm::cmpxchg(
-                $builder.context(),
-                $builder.$ty_func(),
+                builder.context(),
+                builder.$ty_func(),
                 effective_address,
                 cmp,
                 new,
@@ -626,17 +635,17 @@ macro_rules! atomicrmw_cmpxchg_op {
             )
             .into(),
         )?;
-        let result = $builder.make(llvm::extract_value(
-            $builder.context(),
+        let result = builder.make(llvm::extract_value(
+            builder.context(),
             result,
             DenseI64ArrayAttribute::new($builder.context(), &[0]),
-            $builder.$narrow_ty_func(),
-            $builder.get_insert_location(),
+            builder.$narrow_ty_func(),
+            builder.get_insert_location(),
         ))?;
-        let result = $builder.make(arith::extui(
+        let result = builder.make(arith::extui(
             result,
-            $builder.$ty_func(),
-            $builder.get_insert_location(),
+            builder.$ty_func(),
+            builder.get_insert_location(),
         ))?;
         $state.push1_extra(result.to_ctx_value(), ExtraInfo::$extra_ty_func());
         return Ok(block);
@@ -707,6 +716,8 @@ pub struct FunctionCodeCtx<'c, 'a> {
     pub wasm_module: &'a ModuleInfo,
     /// A symbol registry for resolving module symbols.
     pub symbol_registry: &'a dyn SymbolRegistry,
+    /// Whether to check static memory bound.
+    pub static_memory_bound_check: bool,
 }
 
 impl FunctionCodeCtx<'_, '_> {
@@ -1308,6 +1319,7 @@ impl FunctionCodeGenerator {
                     region,
                     block,
                 )?;
+                let builder = OpBuilder::new_with_block(builder.context(), block);
                 let result = builder.make(builder.load_with_align_and_volatile(
                     effective_address,
                     builder.i32_ty(),
@@ -1330,6 +1342,7 @@ impl FunctionCodeGenerator {
                     region,
                     block,
                 )?;
+                let builder = OpBuilder::new_with_block(builder.context(), block);
                 let result = builder.make(builder.load_with_align_and_volatile(
                     effective_address,
                     builder.i64_ty(),
@@ -1352,6 +1365,7 @@ impl FunctionCodeGenerator {
                     region,
                     block,
                 )?;
+                let builder = OpBuilder::new_with_block(builder.context(), block);
                 let result = builder.make(builder.load_with_align_and_volatile(
                     effective_address,
                     builder.f32_ty(),
@@ -1374,6 +1388,7 @@ impl FunctionCodeGenerator {
                     region,
                     block,
                 )?;
+                let builder = OpBuilder::new_with_block(builder.context(), block);
                 let result = builder.make(builder.load_with_align_and_volatile(
                     effective_address,
                     builder.f64_ty(),
@@ -1396,6 +1411,7 @@ impl FunctionCodeGenerator {
                     region,
                     block,
                 )?;
+                let builder = OpBuilder::new_with_block(builder.context(), block);
                 let result = builder.make(builder.load_with_align_and_volatile(
                     effective_address,
                     builder.i8_ty(),
@@ -1423,6 +1439,7 @@ impl FunctionCodeGenerator {
                     region,
                     block,
                 )?;
+                let builder = OpBuilder::new_with_block(builder.context(), block);
                 let result = builder.make(builder.load_with_align_and_volatile(
                     effective_address,
                     builder.i8_ty(),
@@ -1450,6 +1467,7 @@ impl FunctionCodeGenerator {
                     region,
                     block,
                 )?;
+                let builder = OpBuilder::new_with_block(builder.context(), block);
                 let result = builder.make(builder.load_with_align_and_volatile(
                     effective_address,
                     builder.i16_ty(),
@@ -1477,6 +1495,7 @@ impl FunctionCodeGenerator {
                     region,
                     block,
                 )?;
+                let builder = OpBuilder::new_with_block(builder.context(), block);
                 let result = builder.make(builder.load_with_align_and_volatile(
                     effective_address,
                     builder.i16_ty(),
@@ -1504,6 +1523,7 @@ impl FunctionCodeGenerator {
                     region,
                     block,
                 )?;
+                let builder = OpBuilder::new_with_block(builder.context(), block);
                 let result = builder.make(builder.load_with_align_and_volatile(
                     effective_address,
                     builder.i8_ty(),
@@ -1531,6 +1551,7 @@ impl FunctionCodeGenerator {
                     region,
                     block,
                 )?;
+                let builder = OpBuilder::new_with_block(builder.context(), block);
                 let result = builder.make(builder.load_with_align_and_volatile(
                     effective_address,
                     builder.i8_ty(),
@@ -1558,6 +1579,7 @@ impl FunctionCodeGenerator {
                     region,
                     block,
                 )?;
+                let builder = OpBuilder::new_with_block(builder.context(), block);
                 let result = builder.make(builder.load_with_align_and_volatile(
                     effective_address,
                     builder.i16_ty(),
@@ -1585,6 +1607,7 @@ impl FunctionCodeGenerator {
                     region,
                     block,
                 )?;
+                let builder = OpBuilder::new_with_block(builder.context(), block);
                 let result = builder.make(builder.load_with_align_and_volatile(
                     effective_address,
                     builder.i16_ty(),
@@ -1612,6 +1635,7 @@ impl FunctionCodeGenerator {
                     region,
                     block,
                 )?;
+                let builder = OpBuilder::new_with_block(builder.context(), block);
                 let result = builder.make(builder.load_with_align_and_volatile(
                     effective_address,
                     builder.i32_ty(),
@@ -1639,6 +1663,7 @@ impl FunctionCodeGenerator {
                     region,
                     block,
                 )?;
+                let builder = OpBuilder::new_with_block(builder.context(), block);
                 let result = builder.make(builder.load_with_align_and_volatile(
                     effective_address,
                     builder.i32_ty(),
@@ -1666,6 +1691,7 @@ impl FunctionCodeGenerator {
                     region,
                     block,
                 )?;
+                let builder = OpBuilder::new_with_block(builder.context(), block);
                 builder.create(builder.store_with_align_and_volatile(
                     value,
                     effective_address,
@@ -1687,6 +1713,7 @@ impl FunctionCodeGenerator {
                     region,
                     block,
                 )?;
+                let builder = OpBuilder::new_with_block(builder.context(), block);
                 builder.create(builder.store_with_align_and_volatile(
                     value,
                     effective_address,
@@ -1708,6 +1735,7 @@ impl FunctionCodeGenerator {
                     region,
                     block,
                 )?;
+                let builder = OpBuilder::new_with_block(builder.context(), block);
                 builder.create(builder.store_with_align_and_volatile(
                     value,
                     effective_address,
@@ -1729,6 +1757,7 @@ impl FunctionCodeGenerator {
                     region,
                     block,
                 )?;
+                let builder = OpBuilder::new_with_block(builder.context(), block);
                 builder.create(builder.store_with_align_and_volatile(
                     value,
                     effective_address,
@@ -1750,6 +1779,7 @@ impl FunctionCodeGenerator {
                     region,
                     block,
                 )?;
+                let builder = OpBuilder::new_with_block(builder.context(), block);
                 let value = builder.make(arith::trunci(
                     value,
                     builder.i8_ty(),
@@ -1776,6 +1806,7 @@ impl FunctionCodeGenerator {
                     region,
                     block,
                 )?;
+                let builder = OpBuilder::new_with_block(builder.context(), block);
                 let value = builder.make(arith::trunci(
                     value,
                     builder.i16_ty(),
@@ -1802,6 +1833,7 @@ impl FunctionCodeGenerator {
                     region,
                     block,
                 )?;
+                let builder = OpBuilder::new_with_block(builder.context(), block);
                 let value = builder.make(arith::trunci(
                     value,
                     builder.i32_ty(),
@@ -2816,6 +2848,7 @@ impl FunctionCodeGenerator {
                     region,
                     block,
                 )?;
+                let builder = OpBuilder::new_with_block(builder.context(), block);
                 let result = builder.make(builder.load_with_opts(
                     effective_address,
                     builder.i32_ty(),
@@ -2842,6 +2875,7 @@ impl FunctionCodeGenerator {
                     region,
                     block,
                 )?;
+                let builder = OpBuilder::new_with_block(builder.context(), block);
                 let result = builder.make(builder.load_with_opts(
                     effective_address,
                     builder.i64_ty(),
@@ -2868,6 +2902,7 @@ impl FunctionCodeGenerator {
                     region,
                     block,
                 )?;
+                let builder = OpBuilder::new_with_block(builder.context(), block);
                 let result = builder.make(builder.load_with_opts(
                     effective_address,
                     builder.i8_ty(),
@@ -2899,6 +2934,7 @@ impl FunctionCodeGenerator {
                     region,
                     block,
                 )?;
+                let builder = OpBuilder::new_with_block(builder.context(), block);
                 let result = builder.make(builder.load_with_opts(
                     effective_address,
                     builder.i16_ty(),
@@ -2930,6 +2966,7 @@ impl FunctionCodeGenerator {
                     region,
                     block,
                 )?;
+                let builder = OpBuilder::new_with_block(builder.context(), block);
                 let result = builder.make(builder.load_with_opts(
                     effective_address,
                     builder.i8_ty(),
@@ -2961,6 +2998,7 @@ impl FunctionCodeGenerator {
                     region,
                     block,
                 )?;
+                let builder = OpBuilder::new_with_block(builder.context(), block);
                 let result = builder.make(builder.load_with_opts(
                     effective_address,
                     builder.i16_ty(),
@@ -2992,6 +3030,7 @@ impl FunctionCodeGenerator {
                     region,
                     block,
                 )?;
+                let builder = OpBuilder::new_with_block(builder.context(), block);
                 let result = builder.make(builder.load_with_opts(
                     effective_address,
                     builder.i32_ty(),
@@ -3023,6 +3062,7 @@ impl FunctionCodeGenerator {
                     region,
                     block,
                 )?;
+                let builder = OpBuilder::new_with_block(builder.context(), block);
                 builder.create(builder.store_with_opts(
                     value,
                     effective_address,
@@ -3048,6 +3088,7 @@ impl FunctionCodeGenerator {
                     region,
                     block,
                 )?;
+                let builder = OpBuilder::new_with_block(builder.context(), block);
                 builder.create(builder.store_with_opts(
                     value,
                     effective_address,
@@ -3073,6 +3114,7 @@ impl FunctionCodeGenerator {
                     region,
                     block,
                 )?;
+                let builder = OpBuilder::new_with_block(builder.context(), block);
                 let value = builder.make(arith::trunci(
                     value,
                     builder.i8_ty(),
@@ -3103,6 +3145,7 @@ impl FunctionCodeGenerator {
                     region,
                     block,
                 )?;
+                let builder = OpBuilder::new_with_block(builder.context(), block);
                 let value = builder.make(arith::trunci(
                     value,
                     builder.i16_ty(),
@@ -3133,6 +3176,7 @@ impl FunctionCodeGenerator {
                     region,
                     block,
                 )?;
+                let builder = OpBuilder::new_with_block(builder.context(), block);
                 let value = builder.make(arith::trunci(
                     value,
                     builder.i8_ty(),
@@ -3163,6 +3207,7 @@ impl FunctionCodeGenerator {
                     region,
                     block,
                 )?;
+                let builder = OpBuilder::new_with_block(builder.context(), block);
                 let value = builder.make(arith::trunci(
                     value,
                     builder.i16_ty(),
@@ -3193,6 +3238,7 @@ impl FunctionCodeGenerator {
                     region,
                     block,
                 )?;
+                let builder = OpBuilder::new_with_block(builder.context(), block);
                 let value = builder.make(arith::trunci(
                     value,
                     builder.i32_ty(),
@@ -3434,6 +3480,7 @@ impl FunctionCodeGenerator {
                     region,
                     block,
                 )?;
+                let builder = OpBuilder::new_with_block(builder.context(), block);
                 let result = builder.make(builder.load(effective_address, builder.i128_ty()))?;
                 state.push1(result.to_ctx_value());
                 return Ok(block);
@@ -3673,7 +3720,6 @@ impl FunctionCodeGenerator {
                 ptr_to_base_ptr,
                 ptr_to_current_length,
             } => {
-                let builder = OpBuilder::new_with_block(ctx, block);
                 let value_size_v = builder.make(builder.iconst_64(value_size as i64))?;
                 let load_offset_end = builder.make(arith::addi(
                     offset,
@@ -3721,8 +3767,51 @@ impl FunctionCodeGenerator {
                     in_bounds_continue_block,
                 )
             }
-            MemoryCache::Static { base_ptr } => (base_ptr, block),
+            MemoryCache::Static { base_ptr } => {
+                if fcx.static_memory_bound_check {
+                    let value_size_v = builder.make(builder.iconst_64(value_size as i64))?;
+                    let load_offset_end = builder.make(arith::addi(
+                        offset,
+                        value_size_v,
+                        builder.get_insert_location(),
+                    ))?;
+                    let current_length = builder
+                        .make(builder.iconst_64(
+                            fcx.memory_styles[memory_index].offset_guard_size() as i64,
+                        ))?;
+                    let ptr_in_bounds = builder.make(builder.icmp(
+                        IntCC::UnsignedLessThan,
+                        load_offset_end,
+                        current_length,
+                    ))?;
+                    // Check memory out of index error.
+                    let in_bounds_continue_block = region.append_block(Block::new(&[]));
+                    let not_in_bounds_block = region.append_block(Block::new(&[]));
+                    builder.create(cf::cond_br(
+                        ctx,
+                        ptr_in_bounds,
+                        &in_bounds_continue_block,
+                        &not_in_bounds_block,
+                        &[],
+                        &[],
+                        builder.get_insert_location(),
+                    ));
+                    // Raise the memory OOB error
+                    {
+                        let builder = OpBuilder::new_with_block(ctx, not_in_bounds_block);
+                        trap(
+                            &builder,
+                            TrapCode::HeapAccessOutOfBounds,
+                            in_bounds_continue_block,
+                        )?;
+                    }
+                    (base_ptr, in_bounds_continue_block)
+                } else {
+                    (base_ptr, block)
+                }
+            }
         };
+        let builder = OpBuilder::new_with_block(ctx, block);
         let memory_ptr = builder.make(builder.gep_dynamic(
             base_ptr,
             &[offset],
