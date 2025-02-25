@@ -87,3 +87,14 @@ pub fn err_to_str(err: Box<dyn Any + Send>) -> String {
         "".to_string()
     }
 }
+
+/// WASM trap error to string
+#[inline]
+pub fn wasm_trap_to_str(trap: wasmer_vm::Trap) -> String {
+    match trap {
+        wasmer_vm::Trap::User(error) => error.to_string(),
+        wasmer_vm::Trap::Wasm { .. } => "WASM generated code error".to_string(),
+        wasmer_vm::Trap::Lib { trap_code, .. } => trap_code.message().to_string(),
+        wasmer_vm::Trap::OOM { .. } => "WASM OOM error".to_string(),
+    }
+}

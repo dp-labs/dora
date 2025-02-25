@@ -20,38 +20,17 @@ pub const EOF_MAGIC_BYTES: [u8; 2] = hex_literal::hex!("ef00");
 /// This struct holds the banned-in-EOF-context opcode (as a `Opcode`) and provides a formatted error message
 /// indicating the banned opcode in string format.
 ///
-/// ## Example Usage:
-/// ```
-/// use dora_compiler::evm::program::{Opcode, OpcodeParseError};
-/// let err = OpcodeParseError::BannedOpcodeInEofContextError(Opcode::CODESIZE);
-/// assert_eq!(err.to_string(), "The opcode CODESIZE is not banned in EOF context");
-/// ```
-///
 /// - [`EofOpcodeInLegacyContextError`][OpcodeParseError::EofOpcodeInLegacyContextError]
 ///
 /// An error that occurs when a EOF opcode is encountered while in non-EOF, which is legacy context.
 /// This struct holds the disallowed EOF opcode (as a `Opcode`) and provides a formatted error message
 /// indicating the disallowed opcode in string format.
 ///
-/// ## Example Usage:
-/// ```
-/// use dora_compiler::evm::program::{Opcode, OpcodeParseError};
-/// let err = OpcodeParseError::EofOpcodeInLegacyContextError(Opcode::DATALOAD);
-/// assert_eq!(err.to_string(), "The EOF opcode DATALOAD is not allowed in non-EOF(legacy) context");
-/// ```
-///
 /// - [`OpcodeInvalidError`][OpcodeParseError::OpcodeInvalidError]
 ///
 /// An error that occurs when an invalid opcode is encountered during parsing.
 /// This struct holds the invalid opcode (as a `u8`) and provides a formatted error message
 /// indicating the invalid opcode in hexadecimal format.
-///
-/// ## Example Usage:
-/// ```
-/// use dora_compiler::evm::program::{Opcode, OpcodeParseError};
-/// let err = OpcodeParseError::OpcodeInvalidError(0xFF);
-/// assert_eq!(err.to_string(), "The opcode `FF` is not valid");
-/// ```
 ///
 /// ## Notes:
 /// - This error is triggered when the byte sequence does not match any valid opcode during

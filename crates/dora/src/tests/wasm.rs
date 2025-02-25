@@ -262,6 +262,23 @@ fn test_wasm_align_read_write() -> Result<()> {
     Ok(())
 }
 
+#[test]
+#[cfg(target_os = "linux")]
+fn test_wasm_align_int_load_store() -> Result<()> {
+    let code =
+        include_bytes!("../../../dora-compiler/src/wasm/tests/suites/align_int_load_store.wat");
+    build_wasm_code!(
+        code,
+        artifact,
+        WASMCompileOptions::default().static_memory_bound_check(true)
+    );
+    generate_error_test_cases!(
+        &artifact,
+        [("store", (65532_i32, -1_i64), "out of bounds memory access"),]
+    );
+    Ok(())
+}
+
 // TODO: test errors on macos.
 #[test]
 #[cfg(target_os = "linux")]
@@ -686,7 +703,14 @@ fn test_wasm_bulk() -> Result<()> {
             ("fill_all", (), (), ()),
             // Succeed when writing 0 bytes at the end of the region.
             ("fill_end_of_memory", (), (), ()),
+            ("fill", (65532_i32, 3_i32), (), ()),
+            ("fill", (65533_i32, 3_i32), (), ()),
         ]
+    );
+    #[cfg(target_os = "linux")]
+    generate_error_test_cases!(
+        &artifact,
+        [("fill", (65534_i32, 3_i32), "out of bounds memory access"),]
     );
     Ok(())
 }

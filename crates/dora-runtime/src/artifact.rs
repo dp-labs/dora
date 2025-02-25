@@ -134,8 +134,8 @@ impl SymbolArtifact {
     #[inline]
     pub fn execute_wasm_func<Args, Ret>(&self, name: &str, args: Args) -> Result<Ret>
     where
-        Args: Sized,
-        Ret: Sized,
+        Args: Sized + Copy + 'static,
+        Ret: Sized + Copy + 'static,
     {
         let mut host = DummyHost::default();
         self.execute_wasm_func_with_context(
@@ -173,8 +173,8 @@ impl SymbolArtifact {
         calldata: T,
     ) -> Result<Ret>
     where
-        Args: Sized,
-        Ret: Sized,
+        Args: Sized + Copy + 'static,
+        Ret: Sized + Copy + 'static,
         T: AsRef<[u8]>,
     {
         let mut host = DummyHost::default();
@@ -206,8 +206,8 @@ impl SymbolArtifact {
         runtime_context: RuntimeContext,
     ) -> Result<Ret>
     where
-        Args: Sized,
-        Ret: Sized,
+        Args: Sized + Copy + 'static,
+        Ret: Sized + Copy + 'static,
     {
         let (ret, _) = self.execute_wasm_func_with_context_result(name, args, runtime_context)?;
         Ok(ret)
@@ -225,8 +225,8 @@ impl SymbolArtifact {
         runtime_context: RuntimeContext,
     ) -> Result<(Ret, CallResult)>
     where
-        Args: Sized,
-        Ret: Sized,
+        Args: Sized + Copy + 'static,
+        Ret: Sized + Copy + 'static,
     {
         let closure: Box<dyn FnOnce() -> Result<(Ret, CallResult)>> = Box::new(move || {
             let func_ptr = self.executor.lookup(name);
@@ -240,9 +240,24 @@ impl SymbolArtifact {
                     "The compiled code kind is EVM, and it's not WASM kind"
                 )),
                 ExecuteKind::WASM(vm_inst) => set_runtime_context(runtime_context, || {
-                    let func: fn(*mut VMContext, Args) -> Ret =
-                        unsafe { std::mem::transmute(func_ptr) };
-                    let func_result = func(vm_inst.read().vmctx_ptr(), args);
+                    let func_result = unsafe {
+                        let func: fn(*mut VMContext, Args) -> Ret = std::mem::transmute(func_ptr);
+                        let ptr = vm_inst.read().vmctx_ptr();
+                        // Catch WASM runtime errors
+                        wasmer_vm::catch_traps(
+                            None,
+                            &wasmer::VMConfig {
+                                wasm_stack_size: None,
+                            },
+                            move || func(ptr, args),
+                        )
+                    };
+                    let func_result = match func_result {
+                        Ok(func_result) => func_result,
+                        Err(err) => {
+                            return Err(anyhow::anyhow!(crate::wasm::trap::wasm_trap_to_str(err)));
+                        }
+                    };
                     let call_result = with_runtime_context(|runtime_context| {
                         CallResult::new_with_runtime_context(runtime_context)
                     });
@@ -250,6 +265,7 @@ impl SymbolArtifact {
                 }),
             }
         });
+        // Catch Rust runtime errors.
         let prev_hook = std::panic::take_hook();
         std::panic::set_hook(Box::new(|_| {}));
         let result = catch_unwind(AssertUnwindSafe(closure));

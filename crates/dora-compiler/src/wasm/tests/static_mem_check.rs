@@ -38,3 +38,18 @@ macro_rules! assert_snapshot {
 fn address() {
     assert_snapshot!(include_str!("suites/address.wat"));
 }
+
+#[test]
+fn align() {
+    assert_snapshot!(include_str!("suites/align.wat"));
+}
+
+#[test]
+fn align_read_write() {
+    assert_snapshot!(include_str!("suites/align_read_write.wat"));
+}
+
+#[test]
+fn complex_logic() {
+    assert_snapshot!(include_str!("suites/complex_logic.wat"));
+}

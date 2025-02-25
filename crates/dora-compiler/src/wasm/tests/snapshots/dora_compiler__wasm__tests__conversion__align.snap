@@ -1,0 +1,1379 @@
+---
+source: crates/dora-compiler/src/wasm/tests/conversion.rs
+assertion_line: 562
+expression: op
+---
+module {
+  func.func public @f32_align(%arg0: !llvm.ptr) -> f32 attributes {llvm.emit_c_interface} {
+    %cst = arith.constant 0.000000e+00 : f32
+    %c1_i32 = arith.constant 1 : i32
+    %0 = llvm.alloca %c1_i32 x f32 : (i32) -> !llvm.ptr
+    llvm.store %cst, %0 : f32, !llvm.ptr
+    cf.br ^bb1
+  ^bb1:  // pred: ^bb0
+    %c1092616192_i32 = arith.constant 1092616192 : i32
+    %1 = arith.bitcast %c1092616192_i32 : i32 to f32
+    llvm.store %1, %0 : f32, !llvm.ptr
+    %2 = llvm.load %0 : !llvm.ptr -> f32
+    cf.br ^bb2(%2 : f32)
+  ^bb2(%3: f32):  // pred: ^bb1
+    return %3 : f32
+  }
+  func.func public @f32_align_switch(%arg0: !llvm.ptr, %arg1: i32) -> f32 attributes {llvm.emit_c_interface} {
+    %c1_i32 = arith.constant 1 : i32
+    %0 = llvm.alloca %c1_i32 x i32 : (i32) -> !llvm.ptr
+    llvm.store %arg1, %0 : i32, !llvm.ptr
+    %cst = arith.constant 0.000000e+00 : f32
+    %c1_i32_0 = arith.constant 1 : i32
+    %1 = llvm.alloca %c1_i32_0 x f32 : (i32) -> !llvm.ptr
+    llvm.store %cst, %1 : f32, !llvm.ptr
+    %c1_i32_1 = arith.constant 1 : i32
+    %2 = llvm.alloca %c1_i32_1 x f32 : (i32) -> !llvm.ptr
+    llvm.store %cst, %2 : f32, !llvm.ptr
+    %3 = llvm.getelementptr %arg0[24] : (!llvm.ptr) -> !llvm.ptr, i8
+    %4 = llvm.getelementptr %3[0] : (!llvm.ptr) -> !llvm.ptr, i8
+    %5 = llvm.load %4 : !llvm.ptr -> !llvm.ptr
+    cf.br ^bb1
+  ^bb1:  // pred: ^bb0
+    %c1092616192_i32 = arith.constant 1092616192 : i32
+    %6 = arith.bitcast %c1092616192_i32 : i32 to f32
+    llvm.store %6, %1 : f32, !llvm.ptr
+    %7 = llvm.load %0 : !llvm.ptr -> i32
+    cf.switch %7 : i32, [
+      default: ^bb3,
+      0: ^bb7,
+      1: ^bb6,
+      2: ^bb5,
+      3: ^bb4
+    ]
+  ^bb2(%8: f32):  // pred: ^bb3
+    return %8 : f32
+  ^bb3:  // 5 preds: ^bb1, ^bb4, ^bb5, ^bb6, ^bb7
+    %9 = llvm.load %2 : !llvm.ptr -> f32
+    cf.br ^bb2(%9 : f32)
+  ^bb4:  // pred: ^bb1
+    %c0_i32 = arith.constant 0 : i32
+    %10 = llvm.load %1 : !llvm.ptr -> f32
+    %c0_i64 = arith.constant 0 : i64
+    %11 = arith.extui %c0_i32 : i32 to i64
+    %12 = arith.addi %11, %c0_i64 : i64
+    %13 = llvm.getelementptr %5[%12] : (!llvm.ptr, i64) -> !llvm.ptr, i8
+    llvm.store volatile %10, %13 {alignment = 1 : i64} : f32, !llvm.ptr
+    %c0_i32_2 = arith.constant 0 : i32
+    %c0_i64_3 = arith.constant 0 : i64
+    %14 = arith.extui %c0_i32_2 : i32 to i64
+    %15 = arith.addi %14, %c0_i64_3 : i64
+    %16 = llvm.getelementptr %5[%15] : (!llvm.ptr, i64) -> !llvm.ptr, i8
+    %17 = llvm.load volatile %16 {alignment = 1 : i64} : !llvm.ptr -> f32
+    llvm.store %17, %2 : f32, !llvm.ptr
+    cf.br ^bb3
+  ^bb5:  // pred: ^bb1
+    %c0_i32_4 = arith.constant 0 : i32
+    %18 = llvm.load %1 : !llvm.ptr -> f32
+    %c0_i64_5 = arith.constant 0 : i64
+    %19 = arith.extui %c0_i32_4 : i32 to i64
+    %20 = arith.addi %19, %c0_i64_5 : i64
+    %21 = llvm.getelementptr %5[%20] : (!llvm.ptr, i64) -> !llvm.ptr, i8
+    llvm.store volatile %18, %21 {alignment = 1 : i64} : f32, !llvm.ptr
+    %c0_i32_6 = arith.constant 0 : i32
+    %c0_i64_7 = arith.constant 0 : i64
+    %22 = arith.extui %c0_i32_6 : i32 to i64
+    %23 = arith.addi %22, %c0_i64_7 : i64
+    %24 = llvm.getelementptr %5[%23] : (!llvm.ptr, i64) -> !llvm.ptr, i8
+    %25 = llvm.load volatile %24 {alignment = 1 : i64} : !llvm.ptr -> f32
+    llvm.store %25, %2 : f32, !llvm.ptr
+    cf.br ^bb3
+  ^bb6:  // pred: ^bb1
+    %c0_i32_8 = arith.constant 0 : i32
+    %26 = llvm.load %1 : !llvm.ptr -> f32
+    %c0_i64_9 = arith.constant 0 : i64
+    %27 = arith.extui %c0_i32_8 : i32 to i64
+    %28 = arith.addi %27, %c0_i64_9 : i64
+    %29 = llvm.getelementptr %5[%28] : (!llvm.ptr, i64) -> !llvm.ptr, i8
+    llvm.store volatile %26, %29 {alignment = 1 : i64} : f32, !llvm.ptr
+    %c0_i32_10 = arith.constant 0 : i32
+    %c0_i64_11 = arith.constant 0 : i64
+    %30 = arith.extui %c0_i32_10 : i32 to i64
+    %31 = arith.addi %30, %c0_i64_11 : i64
+    %32 = llvm.getelementptr %5[%31] : (!llvm.ptr, i64) -> !llvm.ptr, i8
+    %33 = llvm.load volatile %32 {alignment = 1 : i64} : !llvm.ptr -> f32
+    llvm.store %33, %2 : f32, !llvm.ptr
+    cf.br ^bb3
+  ^bb7:  // pred: ^bb1
+    %c0_i32_12 = arith.constant 0 : i32
+    %34 = llvm.load %1 : !llvm.ptr -> f32
+    %c0_i64_13 = arith.constant 0 : i64
+    %35 = arith.extui %c0_i32_12 : i32 to i64
+    %36 = arith.addi %35, %c0_i64_13 : i64
+    %37 = llvm.getelementptr %5[%36] : (!llvm.ptr, i64) -> !llvm.ptr, i8
+    llvm.store volatile %34, %37 {alignment = 1 : i64} : f32, !llvm.ptr
+    %c0_i32_14 = arith.constant 0 : i32
+    %c0_i64_15 = arith.constant 0 : i64
+    %38 = arith.extui %c0_i32_14 : i32 to i64
+    %39 = arith.addi %38, %c0_i64_15 : i64
+    %40 = llvm.getelementptr %5[%39] : (!llvm.ptr, i64) -> !llvm.ptr, i8
+    %41 = llvm.load volatile %40 {alignment = 1 : i64} : !llvm.ptr -> f32
+    llvm.store %41, %2 : f32, !llvm.ptr
+    cf.br ^bb3
+  }
+  func.func public @f64_align_switch(%arg0: !llvm.ptr, %arg1: i32) -> f64 attributes {llvm.emit_c_interface} {
+    %c1_i32 = arith.constant 1 : i32
+    %0 = llvm.alloca %c1_i32 x i32 : (i32) -> !llvm.ptr
+    llvm.store %arg1, %0 : i32, !llvm.ptr
+    %cst = arith.constant 0.000000e+00 : f64
+    %c1_i32_0 = arith.constant 1 : i32
+    %1 = llvm.alloca %c1_i32_0 x f64 : (i32) -> !llvm.ptr
+    llvm.store %cst, %1 : f64, !llvm.ptr
+    %c1_i32_1 = arith.constant 1 : i32
+    %2 = llvm.alloca %c1_i32_1 x f64 : (i32) -> !llvm.ptr
+    llvm.store %cst, %2 : f64, !llvm.ptr
+    %3 = llvm.getelementptr %arg0[24] : (!llvm.ptr) -> !llvm.ptr, i8
+    %4 = llvm.getelementptr %3[0] : (!llvm.ptr) -> !llvm.ptr, i8
+    %5 = llvm.load %4 : !llvm.ptr -> !llvm.ptr
+    cf.br ^bb1
+  ^bb1:  // pred: ^bb0
+    %c4621819117588971520_i64 = arith.constant 4621819117588971520 : i64
+    %6 = arith.bitcast %c4621819117588971520_i64 : i64 to f64
+    llvm.store %6, %1 : f64, !llvm.ptr
+    %7 = llvm.load %0 : !llvm.ptr -> i32
+    cf.switch %7 : i32, [
+      default: ^bb3,
+      0: ^bb8,
+      1: ^bb7,
+      2: ^bb6,
+      3: ^bb5,
+      4: ^bb4
+    ]
+  ^bb2(%8: f64):  // pred: ^bb3
+    return %8 : f64
+  ^bb3:  // 6 preds: ^bb1, ^bb4, ^bb5, ^bb6, ^bb7, ^bb8
+    %9 = llvm.load %2 : !llvm.ptr -> f64
+    cf.br ^bb2(%9 : f64)
+  ^bb4:  // pred: ^bb1
+    %c0_i32 = arith.constant 0 : i32
+    %10 = llvm.load %1 : !llvm.ptr -> f64
+    %c0_i64 = arith.constant 0 : i64
+    %11 = arith.extui %c0_i32 : i32 to i64
+    %12 = arith.addi %11, %c0_i64 : i64
+    %13 = llvm.getelementptr %5[%12] : (!llvm.ptr, i64) -> !llvm.ptr, i8
+    llvm.store volatile %10, %13 {alignment = 1 : i64} : f64, !llvm.ptr
+    %c0_i32_2 = arith.constant 0 : i32
+    %c0_i64_3 = arith.constant 0 : i64
+    %14 = arith.extui %c0_i32_2 : i32 to i64
+    %15 = arith.addi %14, %c0_i64_3 : i64
+    %16 = llvm.getelementptr %5[%15] : (!llvm.ptr, i64) -> !llvm.ptr, i8
+    %17 = llvm.load volatile %16 {alignment = 1 : i64} : !llvm.ptr -> f64
+    llvm.store %17, %2 : f64, !llvm.ptr
+    cf.br ^bb3
+  ^bb5:  // pred: ^bb1
+    %c0_i32_4 = arith.constant 0 : i32
+    %18 = llvm.load %1 : !llvm.ptr -> f64
+    %c0_i64_5 = arith.constant 0 : i64
+    %19 = arith.extui %c0_i32_4 : i32 to i64
+    %20 = arith.addi %19, %c0_i64_5 : i64
+    %21 = llvm.getelementptr %5[%20] : (!llvm.ptr, i64) -> !llvm.ptr, i8
+    llvm.store volatile %18, %21 {alignment = 1 : i64} : f64, !llvm.ptr
+    %c0_i32_6 = arith.constant 0 : i32
+    %c0_i64_7 = arith.constant 0 : i64
+    %22 = arith.extui %c0_i32_6 : i32 to i64
+    %23 = arith.addi %22, %c0_i64_7 : i64
+    %24 = llvm.getelementptr %5[%23] : (!llvm.ptr, i64) -> !llvm.ptr, i8
+    %25 = llvm.load volatile %24 {alignment = 1 : i64} : !llvm.ptr -> f64
+    llvm.store %25, %2 : f64, !llvm.ptr
+    cf.br ^bb3
+  ^bb6:  // pred: ^bb1
+    %c0_i32_8 = arith.constant 0 : i32
+    %26 = llvm.load %1 : !llvm.ptr -> f64
+    %c0_i64_9 = arith.constant 0 : i64
+    %27 = arith.extui %c0_i32_8 : i32 to i64
+    %28 = arith.addi %27, %c0_i64_9 : i64
+    %29 = llvm.getelementptr %5[%28] : (!llvm.ptr, i64) -> !llvm.ptr, i8
+    llvm.store volatile %26, %29 {alignment = 1 : i64} : f64, !llvm.ptr
+    %c0_i32_10 = arith.constant 0 : i32
+    %c0_i64_11 = arith.constant 0 : i64
+    %30 = arith.extui %c0_i32_10 : i32 to i64
+    %31 = arith.addi %30, %c0_i64_11 : i64
+    %32 = llvm.getelementptr %5[%31] : (!llvm.ptr, i64) -> !llvm.ptr, i8
+    %33 = llvm.load volatile %32 {alignment = 1 : i64} : !llvm.ptr -> f64
+    llvm.store %33, %2 : f64, !llvm.ptr
+    cf.br ^bb3
+  ^bb7:  // pred: ^bb1
+    %c0_i32_12 = arith.constant 0 : i32
+    %34 = llvm.load %1 : !llvm.ptr -> f64
+    %c0_i64_13 = arith.constant 0 : i64
+    %35 = arith.extui %c0_i32_12 : i32 to i64
+    %36 = arith.addi %35, %c0_i64_13 : i64
+    %37 = llvm.getelementptr %5[%36] : (!llvm.ptr, i64) -> !llvm.ptr, i8
+    llvm.store volatile %34, %37 {alignment = 1 : i64} : f64, !llvm.ptr
+    %c0_i32_14 = arith.constant 0 : i32
+    %c0_i64_15 = arith.constant 0 : i64
+    %38 = arith.extui %c0_i32_14 : i32 to i64
+    %39 = arith.addi %38, %c0_i64_15 : i64
+    %40 = llvm.getelementptr %5[%39] : (!llvm.ptr, i64) -> !llvm.ptr, i8
+    %41 = llvm.load volatile %40 {alignment = 1 : i64} : !llvm.ptr -> f64
+    llvm.store %41, %2 : f64, !llvm.ptr
+    cf.br ^bb3
+  ^bb8:  // pred: ^bb1
+    %c0_i32_16 = arith.constant 0 : i32
+    %42 = llvm.load %1 : !llvm.ptr -> f64
+    %c0_i64_17 = arith.constant 0 : i64
+    %43 = arith.extui %c0_i32_16 : i32 to i64
+    %44 = arith.addi %43, %c0_i64_17 : i64
+    %45 = llvm.getelementptr %5[%44] : (!llvm.ptr, i64) -> !llvm.ptr, i8
+    llvm.store volatile %42, %45 {alignment = 1 : i64} : f64, !llvm.ptr
+    %c0_i32_18 = arith.constant 0 : i32
+    %c0_i64_19 = arith.constant 0 : i64
+    %46 = arith.extui %c0_i32_18 : i32 to i64
+    %47 = arith.addi %46, %c0_i64_19 : i64
+    %48 = llvm.getelementptr %5[%47] : (!llvm.ptr, i64) -> !llvm.ptr, i8
+    %49 = llvm.load volatile %48 {alignment = 1 : i64} : !llvm.ptr -> f64
+    llvm.store %49, %2 : f64, !llvm.ptr
+    cf.br ^bb3
+  }
+  func.func public @i32_align_switch(%arg0: !llvm.ptr, %arg1: i32, %arg2: i32) -> i32 attributes {llvm.emit_c_interface} {
+    %c1_i32 = arith.constant 1 : i32
+    %0 = llvm.alloca %c1_i32 x i32 : (i32) -> !llvm.ptr
+    llvm.store %arg1, %0 : i32, !llvm.ptr
+    %c1_i32_0 = arith.constant 1 : i32
+    %1 = llvm.alloca %c1_i32_0 x i32 : (i32) -> !llvm.ptr
+    llvm.store %arg2, %1 : i32, !llvm.ptr
+    %c0_i32 = arith.constant 0 : i32
+    %c1_i32_1 = arith.constant 1 : i32
+    %2 = llvm.alloca %c1_i32_1 x i32 : (i32) -> !llvm.ptr
+    llvm.store %c0_i32, %2 : i32, !llvm.ptr
+    %c1_i32_2 = arith.constant 1 : i32
+    %3 = llvm.alloca %c1_i32_2 x i32 : (i32) -> !llvm.ptr
+    llvm.store %c0_i32, %3 : i32, !llvm.ptr
+    %4 = llvm.getelementptr %arg0[24] : (!llvm.ptr) -> !llvm.ptr, i8
+    %5 = llvm.getelementptr %4[0] : (!llvm.ptr) -> !llvm.ptr, i8
+    %6 = llvm.load %5 : !llvm.ptr -> !llvm.ptr
+    cf.br ^bb1
+  ^bb1:  // pred: ^bb0
+    %c10_i32 = arith.constant 10 : i32
+    llvm.store %c10_i32, %2 : i32, !llvm.ptr
+    %7 = llvm.load %0 : !llvm.ptr -> i32
+    cf.switch %7 : i32, [
+      default: ^bb3,
+      0: ^bb8,
+      1: ^bb7,
+      2: ^bb6,
+      3: ^bb5,
+      4: ^bb4
+    ]
+  ^bb2(%8: i32):  // pred: ^bb3
+    return %8 : i32
+  ^bb3:  // 6 preds: ^bb1, ^bb14, ^bb20, ^bb29, ^bb38, ^bb50
+    %9 = llvm.load %3 : !llvm.ptr -> i32
+    cf.br ^bb2(%9 : i32)
+  ^bb4:  // pred: ^bb1
+    %10 = llvm.load %1 : !llvm.ptr -> i32
+    %c0_i32_3 = arith.constant 0 : i32
+    %11 = arith.cmpi eq, %10, %c0_i32_3 : i32
+    %12 = arith.extui %11 : i1 to i32
+    %c0_i32_4 = arith.constant 0 : i32
+    %13 = arith.cmpi ne, %12, %c0_i32_4 : i32
+    cf.cond_br %13, ^bb39, ^bb40
+  ^bb5:  // pred: ^bb1
+    %14 = llvm.load %1 : !llvm.ptr -> i32
+    %c0_i32_5 = arith.constant 0 : i32
+    %15 = arith.cmpi eq, %14, %c0_i32_5 : i32
+    %16 = arith.extui %15 : i1 to i32
+    %c0_i32_6 = arith.constant 0 : i32
+    %17 = arith.cmpi ne, %16, %c0_i32_6 : i32
+    cf.cond_br %17, ^bb30, ^bb31
+  ^bb6:  // pred: ^bb1
+    %18 = llvm.load %1 : !llvm.ptr -> i32
+    %c0_i32_7 = arith.constant 0 : i32
+    %19 = arith.cmpi eq, %18, %c0_i32_7 : i32
+    %20 = arith.extui %19 : i1 to i32
+    %c0_i32_8 = arith.constant 0 : i32
+    %21 = arith.cmpi ne, %20, %c0_i32_8 : i32
+    cf.cond_br %21, ^bb21, ^bb22
+  ^bb7:  // pred: ^bb1
+    %22 = llvm.load %1 : !llvm.ptr -> i32
+    %c0_i32_9 = arith.constant 0 : i32
+    %23 = arith.cmpi eq, %22, %c0_i32_9 : i32
+    %24 = arith.extui %23 : i1 to i32
+    %c0_i32_10 = arith.constant 0 : i32
+    %25 = arith.cmpi ne, %24, %c0_i32_10 : i32
+    cf.cond_br %25, ^bb15, ^bb16
+  ^bb8:  // pred: ^bb1
+    %26 = llvm.load %1 : !llvm.ptr -> i32
+    %c0_i32_11 = arith.constant 0 : i32
+    %27 = arith.cmpi eq, %26, %c0_i32_11 : i32
+    %28 = arith.extui %27 : i1 to i32
+    %c0_i32_12 = arith.constant 0 : i32
+    %29 = arith.cmpi ne, %28, %c0_i32_12 : i32
+    cf.cond_br %29, ^bb9, ^bb10
+  ^bb9:  // pred: ^bb8
+    %c0_i32_13 = arith.constant 0 : i32
+    %30 = llvm.load %2 : !llvm.ptr -> i32
+    %c0_i64 = arith.constant 0 : i64
+    %31 = arith.extui %c0_i32_13 : i32 to i64
+    %32 = arith.addi %31, %c0_i64 : i64
+    %33 = llvm.getelementptr %6[%32] : (!llvm.ptr, i64) -> !llvm.ptr, i8
+    %34 = arith.trunci %30 : i32 to i8
+    llvm.store volatile %34, %33 {alignment = 1 : i64} : i8, !llvm.ptr
+    %c0_i32_14 = arith.constant 0 : i32
+    %c0_i64_15 = arith.constant 0 : i64
+    %35 = arith.extui %c0_i32_14 : i32 to i64
+    %36 = arith.addi %35, %c0_i64_15 : i64
+    %37 = llvm.getelementptr %6[%36] : (!llvm.ptr, i64) -> !llvm.ptr, i8
+    %38 = llvm.load volatile %37 {alignment = 1 : i64} : !llvm.ptr -> i8
+    %39 = arith.extsi %38 : i8 to i32
+    llvm.store %39, %3 : i32, !llvm.ptr
+    cf.br ^bb11
+  ^bb10:  // pred: ^bb8
+    cf.br ^bb11
+  ^bb11:  // 2 preds: ^bb9, ^bb10
+    %40 = llvm.load %1 : !llvm.ptr -> i32
+    %c1_i32_16 = arith.constant 1 : i32
+    %41 = arith.cmpi eq, %40, %c1_i32_16 : i32
+    %42 = arith.extui %41 : i1 to i32
+    %c0_i32_17 = arith.constant 0 : i32
+    %43 = arith.cmpi ne, %42, %c0_i32_17 : i32
+    cf.cond_br %43, ^bb12, ^bb13
+  ^bb12:  // pred: ^bb11
+    %c0_i32_18 = arith.constant 0 : i32
+    %44 = llvm.load %2 : !llvm.ptr -> i32
+    %c0_i64_19 = arith.constant 0 : i64
+    %45 = arith.extui %c0_i32_18 : i32 to i64
+    %46 = arith.addi %45, %c0_i64_19 : i64
+    %47 = llvm.getelementptr %6[%46] : (!llvm.ptr, i64) -> !llvm.ptr, i8
+    %48 = arith.trunci %44 : i32 to i8
+    llvm.store volatile %48, %47 {alignment = 1 : i64} : i8, !llvm.ptr
+    %c0_i32_20 = arith.constant 0 : i32
+    %c0_i64_21 = arith.constant 0 : i64
+    %49 = arith.extui %c0_i32_20 : i32 to i64
+    %50 = arith.addi %49, %c0_i64_21 : i64
+    %51 = llvm.getelementptr %6[%50] : (!llvm.ptr, i64) -> !llvm.ptr, i8
+    %52 = llvm.load volatile %51 {alignment = 1 : i64} : !llvm.ptr -> i8
+    %53 = arith.extsi %52 : i8 to i32
+    llvm.store %53, %3 : i32, !llvm.ptr
+    cf.br ^bb14
+  ^bb13:  // pred: ^bb11
+    cf.br ^bb14
+  ^bb14:  // 2 preds: ^bb12, ^bb13
+    cf.br ^bb3
+  ^bb15:  // pred: ^bb7
+    %c0_i32_22 = arith.constant 0 : i32
+    %54 = llvm.load %2 : !llvm.ptr -> i32
+    %c0_i64_23 = arith.constant 0 : i64
+    %55 = arith.extui %c0_i32_22 : i32 to i64
+    %56 = arith.addi %55, %c0_i64_23 : i64
+    %57 = llvm.getelementptr %6[%56] : (!llvm.ptr, i64) -> !llvm.ptr, i8
+    %58 = arith.trunci %54 : i32 to i8
+    llvm.store volatile %58, %57 {alignment = 1 : i64} : i8, !llvm.ptr
+    %c0_i32_24 = arith.constant 0 : i32
+    %c0_i64_25 = arith.constant 0 : i64
+    %59 = arith.extui %c0_i32_24 : i32 to i64
+    %60 = arith.addi %59, %c0_i64_25 : i64
+    %61 = llvm.getelementptr %6[%60] : (!llvm.ptr, i64) -> !llvm.ptr, i8
+    %62 = llvm.load volatile %61 {alignment = 1 : i64} : !llvm.ptr -> i8
+    %63 = arith.extui %62 : i8 to i32
+    llvm.store %63, %3 : i32, !llvm.ptr
+    cf.br ^bb17
+  ^bb16:  // pred: ^bb7
+    cf.br ^bb17
+  ^bb17:  // 2 preds: ^bb15, ^bb16
+    %64 = llvm.load %1 : !llvm.ptr -> i32
+    %c1_i32_26 = arith.constant 1 : i32
+    %65 = arith.cmpi eq, %64, %c1_i32_26 : i32
+    %66 = arith.extui %65 : i1 to i32
+    %c0_i32_27 = arith.constant 0 : i32
+    %67 = arith.cmpi ne, %66, %c0_i32_27 : i32
+    cf.cond_br %67, ^bb18, ^bb19
+  ^bb18:  // pred: ^bb17
+    %c0_i32_28 = arith.constant 0 : i32
+    %68 = llvm.load %2 : !llvm.ptr -> i32
+    %c0_i64_29 = arith.constant 0 : i64
+    %69 = arith.extui %c0_i32_28 : i32 to i64
+    %70 = arith.addi %69, %c0_i64_29 : i64
+    %71 = llvm.getelementptr %6[%70] : (!llvm.ptr, i64) -> !llvm.ptr, i8
+    %72 = arith.trunci %68 : i32 to i8
+    llvm.store volatile %72, %71 {alignment = 1 : i64} : i8, !llvm.ptr
+    %c0_i32_30 = arith.constant 0 : i32
+    %c0_i64_31 = arith.constant 0 : i64
+    %73 = arith.extui %c0_i32_30 : i32 to i64
+    %74 = arith.addi %73, %c0_i64_31 : i64
+    %75 = llvm.getelementptr %6[%74] : (!llvm.ptr, i64) -> !llvm.ptr, i8
+    %76 = llvm.load volatile %75 {alignment = 1 : i64} : !llvm.ptr -> i8
+    %77 = arith.extui %76 : i8 to i32
+    llvm.store %77, %3 : i32, !llvm.ptr
+    cf.br ^bb20
+  ^bb19:  // pred: ^bb17
+    cf.br ^bb20
+  ^bb20:  // 2 preds: ^bb18, ^bb19
+    cf.br ^bb3
+  ^bb21:  // pred: ^bb6
+    %c0_i32_32 = arith.constant 0 : i32
+    %78 = llvm.load %2 : !llvm.ptr -> i32
+    %c0_i64_33 = arith.constant 0 : i64
+    %79 = arith.extui %c0_i32_32 : i32 to i64
+    %80 = arith.addi %79, %c0_i64_33 : i64
+    %81 = llvm.getelementptr %6[%80] : (!llvm.ptr, i64) -> !llvm.ptr, i8
+    %82 = arith.trunci %78 : i32 to i16
+    llvm.store volatile %82, %81 {alignment = 1 : i64} : i16, !llvm.ptr
+    %c0_i32_34 = arith.constant 0 : i32
+    %c0_i64_35 = arith.constant 0 : i64
+    %83 = arith.extui %c0_i32_34 : i32 to i64
+    %84 = arith.addi %83, %c0_i64_35 : i64
+    %85 = llvm.getelementptr %6[%84] : (!llvm.ptr, i64) -> !llvm.ptr, i8
+    %86 = llvm.load volatile %85 {alignment = 1 : i64} : !llvm.ptr -> i16
+    %87 = arith.extsi %86 : i16 to i32
+    llvm.store %87, %3 : i32, !llvm.ptr
+    cf.br ^bb23
+  ^bb22:  // pred: ^bb6
+    cf.br ^bb23
+  ^bb23:  // 2 preds: ^bb21, ^bb22
+    %88 = llvm.load %1 : !llvm.ptr -> i32
+    %c1_i32_36 = arith.constant 1 : i32
+    %89 = arith.cmpi eq, %88, %c1_i32_36 : i32
+    %90 = arith.extui %89 : i1 to i32
+    %c0_i32_37 = arith.constant 0 : i32
+    %91 = arith.cmpi ne, %90, %c0_i32_37 : i32
+    cf.cond_br %91, ^bb24, ^bb25
+  ^bb24:  // pred: ^bb23
+    %c0_i32_38 = arith.constant 0 : i32
+    %92 = llvm.load %2 : !llvm.ptr -> i32
+    %c0_i64_39 = arith.constant 0 : i64
+    %93 = arith.extui %c0_i32_38 : i32 to i64
+    %94 = arith.addi %93, %c0_i64_39 : i64
+    %95 = llvm.getelementptr %6[%94] : (!llvm.ptr, i64) -> !llvm.ptr, i8
+    %96 = arith.trunci %92 : i32 to i16
+    llvm.store volatile %96, %95 {alignment = 1 : i64} : i16, !llvm.ptr
+    %c0_i32_40 = arith.constant 0 : i32
+    %c0_i64_41 = arith.constant 0 : i64
+    %97 = arith.extui %c0_i32_40 : i32 to i64
+    %98 = arith.addi %97, %c0_i64_41 : i64
+    %99 = llvm.getelementptr %6[%98] : (!llvm.ptr, i64) -> !llvm.ptr, i8
+    %100 = llvm.load volatile %99 {alignment = 1 : i64} : !llvm.ptr -> i16
+    %101 = arith.extsi %100 : i16 to i32
+    llvm.store %101, %3 : i32, !llvm.ptr
+    cf.br ^bb26
+  ^bb25:  // pred: ^bb23
+    cf.br ^bb26
+  ^bb26:  // 2 preds: ^bb24, ^bb25
+    %102 = llvm.load %1 : !llvm.ptr -> i32
+    %c2_i32 = arith.constant 2 : i32
+    %103 = arith.cmpi eq, %102, %c2_i32 : i32
+    %104 = arith.extui %103 : i1 to i32
+    %c0_i32_42 = arith.constant 0 : i32
+    %105 = arith.cmpi ne, %104, %c0_i32_42 : i32
+    cf.cond_br %105, ^bb27, ^bb28
+  ^bb27:  // pred: ^bb26
+    %c0_i32_43 = arith.constant 0 : i32
+    %106 = llvm.load %2 : !llvm.ptr -> i32
+    %c0_i64_44 = arith.constant 0 : i64
+    %107 = arith.extui %c0_i32_43 : i32 to i64
+    %108 = arith.addi %107, %c0_i64_44 : i64
+    %109 = llvm.getelementptr %6[%108] : (!llvm.ptr, i64) -> !llvm.ptr, i8
+    %110 = arith.trunci %106 : i32 to i16
+    llvm.store volatile %110, %109 {alignment = 1 : i64} : i16, !llvm.ptr
+    %c0_i32_45 = arith.constant 0 : i32
+    %c0_i64_46 = arith.constant 0 : i64
+    %111 = arith.extui %c0_i32_45 : i32 to i64
+    %112 = arith.addi %111, %c0_i64_46 : i64
+    %113 = llvm.getelementptr %6[%112] : (!llvm.ptr, i64) -> !llvm.ptr, i8
+    %114 = llvm.load volatile %113 {alignment = 1 : i64} : !llvm.ptr -> i16
+    %115 = arith.extsi %114 : i16 to i32
+    llvm.store %115, %3 : i32, !llvm.ptr
+    cf.br ^bb29
+  ^bb28:  // pred: ^bb26
+    cf.br ^bb29
+  ^bb29:  // 2 preds: ^bb27, ^bb28
+    cf.br ^bb3
+  ^bb30:  // pred: ^bb5
+    %c0_i32_47 = arith.constant 0 : i32
+    %116 = llvm.load %2 : !llvm.ptr -> i32
+    %c0_i64_48 = arith.constant 0 : i64
+    %117 = arith.extui %c0_i32_47 : i32 to i64
+    %118 = arith.addi %117, %c0_i64_48 : i64
+    %119 = llvm.getelementptr %6[%118] : (!llvm.ptr, i64) -> !llvm.ptr, i8
+    %120 = arith.trunci %116 : i32 to i16
+    llvm.store volatile %120, %119 {alignment = 1 : i64} : i16, !llvm.ptr
+    %c0_i32_49 = arith.constant 0 : i32
+    %c0_i64_50 = arith.constant 0 : i64
+    %121 = arith.extui %c0_i32_49 : i32 to i64
+    %122 = arith.addi %121, %c0_i64_50 : i64
+    %123 = llvm.getelementptr %6[%122] : (!llvm.ptr, i64) -> !llvm.ptr, i8
+    %124 = llvm.load volatile %123 {alignment = 1 : i64} : !llvm.ptr -> i16
+    %125 = arith.extui %124 : i16 to i32
+    llvm.store %125, %3 : i32, !llvm.ptr
+    cf.br ^bb32
+  ^bb31:  // pred: ^bb5
+    cf.br ^bb32
+  ^bb32:  // 2 preds: ^bb30, ^bb31
+    %126 = llvm.load %1 : !llvm.ptr -> i32
+    %c1_i32_51 = arith.constant 1 : i32
+    %127 = arith.cmpi eq, %126, %c1_i32_51 : i32
+    %128 = arith.extui %127 : i1 to i32
+    %c0_i32_52 = arith.constant 0 : i32
+    %129 = arith.cmpi ne, %128, %c0_i32_52 : i32
+    cf.cond_br %129, ^bb33, ^bb34
+  ^bb33:  // pred: ^bb32
+    %c0_i32_53 = arith.constant 0 : i32
+    %130 = llvm.load %2 : !llvm.ptr -> i32
+    %c0_i64_54 = arith.constant 0 : i64
+    %131 = arith.extui %c0_i32_53 : i32 to i64
+    %132 = arith.addi %131, %c0_i64_54 : i64
+    %133 = llvm.getelementptr %6[%132] : (!llvm.ptr, i64) -> !llvm.ptr, i8
+    %134 = arith.trunci %130 : i32 to i16
+    llvm.store volatile %134, %133 {alignment = 1 : i64} : i16, !llvm.ptr
+    %c0_i32_55 = arith.constant 0 : i32
+    %c0_i64_56 = arith.constant 0 : i64
+    %135 = arith.extui %c0_i32_55 : i32 to i64
+    %136 = arith.addi %135, %c0_i64_56 : i64
+    %137 = llvm.getelementptr %6[%136] : (!llvm.ptr, i64) -> !llvm.ptr, i8
+    %138 = llvm.load volatile %137 {alignment = 1 : i64} : !llvm.ptr -> i16
+    %139 = arith.extui %138 : i16 to i32
+    llvm.store %139, %3 : i32, !llvm.ptr
+    cf.br ^bb35
+  ^bb34:  // pred: ^bb32
+    cf.br ^bb35
+  ^bb35:  // 2 preds: ^bb33, ^bb34
+    %140 = llvm.load %1 : !llvm.ptr -> i32
+    %c2_i32_57 = arith.constant 2 : i32
+    %141 = arith.cmpi eq, %140, %c2_i32_57 : i32
+    %142 = arith.extui %141 : i1 to i32
+    %c0_i32_58 = arith.constant 0 : i32
+    %143 = arith.cmpi ne, %142, %c0_i32_58 : i32
+    cf.cond_br %143, ^bb36, ^bb37
+  ^bb36:  // pred: ^bb35
+    %c0_i32_59 = arith.constant 0 : i32
+    %144 = llvm.load %2 : !llvm.ptr -> i32
+    %c0_i64_60 = arith.constant 0 : i64
+    %145 = arith.extui %c0_i32_59 : i32 to i64
+    %146 = arith.addi %145, %c0_i64_60 : i64
+    %147 = llvm.getelementptr %6[%146] : (!llvm.ptr, i64) -> !llvm.ptr, i8
+    %148 = arith.trunci %144 : i32 to i16
+    llvm.store volatile %148, %147 {alignment = 1 : i64} : i16, !llvm.ptr
+    %c0_i32_61 = arith.constant 0 : i32
+    %c0_i64_62 = arith.constant 0 : i64
+    %149 = arith.extui %c0_i32_61 : i32 to i64
+    %150 = arith.addi %149, %c0_i64_62 : i64
+    %151 = llvm.getelementptr %6[%150] : (!llvm.ptr, i64) -> !llvm.ptr, i8
+    %152 = llvm.load volatile %151 {alignment = 1 : i64} : !llvm.ptr -> i16
+    %153 = arith.extui %152 : i16 to i32
+    llvm.store %153, %3 : i32, !llvm.ptr
+    cf.br ^bb38
+  ^bb37:  // pred: ^bb35
+    cf.br ^bb38
+  ^bb38:  // 2 preds: ^bb36, ^bb37
+    cf.br ^bb3
+  ^bb39:  // pred: ^bb4
+    %c0_i32_63 = arith.constant 0 : i32
+    %154 = llvm.load %2 : !llvm.ptr -> i32
+    %c0_i64_64 = arith.constant 0 : i64
+    %155 = arith.extui %c0_i32_63 : i32 to i64
+    %156 = arith.addi %155, %c0_i64_64 : i64
+    %157 = llvm.getelementptr %6[%156] : (!llvm.ptr, i64) -> !llvm.ptr, i8
+    llvm.store volatile %154, %157 {alignment = 1 : i64} : i32, !llvm.ptr
+    %c0_i32_65 = arith.constant 0 : i32
+    %c0_i64_66 = arith.constant 0 : i64
+    %158 = arith.extui %c0_i32_65 : i32 to i64
+    %159 = arith.addi %158, %c0_i64_66 : i64
+    %160 = llvm.getelementptr %6[%159] : (!llvm.ptr, i64) -> !llvm.ptr, i8
+    %161 = llvm.load volatile %160 {alignment = 1 : i64} : !llvm.ptr -> i32
+    llvm.store %161, %3 : i32, !llvm.ptr
+    cf.br ^bb41
+  ^bb40:  // pred: ^bb4
+    cf.br ^bb41
+  ^bb41:  // 2 preds: ^bb39, ^bb40
+    %162 = llvm.load %1 : !llvm.ptr -> i32
+    %c1_i32_67 = arith.constant 1 : i32
+    %163 = arith.cmpi eq, %162, %c1_i32_67 : i32
+    %164 = arith.extui %163 : i1 to i32
+    %c0_i32_68 = arith.constant 0 : i32
+    %165 = arith.cmpi ne, %164, %c0_i32_68 : i32
+    cf.cond_br %165, ^bb42, ^bb43
+  ^bb42:  // pred: ^bb41
+    %c0_i32_69 = arith.constant 0 : i32
+    %166 = llvm.load %2 : !llvm.ptr -> i32
+    %c0_i64_70 = arith.constant 0 : i64
+    %167 = arith.extui %c0_i32_69 : i32 to i64
+    %168 = arith.addi %167, %c0_i64_70 : i64
+    %169 = llvm.getelementptr %6[%168] : (!llvm.ptr, i64) -> !llvm.ptr, i8
+    llvm.store volatile %166, %169 {alignment = 1 : i64} : i32, !llvm.ptr
+    %c0_i32_71 = arith.constant 0 : i32
+    %c0_i64_72 = arith.constant 0 : i64
+    %170 = arith.extui %c0_i32_71 : i32 to i64
+    %171 = arith.addi %170, %c0_i64_72 : i64
+    %172 = llvm.getelementptr %6[%171] : (!llvm.ptr, i64) -> !llvm.ptr, i8
+    %173 = llvm.load volatile %172 {alignment = 1 : i64} : !llvm.ptr -> i32
+    llvm.store %173, %3 : i32, !llvm.ptr
+    cf.br ^bb44
+  ^bb43:  // pred: ^bb41
+    cf.br ^bb44
+  ^bb44:  // 2 preds: ^bb42, ^bb43
+    %174 = llvm.load %1 : !llvm.ptr -> i32
+    %c2_i32_73 = arith.constant 2 : i32
+    %175 = arith.cmpi eq, %174, %c2_i32_73 : i32
+    %176 = arith.extui %175 : i1 to i32
+    %c0_i32_74 = arith.constant 0 : i32
+    %177 = arith.cmpi ne, %176, %c0_i32_74 : i32
+    cf.cond_br %177, ^bb45, ^bb46
+  ^bb45:  // pred: ^bb44
+    %c0_i32_75 = arith.constant 0 : i32
+    %178 = llvm.load %2 : !llvm.ptr -> i32
+    %c0_i64_76 = arith.constant 0 : i64
+    %179 = arith.extui %c0_i32_75 : i32 to i64
+    %180 = arith.addi %179, %c0_i64_76 : i64
+    %181 = llvm.getelementptr %6[%180] : (!llvm.ptr, i64) -> !llvm.ptr, i8
+    llvm.store volatile %178, %181 {alignment = 1 : i64} : i32, !llvm.ptr
+    %c0_i32_77 = arith.constant 0 : i32
+    %c0_i64_78 = arith.constant 0 : i64
+    %182 = arith.extui %c0_i32_77 : i32 to i64
+    %183 = arith.addi %182, %c0_i64_78 : i64
+    %184 = llvm.getelementptr %6[%183] : (!llvm.ptr, i64) -> !llvm.ptr, i8
+    %185 = llvm.load volatile %184 {alignment = 1 : i64} : !llvm.ptr -> i32
+    llvm.store %185, %3 : i32, !llvm.ptr
+    cf.br ^bb47
+  ^bb46:  // pred: ^bb44
+    cf.br ^bb47
+  ^bb47:  // 2 preds: ^bb45, ^bb46
+    %186 = llvm.load %1 : !llvm.ptr -> i32
+    %c4_i32 = arith.constant 4 : i32
+    %187 = arith.cmpi eq, %186, %c4_i32 : i32
+    %188 = arith.extui %187 : i1 to i32
+    %c0_i32_79 = arith.constant 0 : i32
+    %189 = arith.cmpi ne, %188, %c0_i32_79 : i32
+    cf.cond_br %189, ^bb48, ^bb49
+  ^bb48:  // pred: ^bb47
+    %c0_i32_80 = arith.constant 0 : i32
+    %190 = llvm.load %2 : !llvm.ptr -> i32
+    %c0_i64_81 = arith.constant 0 : i64
+    %191 = arith.extui %c0_i32_80 : i32 to i64
+    %192 = arith.addi %191, %c0_i64_81 : i64
+    %193 = llvm.getelementptr %6[%192] : (!llvm.ptr, i64) -> !llvm.ptr, i8
+    llvm.store volatile %190, %193 {alignment = 1 : i64} : i32, !llvm.ptr
+    %c0_i32_82 = arith.constant 0 : i32
+    %c0_i64_83 = arith.constant 0 : i64
+    %194 = arith.extui %c0_i32_82 : i32 to i64
+    %195 = arith.addi %194, %c0_i64_83 : i64
+    %196 = llvm.getelementptr %6[%195] : (!llvm.ptr, i64) -> !llvm.ptr, i8
+    %197 = llvm.load volatile %196 {alignment = 1 : i64} : !llvm.ptr -> i32
+    llvm.store %197, %3 : i32, !llvm.ptr
+    cf.br ^bb50
+  ^bb49:  // pred: ^bb47
+    cf.br ^bb50
+  ^bb50:  // 2 preds: ^bb48, ^bb49
+    cf.br ^bb3
+  }
+  func.func public @i64_align_switch(%arg0: !llvm.ptr, %arg1: i32, %arg2: i32) -> i64 attributes {llvm.emit_c_interface} {
+    %c1_i32 = arith.constant 1 : i32
+    %0 = llvm.alloca %c1_i32 x i32 : (i32) -> !llvm.ptr
+    llvm.store %arg1, %0 : i32, !llvm.ptr
+    %c1_i32_0 = arith.constant 1 : i32
+    %1 = llvm.alloca %c1_i32_0 x i32 : (i32) -> !llvm.ptr
+    llvm.store %arg2, %1 : i32, !llvm.ptr
+    %c0_i64 = arith.constant 0 : i64
+    %c1_i32_1 = arith.constant 1 : i32
+    %2 = llvm.alloca %c1_i32_1 x i64 : (i32) -> !llvm.ptr
+    llvm.store %c0_i64, %2 : i64, !llvm.ptr
+    %c1_i32_2 = arith.constant 1 : i32
+    %3 = llvm.alloca %c1_i32_2 x i64 : (i32) -> !llvm.ptr
+    llvm.store %c0_i64, %3 : i64, !llvm.ptr
+    %4 = llvm.getelementptr %arg0[24] : (!llvm.ptr) -> !llvm.ptr, i8
+    %5 = llvm.getelementptr %4[0] : (!llvm.ptr) -> !llvm.ptr, i8
+    %6 = llvm.load %5 : !llvm.ptr -> !llvm.ptr
+    cf.br ^bb1
+  ^bb1:  // pred: ^bb0
+    %c10_i64 = arith.constant 10 : i64
+    llvm.store %c10_i64, %2 : i64, !llvm.ptr
+    %7 = llvm.load %0 : !llvm.ptr -> i32
+    cf.switch %7 : i32, [
+      default: ^bb3,
+      0: ^bb10,
+      1: ^bb9,
+      2: ^bb8,
+      3: ^bb7,
+      4: ^bb6,
+      5: ^bb5,
+      6: ^bb4
+    ]
+  ^bb2(%8: i64):  // pred: ^bb3
+    return %8 : i64
+  ^bb3:  // 8 preds: ^bb1, ^bb16, ^bb22, ^bb31, ^bb40, ^bb52, ^bb64, ^bb79
+    %9 = llvm.load %3 : !llvm.ptr -> i64
+    cf.br ^bb2(%9 : i64)
+  ^bb4:  // pred: ^bb1
+    %10 = llvm.load %1 : !llvm.ptr -> i32
+    %c0_i32 = arith.constant 0 : i32
+    %11 = arith.cmpi eq, %10, %c0_i32 : i32
+    %12 = arith.extui %11 : i1 to i32
+    %c0_i32_3 = arith.constant 0 : i32
+    %13 = arith.cmpi ne, %12, %c0_i32_3 : i32
+    cf.cond_br %13, ^bb65, ^bb66
+  ^bb5:  // pred: ^bb1
+    %14 = llvm.load %1 : !llvm.ptr -> i32
+    %c0_i32_4 = arith.constant 0 : i32
+    %15 = arith.cmpi eq, %14, %c0_i32_4 : i32
+    %16 = arith.extui %15 : i1 to i32
+    %c0_i32_5 = arith.constant 0 : i32
+    %17 = arith.cmpi ne, %16, %c0_i32_5 : i32
+    cf.cond_br %17, ^bb53, ^bb54
+  ^bb6:  // pred: ^bb1
+    %18 = llvm.load %1 : !llvm.ptr -> i32
+    %c0_i32_6 = arith.constant 0 : i32
+    %19 = arith.cmpi eq, %18, %c0_i32_6 : i32
+    %20 = arith.extui %19 : i1 to i32
+    %c0_i32_7 = arith.constant 0 : i32
+    %21 = arith.cmpi ne, %20, %c0_i32_7 : i32
+    cf.cond_br %21, ^bb41, ^bb42
+  ^bb7:  // pred: ^bb1
+    %22 = llvm.load %1 : !llvm.ptr -> i32
+    %c0_i32_8 = arith.constant 0 : i32
+    %23 = arith.cmpi eq, %22, %c0_i32_8 : i32
+    %24 = arith.extui %23 : i1 to i32
+    %c0_i32_9 = arith.constant 0 : i32
+    %25 = arith.cmpi ne, %24, %c0_i32_9 : i32
+    cf.cond_br %25, ^bb32, ^bb33
+  ^bb8:  // pred: ^bb1
+    %26 = llvm.load %1 : !llvm.ptr -> i32
+    %c0_i32_10 = arith.constant 0 : i32
+    %27 = arith.cmpi eq, %26, %c0_i32_10 : i32
+    %28 = arith.extui %27 : i1 to i32
+    %c0_i32_11 = arith.constant 0 : i32
+    %29 = arith.cmpi ne, %28, %c0_i32_11 : i32
+    cf.cond_br %29, ^bb23, ^bb24
+  ^bb9:  // pred: ^bb1
+    %30 = llvm.load %1 : !llvm.ptr -> i32
+    %c0_i32_12 = arith.constant 0 : i32
+    %31 = arith.cmpi eq, %30, %c0_i32_12 : i32
+    %32 = arith.extui %31 : i1 to i32
+    %c0_i32_13 = arith.constant 0 : i32
+    %33 = arith.cmpi ne, %32, %c0_i32_13 : i32
+    cf.cond_br %33, ^bb17, ^bb18
+  ^bb10:  // pred: ^bb1
+    %34 = llvm.load %1 : !llvm.ptr -> i32
+    %c0_i32_14 = arith.constant 0 : i32
+    %35 = arith.cmpi eq, %34, %c0_i32_14 : i32
+    %36 = arith.extui %35 : i1 to i32
+    %c0_i32_15 = arith.constant 0 : i32
+    %37 = arith.cmpi ne, %36, %c0_i32_15 : i32
+    cf.cond_br %37, ^bb11, ^bb12
+  ^bb11:  // pred: ^bb10
+    %c0_i32_16 = arith.constant 0 : i32
+    %38 = llvm.load %2 : !llvm.ptr -> i64
+    %c0_i64_17 = arith.constant 0 : i64
+    %39 = arith.extui %c0_i32_16 : i32 to i64
+    %40 = arith.addi %39, %c0_i64_17 : i64
+    %41 = llvm.getelementptr %6[%40] : (!llvm.ptr, i64) -> !llvm.ptr, i8
+    %42 = arith.trunci %38 : i64 to i8
+    llvm.store volatile %42, %41 {alignment = 1 : i64} : i8, !llvm.ptr
+    %c0_i32_18 = arith.constant 0 : i32
+    %c0_i64_19 = arith.constant 0 : i64
+    %43 = arith.extui %c0_i32_18 : i32 to i64
+    %44 = arith.addi %43, %c0_i64_19 : i64
+    %45 = llvm.getelementptr %6[%44] : (!llvm.ptr, i64) -> !llvm.ptr, i8
+    %46 = llvm.load volatile %45 {alignment = 1 : i64} : !llvm.ptr -> i8
+    %47 = arith.extsi %46 : i8 to i64
+    llvm.store %47, %3 : i64, !llvm.ptr
+    cf.br ^bb13
+  ^bb12:  // pred: ^bb10
+    cf.br ^bb13
+  ^bb13:  // 2 preds: ^bb11, ^bb12
+    %48 = llvm.load %1 : !llvm.ptr -> i32
+    %c1_i32_20 = arith.constant 1 : i32
+    %49 = arith.cmpi eq, %48, %c1_i32_20 : i32
+    %50 = arith.extui %49 : i1 to i32
+    %c0_i32_21 = arith.constant 0 : i32
+    %51 = arith.cmpi ne, %50, %c0_i32_21 : i32
+    cf.cond_br %51, ^bb14, ^bb15
+  ^bb14:  // pred: ^bb13
+    %c0_i32_22 = arith.constant 0 : i32
+    %52 = llvm.load %2 : !llvm.ptr -> i64
+    %c0_i64_23 = arith.constant 0 : i64
+    %53 = arith.extui %c0_i32_22 : i32 to i64
+    %54 = arith.addi %53, %c0_i64_23 : i64
+    %55 = llvm.getelementptr %6[%54] : (!llvm.ptr, i64) -> !llvm.ptr, i8
+    %56 = arith.trunci %52 : i64 to i8
+    llvm.store volatile %56, %55 {alignment = 1 : i64} : i8, !llvm.ptr
+    %c0_i32_24 = arith.constant 0 : i32
+    %c0_i64_25 = arith.constant 0 : i64
+    %57 = arith.extui %c0_i32_24 : i32 to i64
+    %58 = arith.addi %57, %c0_i64_25 : i64
+    %59 = llvm.getelementptr %6[%58] : (!llvm.ptr, i64) -> !llvm.ptr, i8
+    %60 = llvm.load volatile %59 {alignment = 1 : i64} : !llvm.ptr -> i8
+    %61 = arith.extsi %60 : i8 to i64
+    llvm.store %61, %3 : i64, !llvm.ptr
+    cf.br ^bb16
+  ^bb15:  // pred: ^bb13
+    cf.br ^bb16
+  ^bb16:  // 2 preds: ^bb14, ^bb15
+    cf.br ^bb3
+  ^bb17:  // pred: ^bb9
+    %c0_i32_26 = arith.constant 0 : i32
+    %62 = llvm.load %2 : !llvm.ptr -> i64
+    %c0_i64_27 = arith.constant 0 : i64
+    %63 = arith.extui %c0_i32_26 : i32 to i64
+    %64 = arith.addi %63, %c0_i64_27 : i64
+    %65 = llvm.getelementptr %6[%64] : (!llvm.ptr, i64) -> !llvm.ptr, i8
+    %66 = arith.trunci %62 : i64 to i8
+    llvm.store volatile %66, %65 {alignment = 1 : i64} : i8, !llvm.ptr
+    %c0_i32_28 = arith.constant 0 : i32
+    %c0_i64_29 = arith.constant 0 : i64
+    %67 = arith.extui %c0_i32_28 : i32 to i64
+    %68 = arith.addi %67, %c0_i64_29 : i64
+    %69 = llvm.getelementptr %6[%68] : (!llvm.ptr, i64) -> !llvm.ptr, i8
+    %70 = llvm.load volatile %69 {alignment = 1 : i64} : !llvm.ptr -> i8
+    %71 = arith.extui %70 : i8 to i64
+    llvm.store %71, %3 : i64, !llvm.ptr
+    cf.br ^bb19
+  ^bb18:  // pred: ^bb9
+    cf.br ^bb19
+  ^bb19:  // 2 preds: ^bb17, ^bb18
+    %72 = llvm.load %1 : !llvm.ptr -> i32
+    %c1_i32_30 = arith.constant 1 : i32
+    %73 = arith.cmpi eq, %72, %c1_i32_30 : i32
+    %74 = arith.extui %73 : i1 to i32
+    %c0_i32_31 = arith.constant 0 : i32
+    %75 = arith.cmpi ne, %74, %c0_i32_31 : i32
+    cf.cond_br %75, ^bb20, ^bb21
+  ^bb20:  // pred: ^bb19
+    %c0_i32_32 = arith.constant 0 : i32
+    %76 = llvm.load %2 : !llvm.ptr -> i64
+    %c0_i64_33 = arith.constant 0 : i64
+    %77 = arith.extui %c0_i32_32 : i32 to i64
+    %78 = arith.addi %77, %c0_i64_33 : i64
+    %79 = llvm.getelementptr %6[%78] : (!llvm.ptr, i64) -> !llvm.ptr, i8
+    %80 = arith.trunci %76 : i64 to i8
+    llvm.store volatile %80, %79 {alignment = 1 : i64} : i8, !llvm.ptr
+    %c0_i32_34 = arith.constant 0 : i32
+    %c0_i64_35 = arith.constant 0 : i64
+    %81 = arith.extui %c0_i32_34 : i32 to i64
+    %82 = arith.addi %81, %c0_i64_35 : i64
+    %83 = llvm.getelementptr %6[%82] : (!llvm.ptr, i64) -> !llvm.ptr, i8
+    %84 = llvm.load volatile %83 {alignment = 1 : i64} : !llvm.ptr -> i8
+    %85 = arith.extui %84 : i8 to i64
+    llvm.store %85, %3 : i64, !llvm.ptr
+    cf.br ^bb22
+  ^bb21:  // pred: ^bb19
+    cf.br ^bb22
+  ^bb22:  // 2 preds: ^bb20, ^bb21
+    cf.br ^bb3
+  ^bb23:  // pred: ^bb8
+    %c0_i32_36 = arith.constant 0 : i32
+    %86 = llvm.load %2 : !llvm.ptr -> i64
+    %c0_i64_37 = arith.constant 0 : i64
+    %87 = arith.extui %c0_i32_36 : i32 to i64
+    %88 = arith.addi %87, %c0_i64_37 : i64
+    %89 = llvm.getelementptr %6[%88] : (!llvm.ptr, i64) -> !llvm.ptr, i8
+    %90 = arith.trunci %86 : i64 to i16
+    llvm.store volatile %90, %89 {alignment = 1 : i64} : i16, !llvm.ptr
+    %c0_i32_38 = arith.constant 0 : i32
+    %c0_i64_39 = arith.constant 0 : i64
+    %91 = arith.extui %c0_i32_38 : i32 to i64
+    %92 = arith.addi %91, %c0_i64_39 : i64
+    %93 = llvm.getelementptr %6[%92] : (!llvm.ptr, i64) -> !llvm.ptr, i8
+    %94 = llvm.load volatile %93 {alignment = 1 : i64} : !llvm.ptr -> i16
+    %95 = arith.extsi %94 : i16 to i64
+    llvm.store %95, %3 : i64, !llvm.ptr
+    cf.br ^bb25
+  ^bb24:  // pred: ^bb8
+    cf.br ^bb25
+  ^bb25:  // 2 preds: ^bb23, ^bb24
+    %96 = llvm.load %1 : !llvm.ptr -> i32
+    %c1_i32_40 = arith.constant 1 : i32
+    %97 = arith.cmpi eq, %96, %c1_i32_40 : i32
+    %98 = arith.extui %97 : i1 to i32
+    %c0_i32_41 = arith.constant 0 : i32
+    %99 = arith.cmpi ne, %98, %c0_i32_41 : i32
+    cf.cond_br %99, ^bb26, ^bb27
+  ^bb26:  // pred: ^bb25
+    %c0_i32_42 = arith.constant 0 : i32
+    %100 = llvm.load %2 : !llvm.ptr -> i64
+    %c0_i64_43 = arith.constant 0 : i64
+    %101 = arith.extui %c0_i32_42 : i32 to i64
+    %102 = arith.addi %101, %c0_i64_43 : i64
+    %103 = llvm.getelementptr %6[%102] : (!llvm.ptr, i64) -> !llvm.ptr, i8
+    %104 = arith.trunci %100 : i64 to i16
+    llvm.store volatile %104, %103 {alignment = 1 : i64} : i16, !llvm.ptr
+    %c0_i32_44 = arith.constant 0 : i32
+    %c0_i64_45 = arith.constant 0 : i64
+    %105 = arith.extui %c0_i32_44 : i32 to i64
+    %106 = arith.addi %105, %c0_i64_45 : i64
+    %107 = llvm.getelementptr %6[%106] : (!llvm.ptr, i64) -> !llvm.ptr, i8
+    %108 = llvm.load volatile %107 {alignment = 1 : i64} : !llvm.ptr -> i16
+    %109 = arith.extsi %108 : i16 to i64
+    llvm.store %109, %3 : i64, !llvm.ptr
+    cf.br ^bb28
+  ^bb27:  // pred: ^bb25
+    cf.br ^bb28
+  ^bb28:  // 2 preds: ^bb26, ^bb27
+    %110 = llvm.load %1 : !llvm.ptr -> i32
+    %c2_i32 = arith.constant 2 : i32
+    %111 = arith.cmpi eq, %110, %c2_i32 : i32
+    %112 = arith.extui %111 : i1 to i32
+    %c0_i32_46 = arith.constant 0 : i32
+    %113 = arith.cmpi ne, %112, %c0_i32_46 : i32
+    cf.cond_br %113, ^bb29, ^bb30
+  ^bb29:  // pred: ^bb28
+    %c0_i32_47 = arith.constant 0 : i32
+    %114 = llvm.load %2 : !llvm.ptr -> i64
+    %c0_i64_48 = arith.constant 0 : i64
+    %115 = arith.extui %c0_i32_47 : i32 to i64
+    %116 = arith.addi %115, %c0_i64_48 : i64
+    %117 = llvm.getelementptr %6[%116] : (!llvm.ptr, i64) -> !llvm.ptr, i8
+    %118 = arith.trunci %114 : i64 to i16
+    llvm.store volatile %118, %117 {alignment = 1 : i64} : i16, !llvm.ptr
+    %c0_i32_49 = arith.constant 0 : i32
+    %c0_i64_50 = arith.constant 0 : i64
+    %119 = arith.extui %c0_i32_49 : i32 to i64
+    %120 = arith.addi %119, %c0_i64_50 : i64
+    %121 = llvm.getelementptr %6[%120] : (!llvm.ptr, i64) -> !llvm.ptr, i8
+    %122 = llvm.load volatile %121 {alignment = 1 : i64} : !llvm.ptr -> i16
+    %123 = arith.extsi %122 : i16 to i64
+    llvm.store %123, %3 : i64, !llvm.ptr
+    cf.br ^bb31
+  ^bb30:  // pred: ^bb28
+    cf.br ^bb31
+  ^bb31:  // 2 preds: ^bb29, ^bb30
+    cf.br ^bb3
+  ^bb32:  // pred: ^bb7
+    %c0_i32_51 = arith.constant 0 : i32
+    %124 = llvm.load %2 : !llvm.ptr -> i64
+    %c0_i64_52 = arith.constant 0 : i64
+    %125 = arith.extui %c0_i32_51 : i32 to i64
+    %126 = arith.addi %125, %c0_i64_52 : i64
+    %127 = llvm.getelementptr %6[%126] : (!llvm.ptr, i64) -> !llvm.ptr, i8
+    %128 = arith.trunci %124 : i64 to i16
+    llvm.store volatile %128, %127 {alignment = 1 : i64} : i16, !llvm.ptr
+    %c0_i32_53 = arith.constant 0 : i32
+    %c0_i64_54 = arith.constant 0 : i64
+    %129 = arith.extui %c0_i32_53 : i32 to i64
+    %130 = arith.addi %129, %c0_i64_54 : i64
+    %131 = llvm.getelementptr %6[%130] : (!llvm.ptr, i64) -> !llvm.ptr, i8
+    %132 = llvm.load volatile %131 {alignment = 1 : i64} : !llvm.ptr -> i16
+    %133 = arith.extui %132 : i16 to i64
+    llvm.store %133, %3 : i64, !llvm.ptr
+    cf.br ^bb34
+  ^bb33:  // pred: ^bb7
+    cf.br ^bb34
+  ^bb34:  // 2 preds: ^bb32, ^bb33
+    %134 = llvm.load %1 : !llvm.ptr -> i32
+    %c1_i32_55 = arith.constant 1 : i32
+    %135 = arith.cmpi eq, %134, %c1_i32_55 : i32
+    %136 = arith.extui %135 : i1 to i32
+    %c0_i32_56 = arith.constant 0 : i32
+    %137 = arith.cmpi ne, %136, %c0_i32_56 : i32
+    cf.cond_br %137, ^bb35, ^bb36
+  ^bb35:  // pred: ^bb34
+    %c0_i32_57 = arith.constant 0 : i32
+    %138 = llvm.load %2 : !llvm.ptr -> i64
+    %c0_i64_58 = arith.constant 0 : i64
+    %139 = arith.extui %c0_i32_57 : i32 to i64
+    %140 = arith.addi %139, %c0_i64_58 : i64
+    %141 = llvm.getelementptr %6[%140] : (!llvm.ptr, i64) -> !llvm.ptr, i8
+    %142 = arith.trunci %138 : i64 to i16
+    llvm.store volatile %142, %141 {alignment = 1 : i64} : i16, !llvm.ptr
+    %c0_i32_59 = arith.constant 0 : i32
+    %c0_i64_60 = arith.constant 0 : i64
+    %143 = arith.extui %c0_i32_59 : i32 to i64
+    %144 = arith.addi %143, %c0_i64_60 : i64
+    %145 = llvm.getelementptr %6[%144] : (!llvm.ptr, i64) -> !llvm.ptr, i8
+    %146 = llvm.load volatile %145 {alignment = 1 : i64} : !llvm.ptr -> i16
+    %147 = arith.extui %146 : i16 to i64
+    llvm.store %147, %3 : i64, !llvm.ptr
+    cf.br ^bb37
+  ^bb36:  // pred: ^bb34
+    cf.br ^bb37
+  ^bb37:  // 2 preds: ^bb35, ^bb36
+    %148 = llvm.load %1 : !llvm.ptr -> i32
+    %c2_i32_61 = arith.constant 2 : i32
+    %149 = arith.cmpi eq, %148, %c2_i32_61 : i32
+    %150 = arith.extui %149 : i1 to i32
+    %c0_i32_62 = arith.constant 0 : i32
+    %151 = arith.cmpi ne, %150, %c0_i32_62 : i32
+    cf.cond_br %151, ^bb38, ^bb39
+  ^bb38:  // pred: ^bb37
+    %c0_i32_63 = arith.constant 0 : i32
+    %152 = llvm.load %2 : !llvm.ptr -> i64
+    %c0_i64_64 = arith.constant 0 : i64
+    %153 = arith.extui %c0_i32_63 : i32 to i64
+    %154 = arith.addi %153, %c0_i64_64 : i64
+    %155 = llvm.getelementptr %6[%154] : (!llvm.ptr, i64) -> !llvm.ptr, i8
+    %156 = arith.trunci %152 : i64 to i16
+    llvm.store volatile %156, %155 {alignment = 1 : i64} : i16, !llvm.ptr
+    %c0_i32_65 = arith.constant 0 : i32
+    %c0_i64_66 = arith.constant 0 : i64
+    %157 = arith.extui %c0_i32_65 : i32 to i64
+    %158 = arith.addi %157, %c0_i64_66 : i64
+    %159 = llvm.getelementptr %6[%158] : (!llvm.ptr, i64) -> !llvm.ptr, i8
+    %160 = llvm.load volatile %159 {alignment = 1 : i64} : !llvm.ptr -> i16
+    %161 = arith.extui %160 : i16 to i64
+    llvm.store %161, %3 : i64, !llvm.ptr
+    cf.br ^bb40
+  ^bb39:  // pred: ^bb37
+    cf.br ^bb40
+  ^bb40:  // 2 preds: ^bb38, ^bb39
+    cf.br ^bb3
+  ^bb41:  // pred: ^bb6
+    %c0_i32_67 = arith.constant 0 : i32
+    %162 = llvm.load %2 : !llvm.ptr -> i64
+    %c0_i64_68 = arith.constant 0 : i64
+    %163 = arith.extui %c0_i32_67 : i32 to i64
+    %164 = arith.addi %163, %c0_i64_68 : i64
+    %165 = llvm.getelementptr %6[%164] : (!llvm.ptr, i64) -> !llvm.ptr, i8
+    %166 = arith.trunci %162 : i64 to i32
+    llvm.store volatile %166, %165 {alignment = 1 : i64} : i32, !llvm.ptr
+    %c0_i32_69 = arith.constant 0 : i32
+    %c0_i64_70 = arith.constant 0 : i64
+    %167 = arith.extui %c0_i32_69 : i32 to i64
+    %168 = arith.addi %167, %c0_i64_70 : i64
+    %169 = llvm.getelementptr %6[%168] : (!llvm.ptr, i64) -> !llvm.ptr, i8
+    %170 = llvm.load volatile %169 {alignment = 1 : i64} : !llvm.ptr -> i32
+    %171 = arith.extsi %170 : i32 to i64
+    llvm.store %171, %3 : i64, !llvm.ptr
+    cf.br ^bb43
+  ^bb42:  // pred: ^bb6
+    cf.br ^bb43
+  ^bb43:  // 2 preds: ^bb41, ^bb42
+    %172 = llvm.load %1 : !llvm.ptr -> i32
+    %c1_i32_71 = arith.constant 1 : i32
+    %173 = arith.cmpi eq, %172, %c1_i32_71 : i32
+    %174 = arith.extui %173 : i1 to i32
+    %c0_i32_72 = arith.constant 0 : i32
+    %175 = arith.cmpi ne, %174, %c0_i32_72 : i32
+    cf.cond_br %175, ^bb44, ^bb45
+  ^bb44:  // pred: ^bb43
+    %c0_i32_73 = arith.constant 0 : i32
+    %176 = llvm.load %2 : !llvm.ptr -> i64
+    %c0_i64_74 = arith.constant 0 : i64
+    %177 = arith.extui %c0_i32_73 : i32 to i64
+    %178 = arith.addi %177, %c0_i64_74 : i64
+    %179 = llvm.getelementptr %6[%178] : (!llvm.ptr, i64) -> !llvm.ptr, i8
+    %180 = arith.trunci %176 : i64 to i32
+    llvm.store volatile %180, %179 {alignment = 1 : i64} : i32, !llvm.ptr
+    %c0_i32_75 = arith.constant 0 : i32
+    %c0_i64_76 = arith.constant 0 : i64
+    %181 = arith.extui %c0_i32_75 : i32 to i64
+    %182 = arith.addi %181, %c0_i64_76 : i64
+    %183 = llvm.getelementptr %6[%182] : (!llvm.ptr, i64) -> !llvm.ptr, i8
+    %184 = llvm.load volatile %183 {alignment = 1 : i64} : !llvm.ptr -> i32
+    %185 = arith.extsi %184 : i32 to i64
+    llvm.store %185, %3 : i64, !llvm.ptr
+    cf.br ^bb46
+  ^bb45:  // pred: ^bb43
+    cf.br ^bb46
+  ^bb46:  // 2 preds: ^bb44, ^bb45
+    %186 = llvm.load %1 : !llvm.ptr -> i32
+    %c2_i32_77 = arith.constant 2 : i32
+    %187 = arith.cmpi eq, %186, %c2_i32_77 : i32
+    %188 = arith.extui %187 : i1 to i32
+    %c0_i32_78 = arith.constant 0 : i32
+    %189 = arith.cmpi ne, %188, %c0_i32_78 : i32
+    cf.cond_br %189, ^bb47, ^bb48
+  ^bb47:  // pred: ^bb46
+    %c0_i32_79 = arith.constant 0 : i32
+    %190 = llvm.load %2 : !llvm.ptr -> i64
+    %c0_i64_80 = arith.constant 0 : i64
+    %191 = arith.extui %c0_i32_79 : i32 to i64
+    %192 = arith.addi %191, %c0_i64_80 : i64
+    %193 = llvm.getelementptr %6[%192] : (!llvm.ptr, i64) -> !llvm.ptr, i8
+    %194 = arith.trunci %190 : i64 to i32
+    llvm.store volatile %194, %193 {alignment = 1 : i64} : i32, !llvm.ptr
+    %c0_i32_81 = arith.constant 0 : i32
+    %c0_i64_82 = arith.constant 0 : i64
+    %195 = arith.extui %c0_i32_81 : i32 to i64
+    %196 = arith.addi %195, %c0_i64_82 : i64
+    %197 = llvm.getelementptr %6[%196] : (!llvm.ptr, i64) -> !llvm.ptr, i8
+    %198 = llvm.load volatile %197 {alignment = 1 : i64} : !llvm.ptr -> i32
+    %199 = arith.extsi %198 : i32 to i64
+    llvm.store %199, %3 : i64, !llvm.ptr
+    cf.br ^bb49
+  ^bb48:  // pred: ^bb46
+    cf.br ^bb49
+  ^bb49:  // 2 preds: ^bb47, ^bb48
+    %200 = llvm.load %1 : !llvm.ptr -> i32
+    %c4_i32 = arith.constant 4 : i32
+    %201 = arith.cmpi eq, %200, %c4_i32 : i32
+    %202 = arith.extui %201 : i1 to i32
+    %c0_i32_83 = arith.constant 0 : i32
+    %203 = arith.cmpi ne, %202, %c0_i32_83 : i32
+    cf.cond_br %203, ^bb50, ^bb51
+  ^bb50:  // pred: ^bb49
+    %c0_i32_84 = arith.constant 0 : i32
+    %204 = llvm.load %2 : !llvm.ptr -> i64
+    %c0_i64_85 = arith.constant 0 : i64
+    %205 = arith.extui %c0_i32_84 : i32 to i64
+    %206 = arith.addi %205, %c0_i64_85 : i64
+    %207 = llvm.getelementptr %6[%206] : (!llvm.ptr, i64) -> !llvm.ptr, i8
+    %208 = arith.trunci %204 : i64 to i32
+    llvm.store volatile %208, %207 {alignment = 1 : i64} : i32, !llvm.ptr
+    %c0_i32_86 = arith.constant 0 : i32
+    %c0_i64_87 = arith.constant 0 : i64
+    %209 = arith.extui %c0_i32_86 : i32 to i64
+    %210 = arith.addi %209, %c0_i64_87 : i64
+    %211 = llvm.getelementptr %6[%210] : (!llvm.ptr, i64) -> !llvm.ptr, i8
+    %212 = llvm.load volatile %211 {alignment = 1 : i64} : !llvm.ptr -> i32
+    %213 = arith.extsi %212 : i32 to i64
+    llvm.store %213, %3 : i64, !llvm.ptr
+    cf.br ^bb52
+  ^bb51:  // pred: ^bb49
+    cf.br ^bb52
+  ^bb52:  // 2 preds: ^bb50, ^bb51
+    cf.br ^bb3
+  ^bb53:  // pred: ^bb5
+    %c0_i32_88 = arith.constant 0 : i32
+    %214 = llvm.load %2 : !llvm.ptr -> i64
+    %c0_i64_89 = arith.constant 0 : i64
+    %215 = arith.extui %c0_i32_88 : i32 to i64
+    %216 = arith.addi %215, %c0_i64_89 : i64
+    %217 = llvm.getelementptr %6[%216] : (!llvm.ptr, i64) -> !llvm.ptr, i8
+    %218 = arith.trunci %214 : i64 to i32
+    llvm.store volatile %218, %217 {alignment = 1 : i64} : i32, !llvm.ptr
+    %c0_i32_90 = arith.constant 0 : i32
+    %c0_i64_91 = arith.constant 0 : i64
+    %219 = arith.extui %c0_i32_90 : i32 to i64
+    %220 = arith.addi %219, %c0_i64_91 : i64
+    %221 = llvm.getelementptr %6[%220] : (!llvm.ptr, i64) -> !llvm.ptr, i8
+    %222 = llvm.load volatile %221 {alignment = 1 : i64} : !llvm.ptr -> i32
+    %223 = arith.extui %222 : i32 to i64
+    llvm.store %223, %3 : i64, !llvm.ptr
+    cf.br ^bb55
+  ^bb54:  // pred: ^bb5
+    cf.br ^bb55
+  ^bb55:  // 2 preds: ^bb53, ^bb54
+    %224 = llvm.load %1 : !llvm.ptr -> i32
+    %c1_i32_92 = arith.constant 1 : i32
+    %225 = arith.cmpi eq, %224, %c1_i32_92 : i32
+    %226 = arith.extui %225 : i1 to i32
+    %c0_i32_93 = arith.constant 0 : i32
+    %227 = arith.cmpi ne, %226, %c0_i32_93 : i32
+    cf.cond_br %227, ^bb56, ^bb57
+  ^bb56:  // pred: ^bb55
+    %c0_i32_94 = arith.constant 0 : i32
+    %228 = llvm.load %2 : !llvm.ptr -> i64
+    %c0_i64_95 = arith.constant 0 : i64
+    %229 = arith.extui %c0_i32_94 : i32 to i64
+    %230 = arith.addi %229, %c0_i64_95 : i64
+    %231 = llvm.getelementptr %6[%230] : (!llvm.ptr, i64) -> !llvm.ptr, i8
+    %232 = arith.trunci %228 : i64 to i32
+    llvm.store volatile %232, %231 {alignment = 1 : i64} : i32, !llvm.ptr
+    %c0_i32_96 = arith.constant 0 : i32
+    %c0_i64_97 = arith.constant 0 : i64
+    %233 = arith.extui %c0_i32_96 : i32 to i64
+    %234 = arith.addi %233, %c0_i64_97 : i64
+    %235 = llvm.getelementptr %6[%234] : (!llvm.ptr, i64) -> !llvm.ptr, i8
+    %236 = llvm.load volatile %235 {alignment = 1 : i64} : !llvm.ptr -> i32
+    %237 = arith.extui %236 : i32 to i64
+    llvm.store %237, %3 : i64, !llvm.ptr
+    cf.br ^bb58
+  ^bb57:  // pred: ^bb55
+    cf.br ^bb58
+  ^bb58:  // 2 preds: ^bb56, ^bb57
+    %238 = llvm.load %1 : !llvm.ptr -> i32
+    %c2_i32_98 = arith.constant 2 : i32
+    %239 = arith.cmpi eq, %238, %c2_i32_98 : i32
+    %240 = arith.extui %239 : i1 to i32
+    %c0_i32_99 = arith.constant 0 : i32
+    %241 = arith.cmpi ne, %240, %c0_i32_99 : i32
+    cf.cond_br %241, ^bb59, ^bb60
+  ^bb59:  // pred: ^bb58
+    %c0_i32_100 = arith.constant 0 : i32
+    %242 = llvm.load %2 : !llvm.ptr -> i64
+    %c0_i64_101 = arith.constant 0 : i64
+    %243 = arith.extui %c0_i32_100 : i32 to i64
+    %244 = arith.addi %243, %c0_i64_101 : i64
+    %245 = llvm.getelementptr %6[%244] : (!llvm.ptr, i64) -> !llvm.ptr, i8
+    %246 = arith.trunci %242 : i64 to i32
+    llvm.store volatile %246, %245 {alignment = 1 : i64} : i32, !llvm.ptr
+    %c0_i32_102 = arith.constant 0 : i32
+    %c0_i64_103 = arith.constant 0 : i64
+    %247 = arith.extui %c0_i32_102 : i32 to i64
+    %248 = arith.addi %247, %c0_i64_103 : i64
+    %249 = llvm.getelementptr %6[%248] : (!llvm.ptr, i64) -> !llvm.ptr, i8
+    %250 = llvm.load volatile %249 {alignment = 1 : i64} : !llvm.ptr -> i32
+    %251 = arith.extui %250 : i32 to i64
+    llvm.store %251, %3 : i64, !llvm.ptr
+    cf.br ^bb61
+  ^bb60:  // pred: ^bb58
+    cf.br ^bb61
+  ^bb61:  // 2 preds: ^bb59, ^bb60
+    %252 = llvm.load %1 : !llvm.ptr -> i32
+    %c4_i32_104 = arith.constant 4 : i32
+    %253 = arith.cmpi eq, %252, %c4_i32_104 : i32
+    %254 = arith.extui %253 : i1 to i32
+    %c0_i32_105 = arith.constant 0 : i32
+    %255 = arith.cmpi ne, %254, %c0_i32_105 : i32
+    cf.cond_br %255, ^bb62, ^bb63
+  ^bb62:  // pred: ^bb61
+    %c0_i32_106 = arith.constant 0 : i32
+    %256 = llvm.load %2 : !llvm.ptr -> i64
+    %c0_i64_107 = arith.constant 0 : i64
+    %257 = arith.extui %c0_i32_106 : i32 to i64
+    %258 = arith.addi %257, %c0_i64_107 : i64
+    %259 = llvm.getelementptr %6[%258] : (!llvm.ptr, i64) -> !llvm.ptr, i8
+    %260 = arith.trunci %256 : i64 to i32
+    llvm.store volatile %260, %259 {alignment = 1 : i64} : i32, !llvm.ptr
+    %c0_i32_108 = arith.constant 0 : i32
+    %c0_i64_109 = arith.constant 0 : i64
+    %261 = arith.extui %c0_i32_108 : i32 to i64
+    %262 = arith.addi %261, %c0_i64_109 : i64
+    %263 = llvm.getelementptr %6[%262] : (!llvm.ptr, i64) -> !llvm.ptr, i8
+    %264 = llvm.load volatile %263 {alignment = 1 : i64} : !llvm.ptr -> i32
+    %265 = arith.extui %264 : i32 to i64
+    llvm.store %265, %3 : i64, !llvm.ptr
+    cf.br ^bb64
+  ^bb63:  // pred: ^bb61
+    cf.br ^bb64
+  ^bb64:  // 2 preds: ^bb62, ^bb63
+    cf.br ^bb3
+  ^bb65:  // pred: ^bb4
+    %c0_i32_110 = arith.constant 0 : i32
+    %266 = llvm.load %2 : !llvm.ptr -> i64
+    %c0_i64_111 = arith.constant 0 : i64
+    %267 = arith.extui %c0_i32_110 : i32 to i64
+    %268 = arith.addi %267, %c0_i64_111 : i64
+    %269 = llvm.getelementptr %6[%268] : (!llvm.ptr, i64) -> !llvm.ptr, i8
+    llvm.store volatile %266, %269 {alignment = 1 : i64} : i64, !llvm.ptr
+    %c0_i32_112 = arith.constant 0 : i32
+    %c0_i64_113 = arith.constant 0 : i64
+    %270 = arith.extui %c0_i32_112 : i32 to i64
+    %271 = arith.addi %270, %c0_i64_113 : i64
+    %272 = llvm.getelementptr %6[%271] : (!llvm.ptr, i64) -> !llvm.ptr, i8
+    %273 = llvm.load volatile %272 {alignment = 1 : i64} : !llvm.ptr -> i64
+    llvm.store %273, %3 : i64, !llvm.ptr
+    cf.br ^bb67
+  ^bb66:  // pred: ^bb4
+    cf.br ^bb67
+  ^bb67:  // 2 preds: ^bb65, ^bb66
+    %274 = llvm.load %1 : !llvm.ptr -> i32
+    %c1_i32_114 = arith.constant 1 : i32
+    %275 = arith.cmpi eq, %274, %c1_i32_114 : i32
+    %276 = arith.extui %275 : i1 to i32
+    %c0_i32_115 = arith.constant 0 : i32
+    %277 = arith.cmpi ne, %276, %c0_i32_115 : i32
+    cf.cond_br %277, ^bb68, ^bb69
+  ^bb68:  // pred: ^bb67
+    %c0_i32_116 = arith.constant 0 : i32
+    %278 = llvm.load %2 : !llvm.ptr -> i64
+    %c0_i64_117 = arith.constant 0 : i64
+    %279 = arith.extui %c0_i32_116 : i32 to i64
+    %280 = arith.addi %279, %c0_i64_117 : i64
+    %281 = llvm.getelementptr %6[%280] : (!llvm.ptr, i64) -> !llvm.ptr, i8
+    llvm.store volatile %278, %281 {alignment = 1 : i64} : i64, !llvm.ptr
+    %c0_i32_118 = arith.constant 0 : i32
+    %c0_i64_119 = arith.constant 0 : i64
+    %282 = arith.extui %c0_i32_118 : i32 to i64
+    %283 = arith.addi %282, %c0_i64_119 : i64
+    %284 = llvm.getelementptr %6[%283] : (!llvm.ptr, i64) -> !llvm.ptr, i8
+    %285 = llvm.load volatile %284 {alignment = 1 : i64} : !llvm.ptr -> i64
+    llvm.store %285, %3 : i64, !llvm.ptr
+    cf.br ^bb70
+  ^bb69:  // pred: ^bb67
+    cf.br ^bb70
+  ^bb70:  // 2 preds: ^bb68, ^bb69
+    %286 = llvm.load %1 : !llvm.ptr -> i32
+    %c2_i32_120 = arith.constant 2 : i32
+    %287 = arith.cmpi eq, %286, %c2_i32_120 : i32
+    %288 = arith.extui %287 : i1 to i32
+    %c0_i32_121 = arith.constant 0 : i32
+    %289 = arith.cmpi ne, %288, %c0_i32_121 : i32
+    cf.cond_br %289, ^bb71, ^bb72
+  ^bb71:  // pred: ^bb70
+    %c0_i32_122 = arith.constant 0 : i32
+    %290 = llvm.load %2 : !llvm.ptr -> i64
+    %c0_i64_123 = arith.constant 0 : i64
+    %291 = arith.extui %c0_i32_122 : i32 to i64
+    %292 = arith.addi %291, %c0_i64_123 : i64
+    %293 = llvm.getelementptr %6[%292] : (!llvm.ptr, i64) -> !llvm.ptr, i8
+    llvm.store volatile %290, %293 {alignment = 1 : i64} : i64, !llvm.ptr
+    %c0_i32_124 = arith.constant 0 : i32
+    %c0_i64_125 = arith.constant 0 : i64
+    %294 = arith.extui %c0_i32_124 : i32 to i64
+    %295 = arith.addi %294, %c0_i64_125 : i64
+    %296 = llvm.getelementptr %6[%295] : (!llvm.ptr, i64) -> !llvm.ptr, i8
+    %297 = llvm.load volatile %296 {alignment = 1 : i64} : !llvm.ptr -> i64
+    llvm.store %297, %3 : i64, !llvm.ptr
+    cf.br ^bb73
+  ^bb72:  // pred: ^bb70
+    cf.br ^bb73
+  ^bb73:  // 2 preds: ^bb71, ^bb72
+    %298 = llvm.load %1 : !llvm.ptr -> i32
+    %c4_i32_126 = arith.constant 4 : i32
+    %299 = arith.cmpi eq, %298, %c4_i32_126 : i32
+    %300 = arith.extui %299 : i1 to i32
+    %c0_i32_127 = arith.constant 0 : i32
+    %301 = arith.cmpi ne, %300, %c0_i32_127 : i32
+    cf.cond_br %301, ^bb74, ^bb75
+  ^bb74:  // pred: ^bb73
+    %c0_i32_128 = arith.constant 0 : i32
+    %302 = llvm.load %2 : !llvm.ptr -> i64
+    %c0_i64_129 = arith.constant 0 : i64
+    %303 = arith.extui %c0_i32_128 : i32 to i64
+    %304 = arith.addi %303, %c0_i64_129 : i64
+    %305 = llvm.getelementptr %6[%304] : (!llvm.ptr, i64) -> !llvm.ptr, i8
+    llvm.store volatile %302, %305 {alignment = 1 : i64} : i64, !llvm.ptr
+    %c0_i32_130 = arith.constant 0 : i32
+    %c0_i64_131 = arith.constant 0 : i64
+    %306 = arith.extui %c0_i32_130 : i32 to i64
+    %307 = arith.addi %306, %c0_i64_131 : i64
+    %308 = llvm.getelementptr %6[%307] : (!llvm.ptr, i64) -> !llvm.ptr, i8
+    %309 = llvm.load volatile %308 {alignment = 1 : i64} : !llvm.ptr -> i64
+    llvm.store %309, %3 : i64, !llvm.ptr
+    cf.br ^bb76
+  ^bb75:  // pred: ^bb73
+    cf.br ^bb76
+  ^bb76:  // 2 preds: ^bb74, ^bb75
+    %310 = llvm.load %1 : !llvm.ptr -> i32
+    %c8_i32 = arith.constant 8 : i32
+    %311 = arith.cmpi eq, %310, %c8_i32 : i32
+    %312 = arith.extui %311 : i1 to i32
+    %c0_i32_132 = arith.constant 0 : i32
+    %313 = arith.cmpi ne, %312, %c0_i32_132 : i32
+    cf.cond_br %313, ^bb77, ^bb78
+  ^bb77:  // pred: ^bb76
+    %c0_i32_133 = arith.constant 0 : i32
+    %314 = llvm.load %2 : !llvm.ptr -> i64
+    %c0_i64_134 = arith.constant 0 : i64
+    %315 = arith.extui %c0_i32_133 : i32 to i64
+    %316 = arith.addi %315, %c0_i64_134 : i64
+    %317 = llvm.getelementptr %6[%316] : (!llvm.ptr, i64) -> !llvm.ptr, i8
+    llvm.store volatile %314, %317 {alignment = 1 : i64} : i64, !llvm.ptr
+    %c0_i32_135 = arith.constant 0 : i32
+    %c0_i64_136 = arith.constant 0 : i64
+    %318 = arith.extui %c0_i32_135 : i32 to i64
+    %319 = arith.addi %318, %c0_i64_136 : i64
+    %320 = llvm.getelementptr %6[%319] : (!llvm.ptr, i64) -> !llvm.ptr, i8
+    %321 = llvm.load volatile %320 {alignment = 1 : i64} : !llvm.ptr -> i64
+    llvm.store %321, %3 : i64, !llvm.ptr
+    cf.br ^bb79
+  ^bb78:  // pred: ^bb76
+    cf.br ^bb79
+  ^bb79:  // 2 preds: ^bb77, ^bb78
+    cf.br ^bb3
+  }
+  func.func private @dora_fn_wasm_table_init(!llvm.ptr, i32, i32, i32, i32, i32)
+  func.func private @dora_fn_wasm_table_copy(!llvm.ptr, i32, i32, i32, i32, i32)
+  func.func private @dora_fn_wasm_table_fill(!llvm.ptr, i32, i32, !llvm.ptr, i32)
+  func.func private @dora_fn_wasm_table_size(!llvm.ptr, i32) -> i32
+  func.func private @dora_fn_wasm_table_get(!llvm.ptr, i32, i32) -> !llvm.ptr
+  func.func private @dora_fn_wasm_table_set(!llvm.ptr, i32, i32, !llvm.ptr)
+  func.func private @dora_fn_wasm_table_grow(!llvm.ptr, !llvm.ptr, i32, i32) -> i32
+  func.func private @dora_fn_wasm_imported_table_size(!llvm.ptr, i32) -> i32
+  func.func private @dora_fn_wasm_imported_table_get(!llvm.ptr, i32, i32) -> !llvm.ptr
+  func.func private @dora_fn_wasm_imported_table_grow(!llvm.ptr, !llvm.ptr, i32, i32) -> i32
+  func.func private @dora_fn_wasm_memory_init(!llvm.ptr, i32, i32, i32, i32, i32)
+  func.func private @dora_fn_wasm_memory_size(!llvm.ptr, i32) -> i32
+  func.func private @dora_fn_wasm_memory_grow(!llvm.ptr, i32, i32) -> i32
+  func.func private @dora_fn_wasm_memory_copy(!llvm.ptr, i32, i32, i32, i32)
+  func.func private @dora_fn_wasm_memory_fill(!llvm.ptr, i32, i32, i32, i32)
+  func.func private @dora_fn_wasm_memory_notify(!llvm.ptr, i32, i32, i32) -> i32
+  func.func private @dora_fn_wasm_memory_wait32(!llvm.ptr, i32, i32, i32, i64) -> i32
+  func.func private @dora_fn_wasm_memory_wait64(!llvm.ptr, i32, i32, i64, i64) -> i32
+  func.func private @dora_fn_wasm_imported_memory_size(!llvm.ptr, i32) -> i32
+  func.func private @dora_fn_wasm_imported_memory_grow(!llvm.ptr, i32, i32) -> i32
+  func.func private @dora_fn_wasm_imported_memory_copy(!llvm.ptr, i32, i32, i32, i32)
+  func.func private @dora_fn_wasm_imported_memory_fill(!llvm.ptr, i32, i32, i32, i32)
+  func.func private @dora_fn_wasm_imported_memory_notify(!llvm.ptr, i32, i32, i32) -> i32
+  func.func private @dora_fn_wasm_imported_memory_wait32(!llvm.ptr, i32, i32, i32, i64) -> i32
+  func.func private @dora_fn_wasm_imported_memory_wait64(!llvm.ptr, i32, i32, i64, i64) -> i32
+  func.func private @dora_fn_wasm_func_ref(!llvm.ptr, i32) -> !llvm.ptr
+  func.func private @dora_fn_wasm_data_drop(!llvm.ptr, i32)
+  func.func private @dora_fn_wasm_elem_drop(!llvm.ptr, i32)
+  func.func private @dora_fn_wasm_raise_trap(i32)
+  func.func private @dora_fn_wasm_gas_limit() -> i64
+}

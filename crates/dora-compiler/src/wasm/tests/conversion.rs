@@ -558,6 +558,11 @@ fn float_local() {
 }
 
 #[test]
+fn align() {
+    assert_snapshot!(include_str!("suites/align_read_write.wat"));
+}
+
+#[test]
 fn align_read_write() {
     assert_snapshot!(include_str!("suites/align_read_write.wat"));
 }
