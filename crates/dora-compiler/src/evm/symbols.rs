@@ -1,12 +1,12 @@
 use crate::conversion::builder::OpBuilder;
 use dora_runtime::symbols;
 use melior::{
+    Context as MLIRContext,
     dialect::func,
     ir::{
-        attribute::TypeAttribute, r#type::FunctionType, Identifier, Module as MLIRModule, Region,
-        Type,
+        Identifier, Module as MLIRModule, Region, Type, attribute::TypeAttribute,
+        r#type::FunctionType,
     },
-    Context as MLIRContext,
 };
 
 pub(crate) fn declare_symbols(context: &MLIRContext, module: &MLIRModule) {

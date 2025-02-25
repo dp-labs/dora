@@ -1,6 +1,6 @@
 //! Reference: [revm](https://github.com/bluealloy/revm)
 use crate::constants::gas_cost::{
-    ACCESS_LIST_ADDRESS, ACCESS_LIST_STORAGE_KEY, CALLVALUE, CALL_STIPEND,
+    ACCESS_LIST_ADDRESS, ACCESS_LIST_STORAGE_KEY, CALL_STIPEND, CALLVALUE,
     COLD_ACCOUNT_ACCESS_COST, COLD_SLOAD_COST, INITCODE_WORD_COST, INSTANBUL_SLOAD_GAS, NEWACCOUNT,
     REFUND_SSTORE_CLEARS, SSTORE_RESET, SSTORE_SET, TRANSACTION_ZERO_DATA, WARM_SLOAD_COST,
     WARM_SSTORE_RESET,
@@ -9,9 +9,9 @@ use crate::env::AccessListItem;
 use crate::host::{
     AccountLoad, CodeLoad, SStoreResult, SStoreStatus, SelfdestructResult, StateLoad,
 };
+use dora_primitives::U256;
 use dora_primitives::eip7702::PER_EMPTY_ACCOUNT_COST;
 use dora_primitives::spec::SpecId;
-use dora_primitives::U256;
 
 #[inline]
 pub fn sstore_cost(spec_id: SpecId, result: &SStoreResult, gas: u64, is_cold: bool) -> Option<u64> {

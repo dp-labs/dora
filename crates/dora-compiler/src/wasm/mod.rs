@@ -26,13 +26,13 @@ use melior::ir::{Location, Module as MLIRModule};
 use std::sync::Arc;
 use symbols::declare_symbols;
 use wasmer::{
-    imports, AsStoreMut, AsStoreRef, Exports, Extern, Function, FunctionEnv, Imports,
-    Module as WasmModule, Store, Target, VMConfig,
+    AsStoreMut, AsStoreRef, Exports, Extern, Function, FunctionEnv, Imports, Module as WasmModule,
+    Store, Target, VMConfig, imports,
 };
+use wasmer_compiler::Engine;
 use wasmer_compiler::types::module::CompileModuleInfo;
 use wasmer_compiler::types::section::SectionIndex;
 use wasmer_compiler::types::symbols::{Symbol, SymbolRegistry};
-use wasmer_compiler::Engine;
 use wasmer_compiler::{
     FunctionBodyData, ModuleEnvironment, ModuleMiddleware, ModuleTranslationState,
 };

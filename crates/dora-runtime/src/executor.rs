@@ -4,11 +4,11 @@ use crate::constants::MAIN_ENTRYPOINT;
 use crate::context::{EVMMainFunc, RuntimeContext, WASMMainFunc};
 use crate::wasm::WASMInstance;
 use dora_primitives::config::OptimizationLevel;
-use melior::ir::Module;
 use melior::StringRef;
+use melior::ir::Module;
 use mlir_sys::{
-    mlirExecutionEngineCreate, mlirExecutionEngineDestroy, mlirExecutionEngineLookup,
-    mlirExecutionEngineRegisterSymbol, MlirExecutionEngine,
+    MlirExecutionEngine, mlirExecutionEngineCreate, mlirExecutionEngineDestroy,
+    mlirExecutionEngineLookup, mlirExecutionEngineRegisterSymbol,
 };
 use parking_lot::RwLock;
 use std::fmt::Debug;

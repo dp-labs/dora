@@ -1,9 +1,9 @@
 use crate::{
+    ExitStatusCode,
     constants::{CallType, ExtCallType},
     context::RuntimeContext,
-    ExitStatusCode,
 };
-use dora_primitives::{Address, Bytes, B256, U256};
+use dora_primitives::{Address, B256, Bytes, U256};
 
 /// The kind of call-like instructions for the Host API.
 #[derive(Debug, Clone)]

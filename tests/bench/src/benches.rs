@@ -1,5 +1,5 @@
 use crate::native::fibonacci_rust;
-use alloy_sol_types::{sol, SolCall};
+use alloy_sol_types::{SolCall, sol};
 use dora_primitives::address;
 use ruint::aliases::U256;
 use std::hint::black_box;

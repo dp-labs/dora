@@ -9,7 +9,7 @@ use crate::intrinsics::{is_f32_arithmetic, is_f64_arithmetic};
 use crate::value::ToContextValue;
 use crate::wasm::intrinsics::MemoryCache;
 
-use super::backend::{is_zero, trap, trap_call, WASMBackend};
+use super::backend::{WASMBackend, is_zero, trap, trap_call};
 use super::func::FuncTranslator;
 use super::intrinsics::CtxType;
 use super::intrinsics::FunctionCache;
@@ -30,13 +30,13 @@ use melior::ir::attribute::FlatSymbolRefAttribute;
 use melior::ir::attribute::StringAttribute;
 use melior::ir::{Block, BlockRef, Location, Region, Type, Value, ValueLike};
 use smallvec::SmallVec;
-use wasmer::wasmparser::MemArg;
 use wasmer::WASM_PAGE_SIZE;
+use wasmer::wasmparser::MemArg;
 use wasmer_compiler::from_binaryreadererror_wasmerror;
 use wasmer_compiler::types::symbols::SymbolRegistry;
 use wasmer_compiler::wasmparser::Operator;
 use wasmer_compiler::wptype_to_type;
-use wasmer_compiler::{wpheaptype_to_type, ModuleTranslationState};
+use wasmer_compiler::{ModuleTranslationState, wpheaptype_to_type};
 use wasmer_types::entity::PrimaryMap;
 use wasmer_types::{
     FunctionIndex, FunctionType, GlobalIndex, MemoryIndex, MemoryStyle, ModuleInfo, SignatureIndex,
@@ -1299,7 +1299,7 @@ impl FunctionCodeGenerator {
                             "global.set on immutable global index {}",
                             global_index.as_u32()
                         ))
-                        .into())
+                        .into());
                     }
                     GlobalCache::Mut { ptr_to_value, .. } => {
                         let value = state.pop1()?;
@@ -3258,67 +3258,109 @@ impl FunctionCodeGenerator {
                 return Ok(block);
             }
             Operator::I32AtomicRmwAdd { ref memarg } => {
-                atomicrmw_op!(builder, state, memarg, fcx, backend, region, block, Add, i32);
+                atomicrmw_op!(
+                    builder, state, memarg, fcx, backend, region, block, Add, i32
+                );
             }
             Operator::I64AtomicRmwAdd { ref memarg } => {
-                atomicrmw_op!(builder, state, memarg, fcx, backend, region, block, Add, i64);
+                atomicrmw_op!(
+                    builder, state, memarg, fcx, backend, region, block, Add, i64
+                );
             }
             Operator::I32AtomicRmw8AddU { ref memarg } => {
-                atomicrmw_op!(builder, state, memarg, fcx, backend, region, block, Add, i32, i8);
+                atomicrmw_op!(
+                    builder, state, memarg, fcx, backend, region, block, Add, i32, i8
+                );
             }
             Operator::I32AtomicRmw16AddU { ref memarg } => {
-                atomicrmw_op!(builder, state, memarg, fcx, backend, region, block, Add, i32, i16);
+                atomicrmw_op!(
+                    builder, state, memarg, fcx, backend, region, block, Add, i32, i16
+                );
             }
             Operator::I64AtomicRmw8AddU { ref memarg } => {
-                atomicrmw_op!(builder, state, memarg, fcx, backend, region, block, Add, i64, i8);
+                atomicrmw_op!(
+                    builder, state, memarg, fcx, backend, region, block, Add, i64, i8
+                );
             }
             Operator::I64AtomicRmw16AddU { ref memarg } => {
-                atomicrmw_op!(builder, state, memarg, fcx, backend, region, block, Add, i64, i16);
+                atomicrmw_op!(
+                    builder, state, memarg, fcx, backend, region, block, Add, i64, i16
+                );
             }
             Operator::I64AtomicRmw32AddU { ref memarg } => {
-                atomicrmw_op!(builder, state, memarg, fcx, backend, region, block, Add, i64, i32);
+                atomicrmw_op!(
+                    builder, state, memarg, fcx, backend, region, block, Add, i64, i32
+                );
             }
             Operator::I32AtomicRmwSub { ref memarg } => {
-                atomicrmw_op!(builder, state, memarg, fcx, backend, region, block, Sub, i32);
+                atomicrmw_op!(
+                    builder, state, memarg, fcx, backend, region, block, Sub, i32
+                );
             }
             Operator::I64AtomicRmwSub { ref memarg } => {
-                atomicrmw_op!(builder, state, memarg, fcx, backend, region, block, Sub, i64);
+                atomicrmw_op!(
+                    builder, state, memarg, fcx, backend, region, block, Sub, i64
+                );
             }
             Operator::I32AtomicRmw8SubU { ref memarg } => {
-                atomicrmw_op!(builder, state, memarg, fcx, backend, region, block, Sub, i32, i8);
+                atomicrmw_op!(
+                    builder, state, memarg, fcx, backend, region, block, Sub, i32, i8
+                );
             }
             Operator::I32AtomicRmw16SubU { ref memarg } => {
-                atomicrmw_op!(builder, state, memarg, fcx, backend, region, block, Sub, i32, i16);
+                atomicrmw_op!(
+                    builder, state, memarg, fcx, backend, region, block, Sub, i32, i16
+                );
             }
             Operator::I64AtomicRmw8SubU { ref memarg } => {
-                atomicrmw_op!(builder, state, memarg, fcx, backend, region, block, Sub, i64, i8);
+                atomicrmw_op!(
+                    builder, state, memarg, fcx, backend, region, block, Sub, i64, i8
+                );
             }
             Operator::I64AtomicRmw16SubU { ref memarg } => {
-                atomicrmw_op!(builder, state, memarg, fcx, backend, region, block, Sub, i64, i16);
+                atomicrmw_op!(
+                    builder, state, memarg, fcx, backend, region, block, Sub, i64, i16
+                );
             }
             Operator::I64AtomicRmw32SubU { ref memarg } => {
-                atomicrmw_op!(builder, state, memarg, fcx, backend, region, block, Sub, i64, i32);
+                atomicrmw_op!(
+                    builder, state, memarg, fcx, backend, region, block, Sub, i64, i32
+                );
             }
             Operator::I32AtomicRmwAnd { ref memarg } => {
-                atomicrmw_op!(builder, state, memarg, fcx, backend, region, block, And, i32);
+                atomicrmw_op!(
+                    builder, state, memarg, fcx, backend, region, block, And, i32
+                );
             }
             Operator::I64AtomicRmwAnd { ref memarg } => {
-                atomicrmw_op!(builder, state, memarg, fcx, backend, region, block, And, i64);
+                atomicrmw_op!(
+                    builder, state, memarg, fcx, backend, region, block, And, i64
+                );
             }
             Operator::I32AtomicRmw8AndU { ref memarg } => {
-                atomicrmw_op!(builder, state, memarg, fcx, backend, region, block, And, i32, i8);
+                atomicrmw_op!(
+                    builder, state, memarg, fcx, backend, region, block, And, i32, i8
+                );
             }
             Operator::I32AtomicRmw16AndU { ref memarg } => {
-                atomicrmw_op!(builder, state, memarg, fcx, backend, region, block, And, i32, i16);
+                atomicrmw_op!(
+                    builder, state, memarg, fcx, backend, region, block, And, i32, i16
+                );
             }
             Operator::I64AtomicRmw8AndU { ref memarg } => {
-                atomicrmw_op!(builder, state, memarg, fcx, backend, region, block, And, i64, i8);
+                atomicrmw_op!(
+                    builder, state, memarg, fcx, backend, region, block, And, i64, i8
+                );
             }
             Operator::I64AtomicRmw16AndU { ref memarg } => {
-                atomicrmw_op!(builder, state, memarg, fcx, backend, region, block, And, i64, i16);
+                atomicrmw_op!(
+                    builder, state, memarg, fcx, backend, region, block, And, i64, i16
+                );
             }
             Operator::I64AtomicRmw32AndU { ref memarg } => {
-                atomicrmw_op!(builder, state, memarg, fcx, backend, region, block, And, i64, i32);
+                atomicrmw_op!(
+                    builder, state, memarg, fcx, backend, region, block, And, i64, i32
+                );
             }
             Operator::I32AtomicRmwOr { ref memarg } => {
                 atomicrmw_op!(builder, state, memarg, fcx, backend, region, block, Or, i32);
@@ -3327,61 +3369,99 @@ impl FunctionCodeGenerator {
                 atomicrmw_op!(builder, state, memarg, fcx, backend, region, block, Or, i64);
             }
             Operator::I32AtomicRmw8OrU { ref memarg } => {
-                atomicrmw_op!(builder, state, memarg, fcx, backend, region, block, Or, i32, i8);
+                atomicrmw_op!(
+                    builder, state, memarg, fcx, backend, region, block, Or, i32, i8
+                );
             }
             Operator::I32AtomicRmw16OrU { ref memarg } => {
-                atomicrmw_op!(builder, state, memarg, fcx, backend, region, block, Or, i32, i16);
+                atomicrmw_op!(
+                    builder, state, memarg, fcx, backend, region, block, Or, i32, i16
+                );
             }
             Operator::I64AtomicRmw8OrU { ref memarg } => {
-                atomicrmw_op!(builder, state, memarg, fcx, backend, region, block, Or, i64, i8);
+                atomicrmw_op!(
+                    builder, state, memarg, fcx, backend, region, block, Or, i64, i8
+                );
             }
             Operator::I64AtomicRmw16OrU { ref memarg } => {
-                atomicrmw_op!(builder, state, memarg, fcx, backend, region, block, Or, i64, i16);
+                atomicrmw_op!(
+                    builder, state, memarg, fcx, backend, region, block, Or, i64, i16
+                );
             }
             Operator::I64AtomicRmw32OrU { ref memarg } => {
-                atomicrmw_op!(builder, state, memarg, fcx, backend, region, block, Or, i64, i32);
+                atomicrmw_op!(
+                    builder, state, memarg, fcx, backend, region, block, Or, i64, i32
+                );
             }
             Operator::I32AtomicRmwXor { ref memarg } => {
-                atomicrmw_op!(builder, state, memarg, fcx, backend, region, block, Xor, i32);
+                atomicrmw_op!(
+                    builder, state, memarg, fcx, backend, region, block, Xor, i32
+                );
             }
             Operator::I64AtomicRmwXor { ref memarg } => {
-                atomicrmw_op!(builder, state, memarg, fcx, backend, region, block, Xor, i64);
+                atomicrmw_op!(
+                    builder, state, memarg, fcx, backend, region, block, Xor, i64
+                );
             }
             Operator::I32AtomicRmw8XorU { ref memarg } => {
-                atomicrmw_op!(builder, state, memarg, fcx, backend, region, block, Xor, i32, i8);
+                atomicrmw_op!(
+                    builder, state, memarg, fcx, backend, region, block, Xor, i32, i8
+                );
             }
             Operator::I32AtomicRmw16XorU { ref memarg } => {
-                atomicrmw_op!(builder, state, memarg, fcx, backend, region, block, Xor, i32, i16);
+                atomicrmw_op!(
+                    builder, state, memarg, fcx, backend, region, block, Xor, i32, i16
+                );
             }
             Operator::I64AtomicRmw8XorU { ref memarg } => {
-                atomicrmw_op!(builder, state, memarg, fcx, backend, region, block, Xor, i64, i8);
+                atomicrmw_op!(
+                    builder, state, memarg, fcx, backend, region, block, Xor, i64, i8
+                );
             }
             Operator::I64AtomicRmw16XorU { ref memarg } => {
-                atomicrmw_op!(builder, state, memarg, fcx, backend, region, block, Xor, i64, i16);
+                atomicrmw_op!(
+                    builder, state, memarg, fcx, backend, region, block, Xor, i64, i16
+                );
             }
             Operator::I64AtomicRmw32XorU { ref memarg } => {
-                atomicrmw_op!(builder, state, memarg, fcx, backend, region, block, Xor, i64, i32);
+                atomicrmw_op!(
+                    builder, state, memarg, fcx, backend, region, block, Xor, i64, i32
+                );
             }
             Operator::I32AtomicRmwXchg { ref memarg } => {
-                atomicrmw_op!(builder, state, memarg, fcx, backend, region, block, Xchg, i32);
+                atomicrmw_op!(
+                    builder, state, memarg, fcx, backend, region, block, Xchg, i32
+                );
             }
             Operator::I64AtomicRmwXchg { ref memarg } => {
-                atomicrmw_op!(builder, state, memarg, fcx, backend, region, block, Xchg, i64);
+                atomicrmw_op!(
+                    builder, state, memarg, fcx, backend, region, block, Xchg, i64
+                );
             }
             Operator::I32AtomicRmw8XchgU { ref memarg } => {
-                atomicrmw_op!(builder, state, memarg, fcx, backend, region, block, Xchg, i32, i8);
+                atomicrmw_op!(
+                    builder, state, memarg, fcx, backend, region, block, Xchg, i32, i8
+                );
             }
             Operator::I32AtomicRmw16XchgU { ref memarg } => {
-                atomicrmw_op!(builder, state, memarg, fcx, backend, region, block, Xchg, i32, i16);
+                atomicrmw_op!(
+                    builder, state, memarg, fcx, backend, region, block, Xchg, i32, i16
+                );
             }
             Operator::I64AtomicRmw8XchgU { ref memarg } => {
-                atomicrmw_op!(builder, state, memarg, fcx, backend, region, block, Xchg, i64, i8);
+                atomicrmw_op!(
+                    builder, state, memarg, fcx, backend, region, block, Xchg, i64, i8
+                );
             }
             Operator::I64AtomicRmw16XchgU { ref memarg } => {
-                atomicrmw_op!(builder, state, memarg, fcx, backend, region, block, Xchg, i64, i16);
+                atomicrmw_op!(
+                    builder, state, memarg, fcx, backend, region, block, Xchg, i64, i16
+                );
             }
             Operator::I64AtomicRmw32XchgU { ref memarg } => {
-                atomicrmw_op!(builder, state, memarg, fcx, backend, region, block, Xchg, i64, i32);
+                atomicrmw_op!(
+                    builder, state, memarg, fcx, backend, region, block, Xchg, i64, i32
+                );
             }
             Operator::I32AtomicRmwCmpxchg { ref memarg } => {
                 atomicrmw_cmpxchg_op!(

@@ -1,8 +1,8 @@
 use melior::ir::BlockRef;
 
 use crate::conversion::builder::OpBuilder;
-use crate::evm::backend::EVMBuilder;
 use crate::evm::EVMCompiler;
+use crate::evm::backend::EVMBuilder;
 
 use super::CtxType;
 

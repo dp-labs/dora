@@ -5,7 +5,7 @@ use crate::call::{CallKind, CallMessage, CallResult};
 use crate::constants::env::DORA_TRACING;
 use crate::constants::gas_cost::MIN_CALLEE_GAS;
 use crate::constants::{
-    gas_cost, CallType, ExtCallType, BLOCK_HASH_HISTORY, CALL_STACK_LIMIT, MAX_STACK_SIZE,
+    BLOCK_HASH_HISTORY, CALL_STACK_LIMIT, CallType, ExtCallType, MAX_STACK_SIZE, gas_cost,
 };
 use crate::db::{Database, DatabaseError};
 use crate::env::{CfgEnv, Env};
@@ -17,10 +17,10 @@ use crate::result::VMError;
 use crate::stack::Stack;
 use crate::wasm::host::gas_limit;
 use crate::wasm::trap::wasm_raise_trap;
-use crate::{gas, symbols, ExitStatusCode};
+use crate::{ExitStatusCode, gas, symbols};
 use dora_primitives::{
-    as_u64_saturated, as_usize_saturated, keccak256, Address, Bytecode, Bytes, Bytes32, Log,
-    LogData, Precompile, PrecompileErrors, PrecompileSpecId, Precompiles, SpecId, B256, U256,
+    Address, B256, Bytecode, Bytes, Bytes32, Log, LogData, Precompile, PrecompileErrors,
+    PrecompileSpecId, Precompiles, SpecId, U256, as_u64_saturated, as_usize_saturated, keccak256,
 };
 
 /// Function type for the EVM main entrypoint of the generated code.
@@ -2171,7 +2171,7 @@ impl RuntimeContext<'_> {
                 return Box::into_raw(Box::new(RuntimeResult::error(
                     ExitStatusCode::FatalExternalError.to_u8(),
                     0,
-                )))
+                )));
             }
         };
         // Populate returndata if execution reverted

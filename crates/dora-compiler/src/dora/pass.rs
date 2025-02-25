@@ -2,7 +2,7 @@ use super::{conversion, storage};
 use crate::errors::Result;
 use dora_primitives::SpecId;
 use dora_runtime::constants::gas_cost::MAX_CODE_SIZE;
-use melior::{ir::Module as MLIRModule, Context};
+use melior::{Context, ir::Module as MLIRModule};
 
 /// Options for configuring a pass, including program-related settings.
 ///

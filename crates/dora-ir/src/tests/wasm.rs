@@ -1,7 +1,7 @@
 use attribute::{StringAttribute, TypeAttribute};
 use melior::dialect::func;
 use melior::ir::r#type::IntegerType;
-use melior::{dialect::DialectRegistry, ir::*, utility::register_all_dialects, Context};
+use melior::{Context, dialect::DialectRegistry, ir::*, utility::register_all_dialects};
 use r#type::FunctionType;
 
 fn init_registry() -> Context {

@@ -6,11 +6,11 @@ use dora::{
     compiler::evm::program::EOF_MAGIC_BYTES,
     primitives::{Address, Bytecode, Bytes, Bytes32, SpecId},
     runtime::{
+        ExitStatusCode,
         artifact::{Artifact, SymbolArtifact},
         call::CallKind,
         context::{Contract, RuntimeContext},
         db::MemoryDB,
-        ExitStatusCode,
     },
 };
 use evmc_declare::evmc_declare_vm;

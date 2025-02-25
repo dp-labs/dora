@@ -1,11 +1,11 @@
+use crate::Compiler;
 use crate::evm::program::Operation;
 use crate::evm::{EVMCompileOptions, EVMCompiler, Program};
 use crate::pass::run;
-use crate::Compiler;
 use crate::{context::Context, dora::storage::STORAGE_MEMORY_MAP_CODE};
 use dora_primitives::config::OptimizationLevel;
-use melior::ir::Module;
 use melior::ExecutionEngine;
+use melior::ir::Module;
 use num_bigint::BigUint;
 
 macro_rules! assert_snapshot {

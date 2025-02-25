@@ -1,6 +1,6 @@
 use crate::errors::Result;
 use melior::ir::operation::OperationRef;
-use mlir_sys::{mlirOperationWalk, MlirOperation, MlirWalkOrder_MlirWalkPreOrder};
+use mlir_sys::{MlirOperation, MlirWalkOrder_MlirWalkPreOrder, mlirOperationWalk};
 use std::ffi::c_void;
 
 pub type WalkFn<'c> = Box<dyn FnMut(OperationRef<'_, '_>) -> Result<()> + 'c>;

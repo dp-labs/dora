@@ -14,22 +14,22 @@ use crate::{
     gas_or_fail, if_here, maybe_revert_here, operands, rewrite_ctx, u256_to_u64,
 };
 use dora_primitives::SpecId;
-use dora_runtime::constants::CallType;
-use dora_runtime::constants::{gas_cost, ExtCallType};
-use dora_runtime::symbols;
 use dora_runtime::ExitStatusCode;
+use dora_runtime::constants::CallType;
+use dora_runtime::constants::{ExtCallType, gas_cost};
+use dora_runtime::symbols;
 use melior::{
+    Context,
     dialect::{
         arith, func,
         llvm::{self, LoadStoreOptions},
         ods, scf,
     },
     ir::{
+        Block, Region, Value,
         attribute::{FlatSymbolRefAttribute, IntegerAttribute, TypeAttribute},
         operation::OperationRef,
-        Block, Region, Value,
     },
-    Context,
 };
 use num_bigint::BigUint;
 use std::mem::offset_of;

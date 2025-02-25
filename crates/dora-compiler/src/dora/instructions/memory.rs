@@ -8,17 +8,17 @@ use crate::{
     operands, rewrite_ctx,
 };
 use crate::{gas_or_fail, if_here, u256_to_u64};
-use dora_runtime::{symbols, ExitStatusCode};
+use dora_runtime::{ExitStatusCode, symbols};
 use melior::dialect::func;
 use melior::ir::attribute::FlatSymbolRefAttribute;
 use melior::{
+    Context,
     dialect::{
         arith,
         llvm::{self, LoadStoreOptions},
         ods,
     },
-    ir::{attribute::IntegerAttribute, operation::OperationRef, r#type::IntegerType, Block},
-    Context,
+    ir::{Block, attribute::IntegerAttribute, operation::OperationRef, r#type::IntegerType},
 };
 
 impl ConversionPass<'_> {

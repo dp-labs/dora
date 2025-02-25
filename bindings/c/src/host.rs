@@ -1,14 +1,14 @@
 // Copyright 2024 The Dora Authors.
 // Licensed under the Apache License, Version 2.0.
 
-use dora::primitives::{as_u64_saturated, Address, Bytes, Bytes32, Log, B256, U256};
+use dora::SpecId;
+use dora::primitives::{Address, B256, Bytes, Bytes32, Log, U256, as_u64_saturated};
 use dora::runtime::call::{CallMessage, CallResult};
 use dora::runtime::env::{BlobExcessGasAndPrice, BlockEnv, CfgEnv, Env, TxEnv};
 use dora::runtime::host::{
     AccountLoad, CodeLoad, Host, SStoreResult, SStoreStatus, SelfdestructResult, StateLoad,
 };
 use dora::runtime::result::VMError;
-use dora::SpecId;
 use evmc_sys::{evmc_access_status, evmc_address, evmc_bytes32, evmc_storage_status};
 use evmc_vm::{ExecutionContext, ExecutionMessage};
 use std::mem::transmute;

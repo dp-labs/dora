@@ -6,13 +6,13 @@ use crate::{
 };
 use dora_runtime::symbols;
 use melior::{
+    Context,
     dialect::{arith, func, llvm},
     ir::{
         attribute::{FlatSymbolRefAttribute, TypeAttribute},
         operation::OperationRef,
         r#type::IntegerType,
     },
-    Context,
 };
 
 impl ConversionPass<'_> {

@@ -1,7 +1,7 @@
 use melior::{
+    Context, Error,
     ir::Module,
     pass::{self, PassManager},
-    Context, Error,
 };
 
 /// Executes a series of optimization and conversion passes on the given [`MLIR`][melior] module.

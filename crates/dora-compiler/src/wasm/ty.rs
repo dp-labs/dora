@@ -2,11 +2,11 @@ use crate::context::Context;
 
 use super::intrinsics::WASMIntrinsics;
 use melior::{
-    ir::{
-        attribute::{FloatAttribute, IntegerAttribute, TypeAttribute},
-        Attribute,
-    },
     Context as MLIRContext,
+    ir::{
+        Attribute,
+        attribute::{FloatAttribute, IntegerAttribute, TypeAttribute},
+    },
 };
 use wasmer_types::{FunctionType, Type};
 

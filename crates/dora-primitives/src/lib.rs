@@ -5,13 +5,14 @@ pub use revm::precompile::{
     Precompile, PrecompileErrors, PrecompileOutput, PrecompileSpecId, Precompiles,
 };
 pub use revm::primitives::{
-    address, alloy_primitives, b256, calc_blob_gasprice, calc_excess_blob_gas, eip7702,
+    Address, Authorization, AuthorizationList, B256, Bytecode as EVMBytecode, Bytes,
+    EOF_MAGIC_BYTES, EvmStorageSlot, FixedBytes, GAS_PER_BLOB, I256, KECCAK_EMPTY, Log, LogData,
+    RecoveredAuthority, RecoveredAuthorization, SignedAuthorization, SpecId, U256, address,
+    alloy_primitives, b256, calc_blob_gasprice, calc_excess_blob_gas, eip7702,
     eof::{Eof, EofBody, TypesSection},
     fixed_bytes,
     hex::{FromHex, ToHexExt},
-    keccak256, uint, Address, Authorization, AuthorizationList, Bytecode as EVMBytecode, Bytes,
-    EvmStorageSlot, FixedBytes, Log, LogData, RecoveredAuthority, RecoveredAuthorization,
-    SignedAuthorization, SpecId, B256, EOF_MAGIC_BYTES, GAS_PER_BLOB, I256, KECCAK_EMPTY, U256,
+    keccak256, uint,
 };
 
 pub mod config;
@@ -461,7 +462,7 @@ impl Bytes32 {
     #[inline]
     pub fn copy_from(&mut self, value: &Address) {
         let mut buffer = [0u8; 32];
-        buffer[12..32].copy_from_slice(&value.0 .0);
+        buffer[12..32].copy_from_slice(&value.0.0);
         *self = Bytes32::from_be_bytes(buffer);
     }
 

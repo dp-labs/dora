@@ -1,8 +1,8 @@
 //! This test checks result status and gas costs
 
-use dora_compiler::evm::{program::Operation, Program};
+use dora_compiler::evm::{Program, program::Operation};
 use dora_primitives::{
-    spec::SpecId, Address, Bytes, Bytes32, Eof, EofBody, Log, LogData, B256, U256,
+    Address, B256, Bytes, Bytes32, Eof, EofBody, Log, LogData, U256, spec::SpecId,
 };
 use dora_runtime::constants::MAX_STACK_SIZE;
 

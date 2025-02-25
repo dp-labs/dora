@@ -6,6 +6,7 @@ use std::{
 use dora_primitives::{SpecId, U256};
 
 use crate::{
+    ExitStatusCode,
     account::Account,
     call::{CallKind, CallMessage, CallResult},
     constants::env::DORA_TRACING,
@@ -17,7 +18,6 @@ use crate::{
         SuccessReason, VMError,
     },
     transaction::TransactionType,
-    ExitStatusCode,
 };
 
 /// EVM/WASM instance containing internal VM context and run actions

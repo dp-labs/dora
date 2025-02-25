@@ -2,7 +2,7 @@
 
 use core::{f32, f64};
 
-use crate::{build_wasm_artifact, MemoryDB, WASMCompileOptions};
+use crate::{MemoryDB, WASMCompileOptions, build_wasm_artifact};
 use anyhow::Result;
 #[cfg(target_os = "linux")]
 use hex_literal::hex;
@@ -4338,9 +4338,9 @@ fn test_wasm_console() -> Result<()> {
 fn test_wasm_counter_contract() -> Result<()> {
     let code = include_bytes!("../../../dora-compiler/src/wasm/tests/suites/counter.wat");
     build_wasm_code!(code, artifact);
-    use alloy_sol_types::{sol, SolCall};
-    use dora_primitives::U256;
     use ICounter::{numberCall, setNumberCall};
+    use alloy_sol_types::{SolCall, sol};
+    use dora_primitives::U256;
 
     sol! {
         interface ICounter  {
@@ -4393,10 +4393,10 @@ fn test_wasm_counter_contract() -> Result<()> {
 fn test_wasm_erc20_contract() -> Result<()> {
     let code = include_bytes!("../../../dora-compiler/src/wasm/tests/suites/erc20.wat");
     build_wasm_code!(code, artifact);
-    use alloy_sol_types::{sol, SolCall};
-    use dora_primitives::U256;
     use IErc20::{nameCall, symbolCall};
     use IStylusTestToken::{burnCall, mintCall};
+    use alloy_sol_types::{SolCall, sol};
+    use dora_primitives::U256;
 
     sol! {
         interface IErc20  {

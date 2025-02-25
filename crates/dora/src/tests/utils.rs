@@ -1,15 +1,15 @@
 use std::sync::Arc;
 
-use dora_compiler::evm::{program::Operation, Program};
+use dora_compiler::evm::{Program, program::Operation};
 use dora_primitives::{
-    spec::SpecId, Address, Bytecode, Bytes, Bytes32, EVMBytecode, Eof, Log, U256,
+    Address, Bytecode, Bytes, Bytes32, EVMBytecode, Eof, Log, U256, spec::SpecId,
 };
 use dora_runtime::{
+    ExitStatusCode,
     context::{Contract, RuntimeContext},
     db::MemoryDB,
     env::{Env, TxKind},
     host::{DummyHost, Host},
-    ExitStatusCode,
 };
 use num_bigint::{BigInt, BigUint};
 

@@ -1,20 +1,21 @@
 use attribute::IntegerAttribute;
 use melior::{
-    dialect::{arith, func, DialectHandle, DialectRegistry},
+    Context, ContextRef,
+    dialect::{DialectHandle, DialectRegistry, arith, func},
     ir::{
+        Identifier, Module, OperationRef,
         attribute::{StringAttribute, TypeAttribute},
         r#type::TypeId,
-        Identifier, Module, OperationRef, *,
+        *,
     },
-    pass::{create_external, ExternalPass, Pass, PassManager, RunExternalPass},
+    pass::{ExternalPass, Pass, PassManager, RunExternalPass, create_external},
     utility::{register_all_dialects, register_all_llvm_translations},
-    Context, ContextRef,
 };
 use r#type::{FunctionType, IntegerType};
 
 use crate::conversion::{
     builder::OpBuilder,
-    rewriter::{replace_op, DeferredRewriter, Replacer, Rewriter},
+    rewriter::{DeferredRewriter, Replacer, Rewriter, replace_op},
     walker::walk_operation,
 };
 

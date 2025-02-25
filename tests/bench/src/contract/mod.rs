@@ -1,4 +1,4 @@
-use dora_primitives::{keccak256, Address, B256, I256, U256};
+use dora_primitives::{Address, B256, I256, U256, keccak256};
 use ruint::aliases::U160;
 
 pub mod erc20;

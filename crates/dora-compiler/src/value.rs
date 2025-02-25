@@ -1,6 +1,5 @@
 use melior::ir::operation::OperationRefMut;
-use melior::ir::{operation::OperationResult, Value};
-use melior::ir::{OperationRef, ValueLike};
+use melior::ir::{OperationRef, Value, ValueLike, operation::OperationResult};
 
 /// The `ToContextValue` trait defines an interface for converting a value's lifetime
 /// from a short-lived lifetime (`'_`) to a longer lifetime (`'c`), which corresponds
