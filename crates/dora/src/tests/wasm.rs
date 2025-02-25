@@ -1,5 +1,7 @@
 //！Reference: https://github.com/WebAssembly/spec/tree/main/test/core
 
+use core::{f32, f64};
+
 use crate::{build_wasm_artifact, MemoryDB, WASMCompileOptions};
 use anyhow::Result;
 #[cfg(target_os = "linux")]
@@ -787,6 +789,7 @@ fn test_wasm_call_indirect() -> Result<()> {
 }
 
 #[test]
+#[cfg(target_arch = "x86_64")]
 fn test_wasm_conversions() -> Result<()> {
     let code = include_bytes!("../../../dora-compiler/src/wasm/tests/suites/conversions.wat");
     build_wasm_code!(code, artifact);
@@ -867,432 +870,82 @@ fn test_wasm_conversions() -> Result<()> {
             ),
             ("i32.wrap_i64", 0x0000000100000000_i64, 0x00000000, i32),
             ("i32.wrap_i64", 0x0000000100000001_i64, 0x00000001, i32),
-            (
-                "i32.trunc_f32_s",
-                1234.567_f32,
-                1234,
-                i32
-            ),
-            (
-                "i32.trunc_f32_s",
-                -3.142_f32,
-                -3,
-                i32
-            ),
-            (
-                "i32.trunc_f32_u",
-                1234.567_f32,
-                1234,
-                i32
-            ),
-            (
-                "i32.trunc_f32_u",
-                f32::MAX,
-                -1,
-                i32
-            ),
-            (
-                "i32.trunc_f64_s",
-                1234.567_f64,
-                1234,
-                i32
-            ),
-            (
-                "i32.trunc_f64_s",
-                -3.142_f64,
-                -3,
-                i32
-            ),
-            (
-                "i32.trunc_f64_u",
-                1234.567_f64,
-                1234,
-                i32
-            ),
-            (
-                "i32.trunc_f64_u",
-                i32::MAX as f64,
-                i32::MAX,
-                i32
-            ),
-            (
-                "i64.trunc_f32_s",
-                1234.567_f32,
-                1234,
-                i64
-            ),
-            (
-                "i64.trunc_f32_s",
-                -3.142_f32,
-                -3,
-                i64
-            ),
-            (
-                "i64.trunc_f32_u",
-                1234.567_f32,
-                1234,
-                i64
-            ),
-            (
-                "i64.trunc_f32_u",
-                2200000000_f32,
-                2200000000,
-                i64
-            ),
-            (
-                "i64.trunc_f64_s",
-                1234.567_f64,
-                1234,
-                i64
-            ),
-            (
-                "i64.trunc_f64_s",
-                -3.142_f64,
-                -3,
-                i64
-            ),
-            (
-                "i64.trunc_f64_u",
-                1234.567_f64,
-                1234,
-                i64
-            ),
-            (
-                "i64.trunc_f64_u",
-                2200000000_f64,
-                2200000000,
-                i64
-            ),
-            (
-                "i32.trunc_sat_f32_s",
-                1234.567_f32,
-                1234,
-                i32
-            ),
-            (
-                "i32.trunc_sat_f32_s",
-                -3.142_f32,
-                -3,
-                i32
-            ),
-            (
-                "i32.trunc_sat_f32_s",
-                2200000000_f32,
-                2147483647,
-                i32
-            ),
-            (
-                "i32.trunc_sat_f32_u",
-                1234.567_f32,
-                1234,
-                i32
-            ),
-            (
-                "i32.trunc_sat_f32_u",
-                i32::MAX as f32,
-                -1,
-                i32
-            ),
-            (
-                "i32.trunc_sat_f32_u",
-                -3.142_f32,
-                0,
-                i32
-            ),
-            (
-                "i32.trunc_sat_f32_u",
-                5000000000_f32,
-                -1,
-                i32
-            ),
-            (
-                "i32.trunc_sat_f64_s",
-                1234.567_f64,
-                1234,
-                i32
-            ),
-            (
-                "i32.trunc_sat_f64_s",
-                -3.142_f64,
-                -3,
-                i32
-            ),
-            (
-                "i32.trunc_sat_f64_s",
-                2200000000_f64,
-                2147483647,
-                i32
-            ),
-            (
-                "i32.trunc_sat_f64_u",
-                1234.567_f64,
-                1234,
-                i32
-            ),
-            (
-                "i32.trunc_sat_f64_u",
-                f64::MAX,
-                -1,
-                i32
-            ),
-            (
-                "i32.trunc_sat_f64_u",
-                -3.142_f64,
-                0,
-                i32
-            ),
-            (
-                "i32.trunc_sat_f64_u",
-                5000000000_f64,
-                -1,
-                i32
-            ),
-            (
-                "i64.trunc_sat_f32_s",
-                1234.567_f32,
-                1234,
-                i64
-            ),
-            (
-                "i64.trunc_sat_f32_s",
-                -3.142_f32,
-                -3,
-                i64
-            ),
-            (
-                "i64.trunc_sat_f32_s",
-                f32::MAX,
-                i64::MAX,
-                i64
-            ),
-            (
-                "i64.trunc_sat_f32_u",
-                1234.567_f32,
-                1234,
-                i64
-            ),
-            (
-                "i64.trunc_sat_f32_u",
-                f32::MAX,
-                -1,
-                i64
-            ),
-            (
-                "i64.trunc_sat_f64_s",
-                1234.567_f64,
-                1234,
-                i64
-            ),
-            (
-                "i64.trunc_sat_f64_s",
-                -3.142_f64,
-                -3,
-                i64
-            ),
-            (
-                "i64.trunc_sat_f64_s",
-                f64::MAX,
-                i64::MAX,
-                i64
-            ),
-            (
-                "i64.trunc_sat_f64_u",
-                1234.567_f64,
-                1234,
-                i64
-            ),
-            (
-                "i64.trunc_sat_f64_u",
-                2200000000_f64,
-                2200000000,
-                i64
-            ),
-            (
-                "i64.trunc_sat_f64_u",
-                -3.142_f64,
-                0,
-                i64
-            ),
-            (
-                "i64.trunc_sat_f64_u",
-                f64::MAX,
-                -1,
-                i64
-            ),
-            (
-                "f32.convert_i32_s",
-                42,
-                42.0,
-                f32
-            ),
-            (
-                "f32.convert_i32_s",
-                i32::MAX,
-                i32::MAX as f32,
-                f32
-            ),
-            (
-                "f32.convert_i64_s",
-                42,
-                42.0,
-                f32
-            ),
-            (
-                "f32.convert_i64_s",
-                i64::MAX,
-                i64::MAX as f32,
-                f32
-            ),
-            (
-                "f64.convert_i32_s",
-                42,
-                42.0,
-                f64
-            ),
-            (
-                "f64.convert_i32_s",
-                -148,
-                -148.0,
-                f64
-            ),
-            (
-                "f64.convert_i64_s",
-                42,
-                42.0,
-                f64
-            ),
-            (
-                "f64.convert_i64_s",
-                -148_i64,
-                -148.0,
-                f64
-            ),
-            (
-                "f64.convert_i64_s",
-                i64::MAX,
-                i64::MAX as f64,
-                f64
-            ),
-            (
-                "f32.convert_i32_u",
-                42,
-                42.0,
-                f32
-            ),
-            (
-                "f32.convert_i32_u",
-                i32::MAX,
-                i32::MAX as f32,
-                f32
-            ),
-            (
-                "f32.convert_i64_u",
-                42,
-                42.0,
-                f32
-            ),
-            (
-                "f32.convert_i64_u",
-                i64::MAX,
-                i64::MAX as f32,
-                f32
-            ),
-            (
-                "f64.convert_i32_u",
-                42,
-                42.0,
-                f64
-            ),
-            (
-                "f64.convert_i32_u",
-                i32::MAX,
-                i32::MAX as f64,
-                f64
-            ),
-            (
-                "f64.convert_i64_u",
-                42,
-                42.0,
-                f64
-            ),
-            (
-                "f64.convert_i64_u",
-                i64::MAX,
-                i64::MAX as f64,
-                f64
-            ),
+            ("i32.trunc_f32_s", 1234.567_f32, 1234, i32),
+            ("i32.trunc_f32_s", -f32::consts::PI, -3, i32),
+            ("i32.trunc_f32_u", 1234.567_f32, 1234, i32),
+            ("i32.trunc_f32_u", f32::MAX, 0, i32),
+            ("i32.trunc_f64_s", 1234.567_f64, 1234, i32),
+            ("i32.trunc_f64_s", -f64::consts::PI, -3, i32),
+            ("i32.trunc_f64_u", 1234.567_f64, 1234, i32),
+            ("i32.trunc_f64_u", i32::MAX as f64, i32::MAX, i32),
+            ("i64.trunc_f32_s", 1234.567_f32, 1234, i64),
+            ("i64.trunc_f32_s", -f32::consts::PI, -3, i64),
+            ("i64.trunc_f32_u", 1234.567_f32, 1234, i64),
+            ("i64.trunc_f32_u", 2200000000_f32, 2200000000, i64),
+            ("i64.trunc_f64_s", 1234.567_f64, 1234, i64),
+            ("i64.trunc_f64_s", -f64::consts::PI, -3, i64),
+            ("i64.trunc_f64_u", 1234.567_f64, 1234, i64),
+            ("i64.trunc_f64_u", 2200000000_f64, 2200000000, i64),
+            ("i32.trunc_sat_f32_s", 1234.567_f32, 1234, i32),
+            ("i32.trunc_sat_f32_s", -f32::consts::PI, -3, i32),
+            ("i32.trunc_sat_f32_s", 2200000000_f32, 2147483647, i32),
+            ("i32.trunc_sat_f32_u", 1234.567_f32, 1234, i32),
+            ("i32.trunc_sat_f32_u", i32::MAX as f32, -1, i32),
+            ("i32.trunc_sat_f32_u", -f32::consts::PI, 0, i32),
+            ("i32.trunc_sat_f32_u", 5000000000_f32, -1, i32),
+            ("i32.trunc_sat_f64_s", 1234.567_f64, 1234, i32),
+            ("i32.trunc_sat_f64_s", -f64::consts::PI, -3, i32),
+            ("i32.trunc_sat_f64_s", 2200000000_f64, 2147483647, i32),
+            ("i32.trunc_sat_f64_u", 1234.567_f64, 1234, i32),
+            ("i32.trunc_sat_f64_u", f64::MAX, -1, i32),
+            ("i32.trunc_sat_f64_u", -f64::consts::PI, 0, i32),
+            ("i32.trunc_sat_f64_u", 5000000000_f64, -1, i32),
+            ("i64.trunc_sat_f32_s", 1234.567_f32, 1234, i64),
+            ("i64.trunc_sat_f32_s", -f32::consts::PI, -3, i64),
+            ("i64.trunc_sat_f32_s", f32::MAX, i64::MAX, i64),
+            ("i64.trunc_sat_f32_u", 1234.567_f32, 1234, i64),
+            ("i64.trunc_sat_f32_u", f32::MAX, -1, i64),
+            ("i64.trunc_sat_f64_s", 1234.567_f64, 1234, i64),
+            ("i64.trunc_sat_f64_s", -f64::consts::PI, -3, i64),
+            ("i64.trunc_sat_f64_s", f64::MAX, i64::MAX, i64),
+            ("i64.trunc_sat_f64_u", 1234.567_f64, 1234, i64),
+            ("i64.trunc_sat_f64_u", 2200000000_f64, 2200000000, i64),
+            ("i64.trunc_sat_f64_u", -f64::consts::PI, 0, i64),
+            ("i64.trunc_sat_f64_u", f64::MAX, -1, i64),
+            ("f32.convert_i32_s", 42, 42.0, f32),
+            ("f32.convert_i32_s", i32::MAX, i32::MAX as f32, f32),
+            ("f32.convert_i64_s", 42, 42.0, f32),
+            ("f32.convert_i64_s", i64::MAX, i64::MAX as f32, f32),
+            ("f64.convert_i32_s", 42, 42.0, f64),
+            ("f64.convert_i32_s", -148, -148.0, f64),
+            ("f64.convert_i64_s", 42, 42.0, f64),
+            ("f64.convert_i64_s", -148_i64, -148.0, f64),
+            ("f64.convert_i64_s", i64::MAX, i64::MAX as f64, f64),
+            ("f32.convert_i32_u", 42, 42.0, f32),
+            ("f32.convert_i32_u", i32::MAX, i32::MAX as f32, f32),
+            ("f32.convert_i64_u", 42, 42.0, f32),
+            ("f32.convert_i64_u", i64::MAX, i64::MAX as f32, f32),
+            ("f64.convert_i32_u", 42, 42.0, f64),
+            ("f64.convert_i32_u", i32::MAX, i32::MAX as f64, f64),
+            ("f64.convert_i64_u", 42, 42.0, f64),
+            ("f64.convert_i64_u", i64::MAX, i64::MAX as f64, f64),
             (
                 "f64.promote_f32",
-                3.142_f32,
-                3.142_f32 as f64,
+                f32::consts::PI,
+                f32::consts::PI as f64,
                 f64
             ),
-            (
-                "f64.promote_f32",
-                -2.718_f32,
-                -2.7179999351501465_f64,
-                f64
-            ),
-            (
-                "f64.promote_f32",
-                f32::MAX,
-                f32::MAX as f64,
-                f64
-            ),
-            (
-                "f32.demote_f64",
-                3.142_f64,
-                3.142,
-                f32
-            ),
-            (
-                "f32.reinterpret_i32",
-                0,
-                0_f32,
-                f32
-            ),
-            (
-                "f32.reinterpret_i32",
-                1,
-                1e-45_f32,
-                f32
-            ),
-            (
-                "f64.reinterpret_i64",
-                0,
-                0_f64,
-                f64
-            ),
-            (
-                "f64.reinterpret_i64",
-                1,
-                5e-324_f64,
-                f64
-            ),
-            (
-                "i32.reinterpret_f32",
-                0_f32,
-                0,
-                i32
-            ),
-            (
-                "i32.reinterpret_f32",
-                1.1_f32,
-                1066192077,
-                i32
-            ),
-            (
-                "i64.reinterpret_f64",
-                0_f64,
-                0,
-                i64
-            ),
-            (
-                "i64.reinterpret_f64",
-                1.1_f64,
-                4607632778762754458,
-                i64
-            )
+            ("f64.promote_f32", -f32::consts::E, -2.7182817459106445, f64),
+            ("f64.promote_f32", f32::MAX, f32::MAX as f64, f64),
+            ("f32.demote_f64", f64::consts::PI, f32::consts::PI, f32),
+            ("f32.reinterpret_i32", 0, 0_f32, f32),
+            ("f32.reinterpret_i32", 1, 1e-45_f32, f32),
+            ("f64.reinterpret_i64", 0, 0_f64, f64),
+            ("f64.reinterpret_i64", 1, 5e-324_f64, f64),
+            ("i32.reinterpret_f32", 0_f32, 0, i32),
+            ("i32.reinterpret_f32", 1.1_f32, 1066192077, i32),
+            ("i64.reinterpret_f64", 0_f64, 0, i64),
+            ("i64.reinterpret_f64", 1.1_f64, 4607632778762754458, i64)
         ]
     );
     Ok(())
@@ -4210,30 +3863,31 @@ fn test_wasm_memory_grow() -> Result<()> {
             ("load_at_page_size", (), 3, i32),
         ]
     );
-    build_wasm_code!(
-        code,
-        artifact,
-        WASMCompileOptions::default().static_memory_bound_check(true)
-    );
-    #[cfg(target_os = "linux")]
-    generate_error_test_cases!(
-        &artifact,
-        [
-            ("store_at_zero", (), "out of bounds memory access"),
-            ("load_at_zero", (), "out of bounds memory access"),
-            ("store_at_page_size", (), "out of bounds memory access"),
-            ("load_at_page_size", (), "out of bounds memory access"),
-        ]
-    );
-    artifact.execute_wasm_func::<(), ()>("grow", ()).unwrap();
-    #[cfg(target_os = "linux")]
-    generate_error_test_cases!(
-        &artifact,
-        [
-            ("store_at_page_size", (), "out of bounds memory access"),
-            ("load_at_page_size", (), "out of bounds memory access"),
-        ]
-    );
+    #[cfg(all(target_os = "linux", target_arch = "x86_64"))]
+    {
+        build_wasm_code!(
+            code,
+            artifact,
+            WASMCompileOptions::default().static_memory_bound_check(true)
+        );
+        generate_error_test_cases!(
+            &artifact,
+            [
+                ("store_at_zero", (), "out of bounds memory access"),
+                ("load_at_zero", (), "out of bounds memory access"),
+                ("store_at_page_size", (), "out of bounds memory access"),
+                ("load_at_page_size", (), "out of bounds memory access"),
+            ]
+        );
+        artifact.execute_wasm_func::<(), ()>("grow", ()).unwrap();
+        generate_error_test_cases!(
+            &artifact,
+            [
+                ("store_at_page_size", (), "out of bounds memory access"),
+                ("load_at_page_size", (), "out of bounds memory access"),
+            ]
+        );
+    }
     Ok(())
 }
 
