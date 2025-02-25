@@ -40,10 +40,12 @@ pub fn walk_operation<'c>(op: OperationRef<'c, 'c>, walk_fn: WalkFn<'c>) -> Resu
     }
 
     unsafe extern "C" fn callback(op: MlirOperation, user_data: *mut c_void) -> u32 {
-        let context = &mut *(user_data as *mut WalkContext);
-        if context.result.is_ok() {
-            let op = OperationRef::from_raw(op);
-            context.result = (context.walk_fn)(op);
+        unsafe {
+            let context = &mut *(user_data as *mut WalkContext);
+            if context.result.is_ok() {
+                let op = OperationRef::from_raw(op);
+                context.result = (context.walk_fn)(op);
+            }
         }
         0
     }

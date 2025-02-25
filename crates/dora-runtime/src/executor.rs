@@ -192,7 +192,9 @@ impl ExecutionEngine {
     /// result in undefined behavior.
     #[inline]
     pub unsafe fn register_symbol(&self, name: &str, ptr: *mut ()) {
-        mlirExecutionEngineRegisterSymbol(*self.raw, StringRef::new(name).to_raw(), ptr as _);
+        unsafe {
+            mlirExecutionEngineRegisterSymbol(*self.raw, StringRef::new(name).to_raw(), ptr as _);
+        }
     }
 }
 

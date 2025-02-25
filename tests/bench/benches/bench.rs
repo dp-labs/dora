@@ -151,7 +151,7 @@ fn run_wasm_bench(c: &mut Criterion, bench: &Bench) {
         ExecuteKind::new_wasm(instance),
     );
     let artifact = SymbolArtifact::new(executor);
-    std::env::set_var(DORA_DISABLE_CONSOLE, "true");
+    unsafe { std::env::set_var(DORA_DISABLE_CONSOLE, "true") };
     g.bench_function("dora", |b| {
         b.iter(|| {
             let mut host = DummyHost::new(env.clone());
