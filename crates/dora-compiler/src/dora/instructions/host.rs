@@ -9,16 +9,16 @@ use crate::{
     load_var, operands, rewrite_ctx, u256_to_u64,
 };
 use crate::{check_runtime_error, ensure_non_staticcall, gas_or_fail, if_here};
-use dora_runtime::symbols;
 use dora_runtime::ExitStatusCode;
+use dora_runtime::symbols;
 use melior::{
+    Context,
     dialect::{arith, func},
     ir::{
+        Block,
         attribute::{FlatSymbolRefAttribute, TypeAttribute},
         operation::OperationRef,
-        Block,
     },
-    Context,
 };
 use std::mem::offset_of;
 
@@ -376,7 +376,7 @@ impl ConversionPass<'_> {
             _ => {
                 return Err(anyhow::anyhow!(CompileError::Codegen(format!(
                     "invalid log topic numbers {num_topics}, expect [0, 4]"
-                ))))
+                ))));
             }
         };
         rewriter.create(func::call(

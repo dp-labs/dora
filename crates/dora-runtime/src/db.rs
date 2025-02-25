@@ -2,7 +2,7 @@ use crate::{
     account::{Account, AccountInfo, AccountStatus, EMPTY_CODE_HASH},
     artifact::{Artifact, SymbolArtifact},
 };
-use dora_primitives::{keccak256, Address, Bytecode, B256, U256};
+use dora_primitives::{Address, B256, Bytecode, U256, keccak256};
 use rustc_hash::FxHashMap;
 use std::{convert::Infallible, fmt::Debug};
 use thiserror::Error;

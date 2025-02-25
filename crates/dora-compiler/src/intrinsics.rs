@@ -1,10 +1,10 @@
 use crate::context::Context;
+use melior::Context as MLIRContext;
 use melior::dialect::llvm::r#type::{pointer, void};
 use melior::ir::{
-    r#type::{IntegerType, Type},
     Location,
+    r#type::{IntegerType, Type},
 };
-use melior::Context as MLIRContext;
 
 /// The `Intrinsics` struct defines a collection of fundamental types and locations used
 /// within an MLIR context. These intrinsic types are commonly used in MLIR operations and

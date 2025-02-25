@@ -4,7 +4,7 @@ use std::fmt::{self, Debug};
 
 use crate::db::{DbAccount, StorageSlot};
 use bitflags::bitflags;
-use dora_primitives::{b256, Bytecode, SpecId, B256, U256};
+use dora_primitives::{B256, Bytecode, SpecId, U256, b256};
 use rustc_hash::FxHashMap;
 
 /// Keccak256 hash of an empty bytecode.

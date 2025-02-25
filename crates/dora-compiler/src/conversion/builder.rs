@@ -4,10 +4,11 @@ use crate::intrinsics::Intrinsics;
 use crate::value::{IntoContextOperation, ToContextValue};
 use anyhow::bail;
 use dora_ir::IRTypes;
+use melior::Context as MLIRContext;
 use melior::dialect::arith::CmpiPredicate;
+use melior::dialect::llvm::AllocaOptions;
 use melior::dialect::llvm::attributes::Linkage;
 use melior::dialect::llvm::r#type::r#struct;
-use melior::dialect::llvm::AllocaOptions;
 use melior::dialect::{arith, func, llvm};
 use melior::ir::attribute::{
     DenseI32ArrayAttribute, FlatSymbolRefAttribute, FloatAttribute, IntegerAttribute,
@@ -19,7 +20,6 @@ use melior::ir::{
     Attribute, BlockRef, Identifier, Location, Operation, OperationRef, Region, Type, TypeLike,
     Value, ValueLike,
 };
-use melior::Context as MLIRContext;
 use mlir_sys::{mlirIntegerTypeGetWidth, mlirOperationGetBlock, mlirOperationGetLocation};
 use num_bigint::{BigInt, BigUint};
 

@@ -1,6 +1,6 @@
 use dora_primitives::{Bytecode, Bytes, Eof, EofBody};
 use num_bigint::BigUint;
-pub use revmc::{op_info_map, OpcodeInfo};
+pub use revmc::{OpcodeInfo, op_info_map};
 use rustc_hash::FxHashMap;
 use std::fmt;
 use std::sync::Arc;

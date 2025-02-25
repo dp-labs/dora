@@ -1,4 +1,4 @@
-use dora_primitives::{fixed_bytes, keccak256, uint, Address, FixedBytes, ToHexExt, B256, U256};
+use dora_primitives::{Address, B256, FixedBytes, ToHexExt, U256, fixed_bytes, keccak256, uint};
 use dora_runtime::{account::AccountStatus, db::DbAccount};
 use rustc_hash::FxHashMap;
 

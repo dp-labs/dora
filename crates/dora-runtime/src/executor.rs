@@ -4,11 +4,11 @@ use crate::constants::MAIN_ENTRYPOINT;
 use crate::context::{EVMMainFunc, RuntimeContext, WASMMainFunc};
 use crate::wasm::WASMInstance;
 use dora_primitives::config::OptimizationLevel;
-use melior::ir::Module;
 use melior::StringRef;
+use melior::ir::Module;
 use mlir_sys::{
-    mlirExecutionEngineCreate, mlirExecutionEngineDestroy, mlirExecutionEngineLookup,
-    mlirExecutionEngineRegisterSymbol, MlirExecutionEngine,
+    MlirExecutionEngine, mlirExecutionEngineCreate, mlirExecutionEngineDestroy,
+    mlirExecutionEngineLookup, mlirExecutionEngineRegisterSymbol,
 };
 use parking_lot::RwLock;
 use std::fmt::Debug;
@@ -192,7 +192,9 @@ impl ExecutionEngine {
     /// result in undefined behavior.
     #[inline]
     pub unsafe fn register_symbol(&self, name: &str, ptr: *mut ()) {
-        mlirExecutionEngineRegisterSymbol(*self.raw, StringRef::new(name).to_raw(), ptr as _);
+        unsafe {
+            mlirExecutionEngineRegisterSymbol(*self.raw, StringRef::new(name).to_raw(), ptr as _);
+        }
     }
 }
 

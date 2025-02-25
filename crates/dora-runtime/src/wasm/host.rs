@@ -9,14 +9,14 @@ use super::{
     errors::{Escape, EscapeResult, MaybeEscape},
     memory::MemoryModel,
 };
+use crate::ExitStatusCode;
 use crate::account::EMPTY_CODE_HASH_BYTES;
 use crate::call::{CallKind, CallMessage, CallResult};
-use crate::constants::env::DORA_DISABLE_CONSOLE;
 use crate::constants::CallType;
+use crate::constants::env::DORA_DISABLE_CONSOLE;
 use crate::context::RuntimeContext;
-use crate::ExitStatusCode;
 use dora_primitives::{
-    as_u64_saturated, keccak256 as native_keccak256, Address, Bytes32, Log, LogData, B256, U256,
+    Address, B256, Bytes32, Log, LogData, U256, as_u64_saturated, keccak256 as native_keccak256,
 };
 use wasmer::{Memory, MemoryAccessError, MemoryView, Pages, StoreMut, WasmPtr};
 
@@ -313,7 +313,7 @@ pub fn block_coinbase(
     let host = HostInfo::from_env(&mut env)?;
     let coinbase =
         with_runtime_context(|runtime_context| runtime_context.host.env().block.coinbase);
-    host.write_slice(dest, &coinbase.0 .0)?;
+    host.write_slice(dest, &coinbase.0.0)?;
     Ok(())
 }
 

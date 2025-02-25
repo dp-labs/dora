@@ -1,7 +1,7 @@
 use melior::{
+    Context as MLIRContext,
     dialect::DialectRegistry,
     utility::{register_all_dialects, register_all_llvm_translations, register_all_passes},
-    Context as MLIRContext,
 };
 use std::path::PathBuf;
 

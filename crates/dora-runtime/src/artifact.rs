@@ -7,10 +7,10 @@ use crate::{
     stack::Stack,
     wasm::context::{set_runtime_context, with_runtime_context},
 };
-use anyhow::{anyhow, Result};
+use anyhow::{Result, anyhow};
 use dora_primitives::SpecId;
 use std::fmt::Debug;
-use std::panic::{catch_unwind, AssertUnwindSafe};
+use std::panic::{AssertUnwindSafe, catch_unwind};
 use wasmer_vm::VMContext;
 
 /// Artifact represents an abstraction of a compilation product for EVM/WASM bytecode.

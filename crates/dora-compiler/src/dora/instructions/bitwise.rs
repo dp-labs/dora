@@ -3,12 +3,12 @@ use crate::{
     errors::Result, operands, rewrite_ctx,
 };
 use melior::{
+    Context,
     dialect::{
         arith::{self, CmpiPredicate},
         llvm, scf,
     },
-    ir::{attribute::StringAttribute, operation::OperationRef, Block, Region, TypeLike, ValueLike},
-    Context,
+    ir::{Block, Region, TypeLike, ValueLike, attribute::StringAttribute, operation::OperationRef},
 };
 use num_bigint::BigUint;
 

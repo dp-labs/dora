@@ -293,9 +293,7 @@ macro_rules! store_var {
             LoadStoreOptions::default(),
         )
     }};
-    ($rewriter:expr, $context:expr, $value:expr, $addr:expr, $location:expr, $extra_options:expr) => {{
-        melior::dialect::llvm::store($context, $value, $addr, $location, $extra_options)
-    }};
+    ($rewriter:expr, $context:expr, $value:expr, $addr:expr, $location:expr, $extra_options:expr) => {{ melior::dialect::llvm::store($context, $value, $addr, $location, $extra_options) }};
 }
 
 /// Macro to implement conditional branching to revert execution based on specified conditions.

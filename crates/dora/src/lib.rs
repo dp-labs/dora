@@ -7,14 +7,14 @@ pub use dora_primitives as primitives;
 pub use dora_runtime as runtime;
 
 pub use dora_compiler::{
+    Compiler,
     context::Context,
     dora,
-    evm::{self, program::Program, EVMCompileOptions, EVMCompiler},
+    evm::{self, EVMCompileOptions, EVMCompiler, program::Program},
     pass,
     wasm::{self, WASMCompileOptions, WASMCompiler},
-    Compiler,
 };
-pub use dora_primitives::{spec::SpecId, Bytecode, Bytes, Bytes32, EVMBytecode, WASMBytecode};
+pub use dora_primitives::{Bytecode, Bytes, Bytes32, EVMBytecode, WASMBytecode, spec::SpecId};
 pub use dora_runtime::executor::{ExecuteKind, Executor};
 pub use dora_runtime::{
     artifact::Artifact,

@@ -9,16 +9,15 @@ use crate::{
 };
 
 use super::constants::{
-    gas_cost::{
-        init_code_cost, MAX_CODE_SIZE, TX_ACCESS_LIST_ADDRESS_COST,
-        TX_ACCESS_LIST_STORAGE_KEY_COST, TX_BASE_COST, TX_CREATE_COST, TX_DATA_COST_PER_NON_ZERO,
-        TX_DATA_COST_PER_ZERO,
-    },
     MAX_BLOB_NUMBER_PER_BLOCK, VERSIONED_HASH_VERSION_KZG,
+    gas_cost::{
+        MAX_CODE_SIZE, TX_ACCESS_LIST_ADDRESS_COST, TX_ACCESS_LIST_STORAGE_KEY_COST, TX_BASE_COST,
+        TX_CREATE_COST, TX_DATA_COST_PER_NON_ZERO, TX_DATA_COST_PER_ZERO, init_code_cost,
+    },
 };
 use super::result::InvalidTransaction;
 use dora_primitives::{
-    calc_blob_gasprice, Address, Bytes, SignedAuthorization, SpecId, B256, GAS_PER_BLOB, U256,
+    Address, B256, Bytes, GAS_PER_BLOB, SignedAuthorization, SpecId, U256, calc_blob_gasprice,
 };
 
 /// Represents the execution environment for the EVM/WASM, including block, transaction, and VM configuration.

@@ -1,19 +1,19 @@
 #![allow(missing_docs)]
 
-use ::dora::{build_artifact, run, Artifact, WASMCompiler};
+use ::dora::{Artifact, WASMCompiler, build_artifact, run};
 use criterion::{
-    criterion_group, criterion_main, measurement::WallTime, BenchmarkGroup, Criterion,
+    BenchmarkGroup, Criterion, criterion_group, criterion_main, measurement::WallTime,
 };
-use dora_bench::benches::{get_benches, Bench};
+use dora_bench::benches::{Bench, get_benches};
 use dora_bench::contract::erc20::ERC20Contract;
 use dora_bench::contract::uniswapv3;
 use dora_compiler::evm::{EVMCompileOptions, Program};
 use dora_compiler::wasm::WASMCompileOptions;
-use dora_compiler::{dora, evm, pass, wasm, Compiler, Context, EVMCompiler};
+use dora_compiler::{Compiler, Context, EVMCompiler, dora, evm, pass, wasm};
 use dora_primitives::{
-    address, fixed_bytes, uint, Address, Bytecode, B256, U256, WASM_MAGIC_BYTES,
+    Address, B256, Bytecode, U256, WASM_MAGIC_BYTES, address, fixed_bytes, uint,
 };
-use dora_primitives::{spec::SpecId, Bytes};
+use dora_primitives::{Bytes, spec::SpecId};
 use dora_runtime::artifact::SymbolArtifact;
 use dora_runtime::constants::env::DORA_DISABLE_CONSOLE;
 use dora_runtime::context::{Contract, RuntimeContext};
@@ -151,7 +151,7 @@ fn run_wasm_bench(c: &mut Criterion, bench: &Bench) {
         ExecuteKind::new_wasm(instance),
     );
     let artifact = SymbolArtifact::new(executor);
-    std::env::set_var(DORA_DISABLE_CONSOLE, "true");
+    unsafe { std::env::set_var(DORA_DISABLE_CONSOLE, "true") };
     g.bench_function("dora", |b| {
         b.iter(|| {
             let mut host = DummyHost::new(env.clone());

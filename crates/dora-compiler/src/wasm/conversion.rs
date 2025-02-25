@@ -1,5 +1,5 @@
 use crate::backend::IntCC;
-use crate::conversion::rewriter::{replace_op, Replacer, Rewriter};
+use crate::conversion::rewriter::{Replacer, Rewriter, replace_op};
 use crate::conversion::walker::walk_operation;
 use crate::errors::Result;
 use crate::value::IntoContextOperation;
@@ -11,12 +11,12 @@ use dora_runtime::constants::{
     LEF64_GEQ_U64_MIN,
 };
 use melior::dialect::{arith, llvm, ods::math};
-use melior::ir::{operation::OperationBuilder, TypeLike, ValueLike};
+use melior::ir::{TypeLike, ValueLike, operation::OperationBuilder};
 use melior::{
-    dialect::DialectHandle,
-    ir::{r#type::TypeId, OperationRef},
-    pass::{create_external, ExternalPass, Pass, RunExternalPass},
     Context, ContextRef,
+    dialect::DialectHandle,
+    ir::{OperationRef, r#type::TypeId},
+    pass::{ExternalPass, Pass, RunExternalPass, create_external},
 };
 use tracing::debug;
 

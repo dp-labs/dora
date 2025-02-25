@@ -10,9 +10,10 @@ use crate::{
     gas_or_fail, operands, rewrite_ctx,
 };
 use dora_primitives::SpecId;
-use dora_runtime::symbols;
 use dora_runtime::ExitStatusCode;
+use dora_runtime::symbols;
 use melior::{
+    Context,
     dialect::{
         arith::{self, CmpfPredicate},
         func,
@@ -20,10 +21,9 @@ use melior::{
         scf,
     },
     ir::{
-        attribute::FlatSymbolRefAttribute, operation::OperationRef, Block, Region, TypeLike,
-        ValueLike,
+        Block, Region, TypeLike, ValueLike, attribute::FlatSymbolRefAttribute,
+        operation::OperationRef,
     },
-    Context,
 };
 use num_bigint::BigInt;
 

@@ -1,6 +1,6 @@
 use crate::errors::Result;
 use melior::ir::operation::OperationRef;
-use mlir_sys::{mlirOperationWalk, MlirOperation, MlirWalkOrder_MlirWalkPreOrder};
+use mlir_sys::{MlirOperation, MlirWalkOrder_MlirWalkPreOrder, mlirOperationWalk};
 use std::ffi::c_void;
 
 pub type WalkFn<'c> = Box<dyn FnMut(OperationRef<'_, '_>) -> Result<()> + 'c>;
@@ -40,10 +40,12 @@ pub fn walk_operation<'c>(op: OperationRef<'c, 'c>, walk_fn: WalkFn<'c>) -> Resu
     }
 
     unsafe extern "C" fn callback(op: MlirOperation, user_data: *mut c_void) -> u32 {
-        let context = &mut *(user_data as *mut WalkContext);
-        if context.result.is_ok() {
-            let op = OperationRef::from_raw(op);
-            context.result = (context.walk_fn)(op);
+        unsafe {
+            let context = &mut *(user_data as *mut WalkContext);
+            if context.result.is_ok() {
+                let op = OperationRef::from_raw(op);
+                context.result = (context.walk_fn)(op);
+            }
         }
         0
     }

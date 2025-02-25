@@ -2,12 +2,12 @@
 use std::{collections::hash_map::Entry, mem};
 
 use crate::{
+    ExitStatusCode,
     account::{Account, EMPTY_CODE_HASH, EMPTY_CODE_HASH_BYTES},
     db::{Database, StorageSlot},
     host::{AccountLoad, CodeLoad, SStoreResult, SStoreSlot, SelfdestructResult, StateLoad},
-    ExitStatusCode,
 };
-use dora_primitives::{keccak256, Address, Bytecode, Bytes, Bytes32, Log, SpecId, B256, U256};
+use dora_primitives::{Address, B256, Bytecode, Bytes, Bytes32, Log, SpecId, U256, keccak256};
 use rustc_hash::{FxHashMap, FxHashSet};
 
 pub type State = FxHashMap<Address, Account>;

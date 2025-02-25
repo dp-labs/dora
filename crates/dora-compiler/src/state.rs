@@ -81,9 +81,9 @@ impl<'c, 'a> ControlFrame<'c, 'a> {
     /// A reference to the next `BasicBlock` for the control flow.
     pub fn code_after(&self) -> &BasicBlock<'c, 'a> {
         match self {
-            ControlFrame::Block { ref next, .. }
-            | ControlFrame::Loop { ref next, .. }
-            | ControlFrame::IfElse { ref next, .. } => next,
+            ControlFrame::Block { next, .. }
+            | ControlFrame::Loop { next, .. }
+            | ControlFrame::IfElse { next, .. } => next,
         }
     }
 
@@ -96,8 +96,8 @@ impl<'c, 'a> ControlFrame<'c, 'a> {
     /// A reference to the branch destination `BasicBlock`.
     pub fn br_dest(&self) -> &BasicBlock<'c, 'a> {
         match self {
-            ControlFrame::Block { ref next, .. } | ControlFrame::IfElse { ref next, .. } => next,
-            ControlFrame::Loop { ref body, .. } => body,
+            ControlFrame::Block { next, .. } | ControlFrame::IfElse { next, .. } => next,
+            ControlFrame::Loop { body, .. } => body,
         }
     }
 
@@ -109,10 +109,8 @@ impl<'c, 'a> ControlFrame<'c, 'a> {
     /// A slice of PHI nodes (`[PhiValue<'c>]`) for the current control frame.
     pub fn phis(&self) -> &[PhiValue<'c>] {
         match self {
-            ControlFrame::Block { ref phis, .. } | ControlFrame::Loop { ref phis, .. } => {
-                phis.as_slice()
-            }
-            ControlFrame::IfElse { ref next_phis, .. } => next_phis.as_slice(),
+            ControlFrame::Block { phis, .. } | ControlFrame::Loop { phis, .. } => phis.as_slice(),
+            ControlFrame::IfElse { next_phis, .. } => next_phis.as_slice(),
         }
     }
 
@@ -126,9 +124,7 @@ impl<'c, 'a> ControlFrame<'c, 'a> {
     pub fn loop_body_phis(&self) -> &[PhiValue<'c>] {
         match self {
             ControlFrame::Block { .. } | ControlFrame::IfElse { .. } => &[],
-            ControlFrame::Loop {
-                ref loop_body_phis, ..
-            } => loop_body_phis.as_slice(),
+            ControlFrame::Loop { loop_body_phis, .. } => loop_body_phis.as_slice(),
         }
     }
 

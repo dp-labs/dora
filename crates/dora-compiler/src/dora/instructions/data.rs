@@ -7,18 +7,18 @@ use crate::{
     errors::Result,
     gas_or_fail, if_here, operands, rewrite_ctx, u256_to_u64,
 };
-use dora_runtime::{symbols, ExitStatusCode};
+use dora_runtime::{ExitStatusCode, symbols};
 use melior::{
+    Context,
     dialect::{
         arith, func,
         llvm::{self, LoadStoreOptions},
         ods, scf,
     },
     ir::{
-        attribute::{FlatSymbolRefAttribute, IntegerAttribute, TypeAttribute},
         Block, OperationRef, Region,
+        attribute::{FlatSymbolRefAttribute, IntegerAttribute, TypeAttribute},
     },
-    Context,
 };
 use num_bigint::BigUint;
 

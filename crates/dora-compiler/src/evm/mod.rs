@@ -1,31 +1,32 @@
 use dora_primitives::SpecId;
-use dora_runtime::constants::env::DORA_TRACING;
 use dora_runtime::ExitStatusCode;
+use dora_runtime::constants::env::DORA_TRACING;
 use dora_runtime::{
     constants::{MAIN_ENTRYPOINT, MAX_STACK_SIZE},
     symbols as runtime_symbols,
 };
 use melior::dialect::llvm::AllocaOptions;
 use melior::{
+    Context as MLIRContext,
     dialect::{
         arith, cf, func,
         llvm::{self, LoadStoreOptions},
     },
     ir::{
+        Attribute, Block, BlockRef, Identifier, Location, Module, Region, Value,
         attribute::{FlatSymbolRefAttribute, IntegerAttribute, StringAttribute, TypeAttribute},
         operation::OperationBuilder,
         r#type::{FunctionType, IntegerType},
-        Attribute, Block, BlockRef, Identifier, Location, Module, Region, Value,
     },
-    Context as MLIRContext,
 };
 use num_bigint::BigUint;
 use program::{stack_io, stack_section_input};
-use revmc::{op_info_map, OpcodeInfo};
+use revmc::{OpcodeInfo, op_info_map};
 use rustc_hash::FxHashMap;
-use std::collections::hash_map::Entry;
 use std::collections::BTreeMap;
+use std::collections::hash_map::Entry;
 
+use crate::Compiler;
 use crate::backend::IntCC;
 use crate::context::Context;
 use crate::conversion::builder::OpBuilder;
@@ -34,7 +35,6 @@ use crate::evm::program::Operation;
 use crate::intrinsics::Intrinsics;
 use crate::module::Module as MLIRModule;
 use crate::value::ToContextValue;
-use crate::Compiler;
 pub mod backend;
 pub(crate) mod conversion;
 pub(crate) mod instructions;

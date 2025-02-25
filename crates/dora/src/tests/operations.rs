@@ -3,7 +3,7 @@ use std::str::FromStr;
 use crate::{run_with_context, tests::INIT_GAS};
 use dora_compiler::evm::program::{Operation, Program};
 use dora_primitives::spec::SpecId;
-use dora_primitives::{Address, Bytecode, Bytes, Bytes32, Eof, EofBody, B256, U256};
+use dora_primitives::{Address, B256, Bytecode, Bytes, Bytes32, Eof, EofBody, U256};
 use dora_runtime::account::EMPTY_CODE_HASH_BYTES;
 use dora_runtime::context::Contract;
 use dora_runtime::env::TxKind;
@@ -1759,7 +1759,7 @@ fn extcodecopy_full() {
         env,
         db,
         SpecId::CANCUN,
-        BigUint::from_bytes_be(&created_address.0 .0),
+        BigUint::from_bytes_be(&created_address.0.0),
     );
 }
 

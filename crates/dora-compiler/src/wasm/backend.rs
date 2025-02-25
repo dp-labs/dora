@@ -6,8 +6,8 @@ use melior::dialect::{
     cf, func,
 };
 use melior::ir::{
-    attribute::FlatSymbolRefAttribute, r#type::IntegerType, BlockRef, OperationRef, Region, Type,
-    TypeLike, Value, ValueLike,
+    BlockRef, OperationRef, Region, Type, TypeLike, Value, ValueLike,
+    attribute::FlatSymbolRefAttribute, r#type::IntegerType,
 };
 
 use crate::conversion::rewriter::Rewriter;

@@ -4,6 +4,7 @@ use crate::errors::{CompileError, Result};
 use crate::value::ToContextValue;
 use dora_ir::IRTypes;
 use dora_runtime::constants::MAX_STACK_SIZE;
+use melior::Context as MLIRContext;
 use melior::dialect::arith::CmpiPredicate;
 use melior::dialect::llvm::LoadStoreOptions;
 use melior::dialect::{arith, cf, func, llvm};
@@ -11,7 +12,6 @@ use melior::ir::attribute::IntegerAttribute;
 use melior::ir::attribute::{DenseI32ArrayAttribute, FlatSymbolRefAttribute, FloatAttribute};
 use melior::ir::{Attribute, Block, BlockRef, Location, OperationRef, Region, ValueLike};
 use melior::ir::{Type, Value};
-use melior::Context as MLIRContext;
 use num_bigint::BigUint;
 
 use super::CtxType;

@@ -11,20 +11,20 @@ use crate::{
     errors::Result,
     gas_or_fail, if_here, load_var, operands, rewrite_ctx, u256_to_u64,
 };
-use dora_runtime::symbols;
 use dora_runtime::ExitStatusCode;
+use dora_runtime::symbols;
 use melior::{
+    Context,
     dialect::{
         arith, func,
         llvm::{self, LoadStoreOptions},
         ods, scf,
     },
     ir::{
+        Block, OperationRef, Region,
         attribute::{FlatSymbolRefAttribute, IntegerAttribute, TypeAttribute},
         r#type::IntegerType,
-        Block, OperationRef, Region,
     },
-    Context,
 };
 use num_bigint::BigUint;
 use std::mem::offset_of;

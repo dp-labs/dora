@@ -7,12 +7,12 @@ use crate::{
     errors::Result,
     if_here, operands, rewrite_ctx, u256_to_u64,
 };
-use dora_runtime::symbols;
 use dora_runtime::ExitStatusCode;
+use dora_runtime::symbols;
 use melior::{
-    dialect::{arith, func},
-    ir::{attribute::FlatSymbolRefAttribute, operation::OperationRef, Block},
     Context,
+    dialect::{arith, func},
+    ir::{Block, attribute::FlatSymbolRefAttribute, operation::OperationRef},
 };
 
 impl ConversionPass<'_> {

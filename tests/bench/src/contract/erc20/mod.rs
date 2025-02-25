@@ -1,5 +1,5 @@
-use alloy_sol_types::{sol, SolCall};
-use dora_primitives::{keccak256, Address, U256};
+use alloy_sol_types::{SolCall, sol};
+use dora_primitives::{Address, U256, keccak256};
 use dora_runtime::{account::AccountStatus, db::DbAccount};
 use ruint::UintTryFrom;
 use rustc_hash::FxHashMap;

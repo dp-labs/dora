@@ -1,16 +1,16 @@
 use crate::{
     conversion::{
         builder::OpBuilder,
-        rewriter::{move_all_ops_before_op, DeferredRewriter},
+        rewriter::{DeferredRewriter, move_all_ops_before_op},
         walker::walk_operation,
     },
     errors::{CompileError, Result},
     value::{IntoContextOperation, ToContextValue},
 };
 use melior::{
-    dialect::{func, scf},
-    ir::{attribute::FlatSymbolRefAttribute, Block, Module, OperationRef, Region, Type},
     Context,
+    dialect::{func, scf},
+    ir::{Block, Module, OperationRef, Region, Type, attribute::FlatSymbolRefAttribute},
 };
 
 pub(crate) const STORAGE_MEMORY_MAP_CODE: &str = include_str!("mlir/storage.mlir");

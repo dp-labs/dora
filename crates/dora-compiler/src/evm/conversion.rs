@@ -4,10 +4,10 @@ use crate::errors::Result;
 use crate::value::IntoContextOperation;
 use dora_ir;
 use melior::{
-    dialect::DialectHandle,
-    ir::{r#type::TypeId, OperationRef},
-    pass::{create_external, ExternalPass, Pass, RunExternalPass},
     Context, ContextRef,
+    dialect::DialectHandle,
+    ir::{OperationRef, r#type::TypeId},
+    pass::{ExternalPass, Pass, RunExternalPass, create_external},
 };
 use tracing::debug;
 

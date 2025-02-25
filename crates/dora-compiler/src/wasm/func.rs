@@ -1,8 +1,8 @@
-use super::backend::{gas_limit, WASMBackend};
+use super::WASMCompileOptions;
+use super::backend::{WASMBackend, gas_limit};
 use super::code::{FunctionCodeCtx, FunctionCodeGenerator};
 use super::intrinsics::CtxType;
 use super::ty::{type_to_mlir, type_to_mlir_zero_attribute};
-use super::WASMCompileOptions;
 use super::{intrinsics::WASMIntrinsics, ty::func_type_to_mlir};
 use crate::context::Context;
 use crate::conversion::builder::OpBuilder;
@@ -15,8 +15,8 @@ use smallvec::SmallVec;
 use wasmer::ExportIndex;
 use wasmer_compiler::types::symbols::{Symbol, SymbolRegistry};
 use wasmer_compiler::{
-    wptype_to_type, FunctionBinaryReader, FunctionBodyData, MiddlewareBinaryReader,
-    ModuleMiddlewareChain, ModuleTranslationState,
+    FunctionBinaryReader, FunctionBodyData, MiddlewareBinaryReader, ModuleMiddlewareChain,
+    ModuleTranslationState, wptype_to_type,
 };
 use wasmer_types::entity::PrimaryMap;
 use wasmer_types::{

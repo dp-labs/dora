@@ -4,10 +4,10 @@ use crate::{
     value::IntoContextOperation,
 };
 use anyhow::bail;
-use melior::ir::{
-    operation::OperationRefMut, Block, BlockRef, Module, Operation, OperationRef, Value, ValueLike,
-};
 use melior::Context as MLIRContext;
+use melior::ir::{
+    Block, BlockRef, Module, Operation, OperationRef, Value, ValueLike, operation::OperationRefMut,
+};
 use mlir_sys::{
     mlirBlockAppendOwnedOperation, mlirBlockGetFirstOperation, mlirOperationGetNextInBlock,
     mlirOperationMoveAfter, mlirOperationRemoveFromParent, mlirValueReplaceAllUsesOfWith,

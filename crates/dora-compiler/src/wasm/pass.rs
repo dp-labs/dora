@@ -1,7 +1,7 @@
 use super::conversion;
 use crate::errors::Result;
 use conversion::ConversionPass;
-use melior::{ir::Module as MLIRModule, Context};
+use melior::{Context, ir::Module as MLIRModule};
 
 /// Define a public function `run` to execute the conversion process.
 ///

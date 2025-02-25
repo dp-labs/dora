@@ -1,8 +1,8 @@
 use std::fmt::Debug;
 
 use melior::{
-    ir::{BlockRef, Location, Module as MLIRModule},
     Context as MLIRContext,
+    ir::{BlockRef, Location, Module as MLIRModule},
 };
 
 /// The `Module` struct encapsulates an MLIR module, representing a top-level container for
