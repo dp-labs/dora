@@ -4484,3 +4484,56 @@ fn test_wasm_erc20_contract() -> Result<()> {
     );
     Ok(())
 }
+
+#[test]
+#[cfg(target_os = "linux")]
+fn test_wasm_interoperability_contract() -> Result<()> {
+    let code = include_bytes!("../../../dora-compiler/src/wasm/tests/suites/interoperability.wat");
+    build_wasm_code!(code, artifact);
+    use IInteroperability::{executeCall, transferEthCall};
+    use alloy_sol_types::{SolCall, sol};
+    use dora_primitives::{Bytes, U256, address};
+
+    sol! {
+        interface IInteroperability  {
+            function execute(address target, bytes calldata data) external view returns (bytes memory);
+            function transferEth(address to, uint256 amount) external view;
+            function mintErc20(address erc20, uint256 value) external view returns (bytes memory);
+        }
+    }
+
+    generate_calldata_test_cases!(
+        &artifact,
+        [
+            // Deploy the contract
+            ("deploy", (), (), (), hex!("")),
+            // No calldata, expect the revert code 1
+            ("call", (), 1, i32, hex!("")),
+            // Wrong function ABI, expect the revert code 1
+            ("call", (), 1, i32, hex!("AABBCCDD")),
+            (
+                "call",
+                (),
+                0,
+                i32,
+                executeCall {
+                    target: address!("1234000000000000000000000000000000000000"),
+                    data: Bytes::default()
+                }
+                .abi_encode()
+            ),
+            (
+                "call",
+                (),
+                0,
+                i32,
+                transferEthCall {
+                    to: address!("1234000000000000000000000000000000000000"),
+                    amount: U256::from(0_u32)
+                }
+                .abi_encode()
+            ),
+        ]
+    );
+    Ok(())
+}
