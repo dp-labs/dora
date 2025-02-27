@@ -355,7 +355,7 @@ impl<'c> WASMCompiler<'c> {
                 "callDelegate" => func!(host::call_delegate),
                 "callStatic" => func!(host::call_static),
                 "createContract" => func!(host::create_contract),
-                "returnDataCopy" => func!(host::return_data_copy),
+                "returnDataCopy" => func!(host::return_data_copy_without_return_size),
                 "callDataCopy" => func!(host::call_data_copy_with_size),
                 "getCallDataSize" => func!(host::call_data_size),
                 "getReturnDataSize" => func!(host::return_data_size),

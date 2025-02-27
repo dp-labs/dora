@@ -828,6 +828,17 @@ pub fn return_data_copy(
     Ok(data.len() as u32)
 }
 
+/// Copies the bytes of the last VM call or deployment return result.
+pub fn return_data_copy_without_return_size(
+    env: WASMEnvMut,
+    dest: GuestPtr, // *mut u8,
+    offset: u32,    // usize,
+    size: u32,      // usize
+) -> MaybeEscape {
+    return_data_copy(env, dest, offset, size)?;
+    Ok(())
+}
+
 /// Copies the contract code into a buffer.
 pub fn external_code_copy(
     env: WASMEnvMut,
@@ -966,11 +977,11 @@ fn intern_call(
         .unwrap_or_else(|_| CallResult::new_with_gas_limit(gas_limit));
     let output_size = call_result.output.len() as u32;
     runtime_context.set_returndata(call_result.output.to_vec());
-    // Check the error message.
-    if call_result.status.is_ok() || call_result.status.is_revert() {
-        Ok((1, output_size))
-    } else {
+    // Check the error message. 0 denotes success, 1 denotes failure.
+    if call_result.status.is_ok() {
         Ok((0, output_size))
+    } else {
+        Ok((1, output_size))
     }
 }
 

@@ -891,3 +891,8 @@ fn table_set() {
 fn table_size() {
     assert_snapshot!(include_str!("suites/table_size.wat"));
 }
+
+#[test]
+fn interoperability_contract() {
+    assert_snapshot!(include_str!("suites/interoperability.wat"));
+}
