@@ -53,3 +53,8 @@ fn align_read_write() {
 fn complex_logic() {
     assert_snapshot!(include_str!("suites/complex_logic.wat"));
 }
+
+#[test]
+fn erc20_contract() {
+    assert_snapshot!(include_str!("suites/erc20.wat"));
+}
