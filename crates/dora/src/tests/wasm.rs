@@ -903,7 +903,10 @@ fn test_wasm_conversions() -> Result<()> {
             ),
             ("i32.wrap_i64", 0x0000000100000000_i64, 0x00000000, i32),
             ("i32.wrap_i64", 0x0000000100000001_i64, 0x00000001, i32),
-            ("i32.trunc_f32_s", 1234.567_f32, 1234, i32),
+            ("i32.trunc_f32_s", 666666.0, 666666, i32),
+            ("i32.trunc_f32_s", 2147483648.0, -2147483648, i32),
+            ("i32.trunc_f32_s", -2147483904.0, -2147483648, i32),
+            ("i32.trunc_f32_s", 1234.567, 1234, i32),
             ("i32.trunc_f32_s", 0.0, 0, i32),
             ("i32.trunc_f32_s", -0.0, 0, i32),
             ("i32.trunc_f32_s" 0x1p-149, 0, i32),
@@ -1542,6 +1545,32 @@ fn test_wasm_conversions() -> Result<()> {
             ("i32.trunc_f32_u", f32::MAX, "integer overflow"),
             ("i32.trunc_f32_s", 2147483648.0_f32, "integer overflow"),
             ("i32.trunc_f32_s", -2147483904.0_f32, "integer overflow"),
+            ("i64.reinterpret_f64", 1.1_f64, 4607632778762754458_i64, i64),
+            ("i64.reinterpret_f64", 0.0_f64, 0_i64, i64),
+            ("i64.reinterpret_f64", -0.0_f64, 0x8000000000000000_i64, i64),
+            (
+                "i64.reinterpret_f64",
+                f64::from_str_radix("0x0.0000000000001p-1022"),
+                1_i64,
+                i64
+            ),
+            ("i64.reinterpret_f64", -nan:0xfffffffffffff_f64, -1_i64, i64),
+            (
+                "i64.reinterpret_f64",
+                f64::from_str_radix("-0x0.0000000000001p-1022"),
+                0x8000000000000001_i64,
+                i64
+            ),
+            ("i64.reinterpret_f64", 1.0_f64, 4607182418800017408, i64),
+            ("i64.reinterpret_f64", 3.14159265358979_f64, 4614256656552045841, i64),
+            ("i64.reinterpret_f64", 0x1.fffffffffffffp+1023_f64, 9218868437227405311, i64),
+            ("i64.reinterpret_f64", -0x1.fffffffffffffp+1023_f64, -4503599627370497, i64),
+            ("i64.reinterpret_f64", inf_f64, 0x7ff0000000000000, i64),
+            ("i64.reinterpret_f64", -inf_f64, 0xfff0000000000000, i64),
+            ("i64.reinterpret_f64", nan_f64, 0x7ff8000000000000, i64),
+            ("i64.reinterpret_f64", -nan_f64, 0xfff8000000000000, i64),
+            ("i64.reinterpret_f64", nan:0x4000000000000_f64, 0x7ff4000000000000, i64),
+            ("i64.reinterpret_f64", -nan:0x4000000000000_f64, 0xfff4000000000000, i64)
         ]
     );
     Ok(())
