@@ -7,8 +7,8 @@ pub use revm::precompile::{
 pub use revm::primitives::{
     Address, Authorization, AuthorizationList, B256, Bytecode as EVMBytecode, Bytes,
     EOF_MAGIC_BYTES, EvmStorageSlot, FixedBytes, GAS_PER_BLOB, I256, KECCAK_EMPTY, Log, LogData,
-    RecoveredAuthority, RecoveredAuthorization, SignedAuthorization, SpecId, U256, address,
-    alloy_primitives, b256, calc_blob_gasprice, calc_excess_blob_gas, eip7702,
+    RecoveredAuthority, RecoveredAuthorization, SignedAuthorization, SpecId, TxKind, TxType, U256,
+    address, alloy_primitives, b256, calc_blob_gasprice, calc_excess_blob_gas, eip7702,
     eof::{Eof, EofBody, TypesSection},
     fixed_bytes,
     hex::{FromHex, ToHexExt},

@@ -67,6 +67,12 @@ impl<'a, DB: Database> VMContext<'a, DB> {
         self.journaled_state.spec_id
     }
 
+    /// Set the configured EVM spec ID.
+    #[inline]
+    pub const fn set_spec_id(&mut self, spec_id: SpecId) {
+        self.journaled_state.spec_id = spec_id
+    }
+
     /// Load access list for berlin hard fork.
     ///
     /// Loading of accounts/storages is needed to make them warm.

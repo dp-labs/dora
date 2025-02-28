@@ -62,7 +62,7 @@ struct Cli {
 
 #[derive(Subcommand)]
 enum Commands {
-    /// Run Dora with given parameters
+    /// Run Dora ether state tests with given parameters
     Run(RunArgs),
 }
 
