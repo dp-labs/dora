@@ -1,7 +1,6 @@
 ---
 source: crates/dora-compiler/src/wasm/tests/code.rs
 expression: op
-snapshot_kind: text
 ---
 module {
   func.func @dummy(%arg0: !llvm.ptr) {
@@ -238,6 +237,8 @@ module {
   func.func @f21(%arg0: !llvm.ptr) -> i32 {
     cf.br ^bb1
   ^bb1:  // pred: ^bb0
+    %c9_i32 = arith.constant 9 : i32
+    call @dora_fn_wasm_raise_trap(%c9_i32) : (i32) -> ()
     "wasm.unreachable"() : () -> ()
   ^bb2(%0: i32):  // no predecessors
     return %0 : i32
@@ -245,6 +246,8 @@ module {
   func.func @f22(%arg0: !llvm.ptr) -> (i32, f64, f32) {
     cf.br ^bb1
   ^bb1:  // pred: ^bb0
+    %c9_i32 = arith.constant 9 : i32
+    call @dora_fn_wasm_raise_trap(%c9_i32) : (i32) -> ()
     "wasm.unreachable"() : () -> ()
   ^bb2(%0: i32, %1: f64, %2: f32):  // no predecessors
     return %0, %1, %2 : i32, f64, f32
@@ -252,6 +255,8 @@ module {
   func.func @f23(%arg0: !llvm.ptr) -> (i32, f64) {
     cf.br ^bb1
   ^bb1:  // pred: ^bb0
+    %c9_i32 = arith.constant 9 : i32
+    call @dora_fn_wasm_raise_trap(%c9_i32) : (i32) -> ()
     "wasm.unreachable"() : () -> ()
   ^bb2(%0: i32, %1: f64):  // no predecessors
     return %0, %1 : i32, f64
@@ -259,6 +264,8 @@ module {
   func.func @f24(%arg0: !llvm.ptr) -> (i32, f32, i64, i32, f64) {
     cf.br ^bb1
   ^bb1:  // pred: ^bb0
+    %c9_i32 = arith.constant 9 : i32
+    call @dora_fn_wasm_raise_trap(%c9_i32) : (i32) -> ()
     "wasm.unreachable"() : () -> ()
   ^bb2(%0: i32, %1: f32, %2: i64, %3: i32, %4: f64):  // no predecessors
     return %0, %1, %2, %3, %4 : i32, f32, i64, i32, f64
@@ -393,6 +400,8 @@ module {
     llvm.store %c0_i32_10, %9 : i32, !llvm.ptr
     cf.br ^bb1
   ^bb1:  // pred: ^bb0
+    %c9_i32 = arith.constant 9 : i32
+    call @dora_fn_wasm_raise_trap(%c9_i32) : (i32) -> ()
     "wasm.unreachable"() : () -> ()
   ^bb2(%10: i32, %11: i64, %12: i32):  // no predecessors
     return %10, %11, %12 : i32, i64, i32
@@ -424,6 +433,8 @@ module {
     llvm.store %c0_i32_6, %5 : i32, !llvm.ptr
     cf.br ^bb1
   ^bb1:  // pred: ^bb0
+    %c9_i32 = arith.constant 9 : i32
+    call @dora_fn_wasm_raise_trap(%c9_i32) : (i32) -> ()
     "wasm.unreachable"() : () -> ()
   ^bb2:  // no predecessors
     return

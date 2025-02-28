@@ -1,7 +1,6 @@
 ---
 source: crates/dora-compiler/src/wasm/tests/code.rs
 expression: op
-snapshot_kind: text
 ---
 module {
   func.func public @"func-unwind-by-unreachable"(%arg0: !llvm.ptr) attributes {llvm.emit_c_interface} {
@@ -9,6 +8,8 @@ module {
   ^bb1:  // pred: ^bb0
     %c3_i32 = arith.constant 3 : i32
     %c1_i64 = arith.constant 1 : i64
+    %c9_i32 = arith.constant 9 : i32
+    call @dora_fn_wasm_raise_trap(%c9_i32) : (i32) -> ()
     "wasm.unreachable"() : () -> ()
   ^bb2:  // no predecessors
     return
@@ -101,6 +102,8 @@ module {
   ^bb1:  // pred: ^bb0
     %c3_i32 = arith.constant 3 : i32
     %c1_i64 = arith.constant 1 : i64
+    %c9_i32 = arith.constant 9 : i32
+    call @dora_fn_wasm_raise_trap(%c9_i32) : (i32) -> ()
     "wasm.unreachable"() : () -> ()
   ^bb2:  // pred: ^bb3
     return
@@ -212,6 +215,8 @@ module {
   ^bb1:  // pred: ^bb0
     %c3_i32 = arith.constant 3 : i32
     %c1_i64 = arith.constant 1 : i64
+    %c9_i32 = arith.constant 9 : i32
+    call @dora_fn_wasm_raise_trap(%c9_i32) : (i32) -> ()
     "wasm.unreachable"() : () -> ()
   ^bb2(%0: i32):  // pred: ^bb3
     return %0 : i32
@@ -339,6 +344,8 @@ module {
   ^bb1:  // pred: ^bb0
     %c0_i32 = arith.constant 0 : i32
     %0 = arith.bitcast %c0_i32 : i32 to f32
+    %c9_i32 = arith.constant 9 : i32
+    call @dora_fn_wasm_raise_trap(%c9_i32) : (i32) -> ()
     "wasm.unreachable"() : () -> ()
   ^bb2(%1: i32):  // no predecessors
     return %1 : i32
@@ -405,6 +412,8 @@ module {
     %0 = arith.bitcast %c0_i32 : i32 to f32
     %c4607182418800017408_i64 = arith.constant 4607182418800017408 : i64
     %1 = arith.bitcast %c4607182418800017408_i64 : i64 to f64
+    %c9_i32 = arith.constant 9 : i32
+    call @dora_fn_wasm_raise_trap(%c9_i32) : (i32) -> ()
     "wasm.unreachable"() : () -> ()
   ^bb2(%2: i32):  // no predecessors
     return %2 : i32
@@ -478,6 +487,8 @@ module {
     %c4607182418800017408_i64 = arith.constant 4607182418800017408 : i64
     %1 = arith.bitcast %c4607182418800017408_i64 : i64 to f64
     %c0_i64 = arith.constant 0 : i64
+    %c9_i32 = arith.constant 9 : i32
+    call @dora_fn_wasm_raise_trap(%c9_i32) : (i32) -> ()
     "wasm.unreachable"() : () -> ()
   ^bb2(%2: i32):  // no predecessors
     return %2 : i32
@@ -552,6 +563,8 @@ module {
   ^bb1:  // pred: ^bb0
     %c0_i32 = arith.constant 0 : i32
     %0 = arith.bitcast %c0_i32 : i32 to f32
+    %c9_i32 = arith.constant 9 : i32
+    call @dora_fn_wasm_raise_trap(%c9_i32) : (i32) -> ()
     "wasm.unreachable"() : () -> ()
   ^bb2(%1: i32):  // pred: ^bb3
     return %1 : i32
@@ -625,6 +638,8 @@ module {
   ^bb4:  // pred: ^bb1
     %c0_i32 = arith.constant 0 : i32
     %2 = arith.bitcast %c0_i32 : i32 to f32
+    %c9_i32 = arith.constant 9 : i32
+    call @dora_fn_wasm_raise_trap(%c9_i32) : (i32) -> ()
     "wasm.unreachable"() : () -> ()
   }
   func.func public @"loop-value-after-br"(%arg0: !llvm.ptr) -> i32 attributes {llvm.emit_c_interface} {

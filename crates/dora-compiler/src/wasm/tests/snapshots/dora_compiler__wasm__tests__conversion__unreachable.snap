@@ -1,7 +1,6 @@
 ---
 source: crates/dora-compiler/src/wasm/tests/conversion.rs
 expression: op
-snapshot_kind: text
 ---
 module {
   func.func public @"break-bare"(%arg0: !llvm.ptr) -> i32 attributes {llvm.emit_c_interface} {
@@ -21,6 +20,8 @@ module {
       default: ^bb6
     ]
   ^bb5:  // pred: ^bb3
+    %c9_i32 = arith.constant 9 : i32
+    call @dora_fn_wasm_raise_trap(%c9_i32) : (i32) -> ()
     llvm.unreachable
   ^bb6:  // pred: ^bb4
     %c1_i32_1 = arith.constant 1 : i32

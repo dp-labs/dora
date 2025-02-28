@@ -896,3 +896,8 @@ fn table_size() {
 fn interoperability_contract() {
     assert_snapshot!(include_str!("suites/interoperability.wat"));
 }
+
+#[test]
+fn rust_panic() {
+    assert_snapshot!(include_str!("suites/rust_panic.wat"));
+}

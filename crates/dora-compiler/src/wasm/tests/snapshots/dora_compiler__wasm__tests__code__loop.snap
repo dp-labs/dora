@@ -1,7 +1,6 @@
 ---
 source: crates/dora-compiler/src/wasm/tests/code.rs
 expression: op
-snapshot_kind: text
 ---
 module {
   func.func @dummy(%arg0: !llvm.ptr) {
@@ -960,6 +959,8 @@ module {
     %1 = arith.cmpi ne, %c1_i32, %c0_i32 : i32
     cf.cond_br %1, ^bb6, ^bb9
   ^bb9:  // pred: ^bb8
+    %c9_i32 = arith.constant 9 : i32
+    call @dora_fn_wasm_raise_trap(%c9_i32) : (i32) -> ()
     "wasm.unreachable"() : () -> ()
   ^bb10:  // 2 preds: ^bb11, ^bb12
     cf.br ^bb15
