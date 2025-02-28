@@ -836,6 +836,7 @@ impl FunctionCodeGenerator {
              * https://github.com/sunfishcode/wasm-reference-manual/blob/master/WebAssembly.md#control-flow-instructions
              ***************************/
             Operator::Unreachable => {
+                trap_call(&builder, TrapCode::UnreachableCodeReached)?;
                 builder.create(
                     dora_ir::wasm::unreachable(builder.context(), builder.unknown_loc()).into(),
                 );

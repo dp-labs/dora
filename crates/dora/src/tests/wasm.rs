@@ -4537,3 +4537,12 @@ fn test_wasm_interoperability_contract() -> Result<()> {
     );
     Ok(())
 }
+
+#[test]
+#[cfg(target_os = "linux")]
+fn test_wasm_rust_panic() -> Result<()> {
+    let code = include_bytes!("../../../dora-compiler/src/wasm/tests/suites/rust_panic.wat");
+    build_wasm_code!(code, artifact);
+    generate_error_test_cases!(&artifact, [("main", (), "unreachable"),]);
+    Ok(())
+}
