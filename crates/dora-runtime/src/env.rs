@@ -16,6 +16,7 @@ use super::constants::{
     },
 };
 use super::result::InvalidTransaction;
+pub use dora_primitives::TxKind;
 use dora_primitives::{
     Address, B256, Bytes, GAS_PER_BLOB, SignedAuthorization, SpecId, U256, calc_blob_gasprice,
 };
@@ -557,57 +558,5 @@ impl TxEnv {
         } else {
             0
         }
-    }
-}
-
-/// The `to` field of a transaction. Either a target address, or empty for a
-/// contract creation.
-#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash)]
-pub enum TxKind {
-    /// A transaction that creates a contract.
-    #[default]
-    Create,
-    /// A transaction that calls a contract or transfer.
-    Call(Address),
-}
-
-impl From<Option<Address>> for TxKind {
-    /// Creates a `TxKind::Call` with the `Some` address, `None` otherwise.
-    #[inline]
-    fn from(value: Option<Address>) -> Self {
-        match value {
-            None => Self::Create,
-            Some(addr) => Self::Call(addr),
-        }
-    }
-}
-
-impl From<Address> for TxKind {
-    /// Creates a `TxKind::Call` with the given address.
-    #[inline]
-    fn from(value: Address) -> Self {
-        Self::Call(value)
-    }
-}
-
-impl TxKind {
-    /// Returns the address of the contract that will be called or will receive the transfer.
-    pub const fn to(&self) -> Option<&Address> {
-        match self {
-            Self::Create => None,
-            Self::Call(to) => Some(to),
-        }
-    }
-
-    /// Returns true if the transaction is a contract creation.
-    #[inline]
-    pub const fn is_create(&self) -> bool {
-        matches!(self, Self::Create)
-    }
-
-    /// Returns true if the transaction is a contract call.
-    #[inline]
-    pub const fn is_call(&self) -> bool {
-        matches!(self, Self::Call(_))
     }
 }
