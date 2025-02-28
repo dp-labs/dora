@@ -906,3 +906,8 @@ fn interoperability_contract() {
 fn rust_panic() {
     assert_snapshot!(include_str!("suites/rust_panic.wat"));
 }
+
+#[test]
+fn unreached_valid() {
+    assert_snapshot!(include_str!("suites/unreached_valid.wat"));
+}

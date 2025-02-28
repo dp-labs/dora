@@ -809,6 +809,16 @@ fn test_wasm_call_indirect() -> Result<()> {
             // ("type-index", (), 100, i64),
         ]
     );
+    #[cfg(target_os = "linux")]
+    generate_error_test_cases!(
+        &artifact,
+        [
+            ("dispatch", (0, 2_i64), "indirect call type mismatch"),
+            ("dispatch", (15, 2_i64), "indirect call type mismatch"),
+            ("dispatch", (32, 2_i64), "undefined element"),
+            ("dispatch", (-1, 2_i64), "undefined element"),
+        ]
+    );
     Ok(())
 }
 
@@ -4483,6 +4493,23 @@ fn test_wasm_table_size() -> Result<()> {
     let code = include_bytes!("../../../dora-compiler/src/wasm/tests/suites/table_size.wat");
     build_wasm_code!(code, artifact);
     generate_test_cases!(&artifact, [("size-t0", (), 0, i32),]);
+    Ok(())
+}
+
+#[test]
+#[cfg(target_os = "linux")]
+fn test_wasm_unreached_valid() -> Result<()> {
+    let code = include_bytes!("../../../dora-compiler/src/wasm/tests/suites/unreached_valid.wat");
+    build_wasm_code!(code, artifact);
+    generate_error_test_cases!(
+        &artifact,
+        [
+            ("select-trap-left", 1, "unreachable"),
+            ("select-trap-left", 0, "unreachable"),
+            ("select-trap-right", 1, "unreachable"),
+            ("select-trap-right", 0, "unreachable"),
+        ]
+    );
     Ok(())
 }
 
