@@ -693,6 +693,11 @@ fn func_ptr() {
 }
 
 #[test]
+fn func_call_ptr() {
+    assert_snapshot!(include_str!("suites/func_call_ptr.wat"));
+}
+
+#[test]
 fn global() {
     assert_snapshot!(include_str!("suites/global.wat"));
 }
