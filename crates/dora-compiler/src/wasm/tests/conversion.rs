@@ -693,6 +693,11 @@ fn func_ptr() {
 }
 
 #[test]
+fn func_call_ptr() {
+    assert_snapshot!(include_str!("suites/func_call_ptr.wat"));
+}
+
+#[test]
 fn global() {
     assert_snapshot!(include_str!("suites/global.wat"));
 }
@@ -900,4 +905,9 @@ fn interoperability_contract() {
 #[test]
 fn rust_panic() {
     assert_snapshot!(include_str!("suites/rust_panic.wat"));
+}
+
+#[test]
+fn unreached_valid() {
+    assert_snapshot!(include_str!("suites/unreached_valid.wat"));
 }

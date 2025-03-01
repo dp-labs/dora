@@ -809,6 +809,16 @@ fn test_wasm_call_indirect() -> Result<()> {
             // ("type-index", (), 100, i64),
         ]
     );
+    #[cfg(target_os = "linux")]
+    generate_error_test_cases!(
+        &artifact,
+        [
+            ("dispatch", (0, 2_i64), "indirect call type mismatch"),
+            ("dispatch", (15, 2_i64), "indirect call type mismatch"),
+            ("dispatch", (32, 2_i64), "undefined element"),
+            ("dispatch", (-1, 2_i64), "undefined element"),
+        ]
+    );
     Ok(())
 }
 
@@ -1353,6 +1363,44 @@ fn test_wasm_func_ptr() -> Result<()> {
             ("one", (), 13, i32),
             ("two", 13, 14, i32),
             ("three", 13, 11, i32),
+        ]
+    );
+    Ok(())
+}
+
+#[test]
+fn test_wasm_func_call_ptr() -> Result<()> {
+    let code = include_bytes!("../../../dora-compiler/src/wasm/tests/suites/func_call_ptr.wat");
+    build_wasm_code!(code, artifact);
+    generate_test_cases!(
+        &artifact,
+        [
+            ("callt", 0, 1, i32),
+            ("callt", 1, 2, i32),
+            ("callt", 2, 3, i32),
+            ("callt", 3, 4, i32),
+            ("callt", 4, 5, i32),
+            ("callt", 5, 1, i32),
+            ("callt", 6, 3, i32),
+            ("callu", 0, 1, i32),
+            ("callu", 1, 2, i32),
+            ("callu", 2, 3, i32),
+            ("callu", 3, 4, i32),
+            ("callu", 4, 5, i32),
+            ("callu", 5, 1, i32),
+            ("callu", 6, 3, i32),
+        ]
+    );
+    #[cfg(target_os = "linux")]
+    generate_error_test_cases!(
+        &artifact,
+        [
+            ("callt", 7, "undefined element"),
+            ("callt", 100, "undefined element"),
+            ("callt", -1, "undefined element"),
+            ("callu", 7, "undefined element"),
+            ("callu", 100, "undefined element"),
+            ("callu", -1, "undefined element"),
         ]
     );
     Ok(())
@@ -4000,6 +4048,144 @@ fn test_wasm_memory_size() -> Result<()> {
 }
 
 #[test]
+#[cfg(target_os = "linux")]
+fn test_wasm_memory_trap() -> Result<()> {
+    let code = include_bytes!("../../../dora-compiler/src/wasm/tests/suites/memory_trap.wat");
+    build_wasm_code!(
+        code,
+        artifact,
+        WASMCompileOptions::default().static_memory_bound_check(true)
+    );
+    generate_error_test_cases!(
+        &artifact,
+        [
+            ("i32.store", (0x10000, 0), "out of bounds memory access"),
+            ("i32.store", (-4, 0), "out of bounds memory access"),
+            ("i64.store", (0x10000, 0_i64), "out of bounds memory access"),
+            ("i64.store", (-4, 0_i64), "out of bounds memory access"),
+            (
+                "f32.store",
+                (0x10000, 0.0_f32),
+                "out of bounds memory access"
+            ),
+            ("f32.store", (-4, 0.0_f32), "out of bounds memory access"),
+            (
+                "f64.store",
+                (0x10000, 0.0_f64),
+                "out of bounds memory access"
+            ),
+            ("f64.store", (-4, 0.0_f64), "out of bounds memory access"),
+            ("i32.store8", (0x10000, 0), "out of bounds memory access"),
+            ("i32.store8", (-4, 0), "out of bounds memory access"),
+            (
+                "i64.store8",
+                (0x10000, 0_i64),
+                "out of bounds memory access"
+            ),
+            ("i64.store8", (-4, 0_i64), "out of bounds memory access"),
+            (
+                "i64.store16",
+                (0x10000, 0_i64),
+                "out of bounds memory access"
+            ),
+            ("i64.store16", (-4, 0_i64), "out of bounds memory access"),
+            (
+                "i64.store32",
+                (0x10000, 0_i64),
+                "out of bounds memory access"
+            ),
+            ("i64.store32", (-4, 0_i64), "out of bounds memory access"),
+            ("i32.load", (0x10000,), "out of bounds memory access"),
+            ("i32.load", (-1,), "out of bounds memory access"),
+            ("i32.load", (-2,), "out of bounds memory access"),
+            ("i32.load", (-3,), "out of bounds memory access"),
+            ("i32.load", (-4,), "out of bounds memory access"),
+            ("i64.load", (0x10000,), "out of bounds memory access"),
+            ("i64.load", (0xffff,), "out of bounds memory access"),
+            ("i64.load", (0xfffe,), "out of bounds memory access"),
+            ("i64.load", (0xfffd,), "out of bounds memory access"),
+            ("i64.load", (0xfffc,), "out of bounds memory access"),
+            ("i64.load", (0xfffb,), "out of bounds memory access"),
+            ("i64.load", (0xfffa,), "out of bounds memory access"),
+            ("i64.load", (0xfff9,), "out of bounds memory access"),
+            ("i64.load", (-1,), "out of bounds memory access"),
+            ("i64.load", (-2,), "out of bounds memory access"),
+            ("i64.load", (-3,), "out of bounds memory access"),
+            ("i64.load", (-4,), "out of bounds memory access"),
+            ("i64.load", (-5,), "out of bounds memory access"),
+            ("i64.load", (-6,), "out of bounds memory access"),
+            ("i64.load", (-7,), "out of bounds memory access"),
+            ("i64.load", (-8,), "out of bounds memory access"),
+            ("f32.load", (0x10000,), "out of bounds memory access"),
+            ("f32.load", (0xffff,), "out of bounds memory access"),
+            ("f32.load", (0xfffe,), "out of bounds memory access"),
+            ("f32.load", (0xfffd,), "out of bounds memory access"),
+            ("f32.load", (-1,), "out of bounds memory access"),
+            ("f32.load", (-2,), "out of bounds memory access"),
+            ("f32.load", (-3,), "out of bounds memory access"),
+            ("f32.load", (-4,), "out of bounds memory access"),
+            ("f64.load", (0x10000,), "out of bounds memory access"),
+            ("f64.load", (0xffff,), "out of bounds memory access"),
+            ("f64.load", (0xfffe,), "out of bounds memory access"),
+            ("f64.load", (0xfffd,), "out of bounds memory access"),
+            ("f64.load", (0xfffc,), "out of bounds memory access"),
+            ("f64.load", (0xfffb,), "out of bounds memory access"),
+            ("f64.load", (0xfffa,), "out of bounds memory access"),
+            ("f64.load", (0xfff9,), "out of bounds memory access"),
+            ("f64.load", (-1,), "out of bounds memory access"),
+            ("f64.load", (-2,), "out of bounds memory access"),
+            ("f64.load", (-3,), "out of bounds memory access"),
+            ("f64.load", (-4,), "out of bounds memory access"),
+            ("f64.load", (-5,), "out of bounds memory access"),
+            ("f64.load", (-6,), "out of bounds memory access"),
+            ("f64.load", (-7,), "out of bounds memory access"),
+            ("f64.load", (-8,), "out of bounds memory access"),
+            ("i32.load8_s", (0x10000,), "out of bounds memory access"),
+            ("i32.load8_s", (-1,), "out of bounds memory access"),
+            ("i32.load8_u", (0x10000,), "out of bounds memory access"),
+            ("i32.load8_u", (-1,), "out of bounds memory access"),
+            ("i32.load16_s", (0x10000,), "out of bounds memory access"),
+            ("i32.load16_s", (0xffff,), "out of bounds memory access"),
+            ("i32.load16_s", (-1,), "out of bounds memory access"),
+            ("i32.load16_s", (-2,), "out of bounds memory access"),
+            ("i32.load16_u", (0x10000,), "out of bounds memory access"),
+            ("i32.load16_u", (0xffff,), "out of bounds memory access"),
+            ("i32.load16_u", (-1,), "out of bounds memory access"),
+            ("i32.load16_u", (-2,), "out of bounds memory access"),
+            ("i64.load8_s", (0x10000,), "out of bounds memory access"),
+            ("i64.load8_s", (-1,), "out of bounds memory access"),
+            ("i64.load8_u", (0x10000,), "out of bounds memory access"),
+            ("i64.load8_u", (-1,), "out of bounds memory access"),
+            ("i64.load16_s", (0x10000,), "out of bounds memory access"),
+            ("i64.load16_s", (0xffff,), "out of bounds memory access"),
+            ("i64.load16_s", (-1,), "out of bounds memory access"),
+            ("i64.load16_s", (-2,), "out of bounds memory access"),
+            ("i64.load16_u", (0x10000,), "out of bounds memory access"),
+            ("i64.load16_u", (0xffff,), "out of bounds memory access"),
+            ("i64.load16_u", (-1,), "out of bounds memory access"),
+            ("i64.load16_u", (-2,), "out of bounds memory access"),
+            ("i64.load32_s", (0x10000,), "out of bounds memory access"),
+            ("i64.load32_s", (0xffff,), "out of bounds memory access"),
+            ("i64.load32_s", (0xfffe,), "out of bounds memory access"),
+            ("i64.load32_s", (0xfffd,), "out of bounds memory access"),
+            ("i64.load32_s", (-1,), "out of bounds memory access"),
+            ("i64.load32_s", (-2,), "out of bounds memory access"),
+            ("i64.load32_s", (-3,), "out of bounds memory access"),
+            ("i64.load32_s", (-4,), "out of bounds memory access"),
+            ("i64.load32_u", (0x10000,), "out of bounds memory access"),
+            ("i64.load32_u", (0xffff,), "out of bounds memory access"),
+            ("i64.load32_u", (0xfffe,), "out of bounds memory access"),
+            ("i64.load32_u", (0xfffd,), "out of bounds memory access"),
+            ("i64.load32_u", (-1,), "out of bounds memory access"),
+            ("i64.load32_u", (-2,), "out of bounds memory access"),
+            ("i64.load32_u", (-3,), "out of bounds memory access"),
+            ("i64.load32_u", (-4,), "out of bounds memory access"),
+        ]
+    );
+    Ok(())
+}
+
+#[test]
 fn test_wasm_nop() -> Result<()> {
     let code = include_bytes!("../../../dora-compiler/src/wasm/tests/suites/nop.wat");
     build_wasm_code!(code, artifact);
@@ -4307,6 +4493,23 @@ fn test_wasm_table_size() -> Result<()> {
     let code = include_bytes!("../../../dora-compiler/src/wasm/tests/suites/table_size.wat");
     build_wasm_code!(code, artifact);
     generate_test_cases!(&artifact, [("size-t0", (), 0, i32),]);
+    Ok(())
+}
+
+#[test]
+#[cfg(target_os = "linux")]
+fn test_wasm_unreached_valid() -> Result<()> {
+    let code = include_bytes!("../../../dora-compiler/src/wasm/tests/suites/unreached_valid.wat");
+    build_wasm_code!(code, artifact);
+    generate_error_test_cases!(
+        &artifact,
+        [
+            ("select-trap-left", 1, "unreachable"),
+            ("select-trap-left", 0, "unreachable"),
+            ("select-trap-right", 1, "unreachable"),
+            ("select-trap-right", 0, "unreachable"),
+        ]
+    );
     Ok(())
 }
 

@@ -3714,8 +3714,14 @@ impl FunctionCodeGenerator {
                     .iter()
                     .map(|ty| type_to_mlir(&backend.intrinsics, ty))
                     .collect::<Vec<Type>>();
-                // TODO: Multiple return values support
-                debug_assert!(return_types.len() <= 1);
+                // Multiple return values is not supported, because they have different ABIs on different platforms.
+                if return_types.len() > 1 {
+                    return Err(CompileError::Codegen(
+                        "Multiple return values in the call_indirect op is not supported"
+                            .to_string(),
+                    )
+                    .into());
+                }
                 let ret_ty = if !return_types.is_empty() {
                     return_types[0]
                 } else {
