@@ -1,9 +1,8 @@
 use anyhow::{Context, Result};
 use clap::{Args, Parser, Subcommand};
 use dora_primitives::spec::SpecId;
-use dora_primitives::{Address, Bytecode, Bytes, U256};
+use dora_primitives::{Address, Bytecode, Bytes, Env, TxKind, U256};
 use dora_runtime::db::MemoryDB;
-use dora_runtime::env::{Env, TxKind};
 use std::str::FromStr;
 use tracing::{error, info};
 

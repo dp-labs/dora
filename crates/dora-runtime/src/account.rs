@@ -83,6 +83,7 @@ impl fmt::Debug for AccountInfo {
 
 impl AccountInfo {
     /// Construct an empty account info.
+    #[inline]
     pub fn empty() -> AccountInfo {
         DbAccount::empty().into()
     }
@@ -176,6 +177,7 @@ impl Account {
     /// let account = Account::default();
     /// assert!(!account.is_selfdestructed());
     /// ```
+    #[inline]
     pub fn is_selfdestructed(&self) -> bool {
         self.status.contains(AccountStatus::Selfdestructed)
     }
@@ -191,16 +193,19 @@ impl Account {
     /// let account = Account::default();
     /// assert!(!account.is_created());
     /// ```
+    #[inline]
     pub fn is_created(&self) -> bool {
         self.status.contains(AccountStatus::Created)
     }
 
-    /// Mark account as touched
+    /// Mark account as touched.
+    #[inline]
     pub fn mark_touch(&mut self) {
         self.status |= AccountStatus::Touched;
     }
 
     /// Unmark the touch flag.
+    #[inline]
     pub fn unmark_touch(&mut self) {
         self.status -= AccountStatus::Touched;
     }
@@ -219,36 +224,43 @@ impl Account {
     /// let account = Account::default();
     /// assert!(!account.is_touched());
     /// ```
+    #[inline]
     pub fn is_touched(&self) -> bool {
         self.status.contains(AccountStatus::Touched)
     }
 
     /// Mark account as self destructed.
+    #[inline]
     pub fn mark_selfdestruct(&mut self) {
         self.status |= AccountStatus::Selfdestructed;
     }
 
     /// Unmark account as self destructed.
+    #[inline]
     pub fn unmark_selfdestruct(&mut self) {
         self.status -= AccountStatus::Selfdestructed;
     }
 
     /// Mark account as newly created.
+    #[inline]
     pub fn mark_created(&mut self) {
         self.status |= AccountStatus::Created;
     }
 
     /// Unmark created flag.
+    #[inline]
     pub fn unmark_created(&mut self) {
         self.status -= AccountStatus::Created;
     }
 
     /// Mark account as cold.
+    #[inline]
     pub fn mark_cold(&mut self) {
         self.status |= AccountStatus::Cold;
     }
 
     /// Mark account as warm and return true if it was previously cold.
+    #[inline]
     pub fn mark_warm(&mut self) -> bool {
         if self.status.contains(AccountStatus::Cold) {
             self.status -= AccountStatus::Cold;

@@ -11,14 +11,13 @@ use dora_compiler::evm::{EVMCompileOptions, Program};
 use dora_compiler::wasm::WASMCompileOptions;
 use dora_compiler::{Compiler, Context, EVMCompiler, dora, evm, pass, wasm};
 use dora_primitives::{
-    Address, B256, Bytecode, U256, WASM_MAGIC_BYTES, address, fixed_bytes, uint,
+    Address, B256, Bytecode, Env, TxEnv, TxKind, U256, WASM_MAGIC_BYTES, address, fixed_bytes, uint,
 };
 use dora_primitives::{Bytes, spec::SpecId};
 use dora_runtime::artifact::SymbolArtifact;
 use dora_runtime::constants::env::DORA_DISABLE_CONSOLE;
 use dora_runtime::context::{Contract, RuntimeContext};
 use dora_runtime::db::{Database, MemoryDB};
-use dora_runtime::env::{Env, TxEnv, TxKind};
 use dora_runtime::executor::{ExecuteKind, Executor};
 use dora_runtime::host::DummyHost;
 use dora_runtime::stack::Stack;
@@ -299,7 +298,7 @@ fn run_evm_uniswapv3_bench(c: &mut Criterion) {
             ]
             .concat()
             .into(),
-            nonce: 1,
+            nonce: Some(1),
             ..Default::default()
         },
         ..Default::default()

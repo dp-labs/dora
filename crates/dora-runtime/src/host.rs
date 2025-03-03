@@ -1,10 +1,9 @@
-use dora_primitives::{Address, Bytes, Bytes32, Log};
+use dora_primitives::{Address, Bytes, Bytes32, Env, Log};
 use rustc_hash::FxHashMap;
 use std::ops::{Deref, DerefMut};
 use std::{collections::hash_map::Entry, fmt::Debug};
 
 use crate::call::{CallKind, CallMessage, CallResult};
-use crate::env::Env;
 use crate::result::VMError;
 
 /// The [`Host`] trait defines the interface for interacting with the Dora runtime environment.

@@ -3,12 +3,11 @@ use std::str::FromStr;
 use crate::{run_with_context, tests::INIT_GAS};
 use dora_compiler::evm::program::{Operation, Program};
 use dora_primitives::spec::SpecId;
-use dora_primitives::{Address, B256, Bytecode, Bytes, Bytes32, Eof, EofBody, U256};
+use dora_primitives::{Address, B256, Bytecode, Bytes, Bytes32, Env, Eof, EofBody, TxKind, U256};
 use dora_runtime::account::EMPTY_CODE_HASH_BYTES;
 use dora_runtime::context::Contract;
-use dora_runtime::env::TxKind;
 use dora_runtime::host::DummyHost;
-use dora_runtime::{context::RuntimeContext, db::MemoryDB, env::Env};
+use dora_runtime::{context::RuntimeContext, db::MemoryDB};
 use num_bigint::{BigInt, BigUint};
 
 use super::utils::{
@@ -1223,7 +1222,7 @@ fn caller() {
     ];
     let (mut env, db) = default_env_and_db_setup(operations);
     env.tx.caller = addr;
-    env.tx.nonce = 1;
+    env.tx.nonce = Some(1);
     run_program_assert_num_result(
         env,
         db,
@@ -2103,7 +2102,8 @@ fn timestamp() {
         Operation::Return,
     ];
     let (env, db) = default_env_and_db_setup(operations);
-    run_program_assert_num_result(env, db, SpecId::CANCUN, 0_u8.into());
+    // The default timestamp is 1
+    run_program_assert_num_result(env, db, SpecId::CANCUN, 1_u8.into());
 }
 
 #[test]
@@ -2224,7 +2224,8 @@ fn blobbasefee() {
         Operation::Return,
     ];
     let (env, db) = default_env_and_db_setup(operations);
-    run_program_assert_num_result(env, db, SpecId::CANCUN, 0_u8.into());
+    // The default blobbasefee is 1
+    run_program_assert_num_result(env, db, SpecId::CANCUN, 1_u8.into());
 }
 
 #[test]

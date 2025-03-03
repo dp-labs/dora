@@ -2,9 +2,11 @@
 // Licensed under the Apache License, Version 2.0.
 
 use dora::SpecId;
-use dora::primitives::{Address, B256, Bytes, Bytes32, Log, U256, as_u64_saturated};
+use dora::primitives::{
+    Address, B256, BlobExcessGasAndPrice, BlockEnv, Bytes, Bytes32, CfgEnv, Env, Log, TxEnv, U256,
+    as_u64_saturated,
+};
 use dora::runtime::call::{CallMessage, CallResult};
-use dora::runtime::env::{BlobExcessGasAndPrice, BlockEnv, CfgEnv, Env, TxEnv};
 use dora::runtime::host::{
     AccountLoad, CodeLoad, Host, SStoreResult, SStoreStatus, SelfdestructResult, StateLoad,
 };
@@ -37,10 +39,7 @@ impl<'a> EvmcDelegateHost<'a> {
         };
         Self {
             env: Env {
-                cfg: CfgEnv {
-                    chain_id,
-                    ..Default::default()
-                },
+                cfg: CfgEnv::default().with_chain_id(chain_id),
                 block: BlockEnv {
                     number: U256::from(tx_context.block_number),
                     coinbase: evmc_address_to_address(&tx_context.block_coinbase),

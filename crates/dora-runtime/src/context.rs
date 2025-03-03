@@ -8,7 +8,6 @@ use crate::constants::{
     BLOCK_HASH_HISTORY, CALL_STACK_LIMIT, CallType, ExtCallType, MAX_STACK_SIZE, gas_cost,
 };
 use crate::db::{Database, DatabaseError};
-use crate::env::{CfgEnv, Env};
 use crate::executor::ExecutionEngine;
 use crate::handler::{Frame, Handler};
 use crate::host::{AccountLoad, CodeLoad, Host, SStoreResult, SelfdestructResult, StateLoad};
@@ -19,8 +18,9 @@ use crate::wasm::host::gas_limit;
 use crate::wasm::trap::wasm_raise_trap;
 use crate::{ExitStatusCode, gas, symbols};
 use dora_primitives::{
-    Address, B256, Bytecode, Bytes, Bytes32, Log, LogData, Precompile, PrecompileErrors,
-    PrecompileSpecId, Precompiles, SpecId, U256, as_u64_saturated, as_usize_saturated, keccak256,
+    Address, B256, BLOCKHASH_STORAGE_ADDRESS, Bytecode, Bytes, Bytes32, CfgEnv, Env, Log, LogData,
+    Precompile, PrecompileErrors, PrecompileSpecId, Precompiles, SpecId, U256, as_u64_saturated,
+    as_usize_saturated, keccak256,
 };
 
 /// Function type for the EVM main entrypoint of the generated code.
@@ -80,8 +80,11 @@ impl<'a, DB: Database> VMContext<'a, DB> {
     pub fn load_access_list(&mut self) -> Result<(), DB::Error> {
         for access_list in &self.env.tx.access_list {
             self.journaled_state.initial_account_load(
-                access_list.0,
-                access_list.1.iter().map(|i| Bytes32::from_be_bytes(i.0)),
+                access_list.address,
+                access_list
+                    .storage_keys
+                    .iter()
+                    .map(|i| Bytes32::from_be_bytes(i.0)),
                 &mut self.db,
             )?;
         }
@@ -105,9 +108,7 @@ impl<'a, DB: Database> VMContext<'a, DB> {
         if self.spec_id().is_enabled_in(SpecId::PRAGUE) {
             self.journaled_state
                 .warm_preloaded_addresses
-                .insert(Address::from_slice(&hex_literal::hex!(
-                    "25a219378dad9b3503c8268c9ca836a52427a4fb"
-                )));
+                .insert(BLOCKHASH_STORAGE_ADDRESS);
         }
 
         // Load access list
@@ -993,7 +994,7 @@ impl Contract {
             input: env.tx.data.clone(),
             code: bytecode,
             hash,
-            target_address: env.tx.get_address(),
+            target_address: env.tx.transact_to.into_to().unwrap_or_default(),
             caller: env.tx.caller,
             code_address: env.tx.caller,
             call_value: env.tx.value,
@@ -1622,11 +1623,9 @@ impl RuntimeContext<'_> {
             .host
             .env()
             .block
-            .blob_excess_gas_and_price
-            .clone()
+            .get_blob_gasprice()
             .unwrap_or_default()
-            .blob_gasprice
-            .into();
+            .into()
     }
 
     extern "C" fn caller(&self, value: &mut Bytes32) {
