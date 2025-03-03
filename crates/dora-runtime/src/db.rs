@@ -294,6 +294,7 @@ impl MemoryDB {
     /// let mut db = MemoryDB::new();
     /// db.insert_block_hash(U256::from(1), B256::from_slice(&[0x12; 32]));
     /// ```
+    #[inline]
     pub fn insert_block_hash(&mut self, number: U256, hash: B256) {
         self.block_hashes.insert(number, hash);
     }
@@ -312,6 +313,7 @@ impl MemoryDB {
     /// ```no_check
     /// db.set_balance(address, U256::from(1000));
     /// ```
+    #[inline]
     pub fn set_balance(&mut self, address: Address, balance: U256) {
         let account = self.accounts.entry(address).or_insert(DbAccount::empty());
         account.balance = balance;
@@ -332,6 +334,7 @@ impl MemoryDB {
     /// ```no_check
     /// let balance = db.get_balance(address);
     /// ```
+    #[inline]
     pub fn get_balance(&self, address: Address) -> Option<U256> {
         self.accounts.get(&address).map(|acc| acc.balance)
     }
@@ -351,6 +354,7 @@ impl MemoryDB {
     /// ```no_check
     /// let is_created = db.address_is_created(address);
     /// ```
+    #[inline]
     pub fn address_is_created(&self, address: Address) -> bool {
         self.accounts
             .get(&address)
@@ -372,6 +376,7 @@ impl MemoryDB {
     /// ```no_check
     /// db.set_status(address, AccountStatus::Cold);
     /// ```
+    #[inline]
     pub fn set_status(&mut self, address: Address, status: AccountStatus) {
         let account = self.accounts.entry(address).or_insert(DbAccount::empty());
         account.status = status;
@@ -395,6 +400,7 @@ impl MemoryDB {
     /// ```no_check
     /// db.with_contract(address, bytecode);
     /// ```
+    #[inline]
     pub fn with_contract(mut self, address: Address, bytecode: Bytecode) -> Self {
         self.insert_contract(address, bytecode, U256::ZERO);
         self
@@ -415,6 +421,7 @@ impl MemoryDB {
     /// ```no_check
     /// db.sstore(address, key, value);
     /// ```
+    #[inline]
     pub fn sstore(&mut self, address: Address, key: U256, value: U256) {
         let account = self.accounts.entry(address).or_insert(DbAccount::empty());
         account.storage.insert(key, value);
@@ -428,7 +435,7 @@ impl MemoryDB {
     /// - `key`: The storage key to retrieve the value from.
     ///
     /// # Returns
-    ///?
+    ///
     /// - `U256`: The storage value stored at the key, or `U256::ZERO` if not found.
     ///
     /// # Example
@@ -436,6 +443,7 @@ impl MemoryDB {
     /// ```no_check
     /// let value = db.sload(address, key);
     /// ```
+    #[inline]
     pub fn sload(&self, address: Address, key: U256) -> U256 {
         self.accounts
             .get(&address)
@@ -443,6 +451,7 @@ impl MemoryDB {
             .unwrap_or_default()
     }
 
+    #[inline]
     pub fn store_contract(&mut self, account: &AccountInfo) {
         if let Some(code) = account.code.as_ref() {
             self.contracts
@@ -680,7 +689,8 @@ pub enum AccountState {
 }
 
 impl AccountState {
-    /// Returns `true` if VM cleared storage of this account
+    /// Returns `true` if VM cleared storage of this account.
+    #[inline]
     pub fn is_storage_cleared(&self) -> bool {
         matches!(self, AccountState::StorageCleared)
     }

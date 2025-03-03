@@ -3,7 +3,7 @@ use std::{
     ops::{Deref, DerefMut},
 };
 
-use dora_primitives::{SpecId, U256};
+use dora_primitives::{Env, InvalidTransaction, SpecId, U256, spec_to_generic};
 
 use crate::{
     ExitStatusCode,
@@ -12,12 +12,10 @@ use crate::{
     constants::env::DORA_TRACING,
     context::VMContext,
     db::{Database, DatabaseError},
-    env::{CfgEnv, TxEnv},
+    gas,
     result::{
-        ExecutionResult, HaltReason, InvalidTransaction, OutOfGasError, Output, ResultAndState,
-        SuccessReason, VMError,
+        ExecutionResult, HaltReason, OutOfGasError, Output, ResultAndState, SuccessReason, VMError,
     },
-    transaction::TransactionType,
 };
 
 /// EVM/WASM instance containing internal VM context and run actions
@@ -61,8 +59,10 @@ impl<'a, DB: Database> VM<'a, DB> {
     /// Pre verify transaction inner.
     #[inline]
     fn preverify_transaction(&mut self) -> Result<u64, VMError> {
-        self.context.env.validate_transaction()?;
-        let initial_gas_cost = self.context.env.validate_initial_tx_gas(self.spec_id())?;
+        let spec_id = self.spec_id();
+        spec_to_generic!(spec_id, self.env.validate_block_env::<SPEC>())?;
+        spec_to_generic!(spec_id, self.env.validate_tx::<SPEC>())?;
+        let initial_gas_cost = Self::validate_initial_tx_gas(&self.context.env, self.spec_id())?;
         self.validate_tx_against_state()?;
         Ok(initial_gas_cost)
     }
@@ -70,32 +70,60 @@ impl<'a, DB: Database> VM<'a, DB> {
     /// Validates transaction against the state.
     #[inline]
     fn validate_tx_against_state(&mut self) -> Result<(), VMError> {
+        let spec_id = self.spec_id();
         let tx_caller = self.context.env.tx.caller;
         let caller_account = self
             .context
             .journaled_state
             .load_code(tx_caller, &mut self.context.db)
             .map_err(|_| VMError::Database(DatabaseError))?;
-
-        Self::validate_tx_against_account(
-            caller_account.data,
-            &self.context.env.tx,
-            &self.context.env.cfg,
-        )
-        .map_err(VMError::Transaction)?;
+        Self::validate_tx_against_account(caller_account.data, &self.context.env, spec_id)
+            .map_err(VMError::Transaction)?;
 
         Ok(())
+    }
+
+    /// Validate initial transaction gas.
+    fn validate_initial_tx_gas(env: &Env, spec_id: SpecId) -> Result<u64, VMError> {
+        let is_create = env.tx.transact_to.is_create();
+        let authorization_list_num = env
+            .tx
+            .authorization_list
+            .as_ref()
+            .map(|l| l.len() as u64)
+            .unwrap_or_default();
+        let initial_gas_cost = gas::validate_initial_tx_gas(
+            spec_id,
+            &env.tx.data,
+            is_create,
+            &env.tx.access_list,
+            authorization_list_num,
+        );
+        // Additional check to see if limit is big enough to cover initial gas.
+        if initial_gas_cost > env.tx.gas_limit {
+            return Err(VMError::Transaction(
+                InvalidTransaction::CallGasCostMoreThanGasLimit,
+            ));
+        }
+        Ok(initial_gas_cost)
     }
 
     /// Validate account against the transaction.
     fn validate_tx_against_account(
         account: &mut Account,
-        tx: &TxEnv,
-        cfg: &CfgEnv,
+        env: &Env,
+        spec_id: SpecId,
     ) -> Result<(), InvalidTransaction> {
+        if env.cfg.is_eip3607_disabled() {
+            let bytecode = &account.info.code.as_ref().unwrap();
+            // allow EOAs whose code is a valid delegation designation,
+            // i.e. 0xef0100 || address, to continue to originate transactions.
+            if !bytecode.is_empty() && !bytecode.is_eip7702() {
+                return Err(InvalidTransaction::RejectCallerWithCode);
+            }
+        }
         // Check that the transaction's nonce is correct
-        if !cfg.is_nonce_check_disabled() {
-            let tx = tx.nonce;
+        if let Some(tx) = env.tx.nonce {
             let state = account.info.nonce;
             match tx.cmp(&state) {
                 Ordering::Greater => {
@@ -109,21 +137,21 @@ impl<'a, DB: Database> VM<'a, DB> {
         }
 
         // gas_limit * max_fee + value
-        let mut balance_check = U256::from(tx.gas_limit)
-            .checked_mul(U256::from(tx.max_fee()))
-            .and_then(|gas_cost| gas_cost.checked_add(tx.value))
+        let mut balance_check = U256::from(env.tx.gas_limit)
+            .checked_mul(env.tx.gas_price)
+            .and_then(|gas_cost| gas_cost.checked_add(env.tx.value))
             .ok_or(InvalidTransaction::OverflowPaymentInTransaction)?;
 
-        if tx.tx_type == TransactionType::Eip4844 {
+        if spec_id.is_enabled_in(SpecId::CANCUN) {
             // if the tx is not a blob tx, this will be None, so we add zero
-            let data_fee = tx.calc_max_data_fee().unwrap_or_default();
+            let data_fee = env.calc_max_data_fee().unwrap_or_default();
             balance_check = balance_check
                 .checked_add(data_fee)
                 .ok_or(InvalidTransaction::OverflowPaymentInTransaction)?;
         }
 
         if balance_check > account.info.balance {
-            if cfg.is_balance_check_disabled() {
+            if env.cfg.is_balance_check_disabled() {
                 // Add transaction cost to balance to ensure execution doesn't fail.
                 account.info.balance = account.info.balance.saturating_add(balance_check);
             } else {
@@ -164,9 +192,9 @@ impl<'a, DB: Database> VM<'a, DB> {
                 depth: 0,
                 gas_limit,
                 caller: ctx.env.tx.caller,
-                recipient: ctx.env.tx.get_address(),
+                recipient: ctx.env.tx.transact_to.into_to().unwrap_or_default(),
                 salt: None,
-                code_address: ctx.env.tx.get_address(),
+                code_address: ctx.env.tx.transact_to.into_to().unwrap_or_default(),
                 is_static: false,
                 is_eof_init: false,
                 validate_eof: true,

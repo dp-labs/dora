@@ -295,10 +295,8 @@ pub fn block_blobbasefee(
             .host
             .env()
             .block
-            .blob_excess_gas_and_price
-            .clone()
+            .get_blob_gasprice()
             .unwrap_or_default()
-            .blob_gasprice
     });
     let basefee = Bytes32::from(basefee);
     host.write_slice(dest, &basefee.to_be_bytes())?;

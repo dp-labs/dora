@@ -149,6 +149,12 @@ impl CallResult {
         success
     }
 
+    /// Records a refund value.
+    #[inline]
+    pub fn record_refund(&mut self, refund: i64) {
+        self.gas_refunded += refund;
+    }
+
     /// Set a refund value for final refund.
     ///
     /// Max refund value is limited to Nth part (depending of fork) of gas cost.

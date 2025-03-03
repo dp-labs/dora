@@ -2,13 +2,12 @@ use std::sync::Arc;
 
 use dora_compiler::evm::{Program, program::Operation};
 use dora_primitives::{
-    Address, Bytecode, Bytes, Bytes32, EVMBytecode, Eof, Log, U256, spec::SpecId,
+    Address, Bytecode, Bytes, Bytes32, EVMBytecode, Env, Eof, Log, TxKind, U256, spec::SpecId,
 };
 use dora_runtime::{
     ExitStatusCode,
     context::{Contract, RuntimeContext},
     db::MemoryDB,
-    env::{Env, TxKind},
     host::{DummyHost, Host},
 };
 use num_bigint::{BigInt, BigUint};

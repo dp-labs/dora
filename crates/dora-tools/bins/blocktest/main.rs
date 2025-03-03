@@ -233,7 +233,7 @@ fn execute_test(path: &Path) -> Result<(), TestError> {
             env.tx.data = tx.data.clone();
             env.tx.gas_limit = as_u64_saturated!(tx.gas_limit);
             env.tx.gas_price = tx.gas_price.unwrap_or_default();
-            env.tx.nonce = as_u64_saturated!(tx.nonce);
+            env.tx.nonce = Some(as_u64_saturated!(tx.nonce));
             env.tx.caller = tx.sender.unwrap_or_default();
             env.tx.value = tx.value;
             env.tx.transact_to = match tx.to {

@@ -30,6 +30,7 @@ impl WASMInstance {
     }
 
     /// Return a reference to the VMOffsets to get offsets in the Self::vmctx_ptr region.
+    #[inline]
     pub fn vmoffsets(&self) -> &VMOffsets {
         self.instance.vmoffsets()
     }

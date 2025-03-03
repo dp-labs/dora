@@ -7,8 +7,7 @@
 //! cargo install --path .
 //! dora-ethertest run tests/GeneralStateTests
 //! ```
-use alloy_rlp::RlpEncodable;
-use alloy_rlp::RlpMaxEncodedLen;
+use alloy_rlp::{Decodable, Error as RlpError, Header, RlpEncodable, RlpMaxEncodedLen};
 use anyhow::Result;
 use clap::{Args, Parser, Subcommand};
 use dora::compile_handler;
@@ -16,25 +15,22 @@ use dora_primitives::Bytecode;
 use dora_primitives::Bytes;
 use dora_primitives::EvmStorageSlot;
 use dora_primitives::SignedAuthorization;
+use dora_primitives::as_u64_saturated;
 use dora_primitives::calc_excess_blob_gas;
 use dora_primitives::keccak256;
-use dora_primitives::spec::SpecId;
-use dora_primitives::spec::SpecName;
-use dora_primitives::{Address, B256, Log, U256};
+use dora_primitives::{
+    AccessList, Address, AuthorizationList, B256, Env, Log, PrimitiveSignature, SpecId, SpecName,
+    TxKind, U256,
+};
 use dora_runtime::account::Account;
 use dora_runtime::context::VMContext;
 use dora_runtime::db::{Database, MemoryDB};
-use dora_runtime::env::Env;
-use dora_runtime::env::TxKind;
 use dora_runtime::executor::RUNTIME_STACK_SIZE;
-use dora_runtime::transaction::TransactionType;
 use dora_runtime::vm::VM;
 use hash_db::Hasher;
 use indicatif::{ProgressBar, ProgressDrawTarget};
 use plain_hasher::PlainHasher;
-use serde::de::Visitor;
-use serde::{Deserialize, Serialize, de};
-use std::fmt;
+use serde::{Deserialize, de};
 use std::{
     collections::{BTreeMap, HashMap},
     path::{Path, PathBuf},
@@ -74,15 +70,6 @@ struct RunArgs {
 #[derive(Debug, PartialEq, Eq, Deserialize)]
 pub struct TestSuite(pub BTreeMap<String, Test>);
 
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct DeserializeBytes(Bytes);
-
-impl AsRef<Bytes> for DeserializeBytes {
-    fn as_ref(&self) -> &Bytes {
-        &self.0
-    }
-}
-
 #[derive(Debug, PartialEq, Eq, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct Test {
@@ -93,7 +80,7 @@ pub struct Test {
     pre: HashMap<Address, TestAccountInfo>,
     post: BTreeMap<SpecName, Vec<PostStateTest>>,
     #[serde(default)]
-    pub out: Option<DeserializeBytes>,
+    pub out: Option<Bytes>,
 }
 
 #[derive(Debug, PartialEq, Eq, Deserialize)]
@@ -119,7 +106,7 @@ struct TestEnv {
 #[derive(Debug, Default, PartialEq, Eq, Deserialize)]
 #[serde(rename_all = "camelCase")]
 struct TestTransaction {
-    pub data: Vec<DeserializeBytes>,
+    pub data: Vec<Bytes>,
     pub gas_limit: Vec<U256>,
     pub gas_price: Option<U256>,
     pub nonce: U256,
@@ -132,55 +119,12 @@ struct TestTransaction {
     pub max_fee_per_gas: Option<U256>,
     pub max_priority_fee_per_gas: Option<U256>,
     #[serde(default)]
-    pub access_lists: Vec<Option<TestAccessList>>,
+    pub access_lists: Vec<Option<AccessList>>,
     pub authorization_list: Option<Vec<TestAuthorization>>,
     #[serde(default)]
     pub blob_versioned_hashes: Vec<B256>,
     pub max_fee_per_blob_gas: Option<U256>,
 }
-
-impl TestTransaction {
-    pub fn tx_type(&self, access_list_index: usize) -> Option<TransactionType> {
-        let mut tx_type = TransactionType::Legacy;
-
-        // if it has access list it is EIP-2930 tx
-        if let Some(access_list) = self.access_lists.get(access_list_index) {
-            if access_list.is_some() {
-                tx_type = TransactionType::Eip2930;
-            }
-        }
-
-        // If there is max_fee it is EIP-1559 tx
-        if self.max_fee_per_gas.is_some() {
-            tx_type = TransactionType::Eip1559;
-        }
-
-        // if it has max_fee_per_blob_gas it is EIP-4844 tx
-        if self.max_fee_per_blob_gas.is_some() {
-            // target need to be present for EIP-4844 tx
-            self.to?;
-            tx_type = TransactionType::Eip4844;
-        }
-
-        // and if it has authorization list it is EIP-7702 tx
-        if self.authorization_list.is_some() {
-            // target need to be present for EIP-7702 tx
-            self.to?;
-            tx_type = TransactionType::Eip7702;
-        }
-
-        Some(tx_type)
-    }
-}
-
-#[derive(Debug, PartialEq, Eq, Serialize, Deserialize, Clone)]
-#[serde(rename_all = "camelCase", deny_unknown_fields)]
-pub struct TestAccessListItem {
-    pub address: Address,
-    pub storage_keys: Vec<B256>,
-}
-
-pub type TestAccessList = Vec<TestAccessListItem>;
 
 #[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -199,7 +143,7 @@ impl From<TestAuthorization> for SignedAuthorization {
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct TestAccountInfo {
     pub balance: U256,
-    pub code: DeserializeBytes,
+    pub code: Bytes,
     #[serde(deserialize_with = "deserialize_str_as_u64")]
     pub nonce: u64,
     pub storage: HashMap<U256, U256>,
@@ -214,7 +158,135 @@ pub struct PostStateTest {
     #[serde(default)]
     pub post_state: HashMap<Address, TestAccountInfo>,
     pub logs: B256,
-    pub txbytes: Option<DeserializeBytes>,
+    pub txbytes: Option<Bytes>,
+}
+
+impl PostStateTest {
+    pub fn eip7702_authorization_list(
+        &self,
+    ) -> Result<Option<AuthorizationList>, alloy_rlp::Error> {
+        let Some(txbytes) = self.txbytes.as_ref() else {
+            return Ok(None);
+        };
+
+        if txbytes.first() == Some(&0x04) {
+            let mut txbytes = &txbytes[1..];
+            let tx = TxEip7702::decode(&mut txbytes)?;
+            return Ok(Some(
+                AuthorizationList::Signed(tx.authorization_list).into_recovered(),
+            ));
+        }
+
+        Ok(None)
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct TxEip7702 {
+    /// Added as EIP-155: Simple replay attack protection
+    pub chain_id: u64,
+    /// A scalar value equal to the number of transactions sent by the sender; formally Tn.
+    pub nonce: u64,
+    /// A scalar value equal to the number of
+    /// Wei to be paid per unit of gas for all computation
+    /// costs incurred as a result of the execution of this transaction; formally Tp.
+    ///
+    /// As ethereum circulation is around 120mil eth as of 2022 that is around
+    /// 120000000000000000000000000 wei we are safe to use u128 as its max number is:
+    /// 340282366920938463463374607431768211455
+    pub gas_limit: u64,
+    /// A scalar value equal to the maximum
+    /// amount of gas that should be used in executing
+    /// this transaction. This is paid up-front, before any
+    /// computation is done and may not be increased
+    /// later; formally Tg.
+    ///
+    /// As ethereum circulation is around 120mil eth as of 2022 that is around
+    /// 120000000000000000000000000 wei we are safe to use u128 as its max number is:
+    /// 340282366920938463463374607431768211455
+    ///
+    /// This is also known as `GasFeeCap`
+    pub max_fee_per_gas: u128,
+    /// Max Priority fee that transaction is paying
+    ///
+    /// As ethereum circulation is around 120mil eth as of 2022 that is around
+    /// 120000000000000000000000000 wei we are safe to use u128 as its max number is:
+    /// 340282366920938463463374607431768211455
+    ///
+    /// This is also known as `GasTipCap`
+    pub max_priority_fee_per_gas: u128,
+    /// The 160-bit address of the message call’s recipient or, for a contract creation
+    /// transaction, ∅, used here to denote the only member of B0 ; formally Tt.
+    pub to: TxKind,
+    /// A scalar value equal to the number of Wei to
+    /// be transferred to the message call’s recipient or,
+    /// in the case of contract creation, as an endowment
+    /// to the newly created account; formally Tv.
+    pub value: U256,
+    /// The accessList specifies a list of addresses and storage keys;
+    /// these addresses and storage keys are added into the `accessed_addresses`
+    /// and `accessed_storage_keys` global sets (introduced in EIP-2929).
+    /// A gas cost is charged, though at a discount relative to the cost of
+    /// accessing outside the list.
+    pub access_list: AccessList,
+    /// Authorizations are used to temporarily set the code of its signer to
+    /// the code referenced by `address`. These also include a `chain_id` (which
+    /// can be set to zero and not evaluated) as well as an optional `nonce`.
+    pub authorization_list: Vec<SignedAuthorization>,
+    /// Input has two uses depending if the transaction `to` field is [`TxKind::Create`] or
+    /// [`TxKind::Call`].
+    ///
+    /// Input as init code, or if `to` is [`TxKind::Create`]: An unlimited size byte array
+    /// specifying the EVM-code for the account initialisation procedure `CREATE`
+    ///
+    /// Input as data, or if `to` is [`TxKind::Call`]: An unlimited size byte array specifying the
+    /// input data of the message call, formally Td.
+    pub input: Bytes,
+    pub signature: PrimitiveSignature,
+}
+
+impl TxEip7702 {
+    /// Decodes the inner [`TxEip7702`] fields from RLP bytes.
+    ///
+    /// NOTE: This assumes a RLP header has already been decoded, and _just_ decodes the following
+    /// RLP fields in the following order:
+    ///
+    /// - `chain_id`
+    /// - `nonce`
+    /// - `gas_price`
+    /// - `gas_limit`
+    /// - `to`
+    /// - `value`
+    /// - `data` (`input`)
+    /// - `access_list`
+    /// - `authorization_list`
+    fn decode_inner(buf: &mut &[u8]) -> alloy_rlp::Result<Self> {
+        Ok(Self {
+            chain_id: Decodable::decode(buf)?,
+            nonce: Decodable::decode(buf)?,
+            max_priority_fee_per_gas: Decodable::decode(buf)?,
+            max_fee_per_gas: Decodable::decode(buf)?,
+            gas_limit: Decodable::decode(buf)?,
+            to: Decodable::decode(buf)?,
+            value: Decodable::decode(buf)?,
+            input: Decodable::decode(buf)?,
+            access_list: Decodable::decode(buf)?,
+            authorization_list: Decodable::decode(buf)?,
+            signature: PrimitiveSignature::decode_rlp_vrs(buf, bool::decode)?,
+        })
+    }
+
+    pub fn decode(data: &mut &[u8]) -> alloy_rlp::Result<Self> {
+        // decode the list header for the rest of the transaction
+        let header = Header::decode(data)?;
+        if !header.list {
+            return Err(RlpError::Custom(
+                "typed tx fields must be encoded as a list",
+            ));
+        }
+        let tx = TxEip7702::decode_inner(data)?;
+        Ok(tx)
+    }
 }
 
 #[derive(Debug, PartialEq, Eq, Clone, Deserialize)]
@@ -470,10 +542,7 @@ fn execute_test(path: &Path) -> Result<(), TestError> {
         // Mapping account into
         let mut db = MemoryDB::new();
         for (address, account_info) in suite.pre.iter() {
-            db = db.with_contract(
-                address.to_owned(),
-                Bytecode::new(account_info.code.0.clone()),
-            );
+            db = db.with_contract(address.to_owned(), Bytecode::new(account_info.code.clone()));
             db.set_account(
                 address.to_owned(),
                 account_info.nonce,
@@ -496,14 +565,6 @@ fn execute_test(path: &Path) -> Result<(), TestError> {
                     // if spec is merge and prevrandao is not set, set it to default
                     env.block.prevrandao = Some(B256::default());
                 }
-                let Some(tx_type) = suite.transaction.tx_type(test_case.indexes.data) else {
-                    if test_case.expect_exception.is_some() {
-                        continue;
-                    } else {
-                        panic!("Invalid transaction type without expected exception");
-                    }
-                };
-                env.tx.tx_type = tx_type;
                 // Mapping transaction data and value
                 env.tx.gas_limit =
                     suite.transaction.gas_limit[test_case.indexes.gas].saturating_to();
@@ -518,36 +579,25 @@ fn execute_test(path: &Path) -> Result<(), TestError> {
                     .data
                     .get(test_case.indexes.data)
                     .unwrap()
-                    .clone()
-                    .0;
-                env.tx.nonce = u64::try_from(suite.transaction.nonce).unwrap();
+                    .clone();
+                env.tx.nonce = Some(as_u64_saturated!(suite.transaction.nonce));
                 info!(
                     "testing {:?} suite {:?} index {:?}",
                     name, suite_name, test_case.indexes
                 );
-                // Mapping access list
-                let access_list = suite
+
+                env.tx.access_list = suite
                     .transaction
                     .access_lists
                     .get(test_case.indexes.data)
                     .and_then(Option::as_deref)
+                    .cloned()
                     .unwrap_or_default();
-                for item in access_list {
-                    env.tx.access_list.push((
-                        item.address,
-                        item.storage_keys
-                            .iter()
-                            .map(|key| B256::from(*key))
-                            .collect(),
-                    ));
-                }
 
-                env.tx.authorization_list = suite
-                    .transaction
-                    .authorization_list
-                    .clone()
-                    .map(|auth_list| auth_list.into_iter().map(Into::into).collect::<Vec<_>>())
-                    .unwrap_or_default();
+                let Ok(auth_list) = test_case.eip7702_authorization_list() else {
+                    continue;
+                };
+                env.tx.authorization_list = auth_list;
 
                 // Run the VM and get the state result.
                 let mut vm = VM::new(VMContext::new(db.clone(), env, spec_id, compile_handler()));
@@ -573,13 +623,13 @@ fn execute_test(path: &Path) -> Result<(), TestError> {
                         if let Some((expected_output, output)) =
                             suite.out.as_ref().zip(res.output())
                         {
-                            if expected_output.0 != *output {
+                            if expected_output != output {
                                 return Err(TestError {
                                     name: name.to_string(),
                                     suite_name: Some(suite_name.to_string()),
                                     indexs: Some(test_case.indexes.clone()),
                                     kind: TestErrorKind::UnexpectedOutput {
-                                        expected_output: Some(expected_output.0.clone()),
+                                        expected_output: Some(expected_output.clone()),
                                         got_output: res.output().cloned(),
                                     },
                                 });
@@ -705,61 +755,6 @@ fn recover_address(private_key: &[u8]) -> Option<Address> {
     let key = SigningKey::from_slice(private_key).ok()?;
     let public_key = key.verifying_key().to_encoded_point(false);
     Some(Address::from_raw_public_key(&public_key.as_bytes()[1..]))
-}
-
-impl<'de> serde::Deserialize<'de> for DeserializeBytes {
-    #[inline]
-    fn deserialize<D: serde::Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
-        struct BytesVisitor;
-
-        impl<'de> Visitor<'de> for BytesVisitor {
-            type Value = DeserializeBytes;
-
-            fn expecting(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
-                formatter.write_str("a variable number of bytes represented as a hex string, an array of u8, or raw bytes")
-            }
-
-            fn visit_bytes<E: de::Error>(self, v: &[u8]) -> Result<Self::Value, E> {
-                Ok(DeserializeBytes(Bytes::from(v.to_vec())))
-            }
-
-            fn visit_byte_buf<E: de::Error>(self, v: Vec<u8>) -> Result<Self::Value, E> {
-                Ok(DeserializeBytes(Bytes::from(v)))
-            }
-
-            fn visit_seq<A: de::SeqAccess<'de>>(self, mut seq: A) -> Result<Self::Value, A::Error> {
-                let mut bytes = Vec::with_capacity(seq.size_hint().unwrap_or(0));
-
-                while let Some(byte) = seq.next_element()? {
-                    bytes.push(byte);
-                }
-
-                Ok(DeserializeBytes(Bytes::from(bytes)))
-            }
-
-            fn visit_str<E: de::Error>(self, v: &str) -> Result<Self::Value, E> {
-                if let Some(stripped) = v.strip_prefix("0x") {
-                    hex::decode(stripped)
-                        .map_err(|_| {
-                            de::Error::invalid_value(de::Unexpected::Str(v), &"a valid hex string")
-                        })
-                        .map(From::from)
-                        .map(DeserializeBytes)
-                } else {
-                    Err(de::Error::invalid_value(
-                        de::Unexpected::Str(v),
-                        &"a valid hex string",
-                    ))
-                }
-            }
-        }
-
-        if deserializer.is_human_readable() {
-            deserializer.deserialize_any(BytesVisitor)
-        } else {
-            deserializer.deserialize_byte_buf(BytesVisitor)
-        }
-    }
 }
 
 pub fn deserialize_str_as_u64<'de, D>(deserializer: D) -> Result<u64, D::Error>

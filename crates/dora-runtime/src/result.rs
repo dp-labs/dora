@@ -1,8 +1,7 @@
 use crate::{db::DatabaseError, journaled_state::State};
 use core::fmt;
-use dora_primitives::{Address, Bytes, Log};
-use ruint::aliases::U256;
-use std::{boxed::Box, fmt::Debug, string::String};
+use dora_primitives::{Address, Bytes, InvalidHeader, InvalidTransaction, Log};
+use std::{fmt::Debug, string::String};
 
 /// Represents the result of an VM execution along with the updated account state.
 ///
@@ -267,92 +266,6 @@ impl From<InvalidTransaction> for VMError {
 impl From<InvalidHeader> for VMError {
     fn from(value: InvalidHeader) -> Self {
         Self::Header(value)
-    }
-}
-
-/// Errors related to transaction validation.
-///
-/// This enum represents various conditions that can invalidate a transaction during validation.
-/// Each variant describes a specific issue or inconsistency encountered during transaction processing.
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
-pub enum InvalidTransaction {
-    PriorityFeeGreaterThanMaxFee,
-    GasPriceLessThanBasefee,
-    CallerGasLimitMoreThanBlock,
-    CallGasCostMoreThanGasLimit,
-    RejectCallerWithCode,
-    LackOfFundForMaxFee { fee: Box<U256>, balance: Box<U256> },
-    OverflowPaymentInTransaction,
-    NonceOverflowInTransaction,
-    NonceTooHigh { tx: u64, state: u64 },
-    NonceTooLow { tx: u64, state: u64 },
-    CreateInitCodeSizeLimit,
-    InvalidChainId,
-    AccessListNotSupported,
-    MaxFeePerBlobGasNotSupported,
-    BlobVersionedHashesNotSupported,
-    BlobGasPriceGreaterThanMax,
-    EmptyBlobs,
-    BlobCreateTransaction,
-    TooManyBlobs { max: usize, have: usize },
-    BlobVersionNotSupported,
-    EofCrateShouldHaveToAddress,
-}
-
-impl fmt::Display for InvalidTransaction {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        use InvalidTransaction::*;
-        match self {
-            PriorityFeeGreaterThanMaxFee => write!(f, "priority fee is greater than max fee"),
-            GasPriceLessThanBasefee => write!(f, "gas price is less than basefee"),
-            CallerGasLimitMoreThanBlock => write!(f, "caller gas limit exceeds block gas limit"),
-            CallGasCostMoreThanGasLimit => write!(f, "call gas cost exceeds gas limit"),
-            RejectCallerWithCode => {
-                write!(f, "reject transactions from senders with deployed code")
-            }
-            LackOfFundForMaxFee { fee, balance } => {
-                write!(
-                    f,
-                    "lack of funds ({} balance) for max fee ({})",
-                    balance, fee
-                )
-            }
-            OverflowPaymentInTransaction => write!(f, "overflow payment in transaction"),
-            NonceOverflowInTransaction => write!(f, "nonce overflow in transaction"),
-            NonceTooHigh { tx, state } => write!(f, "nonce {} too high, expected {}", tx, state),
-            NonceTooLow { tx, state } => write!(f, "nonce {} too low, expected {}", tx, state),
-            CreateInitCodeSizeLimit => write!(f, "create initcode size limit exceeded"),
-            InvalidChainId => write!(f, "invalid chain ID"),
-            AccessListNotSupported => write!(f, "access list not supported"),
-            MaxFeePerBlobGasNotSupported => write!(f, "max fee per blob gas not supported"),
-            BlobVersionedHashesNotSupported => write!(f, "blob versioned hashes not supported"),
-            BlobGasPriceGreaterThanMax => write!(f, "blob gas price greater than max fee per blob"),
-            EmptyBlobs => write!(f, "empty blobs"),
-            BlobCreateTransaction => write!(f, "blob transactions cannot be create transactions"),
-            TooManyBlobs { max, have } => write!(f, "too many blobs, max {}, have {}", max, have),
-            BlobVersionNotSupported => write!(f, "blob version not supported"),
-            EofCrateShouldHaveToAddress => write!(f, "EOF crate should have a `to` address"),
-        }
-    }
-}
-
-/// Errors related to block header validation.
-///
-/// This enum contains specific errors related to missing fields in block headers:
-/// - `PrevrandaoNotSet`: The `prev_randao` field is missing.
-/// - `ExcessBlobGasNotSet`: The excess blob gas field is not set.
-#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
-pub enum InvalidHeader {
-    PrevrandaoNotSet,
-    ExcessBlobGasNotSet,
-}
-
-impl fmt::Display for InvalidHeader {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match self {
-            Self::PrevrandaoNotSet => write!(f, "`prevrandao` not set"),
-            Self::ExcessBlobGasNotSet => write!(f, "`excess_blob_gas` not set"),
-        }
     }
 }
 

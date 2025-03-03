@@ -14,8 +14,12 @@ pub use dora_compiler::{
     pass,
     wasm::{self, WASMCompileOptions, WASMCompiler},
 };
-pub use dora_primitives::{Bytecode, Bytes, Bytes32, EVMBytecode, WASMBytecode, spec::SpecId};
+pub use dora_primitives::{
+    Bytecode, Bytes, Bytes32, EVMBytecode, Env, TxKind, WASMBytecode, spec::SpecId,
+};
+pub use dora_runtime::context::RuntimeContext;
 pub use dora_runtime::executor::{ExecuteKind, Executor};
+pub use dora_runtime::stack::Stack;
 pub use dora_runtime::{
     artifact::Artifact,
     call::CallResult,
@@ -24,12 +28,10 @@ pub use dora_runtime::{
     result::{ExecutionResult, VMError},
     vm::VM,
 };
-pub use dora_runtime::{context::RuntimeContext, env::TxKind};
 pub use dora_runtime::{
     db::{Database, MemoryDB},
     result::ResultAndState,
 };
-pub use dora_runtime::{env::Env, stack::Stack};
 use std::sync::Arc;
 
 /// Run EVM or WASM with the environment configuration for the execution, given state database and return the execution result and final state.

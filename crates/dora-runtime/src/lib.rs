@@ -4,7 +4,6 @@ pub mod call;
 pub mod constants;
 pub mod context;
 pub mod db;
-pub mod env;
 pub mod executor;
 pub mod gas;
 pub mod handler;
@@ -13,7 +12,6 @@ pub mod journaled_state;
 pub mod result;
 pub mod stack;
 pub mod symbols;
-pub mod transaction;
 pub mod vm;
 pub mod wasm;
 

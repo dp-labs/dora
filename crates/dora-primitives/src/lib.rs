@@ -5,10 +5,13 @@ pub use revm::precompile::{
     Precompile, PrecompileErrors, PrecompileOutput, PrecompileSpecId, Precompiles,
 };
 pub use revm::primitives::{
-    Address, Authorization, AuthorizationList, B256, Bytecode as EVMBytecode, Bytes,
-    EOF_MAGIC_BYTES, EvmStorageSlot, FixedBytes, GAS_PER_BLOB, I256, KECCAK_EMPTY, Log, LogData,
-    RecoveredAuthority, RecoveredAuthorization, SignedAuthorization, SpecId, TxKind, TxType, U256,
-    address, alloy_primitives, b256, calc_blob_gasprice, calc_excess_blob_gas, eip7702,
+    AccessList, AccessListItem, Address, Authorization, AuthorizationList, B256,
+    BLOCK_HASH_HISTORY, BLOCKHASH_SERVE_WINDOW, BLOCKHASH_STORAGE_ADDRESS, BlobExcessGasAndPrice,
+    BlockEnv, Bytecode as EVMBytecode, Bytes, CfgEnv, EOF_MAGIC_BYTES, Env, EvmStorageSlot,
+    FixedBytes, GAS_PER_BLOB, I256, InvalidHeader, InvalidTransaction, KECCAK_EMPTY, Log, LogData,
+    MAX_CODE_SIZE, MAX_INITCODE_SIZE, RecoveredAuthority, RecoveredAuthorization,
+    SignedAuthorization, SpecId, TxEnv, TxKind, TxType, U256, address, alloy_primitives, b256,
+    calc_blob_gasprice, calc_excess_blob_gas, eip7702,
     eof::{Eof, EofBody, TypesSection},
     fixed_bytes,
     hex::{FromHex, ToHexExt},
@@ -17,6 +20,9 @@ pub use revm::primitives::{
 
 pub mod config;
 pub mod spec;
+
+pub use config::OptimizationLevel;
+pub use spec::{Spec, SpecName, spec_to_generic};
 
 /// Converts a `U256` value to a `u64`, saturating to `MAX` if the value is too large.
 #[macro_export]

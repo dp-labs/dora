@@ -5,13 +5,12 @@ use crate::constants::gas_cost::{
     REFUND_SSTORE_CLEARS, SSTORE_RESET, SSTORE_SET, TRANSACTION_ZERO_DATA, WARM_SLOAD_COST,
     WARM_SSTORE_RESET,
 };
-use crate::env::AccessListItem;
 use crate::host::{
     AccountLoad, CodeLoad, SStoreResult, SStoreStatus, SelfdestructResult, StateLoad,
 };
-use dora_primitives::U256;
 use dora_primitives::eip7702::PER_EMPTY_ACCOUNT_COST;
 use dora_primitives::spec::SpecId;
+use dora_primitives::{AccessListItem, U256};
 
 #[inline]
 pub fn sstore_cost(spec_id: SpecId, result: &SStoreResult, gas: u64, is_cold: bool) -> Option<u64> {
@@ -524,7 +523,7 @@ pub fn validate_initial_tx_gas(
     // get number of access list account and storages.
     let (account_num, storage_num): (usize, usize) = (
         access_list.len(),
-        access_list.iter().map(|i| i.1.len()).sum(),
+        access_list.iter().map(|i| i.storage_keys.len()).sum(),
     );
     initial_gas += account_num as u64 * ACCESS_LIST_ADDRESS;
     initial_gas += storage_num as u64 * ACCESS_LIST_STORAGE_KEY;
