@@ -1,7 +1,7 @@
 #![allow(clippy::arc_with_non_send_sync)]
 
-use crate::constants::MAIN_ENTRYPOINT;
-use crate::context::{EVMMainFunc, RuntimeContext, WASMMainFunc};
+use crate::constants::ENTRYPOINT;
+use crate::context::{EVMEntryFunc, RuntimeContext, WASMEntryFunc};
 use crate::wasm::WASMInstance;
 use dora_primitives::config::OptimizationLevel;
 use melior::StringRef;
@@ -72,7 +72,6 @@ impl Executor {
         }
         Self { engine, kind }
     }
-
     /// Retrieves the EVM main entry point function from the execution engine.
     ///
     /// This function constructs the main entry point's symbol name in the format `_mlir_ciface_<MAIN_ENTRYPOINT>`
@@ -84,8 +83,8 @@ impl Executor {
     ///
     /// # Safety:
     /// The function pointer is assumed to be valid and to conform to the expected signature of `EVMMainFunc`.
-    pub fn get_evm_main_entrypoint(&self) -> EVMMainFunc {
-        let fptr = self.get_main_entrypoint_ptr();
+    pub fn get_evm_entrypoint(&self) -> EVMEntryFunc {
+        let fptr = self.get_entrypoint_ptr();
         // SAFETY: We're assuming the function pointer is valid and matches the MainFunc signature.
         unsafe { std::mem::transmute(fptr) }
     }
@@ -106,16 +105,16 @@ impl Executor {
     /// ```no_check
     /// let main_fn = executor.get_main_entrypoint();
     /// ```
-    pub fn get_wasm_main_entrypoint(&self) -> WASMMainFunc {
-        let fptr = self.get_main_entrypoint_ptr();
+    pub fn get_wasm_entrypoint(&self) -> WASMEntryFunc {
+        let fptr = self.get_entrypoint_ptr();
         // SAFETY: We're assuming the function pointer is valid and matches the MainFunc signature.
         unsafe { std::mem::transmute(fptr) }
     }
 
     /// Retrieves the main entry point function pointer from the execution engine.
-    pub fn get_main_entrypoint_ptr(&self) -> *mut () {
-        let function_name = format!("_mlir_ciface_{MAIN_ENTRYPOINT}");
-        self.engine.lookup(&function_name)
+    #[inline]
+    pub fn get_entrypoint_ptr(&self) -> *mut () {
+        self.lookup(&ciface_name(ENTRYPOINT))
     }
 
     /// Searches a symbol in a module and returns a pointer to it.
@@ -123,6 +122,12 @@ impl Executor {
     pub fn lookup(&self, name: &str) -> *mut () {
         self.engine.lookup(name)
     }
+}
+
+/// Get the MLIR C interface symbol name.
+#[inline]
+pub fn ciface_name<S: AsRef<str>>(name: S) -> String {
+    format!("_mlir_ciface_{}", name.as_ref())
 }
 
 /// A shared reference execution engine for the artifact cache.

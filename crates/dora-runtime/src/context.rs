@@ -24,7 +24,7 @@ use dora_primitives::{
 };
 
 /// Function type for the EVM main entrypoint of the generated code.
-pub type EVMMainFunc = extern "C" fn(
+pub type EVMEntryFunc = extern "C" fn(
     *mut RuntimeContext,
     initial_gas: *mut u64,
     stack: *mut Stack,
@@ -32,7 +32,7 @@ pub type EVMMainFunc = extern "C" fn(
 ) -> u8;
 
 /// Function type for the EVM main entrypoint of the generated code.
-pub type WASMMainFunc = extern "C" fn(*mut wasmer_vm::VMContext);
+pub type WASMEntryFunc = extern "C" fn(*mut wasmer_vm::VMContext);
 
 /// The main context for smart contract execution environment.
 pub struct VMContext<'a, DB: Database> {

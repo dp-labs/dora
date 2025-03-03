@@ -4,7 +4,7 @@
     local.get $y
     i32.add)
 
-  (func (export "main") 
+  (func (export "call") 
     (call $sum_f (i32.const 2) (i32.const 3))
     drop
   )

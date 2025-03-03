@@ -91,7 +91,7 @@ fn run_evm_bench(c: &mut Criterion, bench: &Bench) {
         gas_limit,
     );
     let executor = Executor::new(module.module(), Default::default(), ExecuteKind::EVM);
-    let func = executor.get_evm_main_entrypoint();
+    let func = executor.get_evm_entrypoint();
     let ctx = black_box(&mut context);
 
     g.bench_function("dora", |b| {

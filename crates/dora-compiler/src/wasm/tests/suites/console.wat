@@ -18,7 +18,7 @@
   (global (;1;) i32 i32.const 1049312)
   (global (;2;) i32 i32.const 1049305)
   (export "memory" (memory 0))
-  (export "main" (func 1))
+  (export "call" (func 1))
   (export "__heap_base" (global 1))
   (export "__data_end" (global 2))
 

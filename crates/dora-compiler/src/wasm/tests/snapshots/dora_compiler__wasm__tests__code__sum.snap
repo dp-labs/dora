@@ -1,7 +1,6 @@
 ---
 source: crates/dora-compiler/src/wasm/tests/code.rs
 expression: op
-snapshot_kind: text
 ---
 module {
   func.func @sum_f(%arg0: !llvm.ptr, %arg1: i32, %arg2: i32) -> i32 {
@@ -20,7 +19,7 @@ module {
   ^bb2(%5: i32):  // pred: ^bb1
     return %5 : i32
   }
-  func.func public @main(%arg0: !llvm.ptr) attributes {llvm.emit_c_interface} {
+  func.func public @call(%arg0: !llvm.ptr) attributes {llvm.emit_c_interface} {
     cf.br ^bb1
   ^bb1:  // pred: ^bb0
     %c2_i32 = arith.constant 2 : i32

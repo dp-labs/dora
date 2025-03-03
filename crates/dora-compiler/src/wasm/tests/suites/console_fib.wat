@@ -20,7 +20,7 @@
   (global (;2;) i32 i32.const 1049533)
   (export "memory" (memory 0))
   (export "fibonacci" (func 6))
-  (export "main" (func 7))
+  (export "call" (func 7))
   (export "__heap_base" (global 1))
   (export "__data_end" (global 2))
   (elem (;0;) (i32.const 1) func 5 1 4 3 14 2 15 18 16 66 38 29 34 32 28 25 26 46 43 44 45 30 42 40 41 31 52 62 63 51 53 70 69)

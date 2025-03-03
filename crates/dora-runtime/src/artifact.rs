@@ -1,7 +1,7 @@
 use crate::{
     call::CallResult,
-    constants::MAIN_ENTRYPOINT,
-    context::{Contract, EVMMainFunc, RuntimeContext},
+    constants::ENTRYPOINT,
+    context::{Contract, EVMEntryFunc, RuntimeContext},
     executor::{ExecuteKind, Executor},
     host::DummyHost,
     stack::Stack,
@@ -90,14 +90,14 @@ impl Artifact for SymbolArtifact {
     /// function matching the MainFunc<DB> signature. Incorrect use could lead to undefined behavior.
     #[inline]
     fn execute(&self, mut context: RuntimeContext) -> Result<CallResult> {
-        let ptr = self.executor.get_main_entrypoint_ptr();
+        let ptr = self.executor.get_entrypoint_ptr();
         if ptr.is_null() {
             return Err(anyhow::anyhow!("function main not found"));
         }
         match &self.executor.kind {
             ExecuteKind::EVM => {
                 let mut initial_gas = context.gas_limit();
-                let func: EVMMainFunc = unsafe { std::mem::transmute(ptr) };
+                let func: EVMEntryFunc = unsafe { std::mem::transmute(ptr) };
                 func(&mut context, &mut initial_gas, &mut Stack::new(), &mut 0);
                 Ok(CallResult {
                     status: context.status(),
@@ -111,7 +111,7 @@ impl Artifact for SymbolArtifact {
             ExecuteKind::WASM(_) => {
                 // Note: default WASM entrypoint is `fn main() -> ()`, no args and return values.
                 let (_, result): ((), _) =
-                    self.execute_wasm_func_with_context_result(MAIN_ENTRYPOINT, (), context)?;
+                    self.execute_wasm_func_with_context_result(ENTRYPOINT, (), context)?;
                 Ok(result)
             }
         }
