@@ -1809,6 +1809,7 @@ impl RuntimeContext<'_> {
                 self.inner.result.error = ExitStatusCode::OutOfGas.to_u8();
             }
         }
+        self.inner.gas_refunded += gas::sstore_refund(self.inner.spec_id, &result.data);
         unsafe { &*(&self.inner.result as *const RuntimeResult<u64> as *const RuntimeResult<()>) }
     }
 
