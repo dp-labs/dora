@@ -73,7 +73,7 @@ fn test_wasm_brainfuck_with_host_functions() {
 fn test_wasm_sum() -> Result<()> {
     let code = include_bytes!("../../../dora-compiler/src/wasm/tests/suites/sum.wat");
     build_wasm_code!(code, artifact);
-    generate_test_cases!(&artifact, [("main", (), (), ()),]);
+    generate_test_cases!(&artifact, [("call", (), (), ()),]);
     Ok(())
 }
 
@@ -4558,7 +4558,7 @@ fn test_wasm_alloc() -> Result<()> {
 fn test_wasm_console() -> Result<()> {
     let code = include_bytes!("../../../dora-compiler/src/wasm/tests/suites/console.wat");
     build_wasm_code!(code, _artifact);
-    generate_test_cases!(&_artifact, [("main", (), (), ()),]);
+    generate_test_cases!(&_artifact, [("call", (), (), ()),]);
     Ok(())
 }
 
@@ -4746,6 +4746,6 @@ fn test_wasm_interoperability_contract() -> Result<()> {
 fn test_wasm_rust_panic() -> Result<()> {
     let code = include_bytes!("../../../dora-compiler/src/wasm/tests/suites/rust_panic.wat");
     build_wasm_code!(code, artifact);
-    generate_error_test_cases!(&artifact, [("main", (), "unreachable"),]);
+    generate_error_test_cases!(&artifact, [("call", (), "unreachable"),]);
     Ok(())
 }

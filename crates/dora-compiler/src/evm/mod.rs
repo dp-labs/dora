@@ -2,7 +2,7 @@ use dora_primitives::SpecId;
 use dora_runtime::ExitStatusCode;
 use dora_runtime::constants::env::DORA_TRACING;
 use dora_runtime::{
-    constants::{MAIN_ENTRYPOINT, MAX_STACK_SIZE},
+    constants::{ENTRYPOINT, MAX_STACK_SIZE},
     symbols as runtime_symbols,
 };
 use melior::dialect::llvm::AllocaOptions;
@@ -565,7 +565,7 @@ impl<'c> EVMCompiler<'c> {
         // Build the main function
         let main_func = func::func(
             context,
-            StringAttribute::new(context, MAIN_ENTRYPOINT),
+            StringAttribute::new(context, ENTRYPOINT),
             TypeAttribute::new(
                 FunctionType::new(
                     context,

@@ -3,10 +3,8 @@ use thiserror::Error;
 pub const MAX_STACK_SIZE: usize = 1024;
 pub const CALL_STACK_LIMIT: usize = 1024;
 
-/// MLIR main entry point name.
-pub const MAIN_ENTRYPOINT: &str = "main";
 /// MLIR call entry point name.
-pub const CALL_ENTRYPOINT: &str = "call";
+pub const ENTRYPOINT: &str = "call";
 /// Versioning and blob constants.
 pub const VERSIONED_HASH_VERSION_KZG: u8 = 0x01;
 /// Target number of the blob per block.

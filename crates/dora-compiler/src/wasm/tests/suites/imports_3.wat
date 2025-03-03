@@ -15,7 +15,7 @@
   (global $cell (mut i32) (i32.const 0x800))
 
   ;; sets up the entry point
-  (func $main (export "user_entrypoint") (param $args_len i32) (result i32)
+  (func $call (export "user_entrypoint") (param $args_len i32) (result i32)
 
       ;; load the args
       local.get $args_len
