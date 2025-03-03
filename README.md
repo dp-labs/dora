@@ -42,7 +42,7 @@ VM is ideal for blockchain applications like:
 ## Examples
 
 - Check out Dora EVM and WASM contract examples [here](./examples/).
-- Check out Foundry, Hardhat and Rust toolchain examples [here](https://github.com/dp-labs/examples) for Dora EVM and WASM.
+- Check out Foundry, Hardhat and Rust toolchain examples [here](https://github.com/dp-labs/toolchain-examples) for Dora EVM and WASM.
 
 ## Benchmarks
 
