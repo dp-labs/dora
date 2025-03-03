@@ -930,10 +930,10 @@ fn test_wasm_conversions() -> Result<()> {
             ("i32.trunc_f32_u", 1.5_f32, 1, i32),
             ("i32.trunc_f32_u", 1.9_f32, 1, i32),
             ("i32.trunc_f32_u", 2.0_f32, 2, i32),
-            ("i32.trunc_f32_u", -f32::MAX, 0, i32), // ;; 0x1.00000p+31 -> 8000 0000
+            ("i32.trunc_f32_u", -f32::MAX, 0, i32),
             ("i32.trunc_f32_u", 4294967040.0 as f32, -256, i32),
-            ("i32.trunc_f32_u", -1.7999998f32.powi(-1), 0, i32), // 1.7999998_f32.powi(-1)
-            ("i32.trunc_f32_u", -3.4028235e38f32.powi(-1), 0, i32), // 3.4028235e38_f32.powi(-1)
+            ("i32.trunc_f32_u", -1.7999998f32.powi(-1), 0, i32),
+            ("i32.trunc_f32_u", -3.4028235e38f32.powi(-1), 0, i32),
             ("i32.trunc_f32_u", 1234.567_f32, 1234, i32),
             ("i32.trunc_f32_u", f32::MAX, -1, i32),
 
@@ -943,26 +943,26 @@ fn test_wasm_conversions() -> Result<()> {
             ("i32.trunc_f64_s", -0.0_f64, 0, i32),
             (
                 "i32.trunc_f64_s",
-                0.0000000000001f64.powi(-1022), // 0x0.0000000000001p-1022
+                0.0000000000001f64.powi(-1022),
                 i32::MAX,
                 i32
             ),
             (
                 "i32.trunc_f64_s",
-                -0.0000000000001f64.powi(-1022), // -0x0.0000000000001p-1022
+                -0.0000000000001f64.powi(-1022),
                 i32::MIN,
                 i32
             ),
             ("i32.trunc_f64_s", 1.0_f64, 1, i32),
             (
                 "i32.trunc_f64_s",
-                1.199999999999_f64.powi(0), // 0x1.199999999999ap+0
+                1.199999999999_f64.powi(0),
                 1,
                 i32
             ),
             ("i32.trunc_f64_s", 1.5_f64, 1, i32),
             ("i32.trunc_f64_s", -1.0_f64, -1, i32),
-            ("i32.trunc_f64_s", -1.199999999999_f64.powi(0), -1, i32), // -0x1.199999999999ap+0
+            ("i32.trunc_f64_s", -1.199999999999_f64.powi(0), -1, i32),
             ("i32.trunc_f64_s", -1.5_f64, -1, i32),
             ("i32.trunc_f64_s", -1.9_f64, -1, i32),
             ("i32.trunc_f64_s", -2.0_f64, -2, i32),
@@ -975,27 +975,17 @@ fn test_wasm_conversions() -> Result<()> {
             ("i32.trunc_f64_u", i32::MAX as f64, i32::MAX, i32),
             ("i32.trunc_f64_u", 0.0_f64, 0, i32),
             ("i32.trunc_f64_u", -0.0_f64, 0, i32),
-            // ("i32.trunc_f64_u", 0.0000000000001_f64.powi(-1022), 0, i32),    // TODO: result is -1, not 0
-            ("i32.trunc_f64_u", -0.0000000000001_f64.powi(-1022), 0, i32),   // TODO: result is -1, not 0
+            ("i32.trunc_f64_u", 1.470742791249129e-323_f64, 0, i32),
+            ("i32.trunc_f64_u", -1.470742791249129e-323_f64, 0, i32),
             ("i32.trunc_f64_u", 1.0_f64, 1, i32),
             ("i32.trunc_f64_u", 1.199999999999_f64.powi(0), 1, i32),
             ("i32.trunc_f64_u", 1.5_f64, 1, i32),
             ("i32.trunc_f64_u", 1.9_f64, 1, i32),
             ("i32.trunc_f64_u", 2.0_f64, 2, i32),
-            ("i32.trunc_f64_u", 2147483648_f64, -2147483648, i32), // 0x1.00000p+31 -> 8000 0000
+            ("i32.trunc_f64_u", 2147483648_f64, -2147483648, i32),
             ("i32.trunc_f64_u", 4294967295.0_f64, -1, i32),
-            (
-                "i32.trunc_f64_u",
-                1.8000000000000003_f64.powi(-1),    // -0x1.ccccccccccccdp-1_f64,
-                0,
-                i32
-            ),
-            (
-                "i32.trunc_f64_u",
-                1.9999999999999996_f64.powi(-1), // -0x1.fffffffffffffp-1_f64
-                0,
-                i32
-            ),
+            ("i32.trunc_f64_u", 1.8000000000000003_f64.powi(-1), 0, i32),
+            ("i32.trunc_f64_u", 1.9999999999999996_f64.powi(-1), 0, i32),
             ("i32.trunc_f64_u", 1e8_f64, 100000000, i32),
             ("i32.trunc_f64_u", -0.9_f64, 0, i32),
             ("i32.trunc_f64_u", 4294967295.9_f64, 4294967295_i64 as i32, i32),
@@ -1007,12 +997,7 @@ fn test_wasm_conversions() -> Result<()> {
             ("i64.trunc_f32_s", 2f32.powi(-149), 0, i64),
             ("i64.trunc_f32_s", -2f32.powi(-149), 0, i64),
             ("i64.trunc_f32_s", 1.0_f32, 1, i64),
-            (
-                "i64.trunc_f32_s",
-                1.100000023841858_f32.powi(0), // "0x1.19999ap+0"
-                1,
-                i64
-            ),
+            ("i64.trunc_f32_s", 1.100000023841858_f32.powi(0), 1, i64),
             ("i64.trunc_f32_s", 1.5_f32, 1, i64),
             ("i64.trunc_f32_s", -1.0_f32, -1, i64),
             ("i64.trunc_f32_s", -1.100000023841858_f32.powi(0), -1, i64),
@@ -1044,8 +1029,8 @@ fn test_wasm_conversions() -> Result<()> {
             ("i64.trunc_f64_u", 2200000000_f64, 2200000000, i64),
             ("i64.trunc_f64_s", 0.0_f64, 0, i64),
             ("i64.trunc_f64_s", -0.0_f64, 0, i64),
-            // ("i64.trunc_f64_s", 0.0000000000001_f64.powi(-1022), 0, i64),    // TODO: result is 9223372036854775807, not 0
-            // ("i64.trunc_f64_s", -0.0000000000001_f64.powi(-1022), 0, i64),   // TODO: result is -19223372036854775807, not 0
+            ("i64.trunc_f64_s", 0.0000000000001e-1022_f64, 0, i64),
+            ("i64.trunc_f64_s", -0.0000000000001e-1022_f64, 0, i64),
             ("i64.trunc_f64_s", 1.0_f64, 1, i64),
             ("i64.trunc_f64_s", 1.199999999999_f64.powi(0), 1, i64),
             ("i64.trunc_f64_s", 1.5_f64, 1, i64),
@@ -1085,17 +1070,27 @@ fn test_wasm_conversions() -> Result<()> {
             ("i32.trunc_sat_f32_s", f32::INFINITY, 0x7fffffff, i32),
             ("i32.trunc_sat_f32_s", -f32::INFINITY, 0x80000000_i64 as i32, i32),
             ("i32.trunc_sat_f32_s", f32::NAN, 0, i32),
-            // ("i32.trunc_sat_f32_s", nan:0x200000, 0, i32),   // TODO
+            (
+                "i32.trunc_sat_f32_s",
+                unsafe {std::mem::transmute::<u32, f32>(0x200000)},
+                0,
+                i32
+            ),
             ("i32.trunc_sat_f32_s", -f32::NAN, 0, i32),
-            // ("i32.trunc_sat_f32_s", -nan:0x200000, 0, i32),  // TODO
+            (
+                "i32.trunc_sat_f32_s",
+                unsafe {std::mem::transmute::<i32, f32>(-0x200000)},
+                0,
+                i32
+            ),
 
             ("i32.trunc_sat_f64_s", 1234.567_f64, 1234, i32),
             ("i32.trunc_sat_f64_s", -f64::consts::PI, -3, i32),
             ("i32.trunc_sat_f64_s", 2200000000_f64, 2147483647, i32),
             ("i32.trunc_sat_f64_s", 0.0_f64, 0, i32),
             ("i32.trunc_sat_f64_s", -0.0_f64, 0, i32),
-            // ("i32.trunc_sat_f64_s", 0.0000000000001_f64.powi(-1022), 0, i32),   // TODO result is 2147483647, not 0
-            // ("i32.trunc_sat_f64_s", -0.0000000000001_f64.powi(-1022), 0, i32),      // TODO: result is -2147483648, not 0
+            ("i32.trunc_sat_f64_s", 1.470742791249129e-323_f64, 0, i32),
+            ("i32.trunc_sat_f64_s", -1.470742791249129e-323_f64, 0, i32),
             ("i32.trunc_sat_f64_s", 1.0_f64, 1, i32),
             ("i32.trunc_sat_f64_s", 1.199999999999_f64.powi(0), 1, i32),
             ("i32.trunc_sat_f64_s", 1.5_f64, 1, i32),
@@ -1111,9 +1106,19 @@ fn test_wasm_conversions() -> Result<()> {
             ("i32.trunc_sat_f64_s", f64::INFINITY, 0x7fffffff, i32),
             ("i32.trunc_sat_f64_s", -f64::INFINITY, 0x80000000_i64 as i32, i32),
             ("i32.trunc_sat_f64_s", f64::NAN, 0, i32),
-            // ("i32.trunc_sat_f64_s", nan:0x4000000000000_f64, 0, i32),    // TODO
+            (
+                "i32.trunc_sat_f64_s",
+                unsafe { std::mem::transmute::<u64, f64>(0x4000000000000) },
+                0,
+                i32
+            ),
             ("i32.trunc_sat_f64_s", -f64::NAN, 0, i32),
-            // ("i32.trunc_sat_f64_s", -nan:0x4000000000000_f64, 0, i32),   // TODO
+            (
+                "i32.trunc_sat_f64_s",
+                unsafe { std::mem::transmute::<i64, f64>(-0x4000000000000) },
+                0,
+                i32
+            ),
 
             ("i32.trunc_sat_f64_u", 1234.567_f64, 1234, i32),
             ("i32.trunc_sat_f64_u", f64::MAX, -1, i32),
@@ -1121,8 +1126,8 @@ fn test_wasm_conversions() -> Result<()> {
             ("i32.trunc_sat_f64_u", 5000000000_f64, -1, i32),
             ("i32.trunc_sat_f64_u", 0.0_f64, 0, i32),
             ("i32.trunc_sat_f64_u", -0.0_f64, 0, i32),
-            // ("i32.trunc_sat_f64_u", 0.0000000000001_f64.powi(-1022), 0, i32),    // TODO result is -1, not 0
-            ("i32.trunc_sat_f64_u", -0.0000000000001_f64.powi(-1022), 0, i32),  // TODO result is -1, not 0
+            ("i32.trunc_sat_f64_u", 1.470742791249129e-323_f64, 0, i32),
+            ("i32.trunc_sat_f64_u", -1.470742791249129e-323_f64, 0,i32),
             ("i32.trunc_sat_f64_u", 1.0_f64, 1, i32),
             ("i32.trunc_sat_f64_u", 1.199999999999_f64.powi(0), 1, i32),
             ("i32.trunc_sat_f64_u", 1.5_f64, 1, i32),
@@ -1130,20 +1135,35 @@ fn test_wasm_conversions() -> Result<()> {
             ("i32.trunc_sat_f64_u", 2.0_f64, 2, i32),
             ("i32.trunc_sat_f64_u", 2147483648_f64, -2147483648, i32),
             ("i32.trunc_sat_f64_u", 4294967295.0_f64, -1, i32),
-            // ("i32.trunc_sat_f64_u", -0x1.ccccccccccccdp-1_f64, 0, i32),  // TODO
-            // ("i32.trunc_sat_f64_u", -0x1.fffffffffffffp-1_f64, 0, i32),  // TODO
+            ("i32.trunc_sat_f64_u", -0.9_f64, 0, i32),
+            ("i32.trunc_sat_f64_u", -1.0_f64, 0, i32),
             ("i32.trunc_sat_f64_u", 1e8_f64, 100000000, i32),
             ("i32.trunc_sat_f64_u", 4294967296.0_f64, 0xffffffff_i64 as i32, i32),
             ("i32.trunc_sat_f64_u", -1.0_f64, 0x00000000, i32),
             ("i32.trunc_sat_f64_u", 1e16_f64, 0xffffffff_i64 as i32, i32),
             ("i32.trunc_sat_f64_u", 1e30_f64, 0xffffffff_i64 as i32, i32),
-            // ("i32.trunc_sat_f64_u", 9223372036854775808_f64, 0xffffffff_i64 as i32, i32),    // TODO
+            (
+                "i32.trunc_sat_f64_u",
+                9223372036854775808_f64,
+                0xffffffff_i64 as i32,
+                i32
+            ),
             ("i32.trunc_sat_f64_u", f64::INFINITY, 0xffffffff_i64 as i32, i32),
             ("i32.trunc_sat_f64_u", -f64::INFINITY, 0x00000000, i32),
             ("i32.trunc_sat_f64_u", f64::NAN, 0, i32),
-            // ("i32.trunc_sat_f64_u", nan:0x4000000000000_f64, 0, i32),        // TODO
+            (
+                "i32.trunc_sat_f64_u",
+                unsafe {std::mem::transmute::<i64, f64>(0x4000000000000)},
+                0,
+                i32
+            ),
             ("i32.trunc_sat_f64_u", -f64::NAN, 0, i32),
-            // ("i32.trunc_sat_f64_u", -nan:0x4000000000000_f64, 0, i32),       // TODO
+            (
+                "i32.trunc_sat_f64_u",
+                unsafe {std::mem::transmute::<i64, f64>(-0x4000000000000)},
+                0,
+                i32
+            ),
 
             ("i64.trunc_sat_f32_s", 1234.567_f32, 1234, i64),
             ("i64.trunc_sat_f32_s", -f32::consts::PI, -3, i64),
@@ -1160,8 +1180,8 @@ fn test_wasm_conversions() -> Result<()> {
             ("i64.trunc_sat_f32_s", -1.5_f32, -1, i64),
             ("i64.trunc_sat_f32_s", -1.9_f32, -1, i64),
             ("i64.trunc_sat_f32_s", -2.0_f32, -2, i64),
-            // ("i64.trunc_sat_f32_s", 4294967296f32, 4294967296, i64), // TODO
-            // ("i64.trunc_sat_f32_s", -4294967296, -4294967296, i64), //   TODO
+            // ("i64.trunc_sat_f32_s", 4294967296_f32, 4294967296_i64, i64), // TODO for Timi
+            // ("i64.trunc_sat_f32_s", -4294967296, -4294967296, i64), //   TODO for Timi
             ("i64.trunc_sat_f32_s", 9223371487098961920.0_f32, f32::MAX as i64, i64),
             ("i64.trunc_sat_f32_s", -9223372036854775808.0_f32, -9223372036854775808, i64),
             ("i64.trunc_sat_f32_s", 9223372036854775808.0_f32, 0x7fffffffffffffff, i64),
@@ -1169,9 +1189,19 @@ fn test_wasm_conversions() -> Result<()> {
             ("i64.trunc_sat_f32_s", f32::INFINITY, 0x7fffffffffffffff, i64),
             ("i64.trunc_sat_f32_s", -f32::INFINITY, 0x8000000000000000_u64 as i64, i64),
             ("i64.trunc_sat_f32_s", f32::NAN, 0, i64),
-            // ("i64.trunc_sat_f32_s", nan:0x200000, 0, i64),   // TODO
+            (
+                "i64.trunc_sat_f32_s",
+                unsafe {std::mem::transmute::<i32, f32>(0x200000)},
+                0,
+                i64
+            ),
             ("i64.trunc_sat_f32_s", -f32::NAN, 0, i64),
-            // ("i64.trunc_sat_f32_s", -nan:0x200000, 0, i64),  //  TODO
+            (
+                "i64.trunc_sat_f32_s",
+                unsafe {std::mem::transmute::<i32, f32>(-0x200000)},
+                0,
+                i64
+            ),
 
             ("i64.trunc_sat_f32_u", 1234.567_f32, 1234, i64),
             ("i64.trunc_sat_f32_u", f32::MAX, -1, i64),
@@ -1182,8 +1212,8 @@ fn test_wasm_conversions() -> Result<()> {
             ("i64.trunc_sat_f32_u", 1.0_f32, 1, i64),
             ("i64.trunc_sat_f32_u", 1.100000023841858_f32.powi(0), 1, i64),
             ("i64.trunc_sat_f32_u", 1.5f32, 1, i64),
-            // ("i64.trunc_sat_f32_u", 4294967296_f32, 4294967296_i64, i64), // TODO: current result is -1
-            // ("i64.trunc_sat_f32_u", 18446742974197923840.0_f32, -1099511627776, i64), // TODO: current result is -1
+            // ("i64.trunc_sat_f32_u", 4294967296.0_f32, 4294967296_i64, i64), // TODO for Timi
+            // ("i64.trunc_sat_f32_u", 18446742974197923840.0_f32, -1099511627776, i64), // TODO for Timi
             ("i64.trunc_sat_f32_u", -1.7999998_f32.powi(-1), 0, i64),
             ("i64.trunc_sat_f32_u", -3.4028235e38_f32.powi(-1), 0, i64),
             ("i64.trunc_sat_f32_u", 18446744073709551616.0_f32, 0xffffffffffffffff_u64 as i64, i64),
@@ -1191,17 +1221,27 @@ fn test_wasm_conversions() -> Result<()> {
             ("i64.trunc_sat_f32_u", f32::INFINITY, 0xffffffffffffffff_u64 as i64, i64),
             ("i64.trunc_sat_f32_u", -f32::INFINITY, 0x0000000000000000, i64),
             ("i64.trunc_sat_f32_u", f32::NAN, 0, i64),
-            // ("i64.trunc_sat_f32_u", nan:0x200000, 0, i64),   // TODO
+            (
+                "i64.trunc_sat_f32_u",
+                unsafe {std::mem::transmute::<i32, f32>(0x200000)},
+                0,
+                i64
+            ),
             ("i64.trunc_sat_f32_u", -f32::NAN, 0, i64),
-            // ("i64.trunc_sat_f32_u", -nan:0x200000, 0, i64),      // TODO
+            (
+                "i64.trunc_sat_f32_u",
+                unsafe {std::mem::transmute::<i32, f32>(-0x200000)},
+                0,
+                i64
+            ),
 
             ("i64.trunc_sat_f64_s", 1234.567_f64, 1234, i64),
             ("i64.trunc_sat_f64_s", -f64::consts::PI, -3, i64),
             ("i64.trunc_sat_f64_s", f64::MAX, i64::MAX, i64),
             ("i64.trunc_sat_f64_s", 0.0_f64, 0, i64),
             ("i64.trunc_sat_f64_s", -0.0_f64, 0, i64),
-            // ("i64.trunc_sat_f64_s", 0.0000000000001_f64.powi(-1022), 0, i64),   // TODO result is 9223372036854775807, not 0
-            // ("i64.trunc_sat_f64_s", -0.0000000000001_f64.powi(-1022), 0, i64),  // TODO result is -9223372036854775807, not 0
+            ("i64.trunc_sat_f64_s", 1.470742791249129e-323_f64, 0, i64),
+            ("i64.trunc_sat_f64_s", -1.470742791249129e-323_f64, 0, i64),
             ("i64.trunc_sat_f64_s", 1.0_f64, 1, i64),
             ("i64.trunc_sat_f64_s", 1.199999999999_f64.powi(0), 1, i64),
             ("i64.trunc_sat_f64_s", 1.5_f64, 1, i64),
@@ -1219,9 +1259,19 @@ fn test_wasm_conversions() -> Result<()> {
             ("i64.trunc_sat_f64_s", f64::INFINITY, 0x7fffffffffffffff, i64),
             ("i64.trunc_sat_f64_s", -f64::INFINITY, 0x8000000000000000_u64 as i64, i64),
             ("i64.trunc_sat_f64_s", f64::NAN, 0, i64),
-            // ("i64.trunc_sat_f64_s", nan:0x4000000000000_f64, 0, i64),
+            (
+                "i64.trunc_sat_f64_s",
+                unsafe {std::mem::transmute::<i64, f64>(0x4000000000000)},
+                0,
+                i64
+            ),
             ("i64.trunc_sat_f64_s", -f64::NAN, 0, i64),
-            // ("i64.trunc_sat_f64_s", -nan:0x4000000000000_f64, 0, i64),
+            (
+                "i64.trunc_sat_f64_s",
+                unsafe {std::mem::transmute::<i64, f64>(-0x4000000000000)},
+                0,
+                i64
+            ),
 
             ("i64.trunc_sat_f64_u", 1234.567_f64, 1234, i64),
             ("i64.trunc_sat_f64_u", 2200000000_f64, 2200000000, i64),
@@ -1229,16 +1279,16 @@ fn test_wasm_conversions() -> Result<()> {
             ("i64.trunc_sat_f64_u", f64::MAX, -1, i64),
             ("i64.trunc_sat_f64_u", 0.0_f64, 0, i64),
             ("i64.trunc_sat_f64_u", -0.0_f64, 0, i64),
-            // ("i64.trunc_sat_f64_u", 0.0000000000001_f64.powi(-1022), 0, i64),    // TODO
-            // ("i64.trunc_sat_f64_u", -0.0000000000001_f64.powi(-1022), 0, i64),   // TODO
+            ("i64.trunc_sat_f64_u", 1.470742791249129e-323_f64, 0, i64),
+            ("i64.trunc_sat_f64_u", -1.470742791249129e-323_f64, 0, i64),
             ("i64.trunc_sat_f64_u", 1.0_f64, 1, i64),
             ("i64.trunc_sat_f64_u", 1.199999999999_f64.powi(0), 1, i64),
             ("i64.trunc_sat_f64_u", 1.5_f64, 1, i64),
             ("i64.trunc_sat_f64_u", 4294967295_f64, 0xffffffff, i64),
             ("i64.trunc_sat_f64_u", 4294967296_f64, 0x100000000, i64),
             ("i64.trunc_sat_f64_u", 18446744073709549568.0_f64, -2048, i64),
-            // ("i64.trunc_sat_f64_u", -0x1.ccccccccccccdp-1_f64, 0, i64),  // TODO
-            // ("i64.trunc_sat_f64_u", -0x1.fffffffffffffp-1_f64, 0, i64),  // TODO
+            ("i64.trunc_sat_f64_u", -0.9_f64, 0, i64),
+            ("i64.trunc_sat_f64_u", -1.0_f64, 0, i64),
             ("i64.trunc_sat_f64_u", 1e8_f64, 100000000, i64),
             ("i64.trunc_sat_f64_u", 1e16_f64, 10000000000000000, i64),
             ("i64.trunc_sat_f64_u", 9223372036854775808_f64, -9223372036854775808, i64),
@@ -1247,9 +1297,19 @@ fn test_wasm_conversions() -> Result<()> {
             ("i64.trunc_sat_f64_u", f64::INFINITY, 0xffffffffffffffff_u64 as i64, i64),
             ("i64.trunc_sat_f64_u", -f64::INFINITY, 0x0000000000000000, i64),
             ("i64.trunc_sat_f64_u", f64::NAN, 0, i64),
-            // ("i64.trunc_sat_f64_u", nan:0x4000000000000_f64, 0, i64),
+            (
+                "i64.trunc_sat_f64_u", 
+                unsafe {std::mem::transmute::<i64, f64>(0x4000000000000)},
+                0,
+                i64
+            ),
             ("i64.trunc_sat_f64_u", -f64::NAN, 0, i64),
-            // ("i64.trunc_sat_f64_u", -nan:0x4000000000000_f64, 0, i64),
+            (
+                "i64.trunc_sat_f64_u",
+                unsafe {std::mem::transmute::<i64, f64>(-0x4000000000000)},
+                0,
+                i64
+            ),
 
             ("f32.convert_i32_s", 42, 42.0, f32),
             ("f32.convert_i32_s", i32::MAX, i32::MAX as f32, f32),
@@ -1262,7 +1322,12 @@ fn test_wasm_conversions() -> Result<()> {
             ("f32.convert_i32_s", 0, 0.0, f32),
             ("f32.convert_i32_s", 2147483647, 2147483648_f32, f32),
             ("f32.convert_i32_s", -2147483648, -2147483648_f32, f32),
-            // ("f32.convert_i32_s", 1234567890, f32::from_str_radix("0x1.26580cp+30"), f32),
+            (
+                "f32.convert_i32_s",
+                1234567890,
+                1234568000_f32, // 0x1.26580cp+30,
+                f32
+            ),
 
             ("f32.convert_i64_s", 42_i64, 42.0_f32, f32),
             ("f32.convert_i64_s", i64::MAX, i64::MAX as f32, f32),
@@ -1271,20 +1336,15 @@ fn test_wasm_conversions() -> Result<()> {
             ("f32.convert_i64_s", 0_i64, 0.0_f32, f32),
             ("f32.convert_i64_s", 9223372036854775807_i64, 9223372036854775807_f32, f32),
             ("f32.convert_i64_s", -9223372036854775808_i64, -9223372036854775808_f32, f32),
-            // (
-            //     "f32.convert_i64_s",
-            //     314159265358979_i64,
-            //     f32::from_str_radix("0x1.1db9e8p+48"),
-            //     f32
-            // ), // PI
+            ("f32.convert_i64_s", 314159265358979_i64, 314159280000000.0, f32),
             ("f32.convert_i64_s", 16777217_i64, 16777216.0_f32, f32),
             ("f32.convert_i64_s", -16777217_i64, -16777216.0_f32, f32),
             ("f32.convert_i64_s", 16777219_i64, 16777220.0_f32, f32),
             ("f32.convert_i64_s", -16777219_i64, -16777220.0_f32, f32),
-            // ("f32.convert_i64_s", 0x7fffff4000000001_i64, 0x1.fffffep+62, f32),
-            // ("f32.convert_i64_s", 0x8000004000000001_i64, -0x1.fffffep+62, f32),
-            // ("f32.convert_i64_s", 0x0020000020000001_i64, f32::from_str_radix("0x1.000002p+53"), f32),
-            // ("f32.convert_i64_s", 0xffdfffffdfffffff_i64, f32::from_str_radix("-0x1.000002p+53"), f32),
+            ("f32.convert_i64_s", 0x7fffff4000000001_i64, 9.2233715e18_f32, f32),
+            ("f32.convert_i64_s", 0x8000004000000001_u64 as i64, -9.2233715e18_f32, f32),
+            ("f32.convert_i64_s", 0x0020000020000001_i64, 9007200000000000.0_f32, f32),
+            ("f32.convert_i64_s", 0xffdfffffdfffffff_u64 as i64, -9007200000000000.0_f32, f32),
 
             ("f64.convert_i32_s", 42, 42.0_f64, f64),
             ("f64.convert_i32_s", -148, -148.0_f64, f64),
@@ -1315,11 +1375,11 @@ fn test_wasm_conversions() -> Result<()> {
             ("f32.convert_i32_u", 0, 0.0_f32, f32),
             ("f32.convert_i32_u", 2147483647, 2147483648_f32, f32),
             ("f32.convert_i32_u", -2147483648, 2147483648_f32, f32),
-            // ("f32.convert_i32_u", 0x12345678, f32::from_str_radix("0x1.234568p+28"), f32),
+            // ("f32.convert_i32_u", 0x12345678, 0x1.234568p+28, f32),
             ("f32.convert_i32_u", 0xffffffff_i64 as i32, 4294967296.0_f32, f32),
-            // ("f32.convert_i32_u", 0x80000080, f32::from_str_radix("0x1.000000p+31"), f32),
-            // ("f32.convert_i32_u", 0x80000081, f32::from_str_radix("0x1.000002p+31"), f32),
-            // ("f32.convert_i32_u", 0x80000082, f32::from_str_radix("0x1.000002p+31"), f32),
+            // ("f32.convert_i32_u", 0x80000080, 0x1.000000p+31, f32),
+            // ("f32.convert_i32_u", 0x80000081, 0x1.000002p+31, f32),
+            // ("f32.convert_i32_u", 0x80000082, 0x1.000002p+31, f32),
             // ("f32.convert_i32_u", 0xfffffe80, 0x1.fffffcp+31, f32),
             // ("f32.convert_i32_u", 0xfffffe81, 0x1.fffffep+31, f32),
             // ("f32.convert_i32_u", 0xfffffe82, 0x1.fffffep+31, f32),
@@ -1373,7 +1433,12 @@ fn test_wasm_conversions() -> Result<()> {
             // ("f64.promote_f32", -2f32.powi(-149), -0x1p-149_f64, f64),
             ("f64.promote_f32", 1.0_f32, 1.0_f64, f64),
             ("f64.promote_f32", -1.0_f32, -1.0_f64, f64),
-            // ("f64.promote_f32", -0x1.fffffep+127, -0x1.fffffep+127_f64, f64),
+            // (
+            //     "f64.promote_f32",
+            //     -3.4028235e38_f32, // -0x1.fffffep+127
+            //     -1.7014117e38_f64, // -0x1.fffffep+127
+            //     f64
+            // ), // TODO for Timi
             // ("f64.promote_f32", 0x1.fffffep+127, 0x1.fffffep+127_f64, f64),
             // ("f64.promote_f32", 0x1p-119, 0x1p-119_f64, f64),
             // (
@@ -1392,8 +1457,8 @@ fn test_wasm_conversions() -> Result<()> {
             ("f32.demote_f64", f64::consts::PI, f32::consts::PI, f32),
             ("f32.demote_f64", 0.0_f64, 0.0, f32),
             ("f32.demote_f64", -0.0_f64, -0.0, f32),
-            // ("f32.demote_f64", 0.0000000000001_f64.powi(-1022), 0.0_f32, f32),
-            // ("f32.demote_f64", -0.0000000000001_f64.powi(-1022), -0.0_f32, f32),
+            ("f32.demote_f64", 1.470742791249129e-323_f64, 0.0_f32, f32),
+            ("f32.demote_f64", -1.470742791249129e-323_f64, -0.0_f32, f32),
             ("f32.demote_f64", 1.0_f64, 1.0_f32, f32),
             ("f32.demote_f64", -1.0_f64, -1.0_f32, f32),
             // ("f32.demote_f64", 0x1.fffffe0000000p-127_f64, 0x1p-126, f32),
@@ -1422,7 +1487,7 @@ fn test_wasm_conversions() -> Result<()> {
             ("f32.demote_f64", f64::INFINITY, f32::INFINITY, f32),
             ("f32.demote_f64", -f64::INFINITY, -f32::INFINITY, f32),
             // ("f32.demote_f64", f64::from_str_radix("0x1.0000000000001p+0"), 1.0, f32),
-            // ("f32.demote_f64", 0x1.fffffffffffffp-1_f64, 1.0, f32),
+            ("f32.demote_f64", 1.0_f64, 1.0, f32),
             // (
             //     "f32.demote_f64",
             //     f64::from_str_radix("0x1.0000010000000p+0"),
@@ -1516,47 +1581,76 @@ fn test_wasm_conversions() -> Result<()> {
             // ("f32.reinterpret_i32", 0x7fc00000, f32::NAN, f32),
             // ("f32.reinterpret_i32", 0xffc00000_u32 as i32, -f32::NAN, f32),
             // ("f32.reinterpret_i32", 0x7fa00000, nan:0x200000, f32),
-            // ("f32.reinterpret_i32", 0xffa00000, -nan:0x200000, f32),
+            // ("f32.reinterpret_i32", 0xffa00000_u32 as i32, -nan:0x200000, f32),
 
             ("f64.reinterpret_i64", 0, 0_f64, f64),
             ("f64.reinterpret_i64", 1, 5e-324_f64, f64),
-            // ("f64.reinterpret_i64", 1_i64, 0.0000000000001_f64.powi(-1022), f64),
-            // ("f64.reinterpret_i64", -1_i64, -nan:0xfffffffffffff_f64, f64),
+            // (
+            //     "f64.reinterpret_i64",
+            //     -1_i64,
+            //     unsafe { std::mem::transmute::<i64, f64>(-0xfffffffffffff) }, // -nan:0xfffffffffffff_f64,
+            //     f64
+            // ), // TODO for Timi
             ("f64.reinterpret_i64", 0x8000000000000000_u64 as i64, -0.0_f64, f64),
             // (
             //     "f64.reinterpret_i64",
             //     1234567890_i64,
             //     f64::from_str_radix("0x0.00000499602d2p-1022"),
             //     f64
-            // ),
+            // ), // TODO for Timi
             // (
             //     "f64.reinterpret_i64",
             //     -9223372036854775807_i64,
-            //     -0.0000000000001_f64.powi(-1022),
+            //     -1.470742791249129e-323_f64, // -0x0.0000000000001p-1022
             //     f64
-            // ),
-            // ("f64.reinterpret_i64", 0x7ff0000000000000_i64, f64::INFINITY, f64),
-            // ("f64.reinterpret_i64", 0xfff0000000000000_i64, -f64::INFINITY, f64),
+            // ), // TODO for Timi
+            ("f64.reinterpret_i64", 0x7ff0000000000000_i64, f64::INFINITY, f64),
+            ("f64.reinterpret_i64", 0xfff0000000000000_u64 as i64, -f64::INFINITY, f64),
             // ("f64.reinterpret_i64", 0x7ff8000000000000_i64, f64::NAN, f64),  // TODO failed when comparing NaN === NaN
             // ("f64.reinterpret_i64", 0xfff8000000000000_u64 as i64, -f64::NAN, f64), // TODO failed when comparing NaN === NaN
-            // ("f64.reinterpret_i64", 0x7ff4000000000000_i64, nan:0x4000000000000_f64, f64),
-            // ("f64.reinterpret_i64", 0xfff4000000000000_i64, -nan:0x4000000000000_f64, f64),
+            // (
+            //     "f64.reinterpret_i64",
+            //     0x7ff4000000000000_i64,
+            //     unsafe { std::mem::transmute::<i64, f64>(0x4000000000000) }, // nan:0x4000000000000
+            //     f64
+            // ),   // TODO for Timi
+            // (
+            //     "f64.reinterpret_i64",
+            //     0xfff4000000000000_u64 as i64,
+            //     unsafe { std::mem::transmute::<i64, f64>(-0x4000000000000) }, // -nan:0x4000000000000
+            //     f64
+            // ),  // TODO for Timi
 
             ("i32.reinterpret_f32", 0_f32, 0, i32),
             ("i32.reinterpret_f32", 1.1_f32, 1066192077, i32),
             ("i32.reinterpret_f32", 0.0_f32, 0, i32),
-            ("i32.reinterpret_f32", -0.0_f32, 0x80000000_i64 as i32, i32),
-            // ("i32.reinterpret_f32", 2f32.powi(-149), 1, i32),
-            // ("i32.reinterpret_f32", -nan:0x7fffff, -1, i32),
-            // ("i32.reinterpret_f32", -2f32.powi(-149), 0x80000001, i32),
+            ("i32.reinterpret_f32", -0.0_f32, 0x80000000_i64 as i32, i32 ),
+            // (
+            //     "i32.reinterpret_f32",
+            //     2f32.powi(-149), // 0x1p-149
+            //     1,
+            //     i32
+            // ),   // TODO for Timi
+            // (
+            //     "i32.reinterpret_f32",
+            //     unsafe { std::mem::transmute::<i32, f32>(-0x7fffff) }, // -nan:0x7fffff,
+            //     -1,
+            //     i32
+            // ), // TODO for Timi
+            ("i32.reinterpret_f32", -2f32.powi(-149), i32::MIN, i32),
             ("i32.reinterpret_f32", 1.0_f32, 1065353216, i32),
             ("i32.reinterpret_f32", 3.1415926_f32, 1078530010, i32),
-            // ("i32.reinterpret_f32", 0x1.fffffep+127, 2139095039, i32),
-            // ("i32.reinterpret_f32", -0x1.fffffep+127, -8388609, i32),
+            (
+                "i32.reinterpret_f32",
+                3.4028235e38_f32, // 0x1.fffffep+127,
+                2139095039,
+                i32
+            ),
+            ("i32.reinterpret_f32", -3.4028235e38_f32, -8388609, i32),
             ("i32.reinterpret_f32", f32::INFINITY, 0x7f800000, i32),
             ("i32.reinterpret_f32", -f32::INFINITY, 0xff800000_i64 as i32, i32),
-            // ("i32.reinterpret_f32", f32::NAN, 0x7fc00000, i32),
-            // ("i32.reinterpret_f32", -f32::NAN, 0xffc00000, i32),
+            ("i32.reinterpret_f32", f32::NAN, 0x7fc00000, i32),
+            ("i32.reinterpret_f32", -f32::NAN, 0xffc00000_i64 as i32, i32),
             // ("i32.reinterpret_f32", nan:0x200000, 0x7fa00000, i32),
             // ("i32.reinterpret_f32", -nan:0x200000, 0xffa00000, i32),
 
@@ -1583,8 +1677,8 @@ fn test_wasm_conversions() -> Result<()> {
             // ("i64.reinterpret_f64", -nan:0xfffffffffffff_f64, -1_i64, i64),
             // (
             //     "i64.reinterpret_f64",
-            //     -0.0000000000001_f64.powi(-1022),
-            //     0x8000000000000001_i64,
+            //     -0x0.0000000000001p-1022, // -0.0000000000001_f64.powi(-1022),
+            //     0x8000000000000001_u64 as i64,
             //     i64
             // ),
             ("i64.reinterpret_f64", 1.0_f64, 4607182418800017408, i64),
