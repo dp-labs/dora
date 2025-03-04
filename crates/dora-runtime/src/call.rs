@@ -1,9 +1,63 @@
-use crate::{
-    ExitStatusCode,
-    constants::{CallType, ExtCallType},
-    context::RuntimeContext,
-};
+use crate::{ExitStatusCode, context::RuntimeContext};
 use dora_primitives::{Address, B256, Bytes, U256};
+use thiserror::Error;
+
+/// The type of a `*CALL*` instruction.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[repr(u8)]
+pub enum CallType {
+    /// `CALL`.
+    Call,
+    /// `STATICCALL`.
+    Staticcall,
+    /// `DELEGATECALL`.
+    Delegatecall,
+    /// `CALLCODE`.
+    Callcode,
+}
+
+/// The kind of a `EXT*CALL` instruction.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[repr(u8)]
+pub enum ExtCallType {
+    /// `EXTCALL`.
+    Call,
+    /// `EXTDELEGATECALL`.
+    Delegatecall,
+    /// `EXTSTATICCALL`.
+    Staticcall,
+}
+
+#[derive(Error, Debug)]
+#[error("Couldn't parse CallType from u8")]
+pub struct CallTypeParseError;
+
+impl TryFrom<u8> for CallType {
+    type Error = CallTypeParseError;
+
+    fn try_from(value: u8) -> Result<Self, Self::Error> {
+        match value {
+            x if x == CallType::Call as u8 => Ok(CallType::Call),
+            x if x == CallType::Staticcall as u8 => Ok(CallType::Staticcall),
+            x if x == CallType::Delegatecall as u8 => Ok(CallType::Delegatecall),
+            x if x == CallType::Callcode as u8 => Ok(CallType::Callcode),
+            _ => Err(CallTypeParseError),
+        }
+    }
+}
+
+impl TryFrom<u8> for ExtCallType {
+    type Error = CallTypeParseError;
+
+    fn try_from(value: u8) -> Result<Self, Self::Error> {
+        match value {
+            x if x == ExtCallType::Call as u8 => Ok(ExtCallType::Call),
+            x if x == ExtCallType::Staticcall as u8 => Ok(ExtCallType::Staticcall),
+            x if x == ExtCallType::Delegatecall as u8 => Ok(ExtCallType::Delegatecall),
+            _ => Err(CallTypeParseError),
+        }
+    }
+}
 
 /// The kind of call-like instructions for the Host API.
 #[derive(Debug, Clone)]

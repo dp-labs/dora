@@ -1,12 +1,10 @@
 use std::cmp::min;
 
-use crate::account::{Account, EMPTY_CODE_HASH_BYTES};
-use crate::call::{CallKind, CallMessage, CallResult};
+use crate::account::Account;
+use crate::call::{CallKind, CallMessage, CallResult, CallType, ExtCallType};
 use crate::constants::env::DORA_TRACING;
 use crate::constants::gas_cost::MIN_CALLEE_GAS;
-use crate::constants::{
-    BLOCK_HASH_HISTORY, CALL_STACK_LIMIT, CallType, ExtCallType, MAX_STACK_SIZE, gas_cost,
-};
+use crate::constants::{CALL_STACK_LIMIT, MAX_STACK_SIZE, gas_cost};
 use crate::db::{Database, DatabaseError};
 use crate::executor::ExecutionEngine;
 use crate::handler::{Frame, Handler};
@@ -18,9 +16,9 @@ use crate::wasm::host::gas_limit;
 use crate::wasm::trap::wasm_raise_trap;
 use crate::{ExitStatusCode, gas, symbols};
 use dora_primitives::{
-    Address, B256, BLOCKHASH_STORAGE_ADDRESS, Bytecode, Bytes, Bytes32, CfgEnv, EOF_MAGIC_BYTES,
-    EOF_MAGIC_HASH, Env, Log, LogData, Precompile, PrecompileErrors, PrecompileSpecId, Precompiles,
-    SpecId, U256, as_u64_saturated, as_usize_saturated, keccak256,
+    Address, B256, BLOCK_HASH_HISTORY, BLOCKHASH_STORAGE_ADDRESS, Bytecode, Bytes, Bytes32, CfgEnv,
+    EOF_MAGIC_BYTES, EOF_MAGIC_HASH, Env, KECCAK_EMPTY, Log, LogData, Precompile, PrecompileErrors,
+    PrecompileSpecId, Precompiles, SpecId, U256, as_u64_saturated, as_usize_saturated, keccak256,
 };
 
 /// Function type for the EVM main entrypoint of the generated code.
@@ -1619,7 +1617,7 @@ impl RuntimeContext<'_> {
 
     extern "C" fn keccak256_hasher(&mut self, offset: u64, size: u64, hash_ptr: &mut Bytes32) {
         if size == 0 {
-            *hash_ptr = Bytes32::from_be_bytes(EMPTY_CODE_HASH_BYTES);
+            *hash_ptr = Bytes32::from_be_bytes(KECCAK_EMPTY.0)
         } else {
             let offset = offset as usize;
             let size = size as usize;

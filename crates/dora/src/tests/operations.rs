@@ -3,8 +3,9 @@ use std::str::FromStr;
 use crate::{run_with_context, tests::INIT_GAS};
 use dora_compiler::evm::program::{Operation, Program};
 use dora_primitives::spec::SpecId;
-use dora_primitives::{Address, B256, Bytecode, Bytes, Bytes32, Env, Eof, EofBody, TxKind, U256};
-use dora_runtime::account::EMPTY_CODE_HASH_BYTES;
+use dora_primitives::{
+    Address, B256, Bytecode, Bytes, Bytes32, Env, Eof, EofBody, KECCAK_EMPTY, TxKind, U256,
+};
 use dora_runtime::context::Contract;
 use dora_runtime::host::DummyHost;
 use dora_runtime::{context::RuntimeContext, db::MemoryDB};
@@ -2030,7 +2031,7 @@ fn extcodehash_empty_address() {
         env,
         db,
         SpecId::CANCUN,
-        BigUint::from_bytes_be(&EMPTY_CODE_HASH_BYTES),
+        BigUint::from_bytes_be(&KECCAK_EMPTY.0),
     );
 }
 

@@ -175,30 +175,12 @@ impl ExecutionResult {
 /// This enum has two variants:
 /// - `Call`: Output from a regular call.
 /// - `Create`: Output from contract creation, optionally returning the created contract address.
-#[derive(Clone, PartialEq, Eq, Hash)]
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub enum Output {
     /// Output from a call.
     Call(Bytes),
     /// Output from a contract creation, optionally includes the created contract address.
     Create(Bytes, Option<Address>),
-}
-
-impl fmt::Debug for Output {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        match *self {
-            Output::Call(ref output) => f
-                .debug_tuple("Output::Call")
-                // Use the hex output format
-                .field(&hex::encode(output))
-                .finish(),
-            Output::Create(ref output, ref address) => f
-                .debug_tuple("Output::Create")
-                // Use the hex output format
-                .field(&hex::encode(output))
-                .field(address)
-                .finish(),
-        }
-    }
 }
 
 impl Output {

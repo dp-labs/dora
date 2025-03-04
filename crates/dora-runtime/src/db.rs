@@ -1,8 +1,8 @@
 use crate::{
-    account::{Account, AccountInfo, AccountStatus, EMPTY_CODE_HASH},
+    account::{Account, AccountInfo, AccountStatus},
     artifact::{Artifact, SymbolArtifact},
 };
-use dora_primitives::{Address, B256, Bytecode, U256, keccak256};
+use dora_primitives::{Address, B256, Bytecode, KECCAK_EMPTY, U256, keccak256};
 use rustc_hash::FxHashMap;
 use std::{convert::Infallible, fmt::Debug};
 use thiserror::Error;
@@ -564,7 +564,7 @@ impl DatabaseCommit for MemoryDB {
                 db_account.status = AccountStatus::LoadedAsNotExisting;
                 db_account.balance = U256::ZERO;
                 db_account.nonce = 0;
-                db_account.bytecode_hash = EMPTY_CODE_HASH;
+                db_account.bytecode_hash = KECCAK_EMPTY;
                 continue;
             }
             let is_newly_created = account.is_created();
@@ -644,7 +644,7 @@ impl DbAccount {
             nonce: 0,
             balance: U256::ZERO,
             storage: FxHashMap::default(),
-            bytecode_hash: EMPTY_CODE_HASH,
+            bytecode_hash: KECCAK_EMPTY,
             status: AccountStatus::Created,
             account_state: AccountState::None,
         }

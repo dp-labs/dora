@@ -1,6 +1,6 @@
 use crate::{conversion::walker::walk_operation, errors::Result, value::IntoContextOperation};
 use dora_primitives::SpecId;
-use dora_runtime::constants::{CallType, ExtCallType};
+use dora_runtime::call::{CallType, ExtCallType};
 use melior::{
     Context, ContextRef,
     dialect::DialectHandle,

@@ -10,13 +10,12 @@ use super::{
     memory::MemoryModel,
 };
 use crate::ExitStatusCode;
-use crate::account::EMPTY_CODE_HASH_BYTES;
-use crate::call::{CallKind, CallMessage, CallResult};
-use crate::constants::CallType;
+use crate::call::{CallKind, CallMessage, CallResult, CallType};
 use crate::constants::env::DORA_DISABLE_CONSOLE;
 use crate::context::RuntimeContext;
 use dora_primitives::{
-    Address, B256, Bytes32, Log, LogData, U256, as_u64_saturated, keccak256 as native_keccak256,
+    Address, B256, Bytes32, KECCAK_EMPTY, Log, LogData, U256, as_u64_saturated,
+    keccak256 as native_keccak256,
 };
 use wasmer::{Memory, MemoryAccessError, MemoryView, Pages, StoreMut, WasmPtr};
 
@@ -740,11 +739,11 @@ pub fn keccak256(
     let host = HostInfo::from_env(&mut env)?;
     let data = host.read_slice(bytes, len)?;
     let hash = if len == 0 {
-        EMPTY_CODE_HASH_BYTES
+        KECCAK_EMPTY
     } else {
-        *native_keccak256(data)
+        native_keccak256(data)
     };
-    host.write_slice(output, &hash)?;
+    host.write_slice(output, &hash.0)?;
     Ok(())
 }
 
