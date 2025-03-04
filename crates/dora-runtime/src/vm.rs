@@ -228,8 +228,9 @@ impl<'a, DB: Database> VM<'a, DB> {
     /// Build output using the call result
     pub fn output(&mut self, result: CallResult) -> ResultAndState {
         let gas_limit = self.env.tx.gas_limit;
-        let gas_used = result.gas_used();
+        // Used gas with refund calculated.
         let gas_refunded = result.gas_refunded as u64;
+        let gas_used = result.gas_used() - gas_refunded;
 
         let return_values = result.output.to_vec();
         let exit_status = result.status;

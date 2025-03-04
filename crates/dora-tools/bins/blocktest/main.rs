@@ -16,6 +16,7 @@ use dora_runtime::context::VMContext;
 use dora_runtime::db::{Database, MemoryDB};
 use dora_runtime::executor::RUNTIME_STACK_SIZE;
 use dora_runtime::vm::VM;
+use dora_tools::find_all_json_tests;
 use indicatif::{ProgressBar, ProgressDrawTarget};
 use revm::primitives::TxKind;
 use serde::Deserialize;
@@ -25,7 +26,6 @@ use std::{
 };
 use thiserror::Error;
 use tracing::{error, info};
-use walkdir::{DirEntry, WalkDir};
 
 #[derive(Parser)]
 #[command(author, version, about)]
@@ -136,21 +136,6 @@ pub struct ExpectLog {
     pub transaction_index: U256,
     pub log_index: U256,
     pub removed: bool,
-}
-
-fn find_all_json_tests(path: &Path) -> Vec<PathBuf> {
-    let mut paths = if path.is_file() {
-        vec![path.to_path_buf()]
-    } else {
-        WalkDir::new(path)
-            .into_iter()
-            .filter_map(Result::ok)
-            .filter(|e| e.path().extension() == Some("json".as_ref()))
-            .map(DirEntry::into_path)
-            .collect()
-    };
-    paths.sort();
-    paths
 }
 
 fn execute_test(path: &Path) -> Result<(), TestError> {
@@ -268,8 +253,13 @@ fn execute_test(path: &Path) -> Result<(), TestError> {
                         None => TxKind::Create,
                     };
                 })
+                // .with_external_context(
+                //     revm::inspectors::TracerEip3155::new(Box::new(std::io::stdout()))
+                //         .without_summary(),
+                // )
+                // .append_handler_register(revm::inspector_handle_register)
                 .build();
-            // Run revm
+            // Run the revm and get the state result.
             let revm_res = evm.transact_commit().unwrap();
             // Run the dora VM and get the state result.
             let dora_res = vm.transact_commit().unwrap();
@@ -326,9 +316,7 @@ fn get_block_spec(timestamp: u64, block_number: u64) -> SpecId {
         SpecId::CANCUN
     } else if timestamp >= 1681338455 {
         SpecId::SHANGHAI
-    }
-    // Checking for total difficulty is more precise but many RPC providers stopped returning it...
-    else if block_number >= 15537394 {
+    } else if block_number >= 15537394 {
         SpecId::MERGE
     } else if block_number >= 12965000 {
         SpecId::LONDON
