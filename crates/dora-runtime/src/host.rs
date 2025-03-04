@@ -186,7 +186,7 @@ impl Host for DummyHost {
             SStoreResult::Slot(SStoreSlot {
                 original_value: Bytes32::ZERO,
                 present_value: present.unwrap_or(Bytes32::ZERO),
-                new_value: Bytes32::ZERO,
+                new_value: value,
             }),
             present.is_none(),
         ))

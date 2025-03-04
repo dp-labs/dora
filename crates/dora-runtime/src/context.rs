@@ -17,8 +17,9 @@ use crate::wasm::trap::wasm_raise_trap;
 use crate::{ExitStatusCode, gas, symbols};
 use dora_primitives::{
     Address, B256, BLOCK_HASH_HISTORY, BLOCKHASH_STORAGE_ADDRESS, Bytecode, Bytes, Bytes32, CfgEnv,
-    EOF_MAGIC_BYTES, EOF_MAGIC_HASH, Env, KECCAK_EMPTY, Log, LogData, Precompile, PrecompileErrors,
-    PrecompileSpecId, Precompiles, SpecId, U256, as_u64_saturated, as_usize_saturated, keccak256,
+    EOF_MAGIC_BYTES, EOF_MAGIC_HASH, Env, KECCAK_EMPTY, Log, LogData, OpCode, Precompile,
+    PrecompileErrors, PrecompileSpecId, Precompiles, SpecId, U256, as_u64_saturated,
+    as_usize_saturated, keccak256,
 };
 
 /// Function type for the EVM main entrypoint of the generated code.
@@ -1237,11 +1238,13 @@ impl RuntimeContext<'_> {
         } else {
             0
         };
+        let op_name = OpCode::new(op).map(|i| i.as_str()).unwrap();
         println!(
-            "time: {}ns, op: {}, opHex: {:x}, gas: 0x{:x}, memSize: {}, stack: {:?}, stackSize: {}, depth: {}",
+            "time: {}ns, op: {}, opHex: {:x}, opName: {}, gas: 0x{:x}, memSize: {}, stack: {:?}, stackSize: {}, depth: {}",
             nano_seconds,
             op,
             op,
+            op_name,
             gas,
             self.memory().len(),
             stack
@@ -1269,11 +1272,10 @@ impl RuntimeContext<'_> {
         remaining_gas: u64,
         execution_result: u8,
     ) {
-        self.inner.returndata = if bytes_len != 0 {
-            self.inner.memory[offset as usize..offset as usize + bytes_len as usize].to_vec()
-        } else {
-            vec![]
-        };
+        if bytes_len != 0 {
+            self.inner.returndata =
+                self.inner.memory[offset as usize..offset as usize + bytes_len as usize].to_vec()
+        }
         self.inner.gas_remaining = Some(remaining_gas);
         self.inner.exit_status = Some(ExitStatusCode::from_u8(execution_result));
     }

@@ -152,15 +152,7 @@ impl<'c> EVMCompiler<'c> {
         let location = intrinsics.unknown_loc;
         let mut op_funcs: FxHashMap<usize, melior::ir::Operation> = FxHashMap::default();
         for (i, op) in program.operations().iter().enumerate() {
-            if matches!(
-                op,
-                Operation::Jump
-                    | Operation::JumpI
-                    | Operation::JumpF(_)
-                    | Operation::CallF(_)
-                    | Operation::Push(_)
-                    | Operation::PC { .. }
-            ) {
+            if Self::is_always_inline(op) {
                 continue;
             }
             let opcode = op.opcode();
@@ -391,6 +383,23 @@ impl<'c> EVMCompiler<'c> {
             Operation::ExtStaticcall => EVMCompiler::extstaticcall(ctx, op_start_block),
         }?;
         Ok((start_block, op_end_block))
+    }
+
+    #[inline]
+    fn is_always_inline(op: &Operation) -> bool {
+        matches!(
+            op,
+            Operation::Jump
+                | Operation::JumpI
+                | Operation::JumpF(_)
+                | Operation::CallF(_)
+                | Operation::Push(_)
+                | Operation::PC { .. }
+                | Operation::Return
+                | Operation::Stop
+                | Operation::Revert
+                | Operation::Invalid
+        )
     }
 
     fn stack_bound_checks_block<'r>(
@@ -639,15 +648,7 @@ impl<'c> EVMCompiler<'c> {
             // Generate code for the program
             for (i, op) in ctx.program.operations().iter().enumerate() {
                 let op_symbol = format!("op{}", op.opcode());
-                if matches!(
-                    op,
-                    Operation::Jump
-                        | Operation::JumpI
-                        | Operation::JumpF(_)
-                        | Operation::CallF(_)
-                        | Operation::Push(_)
-                        | Operation::PC { .. }
-                ) {
+                if Self::is_always_inline(op) {
                     let (start_block, end_block) = EVMCompiler::generate_code_for_op(
                         &mut ctx,
                         &main_region,
