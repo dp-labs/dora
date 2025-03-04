@@ -71,7 +71,6 @@ struct RunArgs {
 pub struct TestSuite(pub BTreeMap<String, Test>);
 
 #[derive(Debug, PartialEq, Eq, Deserialize)]
-#[serde(deny_unknown_fields)]
 pub struct Test {
     #[serde(default, rename = "_info")]
     pub info: Option<serde_json::Value>,
@@ -159,6 +158,9 @@ pub struct PostStateTest {
     pub post_state: HashMap<Address, TestAccountInfo>,
     pub logs: B256,
     pub txbytes: Option<Bytes>,
+    /// Output state.
+    #[serde(default)]
+    state: HashMap<Address, TestAccountInfo>,
 }
 
 impl PostStateTest {
@@ -526,15 +528,38 @@ fn execute_test(path: &Path) -> Result<(), TestError> {
     for (suite_name, suite) in suite.0 {
         // Mapping account into
         let mut db = MemoryDB::new();
-        for (address, account_info) in suite.pre.iter() {
-            db = db.with_contract(address.to_owned(), Bytecode::new(account_info.code.clone()));
+        // Revm comparative test
+        let mut cache_state = revm::CacheState::new(false);
+        for (address, info) in suite.pre.iter() {
+            let code_hash = keccak256(info.code.clone());
+            db = db.with_contract(address.to_owned(), Bytecode::new(info.code.clone()));
             db.set_account(
                 address.to_owned(),
-                account_info.nonce,
-                account_info.balance,
-                account_info.storage.iter().map(|(k, v)| (*k, *v)).collect(),
+                info.nonce,
+                info.balance,
+                info.storage.iter().map(|(k, v)| (*k, *v)).collect(),
+            );
+
+            let bytecode = revm::primitives::Bytecode::new_raw(info.code.clone());
+            let acc_info = revm::primitives::AccountInfo {
+                balance: info.balance,
+                code_hash,
+                code: Some(bytecode),
+                nonce: info.nonce,
+            };
+            cache_state.insert_account_with_storage(
+                *address,
+                acc_info,
+                info.storage.iter().map(|(k, v)| (*k, *v)).collect(),
             );
         }
+        let mut cache = cache_state.clone();
+        cache.set_state_clear_flag(true);
+        let mut state = revm::db::State::builder()
+            .with_cached_prestate(cache)
+            .with_bundle_update()
+            .build();
+
         // post and execution
         for (spec_name, tests) in &suite.post {
             // Constantinople was immediately extended by Petersburg.
@@ -584,6 +609,50 @@ fn execute_test(path: &Path) -> Result<(), TestError> {
                 };
                 env.tx.authorization_list = auth_list;
 
+                // Revm comparative test
+                let mut evm = revm::Evm::builder()
+                    .with_db(&mut state)
+                    .with_spec_id(spec_id)
+                    .modify_cfg_env(|cfg| {
+                        cfg.chain_id = 1;
+                    })
+                    .modify_block_env(|block| {
+                        block.number = suite.env.current_number;
+                        block.coinbase = suite.env.current_coinbase;
+                        block.gas_limit = suite.env.current_gas_limit;
+                        block.timestamp = suite.env.current_timestamp;
+                        block.difficulty = suite.env.current_difficulty;
+                    })
+                    .modify_tx_env(|etx| {
+                        etx.data = suite
+                            .transaction
+                            .data
+                            .get(test_case.indexes.data)
+                            .unwrap()
+                            .clone();
+                        etx.gas_limit =
+                            suite.transaction.gas_limit[test_case.indexes.gas].saturating_to();
+                        etx.gas_price = suite.transaction.gas_price.unwrap_or_default();
+                        etx.nonce = Some(as_u64_saturated!(suite.transaction.nonce));
+                        etx.caller = suite.transaction.sender.unwrap_or_default();
+                        etx.value = suite
+                            .transaction
+                            .value
+                            .get(test_case.indexes.value)
+                            .cloned()
+                            .unwrap_or_default();
+                        etx.transact_to = match suite.transaction.to {
+                            Some(to) => TxKind::Call(to),
+                            None => TxKind::Create,
+                        };
+                    })
+                    // .with_external_context(
+                    //     revm::inspectors::TracerEip3155::new(Box::new(std::io::stdout()))
+                    //         .without_summary(),
+                    // )
+                    // .append_handler_register(revm::inspector_handle_register)
+                    .build();
+                let _ = evm.transact_commit();
                 // Run the VM and get the state result.
                 let mut vm = VM::new(VMContext::new(db.clone(), env, spec_id, compile_handler()));
                 let res = vm.transact_commit();
