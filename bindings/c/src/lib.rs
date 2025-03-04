@@ -3,7 +3,6 @@
 
 use dora::{
     build_artifact,
-    compiler::evm::program::EOF_MAGIC_BYTES,
     primitives::{Address, Bytecode, Bytes, Bytes32, SpecId},
     runtime::{
         ExitStatusCode,
@@ -14,7 +13,7 @@ use dora::{
     },
 };
 use evmc_declare::evmc_declare_vm;
-use evmc_sys::evmc_address;
+use evmc_sys::{evmc_address, evmc_call_kind};
 use evmc_vm::*;
 use host::EvmcDelegateHost;
 use lazy_static::lazy_static;
@@ -64,7 +63,7 @@ impl EvmcVm for DoraVM {
             contract,
             message.depth() as usize,
             false,
-            code.starts_with(&EOF_MAGIC_BYTES),
+            matches!(message.kind(), evmc_call_kind::EVMC_EOFCREATE),
             &mut host,
             spec_id,
             message.gas() as u64,

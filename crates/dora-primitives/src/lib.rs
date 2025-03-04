@@ -1,17 +1,18 @@
 use std::sync::Arc;
 
 pub use alloy_primitives::{PrimitiveSignature, SignatureError, Signed};
+pub use revm::interpreter::{AccountLoad, Eip7702CodeLoad, SelfDestructResult, StateLoad};
 pub use revm::precompile::{
     Precompile, PrecompileErrors, PrecompileOutput, PrecompileSpecId, Precompiles,
 };
 pub use revm::primitives::{
     AccessList, AccessListItem, Address, Authorization, AuthorizationList, B256,
     BLOCK_HASH_HISTORY, BLOCKHASH_SERVE_WINDOW, BLOCKHASH_STORAGE_ADDRESS, BlobExcessGasAndPrice,
-    BlockEnv, Bytecode as EVMBytecode, Bytes, CfgEnv, EOF_MAGIC_BYTES, Env, EvmStorageSlot,
-    FixedBytes, GAS_PER_BLOB, I256, InvalidHeader, InvalidTransaction, KECCAK_EMPTY, Log, LogData,
-    MAX_CODE_SIZE, MAX_INITCODE_SIZE, RecoveredAuthority, RecoveredAuthorization,
-    SignedAuthorization, SpecId, TxEnv, TxKind, TxType, U256, address, alloy_primitives, b256,
-    calc_blob_gasprice, calc_excess_blob_gas, eip7702,
+    BlockEnv, Bytecode as EVMBytecode, Bytes, CfgEnv, EOF_MAGIC_BYTES, EOF_MAGIC_HASH, Env,
+    EvmStorageSlot, FixedBytes, GAS_PER_BLOB, I256, InvalidHeader, InvalidTransaction,
+    KECCAK_EMPTY, Log, LogData, MAX_CODE_SIZE, MAX_INITCODE_SIZE, RecoveredAuthority,
+    RecoveredAuthorization, SignedAuthorization, SpecId, TxEnv, TxKind, TxType, U256, address,
+    alloy_primitives, b256, calc_blob_gasprice, calc_excess_blob_gas, eip7702,
     eof::{Eof, EofBody, TypesSection},
     fixed_bytes,
     hex::{FromHex, ToHexExt},
@@ -45,6 +46,17 @@ macro_rules! as_u64_saturated {
 macro_rules! as_usize_saturated {
     ($v:expr) => {
         usize::try_from($crate::as_u64_saturated!($v)).unwrap_or(usize::MAX)
+    };
+}
+
+/// `const` Option `?`.
+#[macro_export]
+macro_rules! tri {
+    ($e:expr) => {
+        match $e {
+            Some(v) => v,
+            None => return None,
+        }
     };
 }
 

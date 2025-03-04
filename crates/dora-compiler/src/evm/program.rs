@@ -6,9 +6,6 @@ use std::fmt;
 use std::sync::Arc;
 use thiserror::Error;
 
-/// EOF magic number in array form.
-pub const EOF_MAGIC_BYTES: [u8; 2] = hex_literal::hex!("ef00");
-
 /// # OpcodeParseError
 /// This enum hold possible errors while parsing opcodes
 ///
