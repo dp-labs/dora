@@ -6,11 +6,11 @@ use crate::constants::gas_cost::{
     WARM_SSTORE_RESET,
 };
 use crate::host::{
-    AccountLoad, CodeLoad, SStoreResult, SStoreStatus, SelfdestructResult, StateLoad,
+    AccountLoad, Eip7702CodeLoad, SStoreResult, SStoreStatus, SelfDestructResult, StateLoad,
 };
 use dora_primitives::eip7702::PER_EMPTY_ACCOUNT_COST;
 use dora_primitives::spec::SpecId;
-use dora_primitives::{AccessListItem, U256};
+use dora_primitives::{AccessListItem, U256, tri};
 
 #[inline]
 pub fn sstore_cost(spec_id: SpecId, result: &SStoreResult, gas: u64, is_cold: bool) -> Option<u64> {
@@ -324,9 +324,9 @@ pub const fn sload_cost(spec_id: SpecId, is_cold: bool) -> u64 {
 /// The gas cost for the `EXTCODESIZE` operation.
 ///
 #[inline]
-pub const fn extcodesize_gas_cost(spec_id: SpecId, load: CodeLoad<()>) -> u64 {
+pub const fn extcodesize_gas_cost(spec_id: SpecId, is_cold: bool) -> u64 {
     if spec_id.is_enabled_in(SpecId::BERLIN) {
-        warm_cold_cost_with_delegation(load)
+        warm_cold_cost(is_cold)
     } else if spec_id.is_enabled_in(SpecId::TANGERINE) {
         700
     } else {
@@ -343,7 +343,7 @@ pub const fn warm_cold_cost(is_cold: bool) -> u64 {
     }
 }
 
-pub const fn warm_cold_cost_with_delegation(load: CodeLoad<()>) -> u64 {
+pub const fn warm_cold_cost_with_delegation(load: Eip7702CodeLoad<()>) -> u64 {
     let mut gas = warm_cold_cost(load.state_load.is_cold);
     if let Some(is_cold) = load.is_delegate_account_cold {
         gas += warm_cold_cost(is_cold);
@@ -367,14 +367,15 @@ pub const fn warm_cold_cost_with_delegation(load: CodeLoad<()>) -> u64 {
 ///   with historical and updated protocol rules.
 ///
 #[inline]
-pub const fn extcodecopy_gas_cost(spec_id: SpecId, load: CodeLoad<()>) -> u64 {
-    if spec_id.is_enabled_in(SpecId::BERLIN) {
-        warm_cold_cost_with_delegation(load)
+pub const fn extcodecopy_gas_cost(spec_id: SpecId, len: u64, is_cold: bool) -> Option<u64> {
+    let base_gas = if spec_id.is_enabled_in(SpecId::BERLIN) {
+        warm_cold_cost(is_cold)
     } else if spec_id.is_enabled_in(SpecId::TANGERINE) {
         700
     } else {
         20
-    }
+    };
+    base_gas.checked_add(tri!(cost_per_word(len, 3)))
 }
 
 /// Calculates the balance store gas cost for an VM operation based on the specification version and access type.
@@ -415,9 +416,9 @@ pub const fn balance_gas_cost(spec_id: SpecId, is_cold: bool) -> u64 {
 /// The gas cost for the `EXTCODEHASH` operation.
 ///
 #[inline]
-pub const fn extcodehash_gas_cost(spec_id: SpecId, load: CodeLoad<()>) -> u64 {
+pub const fn extcodehash_gas_cost(spec_id: SpecId, is_cold: bool) -> u64 {
     if spec_id.is_enabled_in(SpecId::BERLIN) {
-        warm_cold_cost_with_delegation(load)
+        warm_cold_cost(is_cold)
     } else if spec_id.is_enabled_in(SpecId::ISTANBUL) {
         700
     } else {
@@ -438,7 +439,7 @@ pub const fn extcodehash_gas_cost(spec_id: SpecId, load: CodeLoad<()>) -> u64 {
 /// The gas cost for the `SELFDESTRUCT` operation.
 ///
 #[inline]
-pub const fn selfdestruct_cost(spec_id: SpecId, res: &StateLoad<SelfdestructResult>) -> u64 {
+pub const fn selfdestruct_cost(spec_id: SpecId, res: &StateLoad<SelfDestructResult>) -> u64 {
     // EIP-161: State trie clearing (invariant-preserving alternative)
     let should_charge_topup = if spec_id.is_enabled_in(SpecId::SPURIOUS_DRAGON) {
         res.data.had_value && !res.data.target_exists
@@ -473,7 +474,7 @@ pub const fn selfdestruct_cost(spec_id: SpecId, res: &StateLoad<SelfdestructResu
 pub const fn call_cost(spec_id: SpecId, transfers_value: bool, account_load: AccountLoad) -> u64 {
     // Account access.
     let mut gas = if spec_id.is_enabled_in(SpecId::BERLIN) {
-        warm_cold_cost_with_delegation(account_load.code_load)
+        warm_cold_cost_with_delegation(account_load.load)
     } else if spec_id.is_enabled_in(SpecId::TANGERINE) {
         // EIP-150: Gas cost changes for IO-heavy operations
         700

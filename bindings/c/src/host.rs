@@ -8,7 +8,7 @@ use dora::primitives::{
 };
 use dora::runtime::call::{CallMessage, CallResult};
 use dora::runtime::host::{
-    AccountLoad, CodeLoad, Host, SStoreResult, SStoreStatus, SelfdestructResult, StateLoad,
+    AccountLoad, Host, SStoreResult, SStoreStatus, SelfDestructResult, StateLoad,
 };
 use dora::runtime::result::VMError;
 use evmc_sys::{evmc_access_status, evmc_address, evmc_bytes32, evmc_storage_status};
@@ -151,7 +151,7 @@ impl Host for EvmcDelegateHost<'_> {
         }
     }
 
-    fn code(&mut self, addr: Address) -> Option<CodeLoad<Bytes>> {
+    fn code(&mut self, addr: Address) -> Option<StateLoad<Bytes>> {
         unsafe {
             let addr = transmute::<Address, evmc_address>(addr);
             let is_cold = matches!(
@@ -161,11 +161,11 @@ impl Host for EvmcDelegateHost<'_> {
             let size = self.context.get_code_size(&addr);
             let mut code = Vec::with_capacity(size);
             self.context.copy_code(&addr, 0, &mut code);
-            Some(CodeLoad::new(StateLoad::new(code.into(), is_cold), false))
+            Some(StateLoad::new(code.into(), is_cold))
         }
     }
 
-    fn code_hash(&mut self, addr: Address) -> Option<CodeLoad<Bytes32>> {
+    fn code_hash(&mut self, addr: Address) -> Option<StateLoad<Bytes32>> {
         unsafe {
             let addr = transmute::<Address, evmc_address>(addr);
             let hash = self.context.get_code_hash(&addr);
@@ -173,10 +173,7 @@ impl Host for EvmcDelegateHost<'_> {
                 self.context.access_account(&addr),
                 evmc_access_status::EVMC_ACCESS_COLD
             );
-            Some(CodeLoad::new(
-                StateLoad::new(Bytes32::from_be_bytes(hash.bytes), is_cold),
-                false,
-            ))
+            Some(StateLoad::new(Bytes32::from_be_bytes(hash.bytes), is_cold))
         }
     }
 
@@ -184,7 +181,7 @@ impl Host for EvmcDelegateHost<'_> {
         &mut self,
         addr: Address,
         target: Address,
-    ) -> Option<StateLoad<SelfdestructResult>> {
+    ) -> Option<StateLoad<SelfDestructResult>> {
         unsafe {
             let addr = transmute::<Address, evmc_address>(addr);
             let target = transmute::<Address, evmc_address>(target);
@@ -197,7 +194,7 @@ impl Host for EvmcDelegateHost<'_> {
             let target_exists = self.context.account_exists(&target);
             let first_registerd = self.context.selfdestruct(&addr, &target);
             Some(StateLoad::new(
-                SelfdestructResult {
+                SelfDestructResult {
                     had_value,
                     target_exists,
                     previously_destroyed: !first_registerd,

@@ -1,10 +1,11 @@
 use dora_primitives::{Address, Bytes, Bytes32, Env, Log};
 use rustc_hash::FxHashMap;
-use std::ops::{Deref, DerefMut};
 use std::{collections::hash_map::Entry, fmt::Debug};
 
 use crate::call::{CallKind, CallMessage, CallResult};
 use crate::result::VMError;
+
+pub use dora_primitives::{AccountLoad, Eip7702CodeLoad, SelfDestructResult, StateLoad};
 
 /// The [`Host`] trait defines the interface for interacting with the Dora runtime environment.
 ///
@@ -43,17 +44,17 @@ pub trait Host {
     fn balance(&mut self, addr: Address) -> Option<StateLoad<Bytes32>>;
 
     /// Retrieves the code deployed at a specified account.
-    fn code(&mut self, addr: Address) -> Option<CodeLoad<Bytes>>;
+    fn code(&mut self, addr: Address) -> Option<StateLoad<Bytes>>;
 
     /// Retrieves the hash of the code deployed at a specified account.
-    fn code_hash(&mut self, addr: Address) -> Option<CodeLoad<Bytes32>>;
+    fn code_hash(&mut self, addr: Address) -> Option<StateLoad<Bytes32>>;
 
     /// Mark `address` to be deleted, with funds transferred to `target`.
     fn selfdestruct(
         &mut self,
         addr: Address,
         target: Address,
-    ) -> Option<StateLoad<SelfdestructResult>>;
+    ) -> Option<StateLoad<SelfDestructResult>>;
 
     /// Get the block hash of the given block `number`.
     fn block_hash(&mut self, number: u64) -> Option<Bytes32>;
@@ -129,129 +130,6 @@ pub enum SStoreStatus {
     /// A storage item is modified by changing the current dirty nonzero to the original nonzero value other than the current value.
     /// `X -> Y -> X`
     ModifiedRestored = 8,
-}
-
-/// Result of a `selfdestruct` action.
-#[derive(Clone, Debug, Default, PartialEq, Eq, Hash)]
-pub struct SelfdestructResult {
-    pub had_value: bool,
-    pub target_exists: bool,
-    pub previously_destroyed: bool,
-}
-
-/// State load information that contains the data and if the account or storage is cold loaded.
-#[derive(Clone, Debug, Default, PartialEq, Eq)]
-pub struct StateLoad<T> {
-    /// returned data
-    pub data: T,
-    /// True if account is cold loaded.
-    pub is_cold: bool,
-}
-
-impl<T> Deref for StateLoad<T> {
-    type Target = T;
-
-    fn deref(&self) -> &Self::Target {
-        &self.data
-    }
-}
-
-impl<T> DerefMut for StateLoad<T> {
-    fn deref_mut(&mut self) -> &mut Self::Target {
-        &mut self.data
-    }
-}
-
-impl<T> StateLoad<T> {
-    /// Returns a new [`StateLoad`] with the given data and cold load status.
-    pub fn new(data: T, is_cold: bool) -> Self {
-        Self { data, is_cold }
-    }
-
-    /// Maps the data of the [`StateLoad`] to a new value.
-    ///
-    /// Useful for transforming the data of the [`StateLoad`] without changing the cold load status.
-    pub fn map<B, F>(self, f: F) -> StateLoad<B>
-    where
-        F: FnOnce(T) -> B,
-    {
-        StateLoad::new(f(self.data), self.is_cold)
-    }
-}
-
-/// State load information that contains the data and if the account or storage is cold loaded.
-#[derive(Clone, Debug, Default, PartialEq, Eq)]
-pub struct CodeLoad<T> {
-    /// returned data
-    pub state_load: StateLoad<T>,
-    /// True if account has delegate code and delegated account is cold loaded.
-    pub is_delegate_account_cold: Option<bool>,
-}
-
-impl<T> Deref for CodeLoad<T> {
-    type Target = StateLoad<T>;
-
-    fn deref(&self) -> &Self::Target {
-        &self.state_load
-    }
-}
-
-impl<T> DerefMut for CodeLoad<T> {
-    fn deref_mut(&mut self) -> &mut Self::Target {
-        &mut self.state_load
-    }
-}
-
-impl<T> CodeLoad<T> {
-    /// Returns a new [`CodeLoad`] with the given data and without delegation.
-    pub fn new_state_load(state_load: StateLoad<T>) -> Self {
-        Self {
-            state_load,
-            is_delegate_account_cold: None,
-        }
-    }
-
-    /// Returns a new [`CodeLoad`] with the given data and without delegation.
-    pub fn new_not_delegated(data: T, is_cold: bool) -> Self {
-        Self {
-            state_load: StateLoad::new(data, is_cold),
-            is_delegate_account_cold: None,
-        }
-    }
-
-    /// Deconstructs the [`CodeLoad`] by extracting data and
-    /// returning a new [`CodeLoad`] with empty data.
-    pub fn into_components(self) -> (T, CodeLoad<()>) {
-        let is_cold = self.is_cold;
-        (
-            self.state_load.data,
-            CodeLoad {
-                state_load: StateLoad::new((), is_cold),
-                is_delegate_account_cold: self.is_delegate_account_cold,
-            },
-        )
-    }
-
-    /// Sets the delegation cold load status.
-    pub fn set_delegate_load(&mut self, is_delegate_account_cold: bool) {
-        self.is_delegate_account_cold = Some(is_delegate_account_cold);
-    }
-
-    /// Returns a new [`CodeLoad`] with the given data and delegation cold load status.
-    pub fn new(state_load: StateLoad<T>, is_delegate_account_cold: bool) -> Self {
-        Self {
-            state_load,
-            is_delegate_account_cold: Some(is_delegate_account_cold),
-        }
-    }
-}
-
-#[derive(Debug, Clone, Default)]
-pub struct AccountLoad {
-    /// Is account empty, if true account is not created.
-    pub is_empty: bool,
-    /// Code load information.
-    pub code_load: CodeLoad<()>,
 }
 
 /// A dummy [Host] implementation for testing.
@@ -333,12 +211,12 @@ impl Host for DummyHost {
     }
 
     #[inline]
-    fn code(&mut self, _addr: Address) -> Option<CodeLoad<Bytes>> {
+    fn code(&mut self, _addr: Address) -> Option<StateLoad<Bytes>> {
         Some(Default::default())
     }
 
     #[inline]
-    fn code_hash(&mut self, _addr: Address) -> Option<CodeLoad<Bytes32>> {
+    fn code_hash(&mut self, _addr: Address) -> Option<StateLoad<Bytes32>> {
         Some(Default::default())
     }
 
@@ -347,7 +225,7 @@ impl Host for DummyHost {
         &mut self,
         _addr: Address,
         _target: Address,
-    ) -> Option<StateLoad<SelfdestructResult>> {
+    ) -> Option<StateLoad<SelfDestructResult>> {
         Some(Default::default())
     }
 

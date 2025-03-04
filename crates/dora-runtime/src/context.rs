@@ -10,7 +10,7 @@ use crate::constants::{
 use crate::db::{Database, DatabaseError};
 use crate::executor::ExecutionEngine;
 use crate::handler::{Frame, Handler};
-use crate::host::{AccountLoad, CodeLoad, Host, SStoreResult, SelfdestructResult, StateLoad};
+use crate::host::{AccountLoad, Host, SStoreResult, SelfDestructResult, StateLoad};
 use crate::journaled_state::{JournalCheckpoint, JournalEntry, JournaledState};
 use crate::result::VMError;
 use crate::stack::Stack;
@@ -18,9 +18,9 @@ use crate::wasm::host::gas_limit;
 use crate::wasm::trap::wasm_raise_trap;
 use crate::{ExitStatusCode, gas, symbols};
 use dora_primitives::{
-    Address, B256, BLOCKHASH_STORAGE_ADDRESS, Bytecode, Bytes, Bytes32, CfgEnv, Env, Log, LogData,
-    Precompile, PrecompileErrors, PrecompileSpecId, Precompiles, SpecId, U256, as_u64_saturated,
-    as_usize_saturated, keccak256,
+    Address, B256, BLOCKHASH_STORAGE_ADDRESS, Bytecode, Bytes, Bytes32, CfgEnv, EOF_MAGIC_BYTES,
+    EOF_MAGIC_HASH, Env, Log, LogData, Precompile, PrecompileErrors, PrecompileSpecId, Precompiles,
+    SpecId, U256, as_u64_saturated, as_usize_saturated, keccak256,
 };
 
 /// Function type for the EVM main entrypoint of the generated code.
@@ -285,30 +285,37 @@ impl<'a, DB: Database> VMContext<'a, DB> {
 
     /// Return account code bytes and if address is cold loaded.
     #[inline]
-    pub fn code(&mut self, address: Address) -> Result<CodeLoad<Bytes>, DB::Error> {
+    pub fn code(&mut self, address: Address) -> Result<StateLoad<Bytes>, DB::Error> {
         let acc = self.journaled_state.load_code(address, &mut self.db)?;
-        Ok(CodeLoad::new_not_delegated(
-            acc.info
-                .code
-                .as_ref()
-                .cloned()
-                .unwrap_or_else(Bytecode::empty)
-                .bytes(),
-            acc.is_cold,
-        ))
+        // SAFETY: safe to unwrap as load_code will insert code if it is empty.
+        let code = acc.info.code.as_ref().unwrap();
+
+        let code = if code.is_eof() {
+            EOF_MAGIC_BYTES.clone()
+        } else {
+            code.bytes()
+        };
+
+        Ok(StateLoad::new(code, acc.is_cold))
     }
 
     /// Get code hash of address.
     #[inline]
-    pub fn code_hash(&mut self, address: Address) -> Result<CodeLoad<Bytes32>, DB::Error> {
+    pub fn code_hash(&mut self, address: Address) -> Result<StateLoad<Bytes32>, DB::Error> {
         let acc = self.journaled_state.load_code(address, &mut self.db)?;
         if acc.is_empty() {
-            return Ok(CodeLoad::new_not_delegated(Bytes32::ZERO, acc.is_cold));
+            return Ok(StateLoad::new(Bytes32::ZERO, acc.is_cold));
         }
-        Ok(CodeLoad::new_not_delegated(
-            acc.info.code_hash.into(),
-            acc.is_cold,
-        ))
+        // SAFETY: safe to unwrap as load_code will insert code if it is empty.
+        let code = acc.info.code.as_ref().unwrap();
+
+        let hash = if code.is_eof() {
+            EOF_MAGIC_HASH
+        } else {
+            acc.info.code_hash
+        };
+
+        Ok(StateLoad::new(hash.into(), acc.is_cold))
     }
 
     /// Load storage slot, if storage is not present inside the account then it will be loaded from database.
@@ -352,7 +359,7 @@ impl<'a, DB: Database> VMContext<'a, DB> {
         &mut self,
         address: Address,
         target: Address,
-    ) -> Result<StateLoad<SelfdestructResult>, DB::Error> {
+    ) -> Result<StateLoad<SelfDestructResult>, DB::Error> {
         self.journaled_state
             .selfdestruct(address, target, &mut self.db)
     }
@@ -843,12 +850,12 @@ impl<DB: Database> Host for VMContext<'_, DB> {
     }
 
     #[inline]
-    fn code(&mut self, addr: Address) -> Option<CodeLoad<Bytes>> {
+    fn code(&mut self, addr: Address) -> Option<StateLoad<Bytes>> {
         self.code(addr).ok()
     }
 
     #[inline]
-    fn code_hash(&mut self, addr: Address) -> Option<CodeLoad<Bytes32>> {
+    fn code_hash(&mut self, addr: Address) -> Option<StateLoad<Bytes32>> {
         self.code_hash(addr).ok()
     }
 
@@ -857,7 +864,7 @@ impl<DB: Database> Host for VMContext<'_, DB> {
         &mut self,
         addr: Address,
         target: Address,
-    ) -> Option<StateLoad<SelfdestructResult>> {
+    ) -> Option<StateLoad<SelfDestructResult>> {
         self.journaled_state
             .selfdestruct(addr, target, &mut self.db)
             .ok()
@@ -928,9 +935,6 @@ pub struct InnerContext {
     pub depth: usize,
     /// Whether the context is static.
     pub is_static: bool,
-    /// Whether we are Interpreting the Ethereum Object Format (EOF) bytecode.
-    /// This is local field that is set from `contract.is_eof()`.
-    pub is_eof: bool,
     /// Whether the context is EOF init.
     pub is_eof_init: bool,
     /// VM spec id
@@ -949,7 +953,6 @@ impl Default for InnerContext {
             result: Default::default(),
             depth: Default::default(),
             is_static: Default::default(),
-            is_eof: Default::default(),
             is_eof_init: Default::default(),
             spec_id: Default::default(),
         }
@@ -1098,6 +1101,7 @@ impl<'a> RuntimeContext<'a> {
     /// ```ignore
     /// let context = RuntimeContext::new(env, journal, call_frame);
     /// ```
+    #[allow(clippy::too_many_arguments)]
     pub fn new(
         contract: Contract,
         depth: usize,
@@ -1412,6 +1416,7 @@ impl RuntimeContext<'_> {
         let ret_offset = ret_offset as usize;
         let ret_size = ret_size as usize;
         let target_len = min(ret_size, self.inner.returndata.len());
+        let is_eof = self.contract.code.is_eof();
         // Check the error message.
         if call_result.status.is_ok() {
             let gas_remaining = gas_remaining + call_result.gas_remaining;
@@ -1421,7 +1426,7 @@ impl RuntimeContext<'_> {
                 self.inner.memory[ret_offset..ret_offset + target_len]
                     .copy_from_slice(&self.inner.returndata[..target_len]);
             }
-            self.inner.result.value = if self.inner.is_eof { 0 } else { 1 };
+            self.inner.result.value = if is_eof { 0 } else { 1 };
             self.inner.result.gas_used = original_remaining_gas - gas_remaining;
         } else if call_result.status.is_revert() {
             let gas_remaining = gas_remaining + call_result.gas_remaining;
@@ -1430,10 +1435,10 @@ impl RuntimeContext<'_> {
                 self.inner.memory[ret_offset..ret_offset + target_len]
                     .copy_from_slice(&self.inner.returndata[..target_len]);
             }
-            self.inner.result.value = if self.inner.is_eof { 1 } else { 0 };
+            self.inner.result.value = if is_eof { 1 } else { 0 };
             self.inner.result.gas_used = original_remaining_gas - gas_remaining;
         } else {
-            self.inner.result.value = if self.inner.is_eof { 2 } else { 0 };
+            self.inner.result.value = if is_eof { 2 } else { 0 };
             self.inner.result.gas_used = original_remaining_gas - gas_remaining;
         }
         &self.inner.result as _
@@ -1907,15 +1912,12 @@ impl RuntimeContext<'_> {
     }
 
     extern "C" fn extcodesize(&mut self, address: &Bytes32) -> *const RuntimeResult<u64> {
-        let (code, load) = match self.host.code(address.to_address()) {
-            Some(code_load) => code_load.into_components(),
-            None => {
-                self.inner.result.error = ExitStatusCode::FatalExternalError.to_u8();
-                return &self.inner.result as _;
-            }
+        let Some(code) = self.host.code(address.to_address()) else {
+            self.inner.result.error = ExitStatusCode::FatalExternalError.to_u8();
+            return &self.inner.result as _;
         };
         let size = code.len();
-        let gas_cost = gas::extcodesize_gas_cost(self.inner.spec_id, load);
+        let gas_cost = gas::extcodesize_gas_cost(self.inner.spec_id, code.is_cold);
 
         self.inner.result.value = size as u64;
         self.inner.result.gas_used = gas_cost;
@@ -1986,7 +1988,7 @@ impl RuntimeContext<'_> {
             .unwrap_or_default();
     }
 
-    extern "C" fn ext_code_copy(
+    extern "C" fn extcodecopy(
         &mut self,
         address_value: &Bytes32,
         code_offset: &Bytes32,
@@ -1994,8 +1996,8 @@ impl RuntimeContext<'_> {
         memory_offset: u64,
     ) -> *const RuntimeResult<()> {
         let addr = address_value.to_address();
-        let (code, load) = match self.host.code(addr) {
-            Some(code_load) => code_load.into_components(),
+        let code = match self.host.code(addr) {
+            Some(code) => code,
             None => {
                 self.inner.result.error = ExitStatusCode::FatalExternalError.to_u8();
                 return unsafe {
@@ -2004,22 +2006,27 @@ impl RuntimeContext<'_> {
             }
         };
         let code_offset = as_usize_saturated!(code_offset.to_u256());
-        let memory_offset = memory_offset as usize;
+        let Some(gas_cost) = gas::extcodecopy_gas_cost(self.inner.spec_id, size, code.is_cold)
+        else {
+            self.inner.result.error = ExitStatusCode::OutOfGas.to_u8();
+            return unsafe {
+                &*(&self.inner.result as *const RuntimeResult<u64> as *const RuntimeResult<()>)
+            };
+        };
         let size = size as usize;
+        let memory_offset = memory_offset as usize;
         if size != 0 {
             let code_offset = code_offset.min(code.len());
             self.memory_set_data(memory_offset, code_offset, size, &code);
         }
-        let gas_cost = gas::extcodecopy_gas_cost(self.inner.spec_id, load);
-
         self.inner.result.gas_used = gas_cost;
         unsafe { &*(&self.inner.result as *const RuntimeResult<u64> as *const RuntimeResult<()>) }
     }
 
-    extern "C" fn ext_code_hash(&mut self, address: &mut Bytes32) -> *const RuntimeResult<()> {
+    extern "C" fn extcodehash(&mut self, address: &mut Bytes32) -> *const RuntimeResult<()> {
         let addr = Address::from(address as &Bytes32);
-        let (hash, load) = match self.host.code_hash(addr) {
-            Some(code_load) => code_load.into_components(),
+        let code_hash = match self.host.code_hash(addr) {
+            Some(code_hash) => code_hash,
             None => {
                 self.inner.result.error = ExitStatusCode::FatalExternalError.to_u8();
                 return unsafe {
@@ -2027,8 +2034,8 @@ impl RuntimeContext<'_> {
                 };
             }
         };
-        *address = hash;
-        let gas_cost = gas::extcodehash_gas_cost(self.inner.spec_id, load);
+        *address = code_hash.data;
+        let gas_cost = gas::extcodehash_gas_cost(self.inner.spec_id, code_hash.is_cold);
 
         self.inner.result.gas_used = gas_cost;
         unsafe { &*(&self.inner.result as *const RuntimeResult<u64> as *const RuntimeResult<()>) }
@@ -2515,12 +2522,12 @@ impl RuntimeContext<'_> {
                 ),
                 (
                     symbols::EXT_CODE_COPY,
-                    RuntimeContext::ext_code_copy as *const _,
+                    RuntimeContext::extcodecopy as *const _,
                 ),
                 (symbols::BLOCK_HASH, RuntimeContext::block_hash as *const _),
                 (
                     symbols::EXT_CODE_HASH,
-                    RuntimeContext::ext_code_hash as *const _,
+                    RuntimeContext::extcodehash as *const _,
                 ),
                 (symbols::EOFCREATE, RuntimeContext::eofcreate as *const _),
                 (

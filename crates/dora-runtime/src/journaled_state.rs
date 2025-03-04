@@ -5,9 +5,11 @@ use crate::{
     ExitStatusCode,
     account::{Account, EMPTY_CODE_HASH, EMPTY_CODE_HASH_BYTES},
     db::{Database, StorageSlot},
-    host::{AccountLoad, CodeLoad, SStoreResult, SStoreSlot, SelfdestructResult, StateLoad},
+    host::{AccountLoad, Eip7702CodeLoad, SStoreResult, SStoreSlot, SelfDestructResult},
 };
-use dora_primitives::{Address, B256, Bytecode, Bytes, Bytes32, Log, SpecId, U256, keccak256};
+use dora_primitives::{
+    Address, B256, Bytecode, Bytes, Bytes32, Log, SpecId, StateLoad, U256, keccak256,
+};
 use rustc_hash::{FxHashMap, FxHashSet};
 
 pub type State = FxHashMap<Address, Account>;
@@ -476,7 +478,7 @@ impl JournaledState {
         address: Address,
         target: Address,
         db: &mut DB,
-    ) -> Result<StateLoad<SelfdestructResult>, DB::Error> {
+    ) -> Result<StateLoad<SelfDestructResult>, DB::Error> {
         let spec_id = self.spec_id;
         let account_load = self.load_account(target, db)?;
         let is_cold = account_load.is_cold;
@@ -527,7 +529,7 @@ impl JournaledState {
         };
 
         Ok(StateLoad {
-            data: SelfdestructResult {
+            data: SelfDestructResult {
                 had_value: !balance.is_zero(),
                 target_exists: !is_empty,
                 previously_destroyed,
@@ -619,7 +621,7 @@ impl JournaledState {
 
         Ok(AccountLoad {
             is_empty,
-            code_load: CodeLoad {
+            load: Eip7702CodeLoad {
                 state_load: StateLoad::new((), account.is_cold),
                 is_delegate_account_cold: None,
             },
