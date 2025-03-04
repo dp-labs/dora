@@ -27,6 +27,7 @@ use dora_runtime::context::VMContext;
 use dora_runtime::db::{Database, MemoryDB};
 use dora_runtime::executor::RUNTIME_STACK_SIZE;
 use dora_runtime::vm::VM;
+use dora_tools::find_all_json_tests;
 use hash_db::Hasher;
 use indicatif::{ProgressBar, ProgressDrawTarget};
 use plain_hasher::PlainHasher;
@@ -38,7 +39,6 @@ use std::{
 use thiserror::Error;
 use tracing::{error, info};
 use triehash::sec_trie_root;
-use walkdir::{DirEntry, WalkDir};
 
 /// Gas consumption of a single data blob (== blob byte size)
 pub const GAS_PER_BLOB: u64 = 1 << 17;
@@ -457,21 +457,6 @@ impl Hasher for KeccakHasher {
     fn hash(x: &[u8]) -> Self::Out {
         keccak256(x)
     }
-}
-
-fn find_all_json_tests(path: &Path) -> Vec<PathBuf> {
-    let mut paths = if path.is_file() {
-        vec![path.to_path_buf()]
-    } else {
-        WalkDir::new(path)
-            .into_iter()
-            .filter_map(Result::ok)
-            .filter(|e| e.path().extension() == Some("json".as_ref()))
-            .map(DirEntry::into_path)
-            .collect()
-    };
-    paths.sort();
-    paths
 }
 
 fn should_skip(path: &Path) -> bool {

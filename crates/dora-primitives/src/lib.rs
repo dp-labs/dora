@@ -24,7 +24,7 @@ pub mod spec;
 pub use config::OptimizationLevel;
 pub use spec::{Spec, SpecName, spec_to_generic};
 
-/// Converts a `U256` value to a `u64`, saturating to `MAX` if the value is too large.
+/// Converts a [U256] value to a [u64], saturating to [MAX][u64] if the value is too large.
 #[macro_export]
 macro_rules! as_u64_saturated {
     ($v:expr) => {
@@ -48,6 +48,7 @@ macro_rules! as_usize_saturated {
     };
 }
 
+/// WASM bytecode is a normal bytes that start with the magic bytes `\0asm`.
 pub type WASMBytecode = Bytes;
 
 /// WASM magic number `\0asm` in array form.

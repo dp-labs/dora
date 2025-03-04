@@ -51,7 +51,7 @@ pub struct AccountInfo {
     pub nonce: u64,
     /// A Keccak256 hash of the account's contract code.
     pub code_hash: B256,
-    /// The account's bytecode, if any. `None` indicates the code should be fetched when needed.
+    /// The account's EVM or WASM bytecode, if any. `None` indicates the code should be fetched when needed.
     pub code: Option<Bytecode>,
 }
 
@@ -139,6 +139,7 @@ pub struct Account {
 
 impl Account {
     /// Create a new account and mark it as non existing.
+    #[inline]
     pub fn new_not_existing() -> Self {
         Self {
             status: AccountStatus::LoadedAsNotExisting,
@@ -147,6 +148,7 @@ impl Account {
     }
 
     /// New empty account with the storage.
+    #[inline]
     pub fn new_empty_with_storage(storage: FxHashMap<U256, StorageSlot>) -> Self {
         Self {
             storage,
@@ -155,7 +157,6 @@ impl Account {
     }
 
     /// Check if account is empty and check if empty state before spurious dragon hardfork.
-    #[inline]
     pub fn state_clear_aware_is_empty(&self, spec: SpecId) -> bool {
         if SpecId::enabled(spec, SpecId::SPURIOUS_DRAGON) {
             self.is_empty()

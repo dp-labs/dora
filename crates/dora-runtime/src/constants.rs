@@ -187,7 +187,7 @@ pub mod gas_cost {
     /// let cost = gas_cost::init_code_cost(512);
     /// ```
     #[inline]
-    pub fn init_code_cost(init_code_length: usize) -> u64 {
+    pub const fn init_code_cost(init_code_length: usize) -> u64 {
         INITCODE_WORD_COST * ((init_code_length as u64 + 31) / 32)
     }
 
@@ -262,7 +262,7 @@ pub mod gas_cost {
     /// ```no_check
     /// let cost = gas_cost::log_dynamic_gas_cost(128, 2);
     /// ```
-    pub fn log_dynamic_gas_cost(size: u32, topic_count: u32) -> i64 {
+    pub const fn log_dynamic_gas_cost(size: u32, topic_count: u32) -> i64 {
         (LOG0 * topic_count as i64) + (8 * size as i64)
     }
 
