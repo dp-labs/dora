@@ -1,27 +1,9 @@
 //! Reference: [revm](https://github.com/bluealloy/revm)
 
-use std::fmt::{self, Debug};
-
 use crate::db::{DbAccount, StorageSlot};
 use bitflags::bitflags;
-use dora_primitives::{B256, Bytecode, SpecId, U256, b256};
+use dora_primitives::{B256, Bytecode, KECCAK_EMPTY, SpecId, U256};
 use rustc_hash::FxHashMap;
-
-/// Keccak256 hash of an empty bytecode.
-///
-/// This constant represents the hash value for an empty bytecode, which is used to check if an account
-/// has code or if it's an empty contract.
-///
-/// # Example:
-/// ```no_check
-/// assert_eq!(EMPTY_CODE_HASH_STR, "0xc5d2460186f7233c927e7db2dcc703c0e500b653ca82273b7bfad8045d85a470");
-/// ```
-pub const EMPTY_CODE_HASH_STR: &str =
-    "0xc5d2460186f7233c927e7db2dcc703c0e500b653ca82273b7bfad8045d85a470";
-pub const EMPTY_CODE_HASH_BYTES: [u8; 32] =
-    hex_literal::hex!("c5d2460186f7233c927e7db2dcc703c0e500b653ca82273b7bfad8045d85a470");
-pub const EMPTY_CODE_HASH: B256 =
-    b256!("c5d2460186f7233c927e7db2dcc703c0e500b653ca82273b7bfad8045d85a470");
 
 /// Represents the core information of an account, including its balance, nonce, code hash, and optional bytecode.
 ///
@@ -43,7 +25,7 @@ pub const EMPTY_CODE_HASH: B256 =
 /// assert!(account_info.is_empty());
 /// assert!(!account_info.has_code());
 /// ```
-#[derive(Clone, PartialEq, Eq)]
+#[derive(Clone, PartialEq, Eq, Debug)]
 pub struct AccountInfo {
     /// Account balance.
     pub balance: U256,
@@ -59,25 +41,10 @@ impl Default for AccountInfo {
     fn default() -> Self {
         Self {
             balance: U256::ZERO,
-            code_hash: EMPTY_CODE_HASH,
+            code_hash: KECCAK_EMPTY,
             code: Some(Bytecode::default()),
             nonce: 0,
         }
-    }
-}
-
-impl fmt::Debug for AccountInfo {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        f.debug_struct("AccountInfo")
-            .field("balance", &self.balance)
-            .field("nonce", &self.nonce)
-            .field("code_hash", &self.code_hash)
-            // Use the hex output format
-            .field(
-                "code",
-                &hex::encode(self.code.clone().unwrap_or_default().bytecode()),
-            )
-            .finish()
     }
 }
 
@@ -101,7 +68,7 @@ impl AccountInfo {
     /// ```
     #[inline]
     pub fn is_empty(&self) -> bool {
-        self.balance.is_zero() && self.nonce == 0 && self.code_hash == EMPTY_CODE_HASH
+        self.balance.is_zero() && self.nonce == 0 && self.code_hash == KECCAK_EMPTY
     }
 
     /// Checks if the account has contract code associated with it.
@@ -117,7 +84,7 @@ impl AccountInfo {
     /// ```
     #[inline]
     pub fn has_code(&self) -> bool {
-        self.code_hash != B256::ZERO && self.code_hash != EMPTY_CODE_HASH
+        self.code_hash != B256::ZERO && self.code_hash != KECCAK_EMPTY
     }
 }
 

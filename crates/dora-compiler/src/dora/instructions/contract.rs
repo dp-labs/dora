@@ -15,8 +15,8 @@ use crate::{
 };
 use dora_primitives::SpecId;
 use dora_runtime::ExitStatusCode;
-use dora_runtime::constants::CallType;
-use dora_runtime::constants::{ExtCallType, gas_cost};
+use dora_runtime::call::{CallType, ExtCallType};
+use dora_runtime::constants::gas_cost;
 use dora_runtime::symbols;
 use melior::{
     Context,

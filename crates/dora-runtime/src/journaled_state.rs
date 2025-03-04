@@ -3,12 +3,12 @@ use std::{collections::hash_map::Entry, mem};
 
 use crate::{
     ExitStatusCode,
-    account::{Account, EMPTY_CODE_HASH, EMPTY_CODE_HASH_BYTES},
+    account::Account,
     db::{Database, StorageSlot},
     host::{AccountLoad, Eip7702CodeLoad, SStoreResult, SStoreSlot, SelfDestructResult},
 };
 use dora_primitives::{
-    Address, B256, Bytecode, Bytes, Bytes32, Log, SpecId, StateLoad, U256, keccak256,
+    Address, B256, Bytecode, Bytes, Bytes32, KECCAK_EMPTY, Log, SpecId, StateLoad, U256, keccak256,
 };
 use rustc_hash::{FxHashMap, FxHashSet};
 
@@ -262,7 +262,7 @@ impl JournaledState {
         // Bytecode is not empty.
         // Nonce is not zero
         // Account is not precompile.
-        if account.info.code_hash != B256::from(EMPTY_CODE_HASH_BYTES) || account.info.nonce != 0 {
+        if account.info.code_hash != KECCAK_EMPTY || account.info.nonce != 0 {
             self.checkpoint_revert(checkpoint);
             return Err(ExitStatusCode::CreateCollision);
         }
@@ -410,7 +410,7 @@ impl JournaledState {
                 }
                 JournalEntry::CodeChange { address } => {
                     let acc = state.get_mut(&address).unwrap();
-                    acc.info.code_hash = B256::from(EMPTY_CODE_HASH_BYTES);
+                    acc.info.code_hash = KECCAK_EMPTY;
                     acc.info.code = None;
                 }
             }
@@ -638,7 +638,7 @@ impl JournaledState {
         let account_load = self.load_account(address, db)?;
         let acc = &mut account_load.data.info;
         if acc.code.is_none() {
-            if acc.code_hash == EMPTY_CODE_HASH {
+            if acc.code_hash == KECCAK_EMPTY {
                 acc.code = Some(Bytecode::empty());
             } else {
                 let code = db.code_by_hash(acc.code_hash)?;

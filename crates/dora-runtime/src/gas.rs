@@ -343,7 +343,7 @@ pub const fn warm_cold_cost(is_cold: bool) -> u64 {
     }
 }
 
-pub const fn warm_cold_cost_with_delegation(load: Eip7702CodeLoad<()>) -> u64 {
+const fn warm_cold_cost_with_delegation(load: Eip7702CodeLoad<()>) -> u64 {
     let mut gas = warm_cold_cost(load.state_load.is_cold);
     if let Some(is_cold) = load.is_delegate_account_cold {
         gas += warm_cold_cost(is_cold);
