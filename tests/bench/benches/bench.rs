@@ -25,6 +25,8 @@ use rustc_hash::FxHashMap;
 use std::hint::black_box;
 use std::time::Duration;
 
+const UNISWAP_V3_ESTIMATE_GAS: u64 = 155934;
+
 fn bench(c: &mut Criterion) {
     for bench in &get_benches() {
         if bench.bytecode.starts_with(&WASM_MAGIC_BYTES) {
@@ -308,6 +310,7 @@ fn run_evm_uniswapv3_bench(c: &mut Criterion) {
     g.bench_function("dora", |b| {
         b.iter(|| {
             let result = run(env.clone(), db.clone(), SpecId::CANCUN).unwrap();
+            assert_eq!(result.gas_used(), UNISWAP_V3_ESTIMATE_GAS);
             assert!(result.is_success());
         })
     });

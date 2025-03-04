@@ -928,6 +928,9 @@ pub struct InnerContext {
     pub depth: usize,
     /// Whether the context is static.
     pub is_static: bool,
+    /// Whether we are Interpreting the Ethereum Object Format (EOF) bytecode.
+    /// This is local field that is set from `contract.is_eof()`.
+    pub is_eof: bool,
     /// Whether the context is EOF init.
     pub is_eof_init: bool,
     /// VM spec id
@@ -946,6 +949,7 @@ impl Default for InnerContext {
             result: Default::default(),
             depth: Default::default(),
             is_static: Default::default(),
+            is_eof: Default::default(),
             is_eof_init: Default::default(),
             spec_id: Default::default(),
         }
@@ -1413,19 +1417,23 @@ impl RuntimeContext<'_> {
             let gas_remaining = gas_remaining + call_result.gas_remaining;
             self.inner.gas_refunded += call_result.gas_refunded;
             // Copy call output to the memory.
-            self.inner.memory[ret_offset..ret_offset + target_len]
-                .copy_from_slice(&self.inner.returndata[..target_len]);
-            self.inner.result.value = 1;
+            if target_len != 0 {
+                self.inner.memory[ret_offset..ret_offset + target_len]
+                    .copy_from_slice(&self.inner.returndata[..target_len]);
+            }
+            self.inner.result.value = if self.inner.is_eof { 0 } else { 1 };
             self.inner.result.gas_used = original_remaining_gas - gas_remaining;
         } else if call_result.status.is_revert() {
             let gas_remaining = gas_remaining + call_result.gas_remaining;
             // Copy call output to the memory.
-            self.inner.memory[ret_offset..ret_offset + target_len]
-                .copy_from_slice(&self.inner.returndata[..target_len]);
-            self.inner.result.value = 0;
+            if target_len != 0 {
+                self.inner.memory[ret_offset..ret_offset + target_len]
+                    .copy_from_slice(&self.inner.returndata[..target_len]);
+            }
+            self.inner.result.value = if self.inner.is_eof { 1 } else { 0 };
             self.inner.result.gas_used = original_remaining_gas - gas_remaining;
         } else {
-            self.inner.result.value = 0;
+            self.inner.result.value = if self.inner.is_eof { 2 } else { 0 };
             self.inner.result.gas_used = original_remaining_gas - gas_remaining;
         }
         &self.inner.result as _
@@ -1608,7 +1616,9 @@ impl RuntimeContext<'_> {
         if size == 0 {
             *hash_ptr = Bytes32::from_be_bytes(EMPTY_CODE_HASH_BYTES);
         } else {
-            let data = &self.inner.memory[offset as usize..offset as usize + size as usize];
+            let offset = offset as usize;
+            let size = size as usize;
+            let data = &self.inner.memory[offset..offset + size];
             let result = keccak256(data);
             *hash_ptr = Bytes32::from_be_bytes(result.into());
         }
