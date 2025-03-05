@@ -1,16 +1,20 @@
 use dora_ir::IRTypes;
 use dora_runtime::symbols;
 use dora_runtime::wasm::trap::TrapCode;
-use melior::dialect::{
-    arith::{self, CmpfPredicate, CmpiPredicate},
-    cf, func,
-};
 use melior::ir::{
     BlockRef, OperationRef, Region, Type, TypeLike, Value, ValueLike,
     attribute::FlatSymbolRefAttribute, r#type::IntegerType,
 };
+use melior::{
+    dialect::{
+        arith::{self, CmpfPredicate, CmpiPredicate},
+        cf, func,
+    },
+    ir::Block,
+};
 
 use crate::conversion::rewriter::Rewriter;
+use crate::errors::CompileError;
 use crate::errors::Result;
 use crate::value::ToContextValue;
 use crate::{backend::TypeMethods, context::Context, conversion::builder::OpBuilder, state::State};
@@ -169,7 +173,7 @@ pub(crate) fn is_zero<'c, 'a>(
     }
 }
 
-pub fn trap<'c, 'a>(
+pub(crate) fn trap<'c, 'a>(
     builder: &OpBuilder<'c, 'a>,
     code: TrapCode,
     continue_block: BlockRef<'c, 'a>,
@@ -187,7 +191,24 @@ pub fn trap<'c, 'a>(
     Ok(())
 }
 
-pub fn trap_call(builder: &OpBuilder<'_, '_>, code: TrapCode) -> Result<()> {
+pub(crate) fn trap_code<'c, 'a>(
+    builder: &OpBuilder<'c, 'a>,
+    code: Value<'c, 'a>,
+    continue_block: BlockRef<'c, 'a>,
+) -> Result<()> {
+    let ctx = builder.ctx;
+    builder.create(func::call(
+        ctx,
+        FlatSymbolRefAttribute::new(ctx, symbols::wasm::RAISE_TRAP),
+        &[code],
+        &[],
+        builder.get_insert_location(),
+    ));
+    builder.create(cf::br(&continue_block, &[], builder.get_insert_location()));
+    Ok(())
+}
+
+pub(crate) fn trap_call(builder: &OpBuilder<'_, '_>, code: TrapCode) -> Result<()> {
     let ctx = builder.ctx;
     let code = builder.make(builder.iconst_32(code as _))?;
     builder.create(func::call(
@@ -200,7 +221,7 @@ pub fn trap_call(builder: &OpBuilder<'_, '_>, code: TrapCode) -> Result<()> {
     Ok(())
 }
 
-pub fn gas_limit<'c, 'a>(builder: &OpBuilder<'c, 'a>) -> Result<Value<'c, 'a>> {
+pub(crate) fn gas_limit<'c, 'a>(builder: &OpBuilder<'c, 'a>) -> Result<Value<'c, 'a>> {
     let ctx = builder.ctx;
     let value = builder.make(func::call(
         ctx,
@@ -331,4 +352,91 @@ pub(crate) fn trunc_sat_scalar<'c, 'a>(
     ))?;
 
     Ok(value.to_ctx_value())
+}
+
+pub(crate) fn trap_float_if_not_representable_as_int<'c, 'a>(
+    ctx: &'c Context,
+    region: &'c Region<'c>,
+    block: BlockRef<'c, 'a>,
+    lower_bound: u64, // Inclusive (not a trapping value)
+    upper_bound: u64, // Inclusive (not a trapping value)
+    value: Value<'c, 'a>,
+) -> Result<BlockRef<'c, 'a>> {
+    let float_ty = value.r#type();
+    let is_f32 = float_ty.is_f32();
+    let is_f64 = float_ty.is_f64();
+    if !is_f32 && !is_f64 {
+        return Err(CompileError::Codegen(format!(
+            "trunc float operations accept only f32 and f64, got {}",
+            float_ty
+        ))
+        .into());
+    }
+    let builder = OpBuilder::new_with_block(&ctx.mlir_context, block);
+    let int_ty = if is_f32 {
+        builder.i32_ty()
+    } else {
+        builder.i64_ty()
+    };
+    let context = builder.context();
+    let location = builder.get_insert_location();
+    // Int lower and upper bound
+    let lower_bound = builder.make(builder.iconst(int_ty, lower_bound as i64))?;
+    let upper_bound = builder.make(builder.iconst(int_ty, upper_bound as i64))?;
+    // Float lower and upper bound
+    let lower_bound = builder.make(arith::bitcast(lower_bound, float_ty, location))?;
+    let upper_bound = builder.make(arith::bitcast(upper_bound, float_ty, location))?;
+    // The 'U' in the float predicate is short for "unordered" which means that
+    // the comparison will compare true if either operand is a NaN. Thus, NaNs
+    // are out of bounds.
+    let above_upper_bound_cmp = builder.make(arith::cmpf(
+        context,
+        CmpfPredicate::Ugt,
+        value,
+        upper_bound,
+        location,
+    ))?;
+    let below_lower_bound_cmp = builder.make(arith::cmpf(
+        context,
+        CmpfPredicate::Ult,
+        value,
+        lower_bound,
+        location,
+    ))?;
+    let out_of_bounds = builder.make(arith::ori(
+        above_upper_bound_cmp,
+        below_lower_bound_cmp,
+        location,
+    ))?;
+
+    let failure_block = region.append_block(Block::new(&[]));
+    let continue_block = region.append_block(Block::new(&[]));
+    builder.create(cf::cond_br(
+        context,
+        out_of_bounds,
+        &failure_block,
+        &continue_block,
+        &[],
+        &[],
+        location,
+    ));
+    // Raise the float trunc overflow error
+    {
+        let builder = OpBuilder::new_with_block(context, failure_block);
+        let is_nan = builder.make(arith::cmpf(
+            context,
+            CmpfPredicate::Uno,
+            value,
+            value,
+            location,
+        ))?;
+        let code = builder.make(arith::select(
+            is_nan,
+            builder.make(builder.iconst_32(TrapCode::BadConversionToInteger as _))?,
+            builder.make(builder.iconst_32(TrapCode::IntegerOverflow as _))?,
+            location,
+        ))?;
+        trap_code(&builder, code, continue_block)?;
+    }
+    Ok(continue_block)
 }

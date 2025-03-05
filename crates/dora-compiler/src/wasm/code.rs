@@ -7,6 +7,7 @@ use crate::conversion::builder::OpBuilder;
 use crate::errors::Result;
 use crate::intrinsics::{is_f32_arithmetic, is_f64_arithmetic};
 use crate::value::ToContextValue;
+use crate::wasm::backend::trap_float_if_not_representable_as_int;
 use crate::wasm::intrinsics::MemoryCache;
 
 use super::backend::{WASMBackend, is_zero, trap, trap_call};
@@ -2255,16 +2256,56 @@ impl FunctionCodeGenerator {
                 op!(builder, state, i_32_wrap_i_64, i32);
             }
             Operator::I32TruncF32S => {
+                let block = trap_float_if_not_representable_as_int(
+                    backend.ctx,
+                    region,
+                    block,
+                    0xcf000000, // -2147483600.0
+                    0x4effffff, // 2147483500.0
+                    state.peek1()?,
+                )?;
+                let builder = OpBuilder::new_with_block(builder.context(), block);
                 op!(builder, state, i_32_trunc_f_32_s, i32);
+                return Ok(block);
             }
             Operator::I32TruncF32U => {
+                let block = trap_float_if_not_representable_as_int(
+                    backend.ctx,
+                    region,
+                    block,
+                    0xbf7fffff, // -0.99999994
+                    0x4f7fffff, // 4294967000.0
+                    state.peek1()?,
+                )?;
+                let builder = OpBuilder::new_with_block(builder.context(), block);
                 op!(builder, state, i_32_trunc_f_32_u, i32);
+                return Ok(block);
             }
             Operator::I32TruncF64S => {
+                let block = trap_float_if_not_representable_as_int(
+                    backend.ctx,
+                    region,
+                    block,
+                    0xc1e00000001fffff, // -2147483648.9999995
+                    0x41dfffffffffffff, // 2147483647.9999998
+                    state.peek1()?,
+                )?;
+                let builder = OpBuilder::new_with_block(builder.context(), block);
                 op!(builder, state, i_32_trunc_f_64_s, i32);
+                return Ok(block);
             }
             Operator::I32TruncF64U => {
+                let block = trap_float_if_not_representable_as_int(
+                    backend.ctx,
+                    region,
+                    block,
+                    0xbfefffffffffffff, // -0.9999999999999999
+                    0x41efffffffffffff, // 4294967295.9999995
+                    state.peek1()?,
+                )?;
+                let builder = OpBuilder::new_with_block(builder.context(), block);
                 op!(builder, state, i_32_trunc_f_64_u, i32);
+                return Ok(block);
             }
             Operator::I64ExtendI32S => {
                 op!(builder, state, i_64_extend_i_32_s, i64);
@@ -2273,16 +2314,56 @@ impl FunctionCodeGenerator {
                 op!(builder, state, i_64_extend_i_32_u, i64);
             }
             Operator::I64TruncF32S => {
+                let block = trap_float_if_not_representable_as_int(
+                    backend.ctx,
+                    region,
+                    block,
+                    0xdf000000, // -9223372000000000000.0
+                    0x5effffff, // 9223371500000000000.0
+                    state.peek1()?,
+                )?;
+                let builder = OpBuilder::new_with_block(builder.context(), block);
                 op!(builder, state, i_64_trunc_f_32_s, i64);
+                return Ok(block);
             }
             Operator::I64TruncF32U => {
+                let block = trap_float_if_not_representable_as_int(
+                    backend.ctx,
+                    region,
+                    block,
+                    0xbf7fffff, // -0.99999994
+                    0x5f7fffff, // 18446743000000000000.0
+                    state.peek1()?,
+                )?;
+                let builder = OpBuilder::new_with_block(builder.context(), block);
                 op!(builder, state, i_64_trunc_f_32_u, i64);
+                return Ok(block);
             }
             Operator::I64TruncF64S => {
+                let block = trap_float_if_not_representable_as_int(
+                    backend.ctx,
+                    region,
+                    block,
+                    0xc3e0000000000000, // -9223372036854776000.0
+                    0x43dfffffffffffff, // 9223372036854775000.0
+                    state.peek1()?,
+                )?;
+                let builder = OpBuilder::new_with_block(builder.context(), block);
                 op!(builder, state, i_64_trunc_f_64_s, i64);
+                return Ok(block);
             }
             Operator::I64TruncF64U => {
+                let block = trap_float_if_not_representable_as_int(
+                    backend.ctx,
+                    region,
+                    block,
+                    0xbfefffffffffffff, // -0.9999999999999999
+                    0x43efffffffffffff, // 18446744073709550000.0
+                    state.peek1()?,
+                )?;
+                let builder = OpBuilder::new_with_block(builder.context(), block);
                 op!(builder, state, i_64_trunc_f_64_u, i64);
+                return Ok(block);
             }
             Operator::F32ConvertI32S => {
                 op!(builder, state, f_32_convert_i_32_s, f32);
