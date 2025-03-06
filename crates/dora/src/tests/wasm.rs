@@ -1325,7 +1325,7 @@ fn test_wasm_conversions() -> Result<()> {
             (
                 "f32.convert_i32_s",
                 1234567890,
-                1234568000_f32, // 0x1.26580cp+30,
+                1234568000_f32,
                 f32
             ),
 
@@ -1375,14 +1375,39 @@ fn test_wasm_conversions() -> Result<()> {
             ("f32.convert_i32_u", 0, 0.0_f32, f32),
             ("f32.convert_i32_u", 2147483647, 2147483648_f32, f32),
             ("f32.convert_i32_u", -2147483648, 2147483648_f32, f32),
-            // ("f32.convert_i32_u", 0x12345678, 0x1.234568p+28, f32),
+            ("f32.convert_i32_u", 0x12345678, 305419900.0_f32, f32),
             ("f32.convert_i32_u", 0xffffffff_i64 as i32, 4294967296.0_f32, f32),
-            // ("f32.convert_i32_u", 0x80000080, 0x1.000000p+31, f32),
-            // ("f32.convert_i32_u", 0x80000081, 0x1.000002p+31, f32),
-            // ("f32.convert_i32_u", 0x80000082, 0x1.000002p+31, f32),
-            // ("f32.convert_i32_u", 0xfffffe80, 0x1.fffffcp+31, f32),
-            // ("f32.convert_i32_u", 0xfffffe81, 0x1.fffffep+31, f32),
-            // ("f32.convert_i32_u", 0xfffffe82, 0x1.fffffep+31, f32),
+            ("f32.convert_i32_u", 0x80000080_u32 as i32, 2f32.powi(31), f32),
+            (
+                "f32.convert_i32_u",
+                0x80000081_u32 as i32,
+                1.00000011920928955078125_f32 * 2f32.powi(31), // 0x1.000002p+31,
+                f32
+            ),
+            (
+                "f32.convert_i32_u",
+                0x80000082_u32 as i32,
+                1.00000011920928955078125_f32 * 2f32.powi(31),
+                f32
+            ),
+            (
+                "f32.convert_i32_u",
+                0xfffffe80_u32 as i32,
+                4294966800.0, // 0x1.fffffcp+31,
+                f32
+            ),
+            (
+                "f32.convert_i32_u",
+                0xfffffe81_u32 as i32,
+                1.9999998807907104_f32 * 2f32.powi(31), // 0x1.fffffep+31,
+                f32
+            ),
+            (
+                "f32.convert_i32_u",
+                0xfffffe82_u32 as i32,
+                1.9999998807907104_f32 * 2f32.powi(31),
+                f32
+            ),
             ("f32.convert_i32_u", 16777217, 16777216.0_f32, f32),
             ("f32.convert_i32_u", 16777219, 16777220.0_f32, f32),
 
@@ -1395,10 +1420,30 @@ fn test_wasm_conversions() -> Result<()> {
             ("f32.convert_i64_u", 0xffffffffffffffff_u64 as i64, 18446744073709551616.0_f32, f32),
             ("f32.convert_i64_u", 16777217, 16777216.0_f32, f32),
             ("f32.convert_i64_u", 16777219, 16777220.0_f32, f32),
-            // ("f32.convert_i64_u", 0x0020000020000001, f32::from_str_radix("0x1.000002p+53"), f32),
-            // ("f32.convert_i64_u", 0x7fffffbfffffffff, 0x1.fffffep+62, f32),
-            // ("f32.convert_i64_u", 0x8000008000000001, f32::from_str_radix("0x1.000002p+63"), f32),
-            // ("f32.convert_i64_u", 0xfffffe8000000001, 0x1.fffffep+63, f32),
+            (
+                "f32.convert_i64_u",
+                0x0020000020000001_i64,
+                1.00000011920928955078125_f32 * 2f32.powi(53),
+                f32
+            ),
+            (
+                "f32.convert_i64_u",
+                0x7fffffbfffffffff_i64,
+                1.9999998807907104_f32 * 2f32.powi(62),
+                f32
+            ),
+            (
+                "f32.convert_i64_u",
+                0x8000008000000001_u64 as i64,
+                1.00000011920928955078125_f32 * 2f32.powi(63),
+                f32
+            ),
+            (
+                "f32.convert_i64_u",
+                0xfffffe8000000001_u64 as i64,
+                1.9999998807907104_f32 * 2f32.powi(63),
+                f32
+            ),
 
             ("f64.convert_i32_u", 42, 42.0_f64, f64),
             ("f64.convert_i32_u", i32::MAX, i32::MAX as f64, f64),
@@ -1415,12 +1460,42 @@ fn test_wasm_conversions() -> Result<()> {
             ("f64.convert_i64_u", 9223372036854775807_i64, 9223372036854775807_f64, f64),
             ("f64.convert_i64_u", -9223372036854775808_i64, 9223372036854775808_f64, f64),
             ("f64.convert_i64_u", 0xffffffffffffffff_u64 as i64, 18446744073709551616.0_f64, f64),
-            // ("f64.convert_i64_u", 0x8000000000000400_i64, f64::from_str_radix("0x1.0000000000000p+63"), f64),
-            // ("f64.convert_i64_u", 0x8000000000000401_i64, f64::from_str_radix("0x1.0000000000001p+63"), f64),
-            // ("f64.convert_i64_u", 0x8000000000000402_i64, f64::from_str_radix("0x1.0000000000001p+63"), f64),
-            // ("f64.convert_i64_u", 0xfffffffffffff400_i64, 0x1.ffffffffffffep+63_f64, f64),
-            // ("f64.convert_i64_u", 0xfffffffffffff401_i64, 0x1.fffffffffffffp+63_f64, f64),
-            // ("f64.convert_i64_u", 0xfffffffffffff402_i64, 0x1.fffffffffffffp+63_f64, f64),
+            (
+                "f64.convert_i64_u",
+                0x8000000000000400_u64 as i64,
+                2f64.powi(63),
+                f64
+            ),
+            (
+                "f64.convert_i64_u",
+                0x8000000000000401_u64 as i64,
+                1.0000000000000002 * 2f64.powi(63),
+                f64
+            ),
+            (
+                "f64.convert_i64_u",
+                0x8000000000000402_u64 as i64,
+                1.0000000000000002 * 2f64.powi(63),
+                f64
+            ),
+            (
+                "f64.convert_i64_u",
+                0xfffffffffffff400_u64 as i64,
+                1.8446744073709548e19_f64,
+                f64
+            ),
+            (
+                "f64.convert_i64_u",
+                0xfffffffffffff401_u64 as i64,
+                1.844674407370955e19_f64,
+                f64
+            ),
+            (
+                "f64.convert_i64_u",
+                0xfffffffffffff402_u64 as i64,
+                1.844674407370955e19_f64,
+                f64
+            ),
             ("f64.convert_i64_u", 9007199254740993_i64, 9007199254740992_f64, f64),
             ("f64.convert_i64_u", 9007199254740995_i64, 9007199254740996_f64, f64),
 
@@ -1429,30 +1504,50 @@ fn test_wasm_conversions() -> Result<()> {
             ("f64.promote_f32", f32::MAX, f32::MAX as f64, f64),
             ("f64.promote_f32", 0.0_f32, 0.0_f64, f64),
             ("f64.promote_f32", -0.0_f32, -0.0_f64, f64),
-            // ("f64.promote_f32", 2f32.powi(-149), 0x1p-149_f64, f64),
-            // ("f64.promote_f32", -2f32.powi(-149), -0x1p-149_f64, f64),
-            ("f64.promote_f32", 1.0_f32, 1.0_f64, f64),
-            ("f64.promote_f32", -1.0_f32, -1.0_f64, f64),
             // (
             //     "f64.promote_f32",
-            //     -3.4028235e38_f32, // -0x1.fffffep+127
-            //     -1.7014117e38_f64, // -0x1.fffffep+127
+            //     2f32.powi(-149), // 0x1p-149
+            //     2f64.powi(-149), // 0x1p-149
             //     f64
             // ), // TODO for Timi
-            // ("f64.promote_f32", 0x1.fffffep+127, 0x1.fffffep+127_f64, f64),
-            // ("f64.promote_f32", 0x1p-119, 0x1p-119_f64, f64),
             // (
             //     "f64.promote_f32",
-            //     f32::from_str_radix("0x1.8f867ep+125"),
-            //     f64::from_str_radix("6.6382536710104395e+37"),
+            //     -2f32.powi(-149), // -0x1p-149
+            //     -2f64.powi(-149), // -0x1p-149
             //     f64
-            // ),
+            // ), // TODO for Timi
+            ("f64.promote_f32", 1.0_f32, 1.0_f64, f64),
+            ("f64.promote_f32", -1.0_f32, -1.0_f64, f64),
+            (
+                "f64.promote_f32",
+                -1.9999998807907104_f32 * 2f32.powi(127),
+                -1.9999998807907104_f64 * 2f64.powi(127),
+                f64
+            ),
+            (
+                "f64.promote_f32",
+                1.9999998807907104_f32 * 2f32.powi(127),
+                1.9999998807907104_f64 * 2f64.powi(127),
+                f64
+            ),
+            (
+                "f64.promote_f32",
+                2f32.powi(-119), // 0x1p-119,
+                2f64.powi(-119), // 0x1p-119,
+                f64
+            ),
+            // (
+            //     "f64.promote_f32",
+            //     1.5317460159301758_f32 * 2f32.powi(125), // 0x1.8f867ep+125,
+            //     6.6382536710104395e+37_f64,
+            //     f64
+            // ), // TODO for Timi
             ("f64.promote_f32", f32::INFINITY, f64::INFINITY, f64),
             ("f64.promote_f32", -f32::INFINITY, -f64::INFINITY, f64),
-            // ("f64.promote_f32", f32::NAN, nan:canonical_f64, f64),
-            // ("f64.promote_f32", nan:0x200000, nan:arithmetic_f64, f64),
-            // ("f64.promote_f32", -f32::NAN, nan:canonical_f64, f64),
-            // ("f64.promote_f32", -nan:0x200000_f64, nan:arithmetic_f64, f64),
+            // ("f64.promote_f32", f32::NAN, nan:canonical_f64, f64), // TODO for Timi
+            // ("f64.promote_f32", nan:0x200000, nan:arithmetic_f64, f64), // TODO for Timi
+            // ("f64.promote_f32", -f32::NAN, nan:canonical_f64, f64), // TODO for Timi
+            // ("f64.promote_f32", -nan:0x200000_f64, nan:arithmetic_f64, f64), // TODO for Timi
 
             ("f32.demote_f64", f64::consts::PI, f32::consts::PI, f32),
             ("f32.demote_f64", 0.0_f64, 0.0, f32),
@@ -1461,57 +1556,120 @@ fn test_wasm_conversions() -> Result<()> {
             ("f32.demote_f64", -1.470742791249129e-323_f64, -0.0_f32, f32),
             ("f32.demote_f64", 1.0_f64, 1.0_f32, f32),
             ("f32.demote_f64", -1.0_f64, -1.0_f32, f32),
-            // ("f32.demote_f64", 0x1.fffffe0000000p-127_f64, 0x1p-126, f32),
-            // ("f32.demote_f64", -0x1.fffffe0000000p-127_f64, -0x1p-126, f32),
-            // ("f32.demote_f64", 0x1.fffffdfffffffp-127_f64, 0x1.fffffcp-127, f32),
-            // ("f32.demote_f64", -0x1.fffffdfffffffp-127_f64, -0x1.fffffcp-127, f32),
-            // ("f32.demote_f64", 0x1p-149_f64, 2f32.powi(-149), f32),
-            // ("f32.demote_f64", -0x1p-149_f64, -2f32.powi(-149), f32),
-            // ("f32.demote_f64", 0x1.fffffd0000000p+127_f64, 0x1.fffffcp+127, f32),
-            // ("f32.demote_f64", -0x1.fffffd0000000p+127_f64, -0x1.fffffcp+127, f32),
-            // ("f32.demote_f64", 0x1.fffffd0000001p+127_f64, 0x1.fffffep+127, f32),
-            // ("f32.demote_f64", -0x1.fffffd0000001p+127_f64, -0x1.fffffep+127, f32),
-            // ("f32.demote_f64", 0x1.fffffep+127_f64, 0x1.fffffep+127, f32),
-            // ("f32.demote_f64", -0x1.fffffep+127_f64, -0x1.fffffep+127, f32),
-            // ("f32.demote_f64", 0x1.fffffefffffffp+127_f64, 0x1.fffffep+127, f32),
-            // ("f32.demote_f64", -0x1.fffffefffffffp+127_f64, -0x1.fffffep+127, f32),
-            // ("f32.demote_f64", 0x1.ffffffp+127_f64, f32::INFINITY, f32),
-            // ("f32.demote_f64", -0x1.ffffffp+127_f64, -f32::INFINITY, f32),
-            // ("f32.demote_f64", 0x1p-119_f64, 0x1p-119, f32),
+            (
+                "f32.demote_f64",
+                1.9999998807907104_f64 * 2f64.powi(-127),
+                2f32.powi(-126),
+                f32
+            ),
+            (
+                "f32.demote_f64",
+                -1.9999998807907104_f64 * 2f64.powi(-127),
+                -2f32.powi(-126),
+                f32
+            ),
+            (
+                "f32.demote_f64",
+                1.9999999999999396_f64 * 2f64.powi(-127),
+                1.9999998807907104_f32 * 2f32.powi(-127),
+                f32
+            ),
+            (
+                "f32.demote_f64",
+                -1.9999999999999396_f64 * 2f64.powi(-127),
+                -1.9999998807907104_f32 * 2f32.powi(-127),
+                f32
+            ),
             // (
             //     "f32.demote_f64",
-            //     f64::from_str_radix("0x1.8f867ep+125"),
-            //     f32::from_str_radix("0x1.8f867ep+125"),
+            //     2f64.powi(-149), // 0x1p-149_f64,
+            //     2f32.powi(-149), // 0x1p-149_f64
             //     f32
-            // ),
+            // ), // TODO for Timi
+            // ("f32.demote_f64", -2f64.powi(-149), -2f32.powi(-149), f32), // TODO for Timi
+            // (
+            //     "f32.demote_f64",
+            //     1.999999999999557_f64 * 2f64.powi(127), // 0x1.fffffd0000001p+127,
+            //     1.9999998807907104_f32 * 2f32.powi(-127), // 0x1.fffffcp+127
+            //     f32
+            // ), // TODO for Timi (result is inf)
+            // (
+            //     "f32.demote_f64",
+            //     -1.999999999999557_f64 * 2f64.powi(127), // 0x1.fffffd0000001p+127
+            //     -1.9999998807907104_f32 * 2f32.powi(-127),
+            //     f32
+            // ), // TODO for Timi (result is inf)
+            (
+                "f32.demote_f64",
+                1.9999998807907104_f64 * 2f64.powi(127),
+                1.9999998807907104_f32 * 2f32.powi(127),
+                f32
+            ),
+            (
+                "f32.demote_f64",
+                -1.9999998807907104_f64 * 2f64.powi(127),
+                -1.9999998807907104_f32 * 2f32.powi(127),
+                f32
+            ),
+            // (
+            //     "f32.demote_f64",
+            //     1.9999999999999982_f64 * 2f64.powi(127), // 0x1.fffffefffffffp+127_f64,
+            //     1.9999998807907104_f32 * 2f32.powi(127), // 0x1.fffffep+127
+            //     f32
+            // ), // TODO for Timi (result is inf)
+            // (
+            //     "f32.demote_f64",
+            //     -1.9999999999999982_f64 * 2f64.powi(127),
+            //     -1.9999998807907104_f32 * 2f32.powi(127),
+            //     f32
+            // ),  // TODO for Timi (result is inf)
+            // (
+            //     "f32.demote_f64",
+            //     1.9999998807907104_f64 * 2f64.powi(127), // 0x1.ffffffp+127_f64,
+            //     f32::INFINITY,
+            //     f32
+            // ),   // TODO for Timi (result is not inf)
+            // (
+            //     "f32.demote_f64",
+            //     -1.9999998807907104_f64 * 2f64.powi(127), // -0x1.ffffffp+127_f64
+            //     -f32::INFINITY,
+            //     f32
+            // ),   // TODO for Timi (result is not -inf)
+            ("f32.demote_f64", 2f64.powi(-119), 2f32.powi(-119), f32),
+            (
+                "f32.demote_f64",
+                1.5317460159301758_f64 * 2f64.powi(125), // 0x1.8f867ep+125,
+                1.5317460159301758_f32 * 2f32.powi(125),
+                f32
+            ),
             ("f32.demote_f64", f64::INFINITY, f32::INFINITY, f32),
             ("f32.demote_f64", -f64::INFINITY, -f32::INFINITY, f32),
-            // ("f32.demote_f64", f64::from_str_radix("0x1.0000000000001p+0"), 1.0, f32),
+            ("f32.demote_f64", 1.0000000000000002f64, 1.0, f32),
             ("f32.demote_f64", 1.0_f64, 1.0, f32),
+            (
+                "f32.demote_f64",
+                1.0000000000001192_f64, // 0x1.0000010000000p+0
+                1f32,
+                f32
+            ),
             // (
             //     "f32.demote_f64",
-            //     f64::from_str_radix("0x1.0000010000000p+0"),
-            //     f32::from_str_radix("0x1.000000p+0"),
+            //     1.0000000000002384_f64, // 0x1.0000010000001p+0,
+            //     1.00000011920928955078125_f32, // 0x1.000002p+0
             //     f32
-            // ),
+            // ), // TODO for Timi
             // (
             //     "f32.demote_f64",
-            //     f64::from_str_radix("0x1.0000010000001p+0"),
-            //     f32::from_str_radix("0x1.000002p+0"),
+            //     1.0000038146972656_f64, // 0x1.000002fffffffp+0",
+            //     1.00000011920928955078125_f32, // 0x1.000002p+0
             //     f32
-            // ),
+            // ), // TODO for Timi
             // (
             //     "f32.demote_f64",
-            //     f64::from_str_radix("0x1.000002fffffffp+0"),
-            //     f32::from_str_radix("0x1.000002p+0"),
+            //     1.0000001785_f64, // 0x1.0000030000000p+0,
+            //     1.0000001_f32, // 0x1.000004p+0,
             //     f32
-            // ),
-            // (
-            //     "f32.demote_f64",
-            //     f64::from_str_radix("0x1.0000030000000p+0"),
-            //     f32::from_str_radix("0x1.000004p+0"),
-            //     f32
-            // ),
+            // ), // TODO for Timi
             // (
             //     "f32.demote_f64",
             //     f64::from_str_radix("0x1.0000050000000p+0"),
@@ -1527,13 +1685,13 @@ fn test_wasm_conversions() -> Result<()> {
             // (
             //     "f32.demote_f64",
             //     f64::from_str_radix("0x1.0000010000001p+24"),
-            //     f32::from_str_radix::("0x1.000002p+24"),
+            //     1.00000011920928955078125_f32 * 2f32.powi(24), // 0x1.000002p+24,
             //     f32
             // ),
             // (
             //     "f32.demote_f64",
             //     f64::from_str_radix("0x1.000002fffffffp+24"),
-            //     f32::from_str_radix("0x1.000002p+24"),
+            //     1.00000011920928955078125_f32 * 2f32.powi(24),
             //     f32
             // ),
             // (
@@ -1565,8 +1723,18 @@ fn test_wasm_conversions() -> Result<()> {
             // ("f32.demote_f64", -0x1p-1022_f64, -0.0, f32),
             // ("f32.demote_f64", f64::from_str_radix("0x1.0p-150"), 0.0, f32),
             // ("f32.demote_f64", f64::from_str_radix("-0x1.0p-150_f64"), -0.0, f32),
-            // ("f32.demote_f64", f64::from_str_radix("0x1.0000000000001p-150"), 2f32.powi(-149), f32),
-            // ("f32.demote_f64", f64::from_str_radix("-0x1.0000000000001p-150"), -2f32.powi(-149), f32),
+            // (
+            //     "f32.demote_f64",
+            //     1.0000000000000002 * 2f64.powi(-150),
+            //     2f32.powi(-149),
+            //     f32
+            // ),
+            // (
+            //     "f32.demote_f64",
+            //     1.0000000000000002 * 2f64.powi(-150), // f64::from_str_radix("-0x1.0000000000001p-150"),
+            //     -2f32.powi(-149),
+            //     f32
+            // ),
 
             ("f32.reinterpret_i32", 0, 0_f32, f32),
             ("f32.reinterpret_i32", 1, 1e-45_f32, f32),
@@ -1642,7 +1810,7 @@ fn test_wasm_conversions() -> Result<()> {
             ("i32.reinterpret_f32", 3.1415926_f32, 1078530010, i32),
             (
                 "i32.reinterpret_f32",
-                3.4028235e38_f32, // 0x1.fffffep+127,
+                3.4028235e38_f32, // 1.9999998807907104_f64 * 2f64.powi(127),
                 2139095039,
                 i32
             ),
@@ -1651,8 +1819,8 @@ fn test_wasm_conversions() -> Result<()> {
             ("i32.reinterpret_f32", -f32::INFINITY, 0xff800000_i64 as i32, i32),
             ("i32.reinterpret_f32", f32::NAN, 0x7fc00000, i32),
             ("i32.reinterpret_f32", -f32::NAN, 0xffc00000_i64 as i32, i32),
-            // ("i32.reinterpret_f32", nan:0x200000, 0x7fa00000, i32),
-            // ("i32.reinterpret_f32", -nan:0x200000, 0xffa00000, i32),
+            // ("i32.reinterpret_f32", nan:0x200000, 0x7fa00000, i32), // TODO for Timi
+            // ("i32.reinterpret_f32", -nan:0x200000, 0xffa00000, i32), // TODO for Timi
 
             ("i64.reinterpret_f64", 0_f64, 0, i64),
             ("i32.trunc_f32_s", 666666.0_f32, 666666, i32),
@@ -1668,23 +1836,28 @@ fn test_wasm_conversions() -> Result<()> {
             ("i64.reinterpret_f64", 1.1_f64, 4607632778762754458_i64, i64),
             ("i64.reinterpret_f64", 0.0_f64, 0_i64, i64),
             ("i64.reinterpret_f64", -0.0_f64, 0x8000000000000000_u64 as i64, i64),
-            // (
-            //     "i64.reinterpret_f64",
-            //     0.0000000000001_f64.powi(-1022),
-            //     1_i64,
-            //     i64
-            // ),
-            // ("i64.reinterpret_f64", -nan:0xfffffffffffff_f64, -1_i64, i64),
-            // (
-            //     "i64.reinterpret_f64",
-            //     -0x0.0000000000001p-1022, // -0.0000000000001_f64.powi(-1022),
-            //     0x8000000000000001_u64 as i64,
-            //     i64
-            // ),
+            (
+                "i64.reinterpret_f64",
+                3.330669073875469e-324_f64,
+                1_i64,
+                i64
+            ),
+            // ("i64.reinterpret_f64", -nan:0xfffffffffffff_f64, -1_i64, i64), // TODO for Timi
+            (
+                "i64.reinterpret_f64",
+                -3.330669073875469e-324_f64,
+                0x8000000000000001_u64 as i64,
+                i64
+            ),
             ("i64.reinterpret_f64", 1.0_f64, 4607182418800017408, i64),
             ("i64.reinterpret_f64", 3.14159265358979_f64, 4614256656552045841, i64),
-            // ("i64.reinterpret_f64", 0x1.fffffffffffffp+1023_f64, 9218868437227405311, i64),
-            // ("i64.reinterpret_f64", -0x1.fffffffffffffp+1023_f64, -4503599627370497, i64),
+            // (
+            //     "i64.reinterpret_f64",
+            //     2f64.powi(1023), // 0x1.fffffffffffffp+1023_f64,
+            //     9218868437227405311,
+            //     i64
+            // ), // TODO for Timi
+            // ("i64.reinterpret_f64", -0x1.fffffffffffffp+1023_f64, -4503599627370497, i64), //  // TODO for Timi
             ("i64.reinterpret_f64", f64::INFINITY, 0x7ff0000000000000, i64),
             ("i64.reinterpret_f64", -f64::INFINITY, 0xfff0000000000000_u64 as i64, i64),
             ("i64.reinterpret_f64", f64::NAN, 0x7ff8000000000000_u64 as i64, i64),
