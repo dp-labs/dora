@@ -568,6 +568,10 @@ fn execute_test(path: &Path) -> Result<(), TestError> {
             if spec_name == &SpecName::Constantinople {
                 continue;
             }
+            // Dora has not fully supported Prague Spec yet, therefore this test is skipped.
+            if spec_name == &SpecName::Prague {
+                continue;
+            }
             let spec_id = spec_name.to_spec_id();
             for test_case in tests {
                 let mut env = setup_env(&name, &suite, spec_id)?;
