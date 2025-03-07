@@ -15,6 +15,17 @@ pub mod symbols;
 pub mod vm;
 pub mod wasm;
 
+pub use account::{Account, AccountInfo, AccountStatus};
+pub use artifact::{Artifact, SymbolArtifact};
+pub use call::{CallKind, CallMessage, CallResult, CallType, CallTypeParseError, ExtCallType};
+pub use context::{Contract, RuntimeContext, VMContext};
+pub use db::{Database, DatabaseCommit, MemoryDB};
+pub use executor::{ExecuteKind, ExecutionEngine, Executor, RUNTIME_STACK_SIZE};
+pub use host::{DummyHost, Host};
+pub use result::{ExecutionResult, HaltReason, ResultAndState, VMError};
+pub use stack::Stack;
+pub use vm::VM;
+
 #[repr(u8)]
 #[derive(Debug, Clone)]
 pub enum ExitStatusCode {

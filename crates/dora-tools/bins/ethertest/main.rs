@@ -11,27 +11,17 @@ use alloy_rlp::{Decodable, Error as RlpError, Header, RlpEncodable, RlpMaxEncode
 use anyhow::Result;
 use clap::{Args, Parser, Subcommand};
 use dora::compile_handler;
-use dora_primitives::Bytecode;
-use dora_primitives::Bytes;
-use dora_primitives::EvmStorageSlot;
-use dora_primitives::SignedAuthorization;
-use dora_primitives::as_u64_saturated;
-use dora_primitives::calc_excess_blob_gas;
-use dora_primitives::keccak256;
 use dora_primitives::{
-    AccessList, Address, AuthorizationList, B256, Env, Log, PrimitiveSignature, SpecId, SpecName,
-    TxKind, U256,
+    AccessList, Address, AuthorizationList, B256, Bytecode, Bytes, Env, EvmStorageSlot, Log,
+    PrimitiveSignature, SignedAuthorization, SpecId, SpecName, TxKind, U256, as_u64_saturated,
+    calc_excess_blob_gas, keccak256,
 };
-use dora_runtime::account::Account;
-use dora_runtime::context::VMContext;
-use dora_runtime::db::{Database, MemoryDB};
-use dora_runtime::executor::RUNTIME_STACK_SIZE;
-use dora_runtime::vm::VM;
+use dora_runtime::{Account, Database, MemoryDB, RUNTIME_STACK_SIZE, VM, VMContext};
 use dora_tools::find_all_json_tests;
 use hash_db::Hasher;
 use indicatif::{ProgressBar, ProgressDrawTarget};
 use plain_hasher::PlainHasher;
-use serde::{Deserialize, de};
+use serde::{Deserialize, Serialize, de};
 use std::{
     collections::{BTreeMap, HashMap},
     path::{Path, PathBuf},
@@ -138,7 +128,7 @@ impl From<TestAuthorization> for SignedAuthorization {
     }
 }
 
-#[derive(Clone, Debug, PartialEq, Eq, Deserialize)]
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct TestAccountInfo {
     pub balance: U256,
@@ -160,7 +150,7 @@ pub struct PostStateTest {
     pub txbytes: Option<Bytes>,
     /// Output state.
     #[serde(default)]
-    state: HashMap<Address, TestAccountInfo>,
+    pub state: HashMap<Address, TestAccountInfo>,
 }
 
 impl PostStateTest {
@@ -314,6 +304,11 @@ pub enum TestErrorKind {
     LogsRootMismatch { got: B256, expected: B256 },
     #[error("state root mismatch: got {got}, expected {expected}")]
     StateRootMismatch { got: B256, expected: B256 },
+    #[error("state mismatch: got {got:?}, expected {expected:?}")]
+    StateMismatch {
+        got: (Address, HashMap<U256, U256>),
+        expected: (Address, HashMap<U256, U256>),
+    },
     #[error("unknown private key: {0:?}")]
     UnknownPrivateKey(B256),
     #[error(transparent)]
@@ -335,7 +330,7 @@ pub enum TestErrorKind {
 fn log_rlp_hash(logs: &[Log]) -> B256 {
     let mut out = Vec::with_capacity(alloy_rlp::list_length(logs));
     alloy_rlp::encode_list(logs, &mut out);
-    B256::from_slice(dora_primitives::keccak256(&out).as_slice())
+    B256::from_slice(keccak256(&out).as_slice())
 }
 
 pub fn state_merkle_trie_root<'a>(
@@ -435,10 +430,8 @@ impl StorageSlot {
     }
 }
 
-pub type StorageWithOriginalValues = HashMap<U256, StorageSlot>;
-
 #[inline]
-pub fn trie_root<I, A, B>(input: I) -> dora_primitives::B256
+pub fn trie_root<I, A, B>(input: I) -> B256
 where
     I: IntoIterator<Item = (A, B)>,
     A: AsRef<[u8]>,
@@ -451,7 +444,7 @@ where
 pub struct KeccakHasher;
 
 impl Hasher for KeccakHasher {
-    type Out = dora_primitives::B256;
+    type Out = B256;
     type StdHasher = PlainHasher;
     const LENGTH: usize = 32;
 
@@ -650,17 +643,18 @@ fn execute_test(path: &Path) -> Result<(), TestError> {
                             None => TxKind::Create,
                         };
                     })
-                    // .with_external_context(
-                    //     revm::inspectors::TracerEip3155::new(Box::new(std::io::stdout()))
-                    //         .without_summary(),
-                    // )
-                    // .append_handler_register(revm::inspector_handle_register)
+                    // Uncomment this code to show the instruction debug trace.
+                    .with_external_context(
+                        revm::inspectors::TracerEip3155::new(Box::new(std::io::stdout()))
+                            .without_summary(),
+                    )
+                    .append_handler_register(revm::inspector_handle_register)
                     .build();
-                let _ = evm.transact_commit();
+                let _ = evm.transact();
                 // Run the VM and get the state result.
                 let mut vm = VM::new(VMContext::new(db.clone(), env, spec_id, compile_handler()));
                 let res = vm.transact_commit();
-
+                // Calculate the logs root.
                 let logs_root = log_rlp_hash(res.as_ref().map(|r| r.logs()).unwrap_or_default());
                 // Check result and output.
                 match res {
@@ -693,12 +687,39 @@ fn execute_test(path: &Path) -> Result<(), TestError> {
                                 });
                             }
                         }
-                        // Check the state root.
-                        let state = vm.db.clone().into_state();
-                        let state = state.iter().filter(|(_, acc)| {
+                        // Read all account state from the database.
+                        let db_state = vm.db.clone().into_state();
+                        // Check the state size and diff.
+                        // Seems bug here in the ethertest suites: https://github.com/ethereum/tests/issues/1465
+                        // if !test_case.state.is_empty() {
+                        //     for (address, expect_account) in &test_case.state {
+                        //         let db_account = db_state.get(address).cloned().unwrap_or_default();
+                        //         let got_storage: HashMap<U256, U256> = db_account
+                        //             .storage
+                        //             .iter()
+                        //             .map(|(k, v)| (*k, v.present_value))
+                        //             .collect();
+                        //         if expect_account.storage.len() != got_storage.len()
+                        //             || expect_account.storage != got_storage
+                        //         {
+                        //             let kind = TestErrorKind::StateMismatch {
+                        //                 got: (*address, got_storage),
+                        //                 expected: (*address, expect_account.storage.clone()),
+                        //             };
+                        //             return Err(TestError {
+                        //                 name: name.to_string(),
+                        //                 suite_name: Some(suite_name.to_string()),
+                        //                 indexs: Some(test_case.indexes.clone()),
+                        //                 kind,
+                        //             });
+                        //         }
+                        //     }
+                        // }
+                        // Check the state root
+                        let state_list = db_state.iter().filter(|(_, acc)| {
                             !acc.is_loaded_as_not_existing() || acc.is_touched() && !acc.is_empty()
                         });
-                        let state_root = state_merkle_trie_root(state);
+                        let state_root = state_merkle_trie_root(state_list);
                         if state_root != test_case.hash {
                             let kind = TestErrorKind::StateRootMismatch {
                                 got: state_root,
