@@ -92,6 +92,7 @@ impl JournaledState {
     }
 
     /// Clears the JournaledState. Preserving only the spec.
+    #[inline]
     pub fn clear(&mut self) {
         *self = Self::new(self.spec_id, Default::default());
     }
@@ -144,7 +145,6 @@ impl JournaledState {
     /// Set code and its hash to the account.
     ///
     /// Note: Assume account is warm and that hash is calculated from code.
-    #[inline]
     pub fn set_code_with_hash(&mut self, address: Address, code: Bytes, hash: B256) {
         let account = self.state.get_mut(&address).unwrap();
         Self::touch_account(self.journal.last_mut().unwrap(), &address, account);
@@ -166,7 +166,6 @@ impl JournaledState {
         self.set_code_with_hash(address, code, hash);
     }
 
-    #[inline]
     pub fn inc_nonce(&mut self, address: Address) -> Option<u64> {
         let account = self.state.get_mut(&address).unwrap();
         // Check if nonce is going to overflow.
@@ -185,7 +184,6 @@ impl JournaledState {
     }
 
     /// Transfers balance from two accounts. Returns error if sender balance is not enough.
-    #[inline]
     pub fn transfer<DB: Database>(
         &mut self,
         from: &Address,
@@ -243,7 +241,6 @@ impl JournaledState {
     ///
     /// Panics if the caller is not loaded inside of the VM state.
     /// This is should have been done inside `create_inner`.
-    #[inline]
     pub fn create_account_checkpoint(
         &mut self,
         caller: Address,
@@ -307,7 +304,6 @@ impl JournaledState {
     }
 
     /// Revert all changes that happened in given journal entries.
-    #[inline]
     fn journal_revert(
         state: &mut State,
         transient_storage: &mut TransientStorage,
@@ -418,7 +414,6 @@ impl JournaledState {
     }
 
     /// Makes a checkpoint that in case of Revert can bring back state to this point.
-    #[inline]
     pub fn checkpoint(&mut self) -> JournalCheckpoint {
         let checkpoint = JournalCheckpoint {
             log_i: self.logs.len(),
@@ -436,7 +431,6 @@ impl JournaledState {
     }
 
     /// Reverts all changes to state until given checkpoint.
-    #[inline]
     pub fn checkpoint_revert(&mut self, checkpoint: JournalCheckpoint) {
         let is_spurious_dragon_enabled = SpecId::enabled(self.spec_id, SpecId::SPURIOUS_DRAGON);
         let state = &mut self.state;
@@ -566,7 +560,6 @@ impl JournaledState {
     }
 
     /// load account into memory. return if it is cold or warm accessed
-    #[inline]
     pub fn load_account<DB: Database>(
         &mut self,
         address: Address,
@@ -609,7 +602,6 @@ impl JournaledState {
         Ok(load)
     }
 
-    #[inline]
     pub fn load_account_delegated<DB: Database>(
         &mut self,
         address: Address,
@@ -629,7 +621,6 @@ impl JournaledState {
     }
 
     /// Loads code.
-    #[inline]
     pub fn load_code<DB: Database>(
         &mut self,
         address: Address,
@@ -653,7 +644,6 @@ impl JournaledState {
     /// # Panics
     ///
     /// Panics if the account is not present in the state.
-    #[inline]
     pub fn sload<DB: Database>(
         &mut self,
         address: Address,
@@ -701,7 +691,6 @@ impl JournaledState {
     /// Note:
     ///
     /// account should already be present in our state.
-    #[inline]
     pub fn sstore<DB: Database>(
         &mut self,
         address: Address,
