@@ -36,7 +36,7 @@ VM is ideal for blockchain applications like:
 - Micro-payments
 - On-chain decentralized exchanges (DEXs)
 - On-chain gaming
-- AI inference
+- On-chain AI inference
 - Cross-chain protocols
 
 ## Examples
