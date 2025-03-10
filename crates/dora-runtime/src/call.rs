@@ -161,7 +161,7 @@ impl CallResult {
     /// New a default call result with the gas_limit.
     #[inline]
     pub fn new_with_gas_limit(gas_limit: u64) -> Self {
-        Self::new_with_gas_limit_and_status(gas_limit, ExitStatusCode::Return)
+        Self::new_with_gas_limit_and_status(gas_limit, ExitStatusCode::Stop)
     }
 
     /// New a default call result with the gas_limit and status.

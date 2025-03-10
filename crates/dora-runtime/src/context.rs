@@ -1272,10 +1272,8 @@ impl RuntimeContext<'_> {
         remaining_gas: u64,
         execution_result: u8,
     ) {
-        if bytes_len != 0 {
-            self.inner.returndata =
-                self.inner.memory[offset as usize..offset as usize + bytes_len as usize].to_vec()
-        }
+        self.inner.returndata =
+            self.inner.memory[offset as usize..offset as usize + bytes_len as usize].to_vec();
         self.inner.gas_remaining = Some(remaining_gas);
         self.inner.exit_status = Some(ExitStatusCode::from_u8(execution_result));
     }
@@ -2006,13 +2004,7 @@ impl RuntimeContext<'_> {
             }
         };
         let code_offset = as_usize_saturated!(code_offset.to_u256());
-        let Some(gas_cost) = gas::extcodecopy_gas_cost(self.inner.spec_id, size, code.is_cold)
-        else {
-            self.inner.result.error = ExitStatusCode::OutOfGas.to_u8();
-            return unsafe {
-                &*(&self.inner.result as *const RuntimeResult<u64> as *const RuntimeResult<()>)
-            };
-        };
+        let gas_cost = gas::extcodecopy_gas_cost(self.inner.spec_id, code.is_cold);
         let size = size as usize;
         let memory_offset = memory_offset as usize;
         if size != 0 {
