@@ -658,9 +658,10 @@ impl<'a, DB: Database> VMContext<'a, DB> {
                 if let Some(nonce) = self.journaled_state.inc_nonce(msg.caller) {
                     old_nonce = nonce - 1;
                 } else {
+                    // Note returns a normal result instead of a nonce overflow error here.
                     return Ok(CallResult::new_with_gas_limit_and_status(
                         msg.gas_limit,
-                        ExitStatusCode::NonceOverflow,
+                        ExitStatusCode::Return,
                     ));
                 }
                 // Created address
@@ -1648,7 +1649,7 @@ impl RuntimeContext<'_> {
     }
 
     extern "C" fn store_in_gasprice_ptr(&self, value: &mut Bytes32) {
-        *value = self.host.env().tx.gas_price.into();
+        *value = self.host.env().effective_gas_price().into();
     }
 
     extern "C" fn chainid(&self) -> u64 {
@@ -1966,22 +1967,11 @@ impl RuntimeContext<'_> {
     }
 
     extern "C" fn blob_hash(&mut self, index: &mut Bytes32) {
-        // Check if the high 12 bytes are zero, indicating a valid usize-compatible index
-        if index.slice()[0..12] != [0u8; 12] {
-            *index = Bytes32::default();
-        }
-
-        // Convert the low 20 bytes into a usize for the index
-        let idx = usize::from_be_bytes(index.slice()[12..32].try_into().unwrap_or_default());
-        *index = self
-            .host
-            .env()
-            .tx
-            .blob_hashes
-            .get(idx)
-            .cloned()
-            .map(|x| Bytes32::from_be_bytes(x.into()))
-            .unwrap_or_default();
+        let i = as_usize_saturated!(index.as_u256());
+        *index = match self.host.env().tx.blob_hashes.get(i) {
+            Some(hash) => Bytes32::from_be_bytes(hash.0),
+            None => Bytes32::default(),
+        };
     }
 
     extern "C" fn extcodecopy(

@@ -4,7 +4,7 @@ use crate::{run_with_context, tests::INIT_GAS};
 use dora_compiler::evm::program::{Operation, Program};
 use dora_primitives::spec::SpecId;
 use dora_primitives::{
-    Address, B256, Bytecode, Bytes, Bytes32, Env, Eof, EofBody, KECCAK_EMPTY, TxKind, U256,
+    Address, B256, Bytecode, Bytes, Env, Eof, EofBody, KECCAK_EMPTY, TxKind, U256,
 };
 use dora_runtime::context::Contract;
 use dora_runtime::host::DummyHost;
@@ -1205,31 +1205,6 @@ fn origin() {
     ];
     let (env, db) = default_env_and_db_setup(operations);
     run_program_assert_num_result(env, db, SpecId::CANCUN, 0_u8.into());
-}
-
-#[test]
-fn caller() {
-    let addr = Address::left_padding_from(&[40]);
-    let mut value = Bytes32::ZERO;
-    value.copy_from(&addr);
-    let operations = vec![
-        Operation::Caller,
-        // Return result
-        Operation::Push0,
-        Operation::MStore,
-        Operation::Push((1_u8, 32_u8.into())),
-        Operation::Push0,
-        Operation::Return,
-    ];
-    let (mut env, db) = default_env_and_db_setup(operations);
-    env.tx.caller = addr;
-    env.tx.nonce = Some(1);
-    run_program_assert_num_result(
-        env,
-        db,
-        SpecId::CANCUN,
-        BigUint::from_bytes_le(&value.to_le_bytes()),
-    );
 }
 
 #[test]

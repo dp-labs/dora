@@ -11,7 +11,7 @@ use crate::{
     },
     ensure_non_staticcall,
     errors::Result,
-    gas_or_fail, if_here, maybe_revert_here, operands, rewrite_ctx, u256_to_u64,
+    gas_or_fail, if_here, maybe_revert_here, operands, rewrite_ctx, u256_as_usize_or_fail,
 };
 use dora_primitives::SpecId;
 use dora_runtime::ExitStatusCode;
@@ -60,7 +60,7 @@ impl ConversionPass<'_> {
         let ptr_type = rewriter.ptr_ty();
 
         // Compare the input size with the limit
-        u256_to_u64!(op, rewriter, input_size);
+        u256_as_usize_or_fail!(op, rewriter, input_size);
         let size_is_not_zero =
             rewriter.make(rewriter.icmp_imm(IntCC::NotEqual, input_size, 0)?)?;
         if_here!(op, rewriter, size_is_not_zero, {
@@ -78,7 +78,7 @@ impl ConversionPass<'_> {
 
             // Deduct gas cost for possible memory expansion
             rewrite_ctx!(context, op, rewriter, NoDefer);
-            u256_to_u64!(op, rewriter, input_offset);
+            u256_as_usize_or_fail!(op, rewriter, input_offset);
             memory::resize_memory(
                 context,
                 op,
@@ -154,12 +154,12 @@ impl ConversionPass<'_> {
         let uint8 = rewriter.i8_ty();
         let uint64 = rewriter.i64_ty();
 
-        u256_to_u64!(op, rewriter, aux_data_size);
+        u256_as_usize_or_fail!(op, rewriter, aux_data_size);
         let size_is_not_zero =
             rewriter.make(rewriter.icmp_imm(IntCC::NotEqual, aux_data_size, 0)?)?;
         if_here!(op, rewriter, size_is_not_zero, {
             // Deduct gas cost for possible memory expansion
-            u256_to_u64!(op, rewriter, aux_data_offset);
+            u256_as_usize_or_fail!(op, rewriter, aux_data_offset);
             memory::resize_memory(
                 context,
                 op,
@@ -228,7 +228,7 @@ impl ConversionPass<'_> {
         let uint256 = rewriter.i256_ty();
         let ptr_type = rewriter.ptr_ty();
 
-        u256_to_u64!(op, rewriter, size);
+        u256_as_usize_or_fail!(op, rewriter, size);
         let size_is_not_zero = rewriter.make(rewriter.icmp_imm(IntCC::NotEqual, size, 0)?)?;
         if_here!(op, rewriter, size_is_not_zero, {
             if spec_id.is_enabled_in(SpecId::SHANGHAI) {
@@ -251,7 +251,7 @@ impl ConversionPass<'_> {
             }
             // Deduct gas cost for possible memory expansion
             let rewriter = Rewriter::new_with_op(context, *op);
-            u256_to_u64!(op, rewriter, offset);
+            u256_as_usize_or_fail!(op, rewriter, offset);
             memory::resize_memory(
                 context,
                 op,
@@ -399,12 +399,12 @@ impl ConversionPass<'_> {
         let uint256 = rewriter.i256_ty();
         let ptr_type = rewriter.ptr_ty();
 
-        u256_to_u64!(op, rewriter, args_size);
+        u256_as_usize_or_fail!(op, rewriter, args_size);
         let size_is_not_zero =
             rewriter.make(rewriter.icmp_imm(IntCC::NotEqual, args_size, 0)?)?;
         if_here!(op, rewriter, size_is_not_zero, {
             // Input memory resize
-            u256_to_u64!(op, rewriter, args_offset);
+            u256_as_usize_or_fail!(op, rewriter, args_offset);
             memory::resize_memory(
                 context,
                 op,
@@ -416,11 +416,11 @@ impl ConversionPass<'_> {
             )?;
         });
         let rewriter = Rewriter::new_with_op(context, *op);
-        u256_to_u64!(op, rewriter, ret_size);
+        u256_as_usize_or_fail!(op, rewriter, ret_size);
         let size_is_not_zero = rewriter.make(rewriter.icmp_imm(IntCC::NotEqual, ret_size, 0)?)?;
         if_here!(op, rewriter, size_is_not_zero, {
             // Output memery resize
-            u256_to_u64!(op, rewriter, ret_offset);
+            u256_as_usize_or_fail!(op, rewriter, ret_offset);
             memory::resize_memory(
                 context,
                 op,
@@ -498,10 +498,10 @@ impl ConversionPass<'_> {
         let uint8 = rewriter.i8_ty();
         let uint64 = rewriter.i64_ty();
 
-        u256_to_u64!(op, rewriter, size);
+        u256_as_usize_or_fail!(op, rewriter, size);
         let size_is_not_zero = rewriter.make(rewriter.icmp_imm(IntCC::NotEqual, size, 0)?)?;
         if_here!(op, rewriter, size_is_not_zero, {
-            u256_to_u64!(op, rewriter, offset);
+            u256_as_usize_or_fail!(op, rewriter, offset);
             memory::resize_memory(
                 context,
                 op,
@@ -600,8 +600,8 @@ impl ConversionPass<'_> {
         let uint256 = rewriter.i256_ty();
         let ptr_type = rewriter.ptr_ty();
 
-        u256_to_u64!(op, rewriter, input_size);
-        u256_to_u64!(op, rewriter, input_offset);
+        u256_as_usize_or_fail!(op, rewriter, input_size);
+        u256_as_usize_or_fail!(op, rewriter, input_offset);
         let size_is_not_zero =
             rewriter.make(rewriter.icmp_imm(IntCC::NotEqual, input_size, 0)?)?;
         if_here!(op, rewriter, size_is_not_zero, {

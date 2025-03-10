@@ -5,7 +5,7 @@ use crate::{
     conversion::rewriter::Rewriter,
     dora::{conversion::ConversionPass, memory},
     errors::Result,
-    if_here, operands, rewrite_ctx, u256_to_u64,
+    if_here, operands, rewrite_ctx, u256_as_usize_or_fail,
 };
 use dora_runtime::ExitStatusCode;
 use dora_runtime::symbols;
@@ -24,10 +24,10 @@ impl ConversionPass<'_> {
         let uint8 = rewriter.i8_ty();
         let uint64 = rewriter.i64_ty();
 
-        u256_to_u64!(op, rewriter, size);
+        u256_as_usize_or_fail!(op, rewriter, size);
         let size_is_not_zero = rewriter.make(rewriter.icmp_imm(IntCC::NotEqual, size, 0)?)?;
         if_here!(op, rewriter, size_is_not_zero, {
-            u256_to_u64!(op, rewriter, offset);
+            u256_as_usize_or_fail!(op, rewriter, offset);
             memory::resize_memory(
                 context,
                 op,

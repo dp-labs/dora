@@ -6,7 +6,7 @@ use crate::{
     create_var,
     dora::{conversion::ConversionPass, memory},
     errors::{CompileError, Result},
-    load_var, operands, rewrite_ctx, u256_to_u64,
+    load_var, operands, rewrite_ctx, u256_as_usize_or_fail,
 };
 use crate::{check_runtime_error, ensure_non_staticcall, gas_or_fail, if_here};
 use dora_runtime::ExitStatusCode;
@@ -141,13 +141,13 @@ impl ConversionPass<'_> {
         let uint64 = rewriter.i64_ty();
         let ptr_type = rewriter.ptr_ty();
 
-        u256_to_u64!(op, rewriter, size);
+        u256_as_usize_or_fail!(op, rewriter, size);
         let gas = compute_copy_cost(&rewriter, size)?;
         gas_or_fail!(op, rewriter, gas, gas_counter_ptr);
         rewrite_ctx!(context, op, rewriter, NoDefer);
         let size_is_not_zero = rewriter.make(rewriter.icmp_imm(IntCC::NotEqual, size, 0)?)?;
         if_here!(op, rewriter, size_is_not_zero, {
-            u256_to_u64!(op, rewriter, memory_offset);
+            u256_as_usize_or_fail!(op, rewriter, memory_offset);
             memory::resize_memory(
                 context,
                 op,
@@ -336,14 +336,14 @@ impl ConversionPass<'_> {
         rewrite_ctx!(context, op, rewriter, NoDefer);
 
         // Check the log mem offset and size overflow error
-        u256_to_u64!(op, rewriter, size);
+        u256_as_usize_or_fail!(op, rewriter, size);
         let gas = compute_log_dynamic_cost(&rewriter, size)?;
         gas_or_fail!(op, rewriter, gas, gas_counter_ptr);
         rewrite_ctx!(context, op, rewriter, NoDefer);
 
         let size_is_not_zero = rewriter.make(rewriter.icmp_imm(IntCC::NotEqual, size, 0)?)?;
         if_here!(op, rewriter, size_is_not_zero, {
-            u256_to_u64!(op, rewriter, offset);
+            u256_as_usize_or_fail!(op, rewriter, offset);
             memory::resize_memory(
                 context,
                 op,

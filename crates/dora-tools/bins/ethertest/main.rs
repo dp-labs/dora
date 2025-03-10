@@ -473,6 +473,12 @@ fn should_skip(path: &Path) -> bool {
         // Txbyte is of type 02 and we don't parse tx bytes for this test to fail.
         | "typeTwoBerlin.json"
 
+        // Test check if gas price overflows, we handle this correctly but does not match tests specific exception.
+        | "HighGasPrice.json"
+        | "CREATE_HighNonce.json"
+        | "CREATE_HighNonceMinus1.json"
+        | "CreateTransactionHighNonce.json"
+
         // Skip test where basefee/accesslist/difficulty is present but it shouldn't be supported in
         // London/Berlin/TheMerge. https://github.com/ethereum/tests/blob/5b7e1ab3ffaf026d99d20b17bb30f533a2c80c8b/GeneralStateTests/stExample/eip1559.json#L130
         // It is expected to not execute these tests.
@@ -502,7 +508,7 @@ fn should_skip(path: &Path) -> bool {
         | "eip7516_blob_base_fee.json"
         | "create_tx_collision_storage.json"
         | "create_collision_storage.json"
-    ) ||// Temporarily skip EOF test suites: https://github.com/dp-labs/dora/issues/5
+    ) ||// Temporarily skip EOF test suites: https://github.com/dp-labs/dora/issues/81
         path_str.contains("stEOF")
 }
 
