@@ -16,7 +16,9 @@ use dora_primitives::{
     PrimitiveSignature, SignedAuthorization, SpecId, SpecName, TxKind, U256, as_u64_saturated,
     calc_excess_blob_gas, keccak256,
 };
-use dora_runtime::{Account, Database, MemoryDB, RUNTIME_STACK_SIZE, VM, VMContext};
+use dora_runtime::{
+    Account, Database, MemoryDB, RUNTIME_STACK_SIZE, VM, VMContext, constants::env::DORA_TRACING,
+};
 use dora_tools::find_all_json_tests;
 use hash_db::Hasher;
 use indicatif::{ProgressBar, ProgressDrawTarget};
@@ -607,7 +609,7 @@ fn execute_test(path: &Path) -> Result<(), TestError> {
                 env.tx.authorization_list = auth_list;
 
                 // Revm comparative test
-                let mut evm = revm::Evm::builder()
+                let evm = revm::Evm::builder()
                     .with_db(&mut state)
                     .with_spec_id(spec_id)
                     .modify_cfg_env(|cfg| {
@@ -642,15 +644,19 @@ fn execute_test(path: &Path) -> Result<(), TestError> {
                             Some(to) => TxKind::Call(to),
                             None => TxKind::Create,
                         };
-                    })
-                    // Uncomment this code to show the instruction debug trace.
-                    .with_external_context(
-                        revm::inspectors::TracerEip3155::new(Box::new(std::io::stdout()))
-                            .without_summary(),
-                    )
-                    .append_handler_register(revm::inspector_handle_register)
-                    .build();
-                let _ = evm.transact();
+                    });
+                if std::env::var(DORA_TRACING).is_ok() {
+                    let mut evm = evm
+                        .with_external_context(
+                            revm::inspectors::TracerEip3155::new(Box::new(std::io::stdout()))
+                                .without_summary(),
+                        )
+                        .append_handler_register(revm::inspector_handle_register)
+                        .build();
+                    let _ = evm.transact();
+                } else {
+                    let _ = evm.build().transact();
+                }
                 // Run the VM and get the state result.
                 let mut vm = VM::new(VMContext::new(db.clone(), env, spec_id, compile_handler()));
                 let res = vm.transact_commit();
