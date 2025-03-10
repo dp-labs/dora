@@ -306,10 +306,10 @@ pub enum TestErrorKind {
     LogsRootMismatch { got: B256, expected: B256 },
     #[error("state root mismatch: got {got}, expected {expected}")]
     StateRootMismatch { got: B256, expected: B256 },
-    #[error("state mismatch: got {got:?}, expected {expected:?}")]
-    StateMismatch {
-        got: (Address, HashMap<U256, U256>),
-        expected: (Address, HashMap<U256, U256>),
+    #[error("account state mismatch: got {got:?}, expected {expected:?}")]
+    AccountMismatch {
+        got: (Address, HashMap<U256, U256>, U256, u64),
+        expected: (Address, HashMap<U256, U256>, U256, u64),
     },
     #[error("unknown private key: {0:?}")]
     UnknownPrivateKey(B256),
@@ -621,6 +621,7 @@ fn execute_test(path: &Path) -> Result<(), TestError> {
                         block.gas_limit = suite.env.current_gas_limit;
                         block.timestamp = suite.env.current_timestamp;
                         block.difficulty = suite.env.current_difficulty;
+                        block.basefee = suite.env.current_base_fee.unwrap_or_default();
                     })
                     .modify_tx_env(|etx| {
                         etx.data = suite
@@ -631,7 +632,12 @@ fn execute_test(path: &Path) -> Result<(), TestError> {
                             .clone();
                         etx.gas_limit =
                             suite.transaction.gas_limit[test_case.indexes.gas].saturating_to();
-                        etx.gas_price = suite.transaction.gas_price.unwrap_or_default();
+                        etx.gas_price = suite
+                            .transaction
+                            .gas_price
+                            .or(suite.transaction.max_fee_per_gas)
+                            .unwrap_or_default();
+                        etx.gas_priority_fee = suite.transaction.max_priority_fee_per_gas;
                         etx.nonce = Some(as_u64_saturated!(suite.transaction.nonce));
                         etx.caller = suite.transaction.sender.unwrap_or_default();
                         etx.value = suite
@@ -695,32 +701,44 @@ fn execute_test(path: &Path) -> Result<(), TestError> {
                         }
                         // Read all account state from the database.
                         let db_state = vm.db.clone().into_state();
-                        // Check the state size and diff.
-                        // Seems bug here in the ethertest suites: https://github.com/ethereum/tests/issues/1465
-                        // if !test_case.state.is_empty() {
-                        //     for (address, expect_account) in &test_case.state {
-                        //         let db_account = db_state.get(address).cloned().unwrap_or_default();
-                        //         let got_storage: HashMap<U256, U256> = db_account
-                        //             .storage
-                        //             .iter()
-                        //             .map(|(k, v)| (*k, v.present_value))
-                        //             .collect();
-                        //         if expect_account.storage.len() != got_storage.len()
-                        //             || expect_account.storage != got_storage
-                        //         {
-                        //             let kind = TestErrorKind::StateMismatch {
-                        //                 got: (*address, got_storage),
-                        //                 expected: (*address, expect_account.storage.clone()),
-                        //             };
-                        //             return Err(TestError {
-                        //                 name: name.to_string(),
-                        //                 suite_name: Some(suite_name.to_string()),
-                        //                 indexs: Some(test_case.indexes.clone()),
-                        //                 kind,
-                        //             });
-                        //         }
-                        //     }
-                        // }
+                        // Check the account state diff.
+                        if !test_case.state.is_empty() {
+                            for (address, expect_account) in &test_case.state {
+                                let db_account = db_state.get(address).cloned().unwrap_or_default();
+                                let got_storage: HashMap<U256, U256> = db_account
+                                    .storage
+                                    .iter()
+                                    .map(|(k, v)| (*k, v.present_value))
+                                    .filter(|(_, v)| !v.is_zero())
+                                    .collect();
+                                if expect_account.storage.len() != got_storage.len()
+                                    || expect_account.storage != got_storage
+                                    || expect_account.balance != db_account.info.balance
+                                    || expect_account.nonce != db_account.info.nonce
+                                {
+                                    let kind = TestErrorKind::AccountMismatch {
+                                        got: (
+                                            *address,
+                                            got_storage,
+                                            db_account.info.balance,
+                                            db_account.info.nonce,
+                                        ),
+                                        expected: (
+                                            *address,
+                                            expect_account.storage.clone(),
+                                            expect_account.balance,
+                                            expect_account.nonce,
+                                        ),
+                                    };
+                                    return Err(TestError {
+                                        name: name.to_string(),
+                                        suite_name: Some(suite_name.to_string()),
+                                        indexs: Some(test_case.indexes.clone()),
+                                        kind,
+                                    });
+                                }
+                            }
+                        }
                         // Check the state root
                         let state_list = db_state.iter().filter(|(_, acc)| {
                             !acc.is_loaded_as_not_existing() || acc.is_touched() && !acc.is_empty()
@@ -827,6 +845,7 @@ fn setup_env(name: &str, test: &Test, spec_id: SpecId) -> Result<Env, TestError>
         .gas_price
         .or(test.transaction.max_fee_per_gas)
         .unwrap_or_default();
+    env.tx.gas_priority_fee = test.transaction.max_priority_fee_per_gas;
     env.tx
         .blob_hashes
         .clone_from(&test.transaction.blob_versioned_hashes);
