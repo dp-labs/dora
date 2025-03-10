@@ -70,16 +70,26 @@ fn compile_call_handler<DB: Database>(
     frame: Frame,
     ctx: &mut VMContext<'_, DB>,
 ) -> Result<CallResult, VMError> {
+    // When meets empty account code, just return the default call result.
+    if frame.contract.code.is_empty() {
+        return Ok(CallResult::new_with_gas_limit(frame.gas_limit));
+    }
     let code_hash = frame.contract.hash.unwrap_or_default();
     let spec_id = ctx.spec_id();
-    let artifact = ctx.db.get_artifact(code_hash);
-    let artifact = if let Ok(Some(artifact)) = artifact {
-        artifact
+    // When code hash is empty, we do not save the artifact
+    let artifact = if !code_hash.is_zero() {
+        let artifact = ctx.db.get_artifact(code_hash);
+        if let Ok(Some(artifact)) = artifact {
+            artifact
+        } else {
+            let artifact = build_artifact::<DB>(&frame.contract.code, ctx.spec_id())
+                .map_err(|e| VMError::Compile(e.to_string()))?;
+            ctx.db.set_artifact(code_hash, artifact.clone());
+            artifact
+        }
     } else {
-        let artifact = build_artifact::<DB>(&frame.contract.code, ctx.spec_id())
-            .map_err(|e| VMError::Compile(e.to_string()))?;
-        ctx.db.set_artifact(code_hash, artifact.clone());
-        artifact
+        build_artifact::<DB>(&frame.contract.code, ctx.spec_id())
+            .map_err(|e| VMError::Compile(e.to_string()))?
     };
     let runtime_context = RuntimeContext::new(
         frame.contract,

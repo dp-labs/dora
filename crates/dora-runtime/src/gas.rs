@@ -10,7 +10,7 @@ use crate::host::{
 };
 use dora_primitives::eip7702::PER_EMPTY_ACCOUNT_COST;
 use dora_primitives::spec::SpecId;
-use dora_primitives::{AccessListItem, U256, tri};
+use dora_primitives::{AccessListItem, U256};
 
 #[inline]
 pub fn sstore_cost(spec_id: SpecId, result: &SStoreResult, gas: u64, is_cold: bool) -> Option<u64> {
@@ -367,15 +367,14 @@ const fn warm_cold_cost_with_delegation(load: Eip7702CodeLoad<()>) -> u64 {
 ///   with historical and updated protocol rules.
 ///
 #[inline]
-pub const fn extcodecopy_gas_cost(spec_id: SpecId, len: u64, is_cold: bool) -> Option<u64> {
-    let base_gas = if spec_id.is_enabled_in(SpecId::BERLIN) {
+pub const fn extcodecopy_gas_cost(spec_id: SpecId, is_cold: bool) -> u64 {
+    if spec_id.is_enabled_in(SpecId::BERLIN) {
         warm_cold_cost(is_cold)
     } else if spec_id.is_enabled_in(SpecId::TANGERINE) {
         700
     } else {
         20
-    };
-    base_gas.checked_add(tri!(cost_per_word(len, 3)))
+    }
 }
 
 /// Calculates the balance store gas cost for an VM operation based on the specification version and access type.
