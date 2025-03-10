@@ -17,9 +17,8 @@ use crate::wasm::trap::wasm_raise_trap;
 use crate::{ExitStatusCode, gas, symbols};
 use dora_primitives::{
     Address, B256, BLOCK_HASH_HISTORY, BLOCKHASH_STORAGE_ADDRESS, Bytecode, Bytes, Bytes32, CfgEnv,
-    EOF_MAGIC_BYTES, EOF_MAGIC_HASH, Env, KECCAK_EMPTY, Log, LogData, OpCode, Precompile,
-    PrecompileErrors, PrecompileSpecId, Precompiles, SpecId, U256, as_u64_saturated,
-    as_usize_saturated, keccak256,
+    EOF_MAGIC_BYTES, EOF_MAGIC_HASH, Env, KECCAK_EMPTY, Log, LogData, OpCode, PrecompileErrors,
+    PrecompileSpecId, Precompiles, SpecId, U256, as_u64_saturated, as_usize_saturated, keccak256,
 };
 
 /// Function type for the EVM main entrypoint of the generated code.
@@ -382,12 +381,7 @@ impl<'a, DB: Database> VMContext<'a, DB> {
         gas_limit: u64,
     ) -> Result<Option<CallResult>, VMError> {
         let result = match self.precompiles.get(&address) {
-            Some(precompile) => {
-                let Precompile::Standard(func) = precompile else {
-                    return Ok(None);
-                };
-                func(calldata, gas_limit)
-            }
+            Some(precompile) => (*precompile).call_ref(calldata, gas_limit, &self.env),
             None => return Ok(None),
         };
         let mut call_result = CallResult::new_with_gas_limit(gas_limit);
