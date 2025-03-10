@@ -18,7 +18,7 @@ pub mod gas_cost {
     pub const BLOCKHASH: i64 = 20;
     pub const CODEDEPOSIT: u64 = 200;
     pub const CREATE: i64 = 32_000;
-    pub const SELFDESTRUCT: i64 = 5_000;
+    pub const SELFDESTRUCT: i64 = 24_000;
     /// EIP-3860 : Limit and meter initcode
     pub const INITCODE_WORD_COST: u64 = 2;
     /// EIP-170: Contract code size limit

@@ -7,7 +7,7 @@ use crate::{
     errors::Result,
     operands, rewrite_ctx,
 };
-use crate::{gas_or_fail, if_here, u256_to_u64};
+use crate::{gas_or_fail, if_here, u256_as_usize_or_fail};
 use dora_runtime::{ExitStatusCode, symbols};
 use melior::dialect::func;
 use melior::ir::attribute::FlatSymbolRefAttribute;
@@ -32,7 +32,7 @@ impl ConversionPass<'_> {
         let size_is_not_zero =
             rewriter.make(rewriter.icmp_imm(IntCC::NotEqual, value_size, 0)?)?;
         if_here!(op, rewriter, size_is_not_zero, {
-            u256_to_u64!(op, rewriter, offset);
+            u256_as_usize_or_fail!(op, rewriter, offset);
             memory::resize_memory(
                 context,
                 op,
@@ -100,7 +100,7 @@ impl ConversionPass<'_> {
         let size_is_not_zero =
             rewriter.make(rewriter.icmp_imm(IntCC::NotEqual, value_size, 0)?)?;
         if_here!(op, rewriter, size_is_not_zero, {
-            u256_to_u64!(op, rewriter, offset);
+            u256_as_usize_or_fail!(op, rewriter, offset);
             memory::resize_memory(
                 context,
                 op,
@@ -169,27 +169,27 @@ impl ConversionPass<'_> {
     }
 
     pub(crate) fn mcopy(context: &Context, op: &OperationRef<'_, '_>) -> Result<()> {
-        operands!(op, dest_offset, offset, size);
+        operands!(op, dest_offset, src_offset, size);
         block_argument!(op, syscall_ctx, gas_counter_ptr);
         let rewriter = Rewriter::new_with_op(context, *op);
         let location = rewriter.get_insert_location();
         let uint8 = rewriter.intrinsics.i8_ty;
-        u256_to_u64!(op, rewriter, size);
+        u256_as_usize_or_fail!(op, rewriter, size);
         let gas = compute_copy_cost(&rewriter, size)?;
         gas_or_fail!(op, rewriter, gas, gas_counter_ptr);
         let rewriter = Rewriter::new_with_op(context, *op);
-        let offset = rewriter.make(arith::maxui(dest_offset, offset, location))?;
         let size_is_not_zero = rewriter.make(rewriter.icmp_imm(IntCC::NotEqual, size, 0)?)?;
         if_here!(op, rewriter, size_is_not_zero, {
-            u256_to_u64!(op, rewriter, dest_offset);
-            u256_to_u64!(op, rewriter, offset);
+            u256_as_usize_or_fail!(op, rewriter, dest_offset);
+            u256_as_usize_or_fail!(op, rewriter, src_offset);
+            let offset = rewriter.make(arith::maxui(dest_offset, src_offset, location))?;
             memory::resize_memory(
                 context,
                 op,
                 &rewriter,
                 syscall_ctx,
                 gas_counter_ptr,
-                dest_offset,
+                offset,
                 size,
             )?;
         });
@@ -205,7 +205,7 @@ impl ConversionPass<'_> {
         let source = rewriter.make(llvm::get_element_ptr_dynamic(
             context,
             memory_ptr,
-            &[offset],
+            &[src_offset],
             uint8,
             rewriter.ptr_ty(),
             location,

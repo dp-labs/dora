@@ -910,7 +910,8 @@ pub fn gas_price(
     gas_price: GuestPtr, // *mut u8
 ) -> MaybeEscape {
     let host = HostInfo::from_env(&mut env)?;
-    let price = with_runtime_context(|runtime_context| runtime_context.host.env().tx.gas_price);
+    let price =
+        with_runtime_context(|runtime_context| runtime_context.host.env().effective_gas_price());
     host.write_slice(gas_price, &price.to_be_bytes_vec())?;
     Ok(())
 }

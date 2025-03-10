@@ -386,12 +386,12 @@ macro_rules! check_op_oog {
 /// u256_u64!(op, rewriter, size);
 /// ```
 #[macro_export(local_inner_macros)]
-macro_rules! u256_to_u64 {
+macro_rules! u256_as_usize_or_fail {
     ($op:expr, $rewriter:ident, $size:ident) => {
         let overflow = $rewriter.make($rewriter.icmp_imm(
-            $crate::backend::IntCC::SignedGreaterThan,
+            $crate::backend::IntCC::UnsignedGreaterThan,
             $size,
-            u64::MAX as i64,
+            usize::MAX as i64,
         )?)?;
         maybe_revert_here!($op, $rewriter, overflow, ExitStatusCode::InvalidOperandOOG);
         let $rewriter =

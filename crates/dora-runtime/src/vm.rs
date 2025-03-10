@@ -114,9 +114,9 @@ impl<'a, DB: Database> VM<'a, DB> {
         env: &Env,
         spec_id: SpecId,
     ) -> Result<(), InvalidTransaction> {
-        if env.cfg.is_eip3607_disabled() {
+        if !env.cfg.is_eip3607_disabled() {
             let bytecode = &account.info.code.as_ref().unwrap();
-            // allow EOAs whose code is a valid delegation designation,
+            // Allow EOAs whose code is a valid delegation designation,
             // i.e. 0xef0100 || address, to continue to originate transactions.
             if !bytecode.is_empty() && !bytecode.is_eip7702() {
                 return Err(InvalidTransaction::RejectCallerWithCode);
@@ -212,7 +212,7 @@ impl<'a, DB: Database> VM<'a, DB> {
 
         // Post excution
         {
-            // Calculate final refund and add EIP-7702 refund to gas.
+            // TODO: Calculate final refund and add EIP-7702 refund to gas.
             let eip7702_gas_refund = 0;
             result.gas_refunded += eip7702_gas_refund;
             result.set_final_refund(ctx.spec_id().is_enabled_in(SpecId::LONDON));

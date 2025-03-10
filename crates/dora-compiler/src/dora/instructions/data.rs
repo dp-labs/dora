@@ -5,7 +5,7 @@ use crate::{
     create_var,
     dora::{conversion::ConversionPass, gas, memory},
     errors::Result,
-    gas_or_fail, if_here, operands, rewrite_ctx, u256_to_u64,
+    gas_or_fail, if_here, operands, rewrite_ctx, u256_as_usize_or_fail,
 };
 use dora_runtime::{ExitStatusCode, symbols};
 use melior::{
@@ -153,13 +153,13 @@ impl ConversionPass<'_> {
         operands!(op, memory_offset, data_offset, size);
         block_argument!(op, syscall_ctx, gas_counter_ptr);
         let rewriter = Rewriter::new_with_op(context, *op);
-        u256_to_u64!(op, rewriter, size);
+        u256_as_usize_or_fail!(op, rewriter, size);
         let size_is_not_zero = rewriter.make(rewriter.icmp_imm(IntCC::NotEqual, size, 0)?)?;
         if_here!(op, rewriter, size_is_not_zero, {
             let gas = gas::compute_copy_cost(&rewriter, size)?;
             gas_or_fail!(op, rewriter, gas, gas_counter_ptr);
             rewrite_ctx!(context, op, rewriter, _location, NoDefer);
-            u256_to_u64!(op, rewriter, memory_offset);
+            u256_as_usize_or_fail!(op, rewriter, memory_offset);
             memory::resize_memory(
                 context,
                 op,
