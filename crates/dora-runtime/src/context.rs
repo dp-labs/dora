@@ -918,7 +918,7 @@ pub struct InnerContext {
     /// It has multi usage:
     ///
     /// * It contains the output bytes of call sub call.
-    /// * When this interpreter finishes execution it contains the output bytes of this contract.
+    /// * When this executor finishes execution it contains the output bytes of this contract.
     returndata: Vec<u8>,
     /// The limit gas for the current execution.
     gas_limit: u64,
@@ -1272,8 +1272,12 @@ impl RuntimeContext<'_> {
         remaining_gas: u64,
         execution_result: u8,
     ) {
-        self.inner.returndata =
-            self.inner.memory[offset as usize..offset as usize + bytes_len as usize].to_vec();
+        let output = if bytes_len != 0 {
+            self.inner.memory[offset as usize..offset as usize + bytes_len as usize].to_vec()
+        } else {
+            vec![]
+        };
+        self.inner.returndata = output;
         self.inner.gas_remaining = Some(remaining_gas);
         self.inner.exit_status = Some(ExitStatusCode::from_u8(execution_result));
     }

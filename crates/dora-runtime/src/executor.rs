@@ -15,7 +15,7 @@ use std::fmt::Debug;
 use std::sync::Arc;
 
 /// The stack size at runtime, used for recursive program execution to prevent stack overflow
-pub const RUNTIME_STACK_SIZE: usize = 64 * 1024 * 1024;
+pub const RUNTIME_STACK_SIZE: usize = 128 * 1024 * 1024;
 
 /// A struct that wraps around the MLIR-based execution engine for executing compiled EVM/WASM bytecode.
 ///
