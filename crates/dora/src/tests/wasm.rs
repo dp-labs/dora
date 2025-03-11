@@ -909,8 +909,8 @@ fn test_wasm_conversions() -> Result<()> {
             ("i32.trunc_f32_s", 1234.567_f32, 1234, i32),
             ("i32.trunc_f32_s", 0.0_f32, 0, i32),
             ("i32.trunc_f32_s", -0.0_f32, 0, i32),
-            ("i32.trunc_f32_s", 1.401298464324817e-45_f32, 0, i32),
-            ("i32.trunc_f32_s", -1.401298464324817e-45_f32, 0, i32),
+            ("i32.trunc_f32_s", 1e-45_f32, 0, i32),
+            ("i32.trunc_f32_s", -1e-45_f32, 0, i32),
             ("i32.trunc_f32_s", 1.0_f32, 1, i32),
             ("i32.trunc_f32_s", 1.1_f32, 1, i32),
             ("i32.trunc_f32_s", 1.5_f32, 1, i32),
@@ -922,8 +922,8 @@ fn test_wasm_conversions() -> Result<()> {
             ("i32.trunc_f32_s", -f32::consts::PI, -3, i32),
             ("i32.trunc_f32_u", 0.0, 0, i32),
             ("i32.trunc_f32_u", -0.0, 0, i32),
-            ("i32.trunc_f32_u", 1.401298464324817e-45_f32, 0, i32),
-            ("i32.trunc_f32_u", -1.401298464324817e-45_f32, 0, i32),
+            ("i32.trunc_f32_u", 1e-45_f32, 0, i32),
+            ("i32.trunc_f32_u", -1e-45_f32, 0, i32),
             ("i32.trunc_f32_u", 1.0_f32, 1, i32),
             ("i32.trunc_f32_u", 1.1_f32, 1, i32),
             ("i32.trunc_f32_u", 1.5_f32, 1, i32),
@@ -955,8 +955,8 @@ fn test_wasm_conversions() -> Result<()> {
             ("i32.trunc_f64_u", i32::MAX as f64, i32::MAX, i32),
             ("i32.trunc_f64_u", 0.0_f64, 0, i32),
             ("i32.trunc_f64_u", -0.0_f64, 0, i32),
-            ("i32.trunc_f64_u", 1.470742791249129e-323_f64, 0, i32),
-            ("i32.trunc_f64_u", -1.470742791249129e-323_f64, 0, i32),
+            ("i32.trunc_f64_u", 1.5e-323_f64, 0, i32),
+            ("i32.trunc_f64_u", -1.5e-323_f64, 0, i32),
             ("i32.trunc_f64_u", 1.0_f64, 1, i32),
             ("i32.trunc_f64_u", 1.199999999999_f64.powi(0), 1, i32),
             ("i32.trunc_f64_u", 1.5_f64, 1, i32),
@@ -978,13 +978,13 @@ fn test_wasm_conversions() -> Result<()> {
             ("i64.trunc_f32_s", -f32::consts::PI, -3, i64),
             ("i64.trunc_f32_s", 0.0, 0, i64),
             ("i64.trunc_f32_s", -0.0, 0, i64),
-            ("i64.trunc_f32_s", 1.401298464324817e-45_f32, 0, i64),
-            ("i64.trunc_f32_s", -1.401298464324817e-45_f32, 0, i64),
+            ("i64.trunc_f32_s", 1e-45_f32, 0, i64),
+            ("i64.trunc_f32_s", -1e-45_f32, 0, i64),
             ("i64.trunc_f32_s", 1.0_f32, 1, i64),
-            ("i64.trunc_f32_s", 1.100000023841858_f32.powi(0), 1, i64),
+            ("i64.trunc_f32_s", 1.1_f32.powi(0), 1, i64),
             ("i64.trunc_f32_s", 1.5_f32, 1, i64),
             ("i64.trunc_f32_s", -1.0_f32, -1, i64),
-            ("i64.trunc_f32_s", -1.100000023841858_f32.powi(0), -1, i64),
+            ("i64.trunc_f32_s", -1.1_f32.powi(0), -1, i64),
             ("i64.trunc_f32_s", -1.5_f32, -1, i64),
             ("i64.trunc_f32_s", -1.9_f32, -1, i64),
             ("i64.trunc_f32_s", -2.0_f32, -2, i64),
@@ -1006,10 +1006,10 @@ fn test_wasm_conversions() -> Result<()> {
             ("i64.trunc_f32_u", 2200000000_f32, 2200000000, i64),
             ("i64.trunc_f32_u", 0.0, 0, i64),
             ("i64.trunc_f32_u", -0.0, 0, i64),
-            ("i64.trunc_f32_u", 1.401298464324817e-45_f32, 0, i64),
-            ("i64.trunc_f32_u", -1.401298464324817e-45_f32, 0, i64),
+            ("i64.trunc_f32_u", 1e-45_f32, 0, i64),
+            ("i64.trunc_f32_u", -1e-45_f32, 0, i64),
             ("i64.trunc_f32_u", 1.0_f32, 1, i64),
-            ("i64.trunc_f32_u", 1.100000023841858_f32.powi(0), 1, i64),
+            ("i64.trunc_f32_u", 1.1_f32.powi(0), 1, i64),
             ("i64.trunc_f32_u", 1.5_f32, 1, i64),
             ("i64.trunc_f32_u", 4294967296_f32, 4294967296, i64),
             (
@@ -1081,17 +1081,17 @@ fn test_wasm_conversions() -> Result<()> {
             ("i32.trunc_sat_f32_u", 5000000000_f32, -1, i32),
             ("i32.trunc_sat_f32_u", 0.0_f32, 0, i32),
             ("i32.trunc_sat_f32_u", -0.0_f32, 0, i32),
-            ("i32.trunc_sat_f32_u", 1.401298464324817e-45_f32, 0, i32),
-            ("i32.trunc_sat_f32_u", -1.401298464324817e-45_f32, 0, i32),
+            ("i32.trunc_sat_f32_u", 1e-45_f32, 0, i32),
+            ("i32.trunc_sat_f32_u", -1e-45_f32, 0, i32),
             ("i32.trunc_sat_f32_u", 1.0_f32, 1, i32),
-            ("i32.trunc_sat_f32_u", 1.100000023841858_f32, 1, i32),
+            ("i32.trunc_sat_f32_u", 1.1_f32, 1, i32),
             ("i32.trunc_sat_f32_u", 1.5_f32, 1, i32),
             ("i32.trunc_sat_f32_u", 1.9_f32, 1, i32),
             ("i32.trunc_sat_f32_u", 2.0_f32, 2, i32),
             ("i32.trunc_sat_f32_u", 2147483648_f32, -2147483648, i32),
             ("i32.trunc_sat_f32_u", 4294967040.0_f32, -256, i32),
-            ("i32.trunc_sat_f32_u", -0.8999999761581421_f32, 0, i32),
-            ("i32.trunc_sat_f32_u", -0.9999999403953552_f32, 0, i32),
+            ("i32.trunc_sat_f32_u", -0.9_f32, 0, i32),
+            ("i32.trunc_sat_f32_u", -0.999_999_94_f32, 0, i32),
             (
                 "i32.trunc_sat_f32_u",
                 4294967296.0_f32,
@@ -1109,14 +1109,14 @@ fn test_wasm_conversions() -> Result<()> {
             ("i32.trunc_sat_f32_u", f32::NAN, 0, i32),
             (
                 "i32.trunc_sat_f32_u",
-                unsafe { std::mem::transmute::<i32, f32>(0x200000) }, // nan:0x200000,
+                f32::from_bits(0x200000 as u32), // nan:0x200000,
                 0,
                 i32
             ),
             ("i32.trunc_sat_f32_u", -f32::NAN, 0, i32),
             (
                 "i32.trunc_sat_f32_u",
-                unsafe { std::mem::transmute::<i32, f32>(-0x200000) }, // -nan:0x200000_f32
+                -f32::from_bits(0x200000 as u32), // -nan:0x200000_f32
                 0,
                 i32
             ),
@@ -1125,13 +1125,13 @@ fn test_wasm_conversions() -> Result<()> {
             ("i32.trunc_sat_f32_s", 2200000000_f32, 2147483647, i32),
             ("i32.trunc_sat_f32_s", 0.0, 0, i32),
             ("i32.trunc_sat_f32_s", -0.0, 0, i32),
-            ("i32.trunc_sat_f32_s", 1.401298464324817e-45_f32, 0, i32),
-            ("i32.trunc_sat_f32_s", -1.401298464324817e-45_f32, 0, i32),
+            ("i32.trunc_sat_f32_s", 1e-45_f32, 0, i32),
+            ("i32.trunc_sat_f32_s", -1e-45_f32, 0, i32),
             ("i32.trunc_sat_f32_s", 1.0_f32, 1, i32),
-            ("i32.trunc_sat_f32_s", 1.100000023841858_f32, 1, i32),
+            ("i32.trunc_sat_f32_s", 1.1_f32, 1, i32),
             ("i32.trunc_sat_f32_s", 1.5_f32, 1, i32),
             ("i32.trunc_sat_f32_s", -1.0_f32, -1, i32),
-            ("i32.trunc_sat_f32_s", -1.100000023841858_f32, -1, i32),
+            ("i32.trunc_sat_f32_s", -1.1_f32, -1, i32),
             ("i32.trunc_sat_f32_s", -1.5_f32, -1, i32),
             ("i32.trunc_sat_f32_s", -1.9_f32, -1, i32),
             ("i32.trunc_sat_f32_s", -2.0_f32, -2, i32),
@@ -1154,14 +1154,14 @@ fn test_wasm_conversions() -> Result<()> {
             ("i32.trunc_sat_f32_s", f32::NAN, 0, i32),
             (
                 "i32.trunc_sat_f32_s",
-                unsafe { std::mem::transmute::<u32, f32>(0x200000) },
+                f32::from_bits(0x200000), // nan:0x200000
                 0,
                 i32
             ),
             ("i32.trunc_sat_f32_s", -f32::NAN, 0, i32),
             (
                 "i32.trunc_sat_f32_s",
-                unsafe { std::mem::transmute::<i32, f32>(-0x200000) },
+                -f32::from_bits(0x200000 as u32), // nan:0x-200000
                 0,
                 i32
             ),
@@ -1170,8 +1170,8 @@ fn test_wasm_conversions() -> Result<()> {
             ("i32.trunc_sat_f64_s", 2200000000_f64, 2147483647, i32),
             ("i32.trunc_sat_f64_s", 0.0_f64, 0, i32),
             ("i32.trunc_sat_f64_s", -0.0_f64, 0, i32),
-            ("i32.trunc_sat_f64_s", 1.470742791249129e-323_f64, 0, i32),
-            ("i32.trunc_sat_f64_s", -1.470742791249129e-323_f64, 0, i32),
+            ("i32.trunc_sat_f64_s", 1.5e-323_f64, 0, i32),
+            ("i32.trunc_sat_f64_s", -1.5e-323_f64, 0, i32),
             ("i32.trunc_sat_f64_s", 1.0_f64, 1, i32),
             ("i32.trunc_sat_f64_s", 1.199999999999_f64.powi(0), 1, i32),
             ("i32.trunc_sat_f64_s", 1.5_f64, 1, i32),
@@ -1199,14 +1199,14 @@ fn test_wasm_conversions() -> Result<()> {
             ("i32.trunc_sat_f64_s", f64::NAN, 0, i32),
             (
                 "i32.trunc_sat_f64_s",
-                unsafe { std::mem::transmute::<u64, f64>(0x4000000000000) },
+                f64::from_bits(0x4000000000000), // nan:0x4000000000000
                 0,
                 i32
             ),
             ("i32.trunc_sat_f64_s", -f64::NAN, 0, i32),
             (
                 "i32.trunc_sat_f64_s",
-                unsafe { std::mem::transmute::<i64, f64>(-0x4000000000000) },
+                -f64::from_bits(0x4000000000000), // nan:-0x4000000000000
                 0,
                 i32
             ),
@@ -1216,8 +1216,8 @@ fn test_wasm_conversions() -> Result<()> {
             ("i32.trunc_sat_f64_u", 5000000000_f64, -1, i32),
             ("i32.trunc_sat_f64_u", 0.0_f64, 0, i32),
             ("i32.trunc_sat_f64_u", -0.0_f64, 0, i32),
-            ("i32.trunc_sat_f64_u", 1.470742791249129e-323_f64, 0, i32),
-            ("i32.trunc_sat_f64_u", -1.470742791249129e-323_f64, 0, i32),
+            ("i32.trunc_sat_f64_u", 1.5e-323_f64, 0, i32),
+            ("i32.trunc_sat_f64_u", -1.5e-323_f64, 0, i32),
             ("i32.trunc_sat_f64_u", 1.0_f64, 1, i32),
             ("i32.trunc_sat_f64_u", 1.199999999999_f64.powi(0), 1, i32),
             ("i32.trunc_sat_f64_u", 1.5_f64, 1, i32),
@@ -1269,13 +1269,13 @@ fn test_wasm_conversions() -> Result<()> {
             ("i64.trunc_sat_f32_s", f32::MAX, i64::MAX, i64),
             ("i64.trunc_sat_f32_s", 0.0, 0, i64),
             ("i64.trunc_sat_f32_s", -0.0, 0, i64),
-            ("i64.trunc_sat_f32_s", 1.401298464324817e-45_f32, 0, i64),
-            ("i64.trunc_sat_f32_s", -1.401298464324817e-45_f32, 0, i64),
+            ("i64.trunc_sat_f32_s", 1e-45_f32, 0, i64),
+            ("i64.trunc_sat_f32_s", -1e-45_f32, 0, i64),
             ("i64.trunc_sat_f32_s", 1.0_f32, 1, i64),
-            ("i64.trunc_sat_f32_s", 1.100000023841858_f32, 1, i64),
+            ("i64.trunc_sat_f32_s", 1.1_f32, 1, i64),
             ("i64.trunc_sat_f32_s", 1.5_f32, 1, i64),
             ("i64.trunc_sat_f32_s", -1.0_f32, -1, i64),
-            ("i64.trunc_sat_f32_s", -1.100000023841858_f32, -1, i64),
+            ("i64.trunc_sat_f32_s", -1.1_f32, -1, i64),
             ("i64.trunc_sat_f32_s", -1.5_f32, -1, i64),
             ("i64.trunc_sat_f32_s", -1.9_f32, -1, i64),
             ("i64.trunc_sat_f32_s", -2.0_f32, -2, i64),
@@ -1320,14 +1320,14 @@ fn test_wasm_conversions() -> Result<()> {
             ("i64.trunc_sat_f32_s", f32::NAN, 0, i64),
             (
                 "i64.trunc_sat_f32_s",
-                unsafe { std::mem::transmute::<i32, f32>(0x200000) },
+                f32::from_bits(0x200000 as u32), // nan:0x200000
                 0,
                 i64
             ),
             ("i64.trunc_sat_f32_s", -f32::NAN, 0, i64),
             (
                 "i64.trunc_sat_f32_s",
-                unsafe { std::mem::transmute::<i32, f32>(-0x200000) },
+                -f32::from_bits(0x200000 as u32), // nan:0x-200000
                 0,
                 i64
             ),
@@ -1335,10 +1335,10 @@ fn test_wasm_conversions() -> Result<()> {
             ("i64.trunc_sat_f32_u", f32::MAX, -1, i64),
             ("i64.trunc_sat_f32_u", 0.0, 0, i64),
             ("i64.trunc_sat_f32_u", -0.0, 0, i64),
-            ("i64.trunc_sat_f32_u", 1.401298464324817e-45_f32, 0, i64),
-            ("i64.trunc_sat_f32_u", -1.401298464324817e-45_f32, 0, i64),
+            ("i64.trunc_sat_f32_u", 1e-45_f32, 0, i64),
+            ("i64.trunc_sat_f32_u", -1e-45_f32, 0, i64),
             ("i64.trunc_sat_f32_u", 1.0_f32, 1, i64),
-            ("i64.trunc_sat_f32_u", 1.100000023841858_f32.powi(0), 1, i64),
+            ("i64.trunc_sat_f32_u", 1.1_f32.powi(0), 1, i64),
             ("i64.trunc_sat_f32_u", 1.5f32, 1, i64),
             ("i64.trunc_sat_f32_u", 4294967296.0_f32, 4294967296_i64, i64),
             (
@@ -1371,14 +1371,14 @@ fn test_wasm_conversions() -> Result<()> {
             ("i64.trunc_sat_f32_u", f32::NAN, 0, i64),
             (
                 "i64.trunc_sat_f32_u",
-                unsafe { std::mem::transmute::<i32, f32>(0x200000) },
+                f32::from_bits(0x200000 as u32), // nan:0x200000
                 0,
                 i64
             ),
             ("i64.trunc_sat_f32_u", -f32::NAN, 0, i64),
             (
                 "i64.trunc_sat_f32_u",
-                unsafe { std::mem::transmute::<i32, f32>(-0x200000) },
+                -f32::from_bits(0x200000 as u32), // nan:0x-200000
                 0,
                 i64
             ),
@@ -1387,8 +1387,8 @@ fn test_wasm_conversions() -> Result<()> {
             ("i64.trunc_sat_f64_s", f64::MAX, i64::MAX, i64),
             ("i64.trunc_sat_f64_s", 0.0_f64, 0, i64),
             ("i64.trunc_sat_f64_s", -0.0_f64, 0, i64),
-            ("i64.trunc_sat_f64_s", 1.470742791249129e-323_f64, 0, i64),
-            ("i64.trunc_sat_f64_s", -1.470742791249129e-323_f64, 0, i64),
+            ("i64.trunc_sat_f64_s", 1.5e-323_f64, 0, i64),
+            ("i64.trunc_sat_f64_s", -1.5e-323_f64, 0, i64),
             ("i64.trunc_sat_f64_s", 1.0_f64, 1, i64),
             ("i64.trunc_sat_f64_s", 1.199999999999_f64.powi(0), 1, i64),
             ("i64.trunc_sat_f64_s", 1.5_f64, 1, i64),
@@ -1455,8 +1455,8 @@ fn test_wasm_conversions() -> Result<()> {
             ("i64.trunc_sat_f64_u", f64::MAX, -1, i64),
             ("i64.trunc_sat_f64_u", 0.0_f64, 0, i64),
             ("i64.trunc_sat_f64_u", -0.0_f64, 0, i64),
-            ("i64.trunc_sat_f64_u", 1.470742791249129e-323_f64, 0, i64),
-            ("i64.trunc_sat_f64_u", -1.470742791249129e-323_f64, 0, i64),
+            ("i64.trunc_sat_f64_u", 1.5e-323_f64, 0, i64),
+            ("i64.trunc_sat_f64_u", -1.5e-323_f64, 0, i64),
             ("i64.trunc_sat_f64_u", 1.0_f64, 1, i64),
             ("i64.trunc_sat_f64_u", 1.199999999999_f64.powi(0), 1, i64),
             ("i64.trunc_sat_f64_u", 1.5_f64, 1, i64),
@@ -1823,13 +1823,13 @@ fn test_wasm_conversions() -> Result<()> {
             ("f64.promote_f32", -0.0_f32, -0.0_f64, f64),
             (
                 "f64.promote_f32",
-                1.401298464324817e-45_f32,
+                1e-45_f32,
                 1.401298464324817e-45_f64,
                 f64
             ),
             (
                 "f64.promote_f32",
-                -1.401298464324817e-45_f32,
+                -1e-45_f32,
                 -1.401298464324817e-45_f64,
                 f64
             ),
@@ -1863,8 +1863,8 @@ fn test_wasm_conversions() -> Result<()> {
             ("f32.demote_f64", f64::consts::PI, f32::consts::PI, f32),
             ("f32.demote_f64", 0.0_f64, 0.0, f32),
             ("f32.demote_f64", -0.0_f64, -0.0, f32),
-            ("f32.demote_f64", 1.470742791249129e-323_f64, 0.0_f32, f32),
-            ("f32.demote_f64", -1.470742791249129e-323_f64, -0.0_f32, f32),
+            ("f32.demote_f64", 1.5e-323_f64, 0.0_f32, f32),
+            ("f32.demote_f64", -1.5e-323_f64, -0.0_f32, f32),
             ("f32.demote_f64", 1.0_f64, 1.0_f32, f32),
             ("f32.demote_f64", -1.0_f64, -1.0_f32, f32),
             (
@@ -1894,13 +1894,13 @@ fn test_wasm_conversions() -> Result<()> {
             (
                 "f32.demote_f64",
                 1.401298464324817e-45_f64, // 0x1p-149,
-                1.401298464324817e-45_f32, // 0x1p-149
+                1e-45_f32, // 0x1p-149
                 f32
             ),
             (
                 "f32.demote_f64",
                 -1.401298464324817e-45_f64,
-                -1.401298464324817e-45_f32,
+                -1e-45_f32,
                 f32
             ),
             (
@@ -2084,20 +2084,20 @@ fn test_wasm_conversions() -> Result<()> {
             (
                 "f32.demote_f64",
                 7.006492321624087e-46_f64, // "0x1.0000000000001p-150"
-                1.401298464324817e-45_f32, // 2f32.powi(-149)
+                1e-45_f32, // 2f32.powi(-149)
                 f32
             ),
             (
                 "f32.demote_f64",
                 -7.006492321624087e-46_f64, // "-0x1.0000000000001p-150",
-                -1.401298464324817e-45_f32,
+                -1e-45_f32,
                 f32
             ),
             ("f32.reinterpret_i32", 0, 0_f32, f32),
             ("f32.reinterpret_i32", 1, 1e-45_f32, f32),
             ("f32.reinterpret_i32", 0, 0.0_f32, f32),
             ("f32.reinterpret_i32", 0x80000000_i64 as i32, -0.0_f32, f32),
-            ("f32.reinterpret_i32", 1, 1.401298464324817e-45_f32, f32),
+            ("f32.reinterpret_i32", 1, 1e-45_f32, f32),
             // (
             //     "f32.reinterpret_i32",
             //     -1,
@@ -2113,7 +2113,7 @@ fn test_wasm_conversions() -> Result<()> {
             (
                 "f32.reinterpret_i32",
                 -2147483647,
-                -1.401298464324817e-45_f32,
+                -1e-45_f32,
                 f32
             ),
             ("f32.reinterpret_i32", 0x7f800000, f32::INFINITY, f32),
@@ -2215,7 +2215,7 @@ fn test_wasm_conversions() -> Result<()> {
             ("i32.reinterpret_f32", -0.0_f32, 0x80000000_i64 as i32, i32),
             (
                 "i32.reinterpret_f32",
-                1.401298464324817e-45_f32, // 0x1p-149
+                1e-45_f32, // 0x1p-149
                 1,
                 i32
             ),
@@ -2227,7 +2227,7 @@ fn test_wasm_conversions() -> Result<()> {
             // ), // TODO for Timi
             (
                 "i32.reinterpret_f32",
-                -1.401298464324817e-45_f32,
+                -1e-45_f32,
                 0x80000001_i64 as i32, // 0x80000001
                 i32
             ),
@@ -2251,13 +2251,13 @@ fn test_wasm_conversions() -> Result<()> {
             ("i32.reinterpret_f32", -f32::NAN, 0xffc00000_i64 as i32, i32),
             // (
             //     "i32.reinterpret_f32",
-            //     unsafe { std::mem::transmute::<i32, f32>(0x200000) }, // nan:0x200000,
+            //     f32::from_bits(0x200000 as u32), // nan:0x200000 // nan:0x200000,
             //     0x7fa00000,
             //     i32
             // ), // TODO for Timi
             // (
             //     "i32.reinterpret_f32",
-            //     unsafe { std::mem::transmute::<i32, f32>(-0x200000) }, // -nan:0x200000,
+            //     -f32::from_bits(0x200000 as u32), // nan:0x-200000 // -nan:0x200000,
             //     0xffa00000_i64 as i32,
             //     i32
             // ), // TODO for Timi
