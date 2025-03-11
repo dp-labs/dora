@@ -27,6 +27,7 @@ use serde::{Deserialize, Serialize, de};
 use std::{
     collections::{BTreeMap, HashMap},
     path::{Path, PathBuf},
+    process::exit,
 };
 use thiserror::Error;
 use tracing::{error, info};
@@ -899,6 +900,7 @@ fn main() -> Result<()> {
 
     match &cli.command {
         Commands::Run(run_args) => {
+            let mut total_errors = vec![];
             for path in &run_args.path {
                 info!("\nRunning tests in {}...", path.display());
 
@@ -906,20 +908,27 @@ fn main() -> Result<()> {
                 let pb = ProgressBar::new(tests.len() as u64);
                 pb.set_draw_target(ProgressDrawTarget::stdout());
                 let builder = std::thread::Builder::new().stack_size(RUNTIME_STACK_SIZE);
-                let handle = builder
-                    .spawn(move || {
-                        for test_path in tests {
-                            match execute_test(&test_path) {
-                                Ok(_) => pb.inc(1),
-                                Err(e) => error!("Test failed: {:?}", e),
+                let handle = builder.spawn(move || {
+                    let mut errors = vec![];
+                    for test_path in tests {
+                        match execute_test(&test_path) {
+                            Ok(_) => pb.inc(1),
+                            Err(e) => {
+                                errors.push(e);
                             }
                         }
-                        pb.finish_with_message("All tests completed");
-                    })
-                    .unwrap();
-                handle.join().unwrap();
+                    }
+                    errors
+                })?;
+                let mut errors = handle.join().unwrap();
+                total_errors.append(&mut errors);
             }
-            Ok(())
+            if total_errors.is_empty() {
+                Ok(())
+            } else {
+                error!("Test failed: {:#?}", total_errors);
+                exit(1);
+            }
         }
     }
 }
