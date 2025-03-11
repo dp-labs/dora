@@ -1,0 +1,54 @@
+name: Ethertest
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: ["**"]
+    types: [synchronize, opened, reopened, converted_to_draft, ready_for_review]
+
+env:
+  LLVM_VERSION: "19"
+  RUST_VERSION: 1.85
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    name: Ethertest
+    if: github.event.pull_request.draft == false
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout sources
+        uses: actions/checkout@v4
+
+      - name: Install Rust toolchain
+        uses: actions-rs/toolchain@v1
+        with:
+          toolchain: ${{ env.RUST_VERSION }}
+          override: true
+          components: clippy, rustfmt
+
+      - name: Add LLVM deb repository
+        uses: myci-actions/add-deb-repo@11
+        with:
+          repo: deb http://apt.llvm.org/jammy/ llvm-toolchain-jammy-19 main
+          repo-name: llvm-repo
+          keys-asc: https://apt.llvm.org/llvm-snapshot.gpg.key
+      - name: Install LLVM
+        run: |
+          v=${{ env.LLVM_VERSION }}
+          sudo apt-get install llvm-${v} llvm-${v}-dev llvm-${v}-runtime clang-${v} clang-tools-${v} lld-${v} libpolly-${v}-dev libmlir-${v}-dev mlir-${v}-tools
+          echo "LLVM_SYS_${v}0_PREFIX=/usr/lib/llvm-${v}/" >> $GITHUB_ENV
+          echo "MLIR_SYS_${v}0_PREFIX=/usr/lib/llvm-${v}/" >> $GITHUB_ENV
+          echo "TABLEGEN_${v}0_PREFIX=/usr/lib/llvm-${v}/" >> $GITHUB_ENV
+          echo "PATH=/usr/lib/llvm-${v}/bin:$PATH" >> $GITHUB_ENV
+
+      - name: Run smoke test on ethertest state suites
+        run: |
+          cd crates/dora-tools
+          git clone https://github.com/ethereum/tests
+          TEST_DIR=$(find tests/GeneralStateTests -mindepth 1 -maxdepth 1 -type d | shuf -n1)
+          cargo run -r --bin dora-ethertest run $TEST_DIR
