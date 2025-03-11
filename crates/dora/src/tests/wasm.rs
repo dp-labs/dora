@@ -2325,14 +2325,144 @@ fn test_wasm_conversions() -> Result<()> {
             // )    // TODO for Timi
         ]
     );
-    // generate_error_test_cases!(
-    //     &artifact,
-    //     [
-    //         ("i32.trunc_f32_u", f32::MAX, "integer overflow"),
-    //         ("i32.trunc_f32_s", 2147483648.0_f32, "integer overflow"),
-    //         ("i32.trunc_f32_s", -2147483904.0_f32, "integer overflow"),
-    //     ]
-    // );
+    #[cfg(target_os = "linux")]
+    generate_error_test_cases!(
+        &artifact,
+        [
+            ("i32.trunc_f32_u", f32::MAX, "integer overflow"),
+            ("i32.trunc_f32_s", 2147483648.0_f32, "integer overflow"),
+            ("i32.trunc_f32_s", -2147483904.0_f32, "integer overflow"),
+            ("i32.trunc_f32_s", f32::INFINITY, "integer overflow"),
+            ("i32.trunc_f32_s", -f32::INFINITY, "integer overflow"),
+            ("i32.trunc_f32_s", f32::NAN, "invalid conversion to integer"),
+            (
+                "i32.trunc_f32_s",
+                f32::from_bits(0x200000), // nan:0x200000
+                "invalid conversion to integer"
+            ),
+            ("i32.trunc_f32_s", -f32::NAN, "invalid conversion to integer"),
+            (
+                "i32.trunc_f32_s",
+                -f32::from_bits(0x200000), // nan:0x200000,
+                "invalid conversion to integer"
+            ),
+            ("i32.trunc_f32_u", 4294967296.0_f32, "integer overflow")
+            ("i32.trunc_f32_u", -1.0_f32, "integer overflow"),
+            ("i32.trunc_f32_u", f32::INFINITY, "integer overflow"),
+            ("i32.trunc_f32_u", -f32::INFINITY, "integer overflow"),
+            ("i32.trunc_f32_u", f32::NAN, "invalid conversion to integer"),
+            (
+                "i32.trunc_f32_u",
+                f32::from_bits(0x200000), // nan:0x200000,
+                "invalid conversion to integer"
+            ),
+            ("i32.trunc_f32_u", -f32::NAN, "invalid conversion to integer"),
+            (
+                "i32.trunc_f32_u",
+                f32::from_bits(0x200000), // nan:0x200000,
+                "invalid conversion to integer"
+            ),
+            ("i32.trunc_f64_s", 2147483648.0_f64, "integer overflow"),
+            ("i32.trunc_f64_s", -2147483649.0_f64, "integer overflow"),
+            ("i32.trunc_f64_s", f64::INFINITY, "integer overflow"),
+            ("i32.trunc_f64_s", -f64::INFINITY, "integer overflow"),
+            ("i32.trunc_f64_s", f64::NAN, "invalid conversion to integer"),
+            (
+                "i32.trunc_f64_s",
+                f64::from_bits(0x4000000000000), // nan:0x4000000000000,
+                "invalid conversion to integer"
+            ),
+            ("i32.trunc_f64_s", -f64::NAN, "invalid conversion to integer"),
+            (
+                "i32.trunc_f64_s",
+                -f64::from_bits(0x4000000000000), // -nan:0x4000000000000,
+                "invalid conversion to integer"
+            ),
+            ("i32.trunc_f64_u", 4294967296.0_f64, "integer overflow"),
+            ("i32.trunc_f64_u", -1.0_f64, "integer overflow"),
+            ("i32.trunc_f64_u", 1e16_f64, "integer overflow"),
+            ("i32.trunc_f64_u", 1e30_f64, "integer overflow"),
+            ("i32.trunc_f64_u", 9223372036854775808_f64, "integer overflow"),
+            ("i32.trunc_f64_u", f64::INFINITY, "integer overflow"),
+            ("i32.trunc_f64_u", -f64::INFINITY, "integer overflow"),
+            ("i32.trunc_f64_u", f64::NAN, "invalid conversion to integer"),
+            (
+                "i32.trunc_f64_u",
+                f64::from_bits(0x4000000000000), // nan:0x4000000000000,
+                "invalid conversion to integer"
+            ),
+            ("i32.trunc_f64_u", -f64::NAN, "invalid conversion to integer"),
+            (
+                "i32.trunc_f64_u",
+                -f64::from_bits(0x4000000000000), // -nan:0x4000000000000,
+                "invalid conversion to integer"
+            ),
+            ("i64.trunc_f32_s", 9223372036854775808.0_f32, "integer overflow"),
+            ("i64.trunc_f32_s", -9223373136366403584.0_f32, "integer overflow"),
+            ("i64.trunc_f32_s", f32::INFINITY, "integer overflow"),
+            ("i64.trunc_f32_s", -f32::INFINITY, "integer overflow"),
+            ("i64.trunc_f32_s", f32::NAN, "invalid conversion to integer"),
+            (
+                "i64.trunc_f32_s",
+                f32::from_bits(0x200000), // nan:0x200000,
+                "invalid conversion to integer"
+            ),
+            ("i64.trunc_f32_s", -f32::NAN, "invalid conversion to integer"),
+            (
+                "i64.trunc_f32_s",
+                -f32::from_bits(0x200000), // -nan:0x200000,
+                "invalid conversion to integer"
+            ),
+            ("i64.trunc_f32_u", 18446744073709551616.0_f32, "integer overflow"),
+            ("i64.trunc_f32_u", -1.0_f32, "integer overflow"),
+            ("i64.trunc_f32_u", f32::INFINITY, "integer overflow"),
+            ("i64.trunc_f32_u", -f32::INFINITY, "integer overflow"),
+            ("i64.trunc_f32_u", f32::NAN, "invalid conversion to integer"),
+            (
+                "i64.trunc_f32_u",
+                f32::from_bits(0x200000), // nan:0x200000,
+                "invalid conversion to integer"
+            ),
+            ("i64.trunc_f32_u", -f32::NAN, "invalid conversion to integer"),
+            (
+                "i64.trunc_f32_u",
+                -f32::from_bits(0x200000), // -nan:0x200000,
+                "invalid conversion to integer"
+            ),
+            ("i64.trunc_f64_s", 9223372036854775808.0_f64, "integer overflow"),
+            ("i64.trunc_f64_s", -9223372036854777856.0_f64, "integer overflow"),
+            ("i64.trunc_f64_s", f64::INFINITY, "integer overflow"),
+            ("i64.trunc_f64_s", -f64::INFINITY, "integer overflow"),
+            ("i64.trunc_f64_s", f64::NAN, "invalid conversion to integer"),
+            (
+                "i64.trunc_f64_s",
+                f64::from_bits(0x4000000000000), // nan:0x4000000000000,
+                "invalid conversion to integer"
+            ),
+            ("i64.trunc_f64_s", -f64::NAN, "invalid conversion to integer"),
+            (
+                "i64.trunc_f64_s",
+                -f64::from_bits(0x4000000000000), // -nan:0x4000000000000,
+                "invalid conversion to integer"
+            ),
+            ("i64.trunc_f64_u", 18446744073709551616.0_f64, "integer overflow"),
+            ("i64.trunc_f64_u", -1.0_f64, "integer overflow"),
+            ("i64.trunc_f64_u", f64::INFINITY, "integer overflow"),
+            ("i64.trunc_f64_u", -f64::INFINITY, "integer overflow"),
+            ("i64.trunc_f64_u", f64::NAN, "invalid conversion to integer"),
+            (
+                "i64.trunc_f64_u",
+                f64::from_bits(0x4000000000000), // nan:0x4000000000000,
+                "invalid conversion to integer"
+            ),
+            ("i64.trunc_f64_u", -f64::NAN, "invalid conversion to integer"),
+            (
+                "i64.trunc_f64_u",
+                -f64::from_bits(0x4000000000000), // -nan:0x4000000000000,
+                "invalid conversion to integer"
+            ),
+        ]
+    );
     Ok(())
 }
 
