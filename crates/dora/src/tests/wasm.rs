@@ -1823,16 +1823,6 @@ fn test_wasm_conversions() -> Result<()> {
             // ("i32.reinterpret_f32", -nan:0x200000, 0xffa00000, i32), // TODO for Timi
 
             ("i64.reinterpret_f64", 0_f64, 0, i64),
-            ("i32.trunc_f32_s", 666666.0_f32, 666666, i32),
-            ("i32.trunc_f32_s", 2147483520.0_f32, 2147483520, i32),
-        ]
-    );
-    generate_error_test_cases!(
-        &artifact,
-        [
-            ("i32.trunc_f32_u", f32::MAX, "integer overflow"),
-            ("i32.trunc_f32_s", 2147483648.0_f32, "integer overflow"),
-            ("i32.trunc_f32_s", -2147483904.0_f32, "integer overflow"),
             ("i64.reinterpret_f64", 1.1_f64, 4607632778762754458_i64, i64),
             ("i64.reinterpret_f64", 0.0_f64, 0_i64, i64),
             ("i64.reinterpret_f64", -0.0_f64, 0x8000000000000000_u64 as i64, i64),
@@ -1863,7 +1853,18 @@ fn test_wasm_conversions() -> Result<()> {
             ("i64.reinterpret_f64", f64::NAN, 0x7ff8000000000000_u64 as i64, i64),
             ("i64.reinterpret_f64", -f64::NAN, 0xfff8000000000000_u64 as i64, i64),
             // ("i64.reinterpret_f64", nan:0x4000000000000_f64, 0x7ff4000000000000, i64),
-            // ( "i64.reinterpret_f64", -nan:0x4000000000000, 0xfff4000000000000, i64)
+            // ("i64.reinterpret_f64", -nan:0x4000000000000, 0xfff4000000000000, i64)
+
+            ("i32.trunc_f32_s", 666666.0_f32, 666666, i32),
+            ("i32.trunc_f32_s", 2147483520.0_f32, 2147483520, i32),
+        ]
+    );
+    generate_error_test_cases!(
+        &artifact,
+        [
+            ("i32.trunc_f32_u", f32::MAX, "integer overflow"),
+            ("i32.trunc_f32_s", 2147483648.0_f32, "integer overflow"),
+            ("i32.trunc_f32_s", -2147483904.0_f32, "integer overflow"),
         ]
     );
     Ok(())
