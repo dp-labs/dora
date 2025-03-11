@@ -2322,7 +2322,7 @@ fn test_wasm_conversions() -> Result<()> {
             //     -f64::from_bits(0x4000000000000_u64), // -nan:0x4000000000000
             //     0xfff4000000000000_u64 as i64,
             //     i64
-            // )    // TODO for Timi
+            // ) // TODO for Timi
         ]
     );
     #[cfg(target_os = "linux")]
@@ -2350,11 +2350,8 @@ fn test_wasm_conversions() -> Result<()> {
                 -f32::from_bits(0x200000), // nan:0x200000,
                 "invalid conversion to integer"
             ),
-            ("i32.trunc_f32_u", 4294967296.0_f32, "integer overflow")(
-                "i32.trunc_f32_u",
-                -1.0_f32,
-                "integer overflow"
-            ),
+            ("i32.trunc_f32_u", 4294967296.0_f32, "integer overflow"),
+            ("i32.trunc_f32_u", -1.0_f32, "integer overflow"),
             ("i32.trunc_f32_u", f32::INFINITY, "integer overflow"),
             ("i32.trunc_f32_u", -f32::INFINITY, "integer overflow"),
             ("i32.trunc_f32_u", f32::NAN, "invalid conversion to integer"),
