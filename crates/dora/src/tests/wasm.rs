@@ -823,7 +823,7 @@ fn test_wasm_call_indirect() -> Result<()> {
 }
 
 #[test]
-#[cfg(target_arch = "x86_64")]
+// #[cfg(target_arch = "x86_64")]
 fn test_wasm_conversions() -> Result<()> {
     let code = include_bytes!("../../../dora-compiler/src/wasm/tests/suites/conversions.wat");
     build_wasm_code!(code, artifact);
@@ -904,64 +904,913 @@ fn test_wasm_conversions() -> Result<()> {
             ),
             ("i32.wrap_i64", 0x0000000100000000_i64, 0x00000000, i32),
             ("i32.wrap_i64", 0x0000000100000001_i64, 0x00000001, i32),
+            ("i32.trunc_f32_s", 666666_f32, 666666, i32),
+            ("i32.trunc_f32_s", 2147483520.0_f32, 2147483520, i32),
             ("i32.trunc_f32_s", 1234.567_f32, 1234, i32),
+            ("i32.trunc_f32_s", 0.0_f32, 0, i32),
+            ("i32.trunc_f32_s", -0.0_f32, 0, i32),
+            ("i32.trunc_f32_s", 1e-45_f32, 0, i32),
+            ("i32.trunc_f32_s", -1e-45_f32, 0, i32),
+            ("i32.trunc_f32_s", 1.0_f32, 1, i32),
+            ("i32.trunc_f32_s", 1.1_f32, 1, i32),
+            ("i32.trunc_f32_s", 1.5_f32, 1, i32),
+            ("i32.trunc_f32_s", -1.0_f32, -1, i32),
+            ("i32.trunc_f32_s", -1.1_f32, -1, i32),
+            ("i32.trunc_f32_s", -1.5_f32, -1, i32),
+            ("i32.trunc_f32_s", -1.9_f32, -1, i32),
+            ("i32.trunc_f32_s", -2.0_f32, -2, i32),
             ("i32.trunc_f32_s", -f32::consts::PI, -3, i32),
+            ("i32.trunc_f32_u", 0.0, 0, i32),
+            ("i32.trunc_f32_u", -0.0, 0, i32),
+            ("i32.trunc_f32_u", 1e-45_f32, 0, i32),
+            ("i32.trunc_f32_u", -1e-45_f32, 0, i32),
+            ("i32.trunc_f32_u", 1.0_f32, 1, i32),
+            ("i32.trunc_f32_u", 1.1_f32, 1, i32),
+            ("i32.trunc_f32_u", 1.5_f32, 1, i32),
+            ("i32.trunc_f32_u", 1.9_f32, 1, i32),
+            ("i32.trunc_f32_u", 2.0_f32, 2, i32),
+            ("i32.trunc_f32_u", 4294967040.0_f32, -256, i32),
+            ("i32.trunc_f32_u", -1.7999998f32.powi(-1), 0, i32),
+            ("i32.trunc_f32_u", -3.4028235e38f32.powi(-1), 0, i32),
             ("i32.trunc_f32_u", 1234.567_f32, 1234, i32),
             ("i32.trunc_f64_s", 1234.567_f64, 1234, i32),
             ("i32.trunc_f64_s", -f64::consts::PI, -3, i32),
+            ("i32.trunc_f64_s", 0.0_f64, 0, i32),
+            ("i32.trunc_f64_s", -0.0_f64, 0, i32),
+            ("i32.trunc_f64_s", 5e-324_f64, 0, i32),
+            ("i32.trunc_f64_s", -5e-324_f64, 0, i32),
+            ("i32.trunc_f64_s", 1.0_f64, 1, i32),
+            ("i32.trunc_f64_s", 1.199999999999_f64.powi(0), 1, i32),
+            ("i32.trunc_f64_s", 1.5_f64, 1, i32),
+            ("i32.trunc_f64_s", -1.0_f64, -1, i32),
+            ("i32.trunc_f64_s", -1.199999999999_f64.powi(0), -1, i32),
+            ("i32.trunc_f64_s", -1.5_f64, -1, i32),
+            ("i32.trunc_f64_s", -1.9_f64, -1, i32),
+            ("i32.trunc_f64_s", -2.0_f64, -2, i32),
+            ("i32.trunc_f64_s", 2147483647.0_f64, 2147483647, i32),
+            ("i32.trunc_f64_s", -2147483648.0_f64, -2147483648, i32),
+            ("i32.trunc_f64_s", -2147483648.9_f64, -2147483648, i32),
+            ("i32.trunc_f64_s", 2147483647.9_f64, 2147483647, i32),
             ("i32.trunc_f64_u", 1234.567_f64, 1234, i32),
             ("i32.trunc_f64_u", i32::MAX as f64, i32::MAX, i32),
+            ("i32.trunc_f64_u", 0.0_f64, 0, i32),
+            ("i32.trunc_f64_u", -0.0_f64, 0, i32),
+            ("i32.trunc_f64_u", 1.5e-323_f64, 0, i32),
+            ("i32.trunc_f64_u", -1.5e-323_f64, 0, i32),
+            ("i32.trunc_f64_u", 1.0_f64, 1, i32),
+            ("i32.trunc_f64_u", 1.199999999999_f64.powi(0), 1, i32),
+            ("i32.trunc_f64_u", 1.5_f64, 1, i32),
+            ("i32.trunc_f64_u", 1.9_f64, 1, i32),
+            ("i32.trunc_f64_u", 2.0_f64, 2, i32),
+            ("i32.trunc_f64_u", 2147483648_f64, -2147483648, i32),
+            ("i32.trunc_f64_u", 4294967295.0_f64, -1, i32),
+            ("i32.trunc_f64_u", 1.8000000000000003_f64.powi(-1), 0, i32),
+            ("i32.trunc_f64_u", 1.9999999999999996_f64.powi(-1), 0, i32),
+            ("i32.trunc_f64_u", 1e8_f64, 100000000, i32),
+            ("i32.trunc_f64_u", -0.9_f64, 0, i32),
+            (
+                "i32.trunc_f64_u",
+                4294967295.9_f64,
+                4294967295_i64 as i32,
+                i32
+            ),
             ("i64.trunc_f32_s", 1234.567_f32, 1234, i64),
             ("i64.trunc_f32_s", -f32::consts::PI, -3, i64),
+            ("i64.trunc_f32_s", 0.0, 0, i64),
+            ("i64.trunc_f32_s", -0.0, 0, i64),
+            ("i64.trunc_f32_s", 1e-45_f32, 0, i64),
+            ("i64.trunc_f32_s", -1e-45_f32, 0, i64),
+            ("i64.trunc_f32_s", 1.0_f32, 1, i64),
+            ("i64.trunc_f32_s", 1.1_f32.powi(0), 1, i64),
+            ("i64.trunc_f32_s", 1.5_f32, 1, i64),
+            ("i64.trunc_f32_s", -1.0_f32, -1, i64),
+            ("i64.trunc_f32_s", -1.1_f32.powi(0), -1, i64),
+            ("i64.trunc_f32_s", -1.5_f32, -1, i64),
+            ("i64.trunc_f32_s", -1.9_f32, -1, i64),
+            ("i64.trunc_f32_s", -2.0_f32, -2, i64),
+            ("i64.trunc_f32_s", 4294967296_f32, 4294967296_i64, i64),
+            ("i64.trunc_f32_s", -4294967296_f32, -4294967296_i64, i64),
+            (
+                "i64.trunc_f32_s",
+                9223371487098961920.0_f32,
+                9223371487098961920_i64,
+                i64
+            ),
+            (
+                "i64.trunc_f32_s",
+                -9223372036854775808.0_f32,
+                -9223372036854775808_i64,
+                i64
+            ),
             ("i64.trunc_f32_u", 1234.567_f32, 1234, i64),
             ("i64.trunc_f32_u", 2200000000_f32, 2200000000, i64),
-            ("i64.trunc_f64_s", 1234.567_f64, 1234, i64),
-            ("i64.trunc_f64_s", -f64::consts::PI, -3, i64),
+            ("i64.trunc_f32_u", 0.0, 0, i64),
+            ("i64.trunc_f32_u", -0.0, 0, i64),
+            ("i64.trunc_f32_u", 1e-45_f32, 0, i64),
+            ("i64.trunc_f32_u", -1e-45_f32, 0, i64),
+            ("i64.trunc_f32_u", 1.0_f32, 1, i64),
+            ("i64.trunc_f32_u", 1.1_f32.powi(0), 1, i64),
+            ("i64.trunc_f32_u", 1.5_f32, 1, i64),
+            ("i64.trunc_f32_u", 4294967296_f32, 4294967296, i64),
+            (
+                "i64.trunc_f32_u",
+                18446742974197923840.0_f32,
+                -1099511627776,
+                i64
+            ),
+            ("i64.trunc_f32_u", -1.7999998_f32.powi(-1), 0, i64),
+            ("i64.trunc_f32_u", -3.4028235e38_f32.powi(-1), 0, i64),
             ("i64.trunc_f64_u", 1234.567_f64, 1234, i64),
             ("i64.trunc_f64_u", 2200000000_f64, 2200000000, i64),
-            ("i32.trunc_sat_f32_s", 1234.567_f32, 1234, i32),
-            ("i32.trunc_sat_f32_s", -f32::consts::PI, -3, i32),
-            ("i32.trunc_sat_f32_s", 2200000000_f32, 2147483647, i32),
+            ("i64.trunc_f64_u", 0.0_f64, 0_i64, i64),
+            ("i64.trunc_f64_u", -0.0_f64, 0_i64, i64),
+            ("i64.trunc_f64_u", 5e-324_f64, 0_i64, i64),
+            ("i64.trunc_f64_u", -5e-324_f64, 0_i64, i64),
+            ("i64.trunc_f64_u", 1.0_f64, 1_i64, i64),
+            ("i64.trunc_f64_u", 1.1_f64, 1_i64, i64),
+            ("i64.trunc_f64_u", 1.5_f64, 1_i64, i64),
+            ("i64.trunc_f64_u", 4294967295_f64, 0xffffffff_i64, i64),
+            ("i64.trunc_f64_u", 4294967296_f64, 0x100000000_i64, i64),
+            (
+                "i64.trunc_f64_u",
+                18446744073709549568.0_f64,
+                -2048_i64,
+                i64
+            ),
+            ("i64.trunc_f64_u", -0.9_f64, 0_i64, i64),
+            ("i64.trunc_f64_u", -0.9999999999999999_f64, 0_i64, i64),
+            ("i64.trunc_f64_u", 1e8_f64, 100000000_i64, i64),
+            ("i64.trunc_f64_u", 1e16_f64, 10000000000000000_i64, i64),
+            (
+                "i64.trunc_f64_u",
+                9223372036854775808_f64,
+                -9223372036854775808_i64,
+                i64
+            ),
+            ("i64.trunc_f64_s", 1234.567_f64, 1234, i64),
+            ("i64.trunc_f64_s", -f64::consts::PI, -3, i64),
+            ("i64.trunc_f64_s", 0.0_f64, 0, i64),
+            ("i64.trunc_f64_s", -0.0_f64, 0, i64),
+            ("i64.trunc_f64_s", 0.0000000000001e-1022_f64, 0, i64),
+            ("i64.trunc_f64_s", -0.0000000000001e-1022_f64, 0, i64),
+            ("i64.trunc_f64_s", 1.0_f64, 1, i64),
+            ("i64.trunc_f64_s", 1.199999999999_f64.powi(0), 1, i64),
+            ("i64.trunc_f64_s", 1.5_f64, 1, i64),
+            ("i64.trunc_f64_s", -1.0_f64, -1, i64),
+            ("i64.trunc_f64_s", -1.199999999999_f64.powi(0), -1, i64),
+            ("i64.trunc_f64_s", -1.5_f64, -1, i64),
+            ("i64.trunc_f64_s", -1.9_f64, -1, i64),
+            ("i64.trunc_f64_s", -2.0_f64, -2, i64),
+            ("i64.trunc_f64_s", 4294967296_f64, 4294967296, i64),
+            ("i64.trunc_f64_s", -4294967296_f64, -4294967296, i64),
+            (
+                "i64.trunc_f64_s",
+                9223372036854774784.0_f64,
+                9223372036854774784,
+                i64
+            ),
+            (
+                "i64.trunc_f64_s",
+                -9223372036854775808.0_f64,
+                -9223372036854775808,
+                i64
+            ),
             ("i32.trunc_sat_f32_u", 1234.567_f32, 1234, i32),
             ("i32.trunc_sat_f32_u", i32::MAX as f32, -2147483648, i32),
             ("i32.trunc_sat_f32_u", -f32::consts::PI, 0, i32),
             ("i32.trunc_sat_f32_u", 5000000000_f32, -1, i32),
+            ("i32.trunc_sat_f32_u", 0.0_f32, 0, i32),
+            ("i32.trunc_sat_f32_u", -0.0_f32, 0, i32),
+            ("i32.trunc_sat_f32_u", 1e-45_f32, 0, i32),
+            ("i32.trunc_sat_f32_u", -1e-45_f32, 0, i32),
+            ("i32.trunc_sat_f32_u", 1.0_f32, 1, i32),
+            ("i32.trunc_sat_f32_u", 1.1_f32, 1, i32),
+            ("i32.trunc_sat_f32_u", 1.5_f32, 1, i32),
+            ("i32.trunc_sat_f32_u", 1.9_f32, 1, i32),
+            ("i32.trunc_sat_f32_u", 2.0_f32, 2, i32),
+            ("i32.trunc_sat_f32_u", 2147483648_f32, -2147483648, i32),
+            ("i32.trunc_sat_f32_u", 4294967040.0_f32, -256, i32),
+            ("i32.trunc_sat_f32_u", -0.9_f32, 0, i32),
+            ("i32.trunc_sat_f32_u", -0.999_999_94_f32, 0, i32),
+            (
+                "i32.trunc_sat_f32_u",
+                4294967296.0_f32,
+                0xffffffff_i64 as i32,
+                i32
+            ),
+            ("i32.trunc_sat_f32_u", -1.0_f32, 0x00000000, i32),
+            (
+                "i32.trunc_sat_f32_u",
+                f32::INFINITY,
+                0xffffffff_i64 as i32,
+                i32
+            ),
+            ("i32.trunc_sat_f32_u", -f32::INFINITY, 0x00000000, i32),
+            ("i32.trunc_sat_f32_u", f32::NAN, 0, i32),
+            (
+                "i32.trunc_sat_f32_u",
+                f32::from_bits(0x200000_u32), // nan:0x200000,
+                0,
+                i32
+            ),
+            ("i32.trunc_sat_f32_u", -f32::NAN, 0, i32),
+            (
+                "i32.trunc_sat_f32_u",
+                -f32::from_bits(0x200000_u32), // -nan:0x200000_f32
+                0,
+                i32
+            ),
+            ("i32.trunc_sat_f32_s", 1234.567_f32, 1234, i32),
+            ("i32.trunc_sat_f32_s", -f32::consts::PI, -3, i32),
+            ("i32.trunc_sat_f32_s", 2200000000_f32, 2147483647, i32),
+            ("i32.trunc_sat_f32_s", 0.0, 0, i32),
+            ("i32.trunc_sat_f32_s", -0.0, 0, i32),
+            ("i32.trunc_sat_f32_s", 1e-45_f32, 0, i32),
+            ("i32.trunc_sat_f32_s", -1e-45_f32, 0, i32),
+            ("i32.trunc_sat_f32_s", 1.0_f32, 1, i32),
+            ("i32.trunc_sat_f32_s", 1.1_f32, 1, i32),
+            ("i32.trunc_sat_f32_s", 1.5_f32, 1, i32),
+            ("i32.trunc_sat_f32_s", -1.0_f32, -1, i32),
+            ("i32.trunc_sat_f32_s", -1.1_f32, -1, i32),
+            ("i32.trunc_sat_f32_s", -1.5_f32, -1, i32),
+            ("i32.trunc_sat_f32_s", -1.9_f32, -1, i32),
+            ("i32.trunc_sat_f32_s", -2.0_f32, -2, i32),
+            ("i32.trunc_sat_f32_s", 2147483520.0_f32, 2147483520, i32),
+            ("i32.trunc_sat_f32_s", -2147483648.0_f32, i32::MIN, i32),
+            ("i32.trunc_sat_f32_s", 2147483648.0_f32, 0x7fffffff, i32),
+            (
+                "i32.trunc_sat_f32_s",
+                -2147483904.0_f32,
+                0x80000000_i64 as i32,
+                i32
+            ),
+            ("i32.trunc_sat_f32_s", f32::INFINITY, 0x7fffffff, i32),
+            (
+                "i32.trunc_sat_f32_s",
+                -f32::INFINITY,
+                0x80000000_i64 as i32,
+                i32
+            ),
+            ("i32.trunc_sat_f32_s", f32::NAN, 0, i32),
+            (
+                "i32.trunc_sat_f32_s",
+                f32::from_bits(0x200000), // nan:0x200000
+                0,
+                i32
+            ),
+            ("i32.trunc_sat_f32_s", -f32::NAN, 0, i32),
+            (
+                "i32.trunc_sat_f32_s",
+                -f32::from_bits(0x200000_u32), // nan:0x-200000
+                0,
+                i32
+            ),
             ("i32.trunc_sat_f64_s", 1234.567_f64, 1234, i32),
             ("i32.trunc_sat_f64_s", -f64::consts::PI, -3, i32),
             ("i32.trunc_sat_f64_s", 2200000000_f64, 2147483647, i32),
+            ("i32.trunc_sat_f64_s", 0.0_f64, 0, i32),
+            ("i32.trunc_sat_f64_s", -0.0_f64, 0, i32),
+            ("i32.trunc_sat_f64_s", 1.5e-323_f64, 0, i32),
+            ("i32.trunc_sat_f64_s", -1.5e-323_f64, 0, i32),
+            ("i32.trunc_sat_f64_s", 1.0_f64, 1, i32),
+            ("i32.trunc_sat_f64_s", 1.199999999999_f64.powi(0), 1, i32),
+            ("i32.trunc_sat_f64_s", 1.5_f64, 1, i32),
+            ("i32.trunc_sat_f64_s", -1.0_f64, -1, i32),
+            ("i32.trunc_sat_f64_s", -1.199999999999_f64.powi(0), -1, i32),
+            ("i32.trunc_sat_f64_s", -1.5_f64, -1, i32),
+            ("i32.trunc_sat_f64_s", -1.9_f64, -1, i32),
+            ("i32.trunc_sat_f64_s", -2.0_f64, -2, i32),
+            ("i32.trunc_sat_f64_s", 2147483647.0_f64, 2147483647, i32),
+            ("i32.trunc_sat_f64_s", -2147483648.0_f64, -2147483648, i32),
+            ("i32.trunc_sat_f64_s", 2147483648.0_f64, 0x7fffffff, i32),
+            (
+                "i32.trunc_sat_f64_s",
+                -2147483649.0_f64,
+                0x80000000_i64 as i32,
+                i32
+            ),
+            ("i32.trunc_sat_f64_s", f64::INFINITY, 0x7fffffff, i32),
+            (
+                "i32.trunc_sat_f64_s",
+                -f64::INFINITY,
+                0x80000000_i64 as i32,
+                i32
+            ),
+            ("i32.trunc_sat_f64_s", f64::NAN, 0, i32),
+            (
+                "i32.trunc_sat_f64_s",
+                f64::from_bits(0x4000000000000), // nan:0x4000000000000
+                0,
+                i32
+            ),
+            ("i32.trunc_sat_f64_s", -f64::NAN, 0, i32),
+            (
+                "i32.trunc_sat_f64_s",
+                -f64::from_bits(0x4000000000000), // nan:-0x4000000000000
+                0,
+                i32
+            ),
             ("i32.trunc_sat_f64_u", 1234.567_f64, 1234, i32),
             ("i32.trunc_sat_f64_u", f64::MAX, -1, i32),
             ("i32.trunc_sat_f64_u", -f64::consts::PI, 0, i32),
             ("i32.trunc_sat_f64_u", 5000000000_f64, -1, i32),
+            ("i32.trunc_sat_f64_u", 0.0_f64, 0, i32),
+            ("i32.trunc_sat_f64_u", -0.0_f64, 0, i32),
+            ("i32.trunc_sat_f64_u", 1.5e-323_f64, 0, i32),
+            ("i32.trunc_sat_f64_u", -1.5e-323_f64, 0, i32),
+            ("i32.trunc_sat_f64_u", 1.0_f64, 1, i32),
+            ("i32.trunc_sat_f64_u", 1.199999999999_f64.powi(0), 1, i32),
+            ("i32.trunc_sat_f64_u", 1.5_f64, 1, i32),
+            ("i32.trunc_sat_f64_u", 1.9_f64, 1, i32),
+            ("i32.trunc_sat_f64_u", 2.0_f64, 2, i32),
+            ("i32.trunc_sat_f64_u", 2147483648_f64, -2147483648, i32),
+            ("i32.trunc_sat_f64_u", 4294967295.0_f64, -1, i32),
+            ("i32.trunc_sat_f64_u", -0.9_f64, 0, i32),
+            ("i32.trunc_sat_f64_u", -1.0_f64, 0, i32),
+            ("i32.trunc_sat_f64_u", 1e8_f64, 100000000, i32),
+            (
+                "i32.trunc_sat_f64_u",
+                4294967296.0_f64,
+                0xffffffff_i64 as i32,
+                i32
+            ),
+            ("i32.trunc_sat_f64_u", -1.0_f64, 0x00000000, i32),
+            ("i32.trunc_sat_f64_u", 1e16_f64, 0xffffffff_i64 as i32, i32),
+            ("i32.trunc_sat_f64_u", 1e30_f64, 0xffffffff_i64 as i32, i32),
+            (
+                "i32.trunc_sat_f64_u",
+                9223372036854775808_f64,
+                0xffffffff_i64 as i32,
+                i32
+            ),
+            (
+                "i32.trunc_sat_f64_u",
+                f64::INFINITY,
+                0xffffffff_i64 as i32,
+                i32
+            ),
+            ("i32.trunc_sat_f64_u", -f64::INFINITY, 0x00000000, i32),
+            ("i32.trunc_sat_f64_u", f64::NAN, 0, i32),
+            (
+                "i32.trunc_sat_f64_u",
+                f64::from_bits(0x4000000000000_u64),
+                0,
+                i32
+            ),
+            ("i32.trunc_sat_f64_u", -f64::NAN, 0, i32),
+            (
+                "i32.trunc_sat_f64_u",
+                -f64::from_bits(0x4000000000000_u64), // nan:-0x4000000000000
+                0,
+                i32
+            ),
             ("i64.trunc_sat_f32_s", 1234.567_f32, 1234, i64),
             ("i64.trunc_sat_f32_s", -f32::consts::PI, -3, i64),
             ("i64.trunc_sat_f32_s", f32::MAX, i64::MAX, i64),
+            ("i64.trunc_sat_f32_s", 0.0, 0, i64),
+            ("i64.trunc_sat_f32_s", -0.0, 0, i64),
+            ("i64.trunc_sat_f32_s", 1e-45_f32, 0, i64),
+            ("i64.trunc_sat_f32_s", -1e-45_f32, 0, i64),
+            ("i64.trunc_sat_f32_s", 1.0_f32, 1, i64),
+            ("i64.trunc_sat_f32_s", 1.1_f32, 1, i64),
+            ("i64.trunc_sat_f32_s", 1.5_f32, 1, i64),
+            ("i64.trunc_sat_f32_s", -1.0_f32, -1, i64),
+            ("i64.trunc_sat_f32_s", -1.1_f32, -1, i64),
+            ("i64.trunc_sat_f32_s", -1.5_f32, -1, i64),
+            ("i64.trunc_sat_f32_s", -1.9_f32, -1, i64),
+            ("i64.trunc_sat_f32_s", -2.0_f32, -2, i64),
+            ("i64.trunc_sat_f32_s", 4294967296_f32, 4294967296_i64, i64),
+            ("i64.trunc_sat_f32_s", -4294967296_f32, -4294967296, i64),
+            (
+                "i64.trunc_sat_f32_s",
+                9223371487098961920.0_f32,
+                9223371487098961920,
+                i64
+            ),
+            (
+                "i64.trunc_sat_f32_s",
+                -9223372036854775808.0_f32,
+                -9223372036854775808,
+                i64
+            ),
+            (
+                "i64.trunc_sat_f32_s",
+                9223372036854775808.0_f32,
+                0x7fffffffffffffff,
+                i64
+            ),
+            (
+                "i64.trunc_sat_f32_s",
+                -9223373136366403584.0_f32,
+                0x8000000000000000_u64 as i64,
+                i64
+            ),
+            (
+                "i64.trunc_sat_f32_s",
+                f32::INFINITY,
+                0x7fffffffffffffff,
+                i64
+            ),
+            (
+                "i64.trunc_sat_f32_s",
+                -f32::INFINITY,
+                0x8000000000000000_u64 as i64,
+                i64
+            ),
+            ("i64.trunc_sat_f32_s", f32::NAN, 0, i64),
+            (
+                "i64.trunc_sat_f32_s",
+                f32::from_bits(0x200000_u32), // nan:0x200000
+                0,
+                i64
+            ),
+            ("i64.trunc_sat_f32_s", -f32::NAN, 0, i64),
+            (
+                "i64.trunc_sat_f32_s",
+                -f32::from_bits(0x200000_u32), // nan:0x-200000
+                0,
+                i64
+            ),
             ("i64.trunc_sat_f32_u", 1234.567_f32, 1234, i64),
             ("i64.trunc_sat_f32_u", f32::MAX, -1, i64),
+            ("i64.trunc_sat_f32_u", 0.0, 0, i64),
+            ("i64.trunc_sat_f32_u", -0.0, 0, i64),
+            ("i64.trunc_sat_f32_u", 1e-45_f32, 0, i64),
+            ("i64.trunc_sat_f32_u", -1e-45_f32, 0, i64),
+            ("i64.trunc_sat_f32_u", 1.0_f32, 1, i64),
+            ("i64.trunc_sat_f32_u", 1.1_f32.powi(0), 1, i64),
+            ("i64.trunc_sat_f32_u", 1.5f32, 1, i64),
+            ("i64.trunc_sat_f32_u", 4294967296.0_f32, 4294967296_i64, i64),
+            (
+                "i64.trunc_sat_f32_u",
+                18446742974197923840.0_f32,
+                -1099511627776,
+                i64
+            ),
+            ("i64.trunc_sat_f32_u", -1.7999998_f32.powi(-1), 0, i64),
+            ("i64.trunc_sat_f32_u", -3.4028235e38_f32.powi(-1), 0, i64),
+            (
+                "i64.trunc_sat_f32_u",
+                18446744073709551616.0_f32,
+                0xffffffffffffffff_u64 as i64,
+                i64
+            ),
+            ("i64.trunc_sat_f32_u", -1.0_f32, 0x0000000000000000, i64),
+            (
+                "i64.trunc_sat_f32_u",
+                f32::INFINITY,
+                0xffffffffffffffff_u64 as i64,
+                i64
+            ),
+            (
+                "i64.trunc_sat_f32_u",
+                -f32::INFINITY,
+                0x0000000000000000,
+                i64
+            ),
+            ("i64.trunc_sat_f32_u", f32::NAN, 0, i64),
+            (
+                "i64.trunc_sat_f32_u",
+                f32::from_bits(0x200000_u32), // nan:0x200000
+                0,
+                i64
+            ),
+            ("i64.trunc_sat_f32_u", -f32::NAN, 0, i64),
+            (
+                "i64.trunc_sat_f32_u",
+                -f32::from_bits(0x200000_u32), // nan:0x-200000
+                0,
+                i64
+            ),
             ("i64.trunc_sat_f64_s", 1234.567_f64, 1234, i64),
             ("i64.trunc_sat_f64_s", -f64::consts::PI, -3, i64),
             ("i64.trunc_sat_f64_s", f64::MAX, i64::MAX, i64),
+            ("i64.trunc_sat_f64_s", 0.0_f64, 0, i64),
+            ("i64.trunc_sat_f64_s", -0.0_f64, 0, i64),
+            ("i64.trunc_sat_f64_s", 1.5e-323_f64, 0, i64),
+            ("i64.trunc_sat_f64_s", -1.5e-323_f64, 0, i64),
+            ("i64.trunc_sat_f64_s", 1.0_f64, 1, i64),
+            ("i64.trunc_sat_f64_s", 1.199999999999_f64.powi(0), 1, i64),
+            ("i64.trunc_sat_f64_s", 1.5_f64, 1, i64),
+            ("i64.trunc_sat_f64_s", -1.0_f64, -1, i64),
+            ("i64.trunc_sat_f64_s", -1.199999999999_f64.powi(0), -1, i64),
+            ("i64.trunc_sat_f64_s", -1.5_f64, -1, i64),
+            ("i64.trunc_sat_f64_s", -1.9_f64, -1, i64),
+            ("i64.trunc_sat_f64_s", -2.0_f64, -2, i64),
+            ("i64.trunc_sat_f64_s", 4294967296_f64, 4294967296, i64),
+            ("i64.trunc_sat_f64_s", -4294967296_f64, -4294967296, i64),
+            (
+                "i64.trunc_sat_f64_s",
+                9223372036854774784.0_f64,
+                9223372036854774784,
+                i64
+            ),
+            (
+                "i64.trunc_sat_f64_s",
+                -9223372036854775808.0_f64,
+                -9223372036854775808,
+                i64
+            ),
+            (
+                "i64.trunc_sat_f64_s",
+                9223372036854775808.0_f64,
+                0x7fffffffffffffff,
+                i64
+            ),
+            (
+                "i64.trunc_sat_f64_s",
+                -9223372036854777856.0_f64,
+                0x8000000000000000_u64 as i64,
+                i64
+            ),
+            (
+                "i64.trunc_sat_f64_s",
+                f64::INFINITY,
+                0x7fffffffffffffff,
+                i64
+            ),
+            (
+                "i64.trunc_sat_f64_s",
+                -f64::INFINITY,
+                0x8000000000000000_u64 as i64,
+                i64
+            ),
+            ("i64.trunc_sat_f64_s", f64::NAN, 0, i64),
+            (
+                "i64.trunc_sat_f64_s",
+                f64::from_bits(0x4000000000000_u64),
+                0,
+                i64
+            ),
+            ("i64.trunc_sat_f64_s", -f64::NAN, 0, i64),
+            (
+                "i64.trunc_sat_f64_s",
+                -f64::from_bits(0x4000000000000_u64),
+                0,
+                i64
+            ),
             ("i64.trunc_sat_f64_u", 1234.567_f64, 1234, i64),
             ("i64.trunc_sat_f64_u", 2200000000_f64, 2200000000, i64),
             ("i64.trunc_sat_f64_u", -f64::consts::PI, 0, i64),
             ("i64.trunc_sat_f64_u", f64::MAX, -1, i64),
+            ("i64.trunc_sat_f64_u", 0.0_f64, 0, i64),
+            ("i64.trunc_sat_f64_u", -0.0_f64, 0, i64),
+            ("i64.trunc_sat_f64_u", 1.5e-323_f64, 0, i64),
+            ("i64.trunc_sat_f64_u", -1.5e-323_f64, 0, i64),
+            ("i64.trunc_sat_f64_u", 1.0_f64, 1, i64),
+            ("i64.trunc_sat_f64_u", 1.199999999999_f64.powi(0), 1, i64),
+            ("i64.trunc_sat_f64_u", 1.5_f64, 1, i64),
+            ("i64.trunc_sat_f64_u", 4294967295_f64, 0xffffffff, i64),
+            ("i64.trunc_sat_f64_u", 4294967296_f64, 0x100000000, i64),
+            (
+                "i64.trunc_sat_f64_u",
+                18446744073709549568.0_f64,
+                -2048,
+                i64
+            ),
+            ("i64.trunc_sat_f64_u", -0.9_f64, 0, i64),
+            ("i64.trunc_sat_f64_u", -1.0_f64, 0, i64),
+            ("i64.trunc_sat_f64_u", 1e8_f64, 100000000, i64),
+            ("i64.trunc_sat_f64_u", 1e16_f64, 10000000000000000, i64),
+            (
+                "i64.trunc_sat_f64_u",
+                9223372036854775808_f64,
+                -9223372036854775808,
+                i64
+            ),
+            (
+                "i64.trunc_sat_f64_u",
+                18446744073709551616.0_f64,
+                0xffffffffffffffff_u64 as i64,
+                i64
+            ),
+            ("i64.trunc_sat_f64_u", -1.0_f64, 0x0000000000000000, i64),
+            (
+                "i64.trunc_sat_f64_u",
+                f64::INFINITY,
+                0xffffffffffffffff_u64 as i64,
+                i64
+            ),
+            (
+                "i64.trunc_sat_f64_u",
+                -f64::INFINITY,
+                0x0000000000000000,
+                i64
+            ),
+            ("i64.trunc_sat_f64_u", f64::NAN, 0, i64),
+            (
+                "i64.trunc_sat_f64_u",
+                f64::from_bits(0x4000000000000_u64),
+                0,
+                i64
+            ),
+            ("i64.trunc_sat_f64_u", -f64::NAN, 0, i64),
+            (
+                "i64.trunc_sat_f64_u",
+                -f64::from_bits(0x4000000000000_u64),
+                0,
+                i64
+            ),
             ("f32.convert_i32_s", 42, 42.0, f32),
             ("f32.convert_i32_s", i32::MAX, i32::MAX as f32, f32),
-            ("f32.convert_i64_s", 42, 42.0, f32),
+            ("f32.convert_i32_s", 16777217, 16777216.0, f32),
+            ("f32.convert_i32_s", -16777217, -16777216.0, f32),
+            ("f32.convert_i32_s", 16777219, 16777220.0, f32),
+            ("f32.convert_i32_s", -16777219, -16777220.0, f32),
+            ("f32.convert_i32_s", 1, 1.0, f32),
+            ("f32.convert_i32_s", -1, -1.0, f32),
+            ("f32.convert_i32_s", 0, 0.0, f32),
+            ("f32.convert_i32_s", 2147483647, 2147483648_f32, f32),
+            ("f32.convert_i32_s", -2147483648, -2147483648_f32, f32),
+            ("f32.convert_i32_s", 1234567890, 1234568000_f32, f32),
+            ("f32.convert_i64_s", 42_i64, 42.0_f32, f32),
             ("f32.convert_i64_s", i64::MAX, i64::MAX as f32, f32),
-            ("f64.convert_i32_s", 42, 42.0, f64),
-            ("f64.convert_i32_s", -148, -148.0, f64),
+            ("f32.convert_i64_s", 1_i64, 1.0_f32, f32),
+            ("f32.convert_i64_s", -1_i64, -1.0_f32, f32),
+            ("f32.convert_i64_s", 0_i64, 0.0_f32, f32),
+            (
+                "f32.convert_i64_s",
+                9223372036854775807_i64,
+                9223372036854775807_f32,
+                f32
+            ),
+            (
+                "f32.convert_i64_s",
+                -9223372036854775808_i64,
+                -9223372036854775808_f32,
+                f32
+            ),
+            (
+                "f32.convert_i64_s",
+                314159265358979_i64,
+                314159280000000.0,
+                f32
+            ),
+            ("f32.convert_i64_s", 16777217_i64, 16777216.0_f32, f32),
+            ("f32.convert_i64_s", -16777217_i64, -16777216.0_f32, f32),
+            ("f32.convert_i64_s", 16777219_i64, 16777220.0_f32, f32),
+            ("f32.convert_i64_s", -16777219_i64, -16777220.0_f32, f32),
+            (
+                "f32.convert_i64_s",
+                0x7fffff4000000001_i64,
+                9.2233715e18_f32,
+                f32
+            ),
+            (
+                "f32.convert_i64_s",
+                0x8000004000000001_u64 as i64,
+                -9.2233715e18_f32,
+                f32
+            ),
+            (
+                "f32.convert_i64_s",
+                0x0020000020000001_i64,
+                9007200000000000.0_f32,
+                f32
+            ),
+            (
+                "f32.convert_i64_s",
+                0xffdfffffdfffffff_u64 as i64,
+                -9007200000000000.0_f32,
+                f32
+            ),
+            ("f64.convert_i32_s", 42, 42.0_f64, f64),
+            ("f64.convert_i32_s", -148, -148.0_f64, f64),
+            ("f64.convert_i32_s", 1, 1.0_f64, f64),
+            ("f64.convert_i32_s", -1, -1.0_f64, f64),
+            ("f64.convert_i32_s", 0, 0.0_f64, f64),
+            ("f64.convert_i32_s", 2147483647, 2147483647_f64, f64),
+            ("f64.convert_i32_s", -2147483648, -2147483648_f64, f64),
+            ("f64.convert_i32_s", 987654321, 987654321_f64, f64),
             ("f64.convert_i64_s", 42, 42.0, f64),
             ("f64.convert_i64_s", -148_i64, -148.0, f64),
             ("f64.convert_i64_s", i64::MAX, i64::MAX as f64, f64),
-            ("f32.convert_i32_u", 42, 42.0, f32),
+            ("f64.convert_i64_s", 1_i64, 1.0, f64),
+            ("f64.convert_i64_s", -1_i64, -1.0, f64),
+            ("f64.convert_i64_s", 0_i64, 0.0, f64),
+            (
+                "f64.convert_i64_s",
+                9223372036854775807_i64,
+                9223372036854775807_f64,
+                f64
+            ),
+            (
+                "f64.convert_i64_s",
+                -9223372036854775808_i64,
+                -9223372036854775808_f64,
+                f64
+            ),
+            (
+                "f64.convert_i64_s",
+                4669201609102990_i64,
+                4669201609102990_f64,
+                f64
+            ),
+            (
+                "f64.convert_i64_s",
+                9007199254740993_i64,
+                9007199254740992_f64,
+                f64
+            ),
+            (
+                "f64.convert_i64_s",
+                -9007199254740993_i64,
+                -9007199254740992_f64,
+                f64
+            ),
+            (
+                "f64.convert_i64_s",
+                9007199254740995_i64,
+                9007199254740996_f64,
+                f64
+            ),
+            (
+                "f64.convert_i64_s",
+                -9007199254740995_i64,
+                -9007199254740996_f64,
+                f64
+            ),
+            ("f32.convert_i32_u", 42, 42.0_f32, f32),
             ("f32.convert_i32_u", i32::MAX, i32::MAX as f32, f32),
-            ("f32.convert_i64_u", 42, 42.0, f32),
+            ("f32.convert_i32_u", 1, 1.0_f32, f32),
+            ("f32.convert_i32_u", 0, 0.0_f32, f32),
+            ("f32.convert_i32_u", 2147483647, 2147483648_f32, f32),
+            ("f32.convert_i32_u", -2147483648, 2147483648_f32, f32),
+            ("f32.convert_i32_u", 0x12345678, 305419900.0_f32, f32),
+            (
+                "f32.convert_i32_u",
+                0xffffffff_i64 as i32,
+                4294967296.0_f32,
+                f32
+            ),
+            (
+                "f32.convert_i32_u",
+                0x80000080_u32 as i32,
+                2f32.powi(31),
+                f32
+            ),
+            (
+                "f32.convert_i32_u",
+                0x80000081_u32 as i32,
+                1.000_000_1_f32 * 2f32.powi(31), // 0x1.000002p+31,
+                f32
+            ),
+            (
+                "f32.convert_i32_u",
+                0x80000082_u32 as i32,
+                1.000_000_1_f32 * 2f32.powi(31),
+                f32
+            ),
+            (
+                "f32.convert_i32_u",
+                0xfffffe80_u32 as i32,
+                4294966800.0, // 0x1.fffffcp+31,
+                f32
+            ),
+            (
+                "f32.convert_i32_u",
+                0xfffffe81_u32 as i32,
+                1.999_999_9_f32 * 2f32.powi(31), // 0x1.fffffep+31,
+                f32
+            ),
+            (
+                "f32.convert_i32_u",
+                0xfffffe82_u32 as i32,
+                1.999_999_9_f32 * 2f32.powi(31),
+                f32
+            ),
+            ("f32.convert_i32_u", 16777217, 16777216.0_f32, f32),
+            ("f32.convert_i32_u", 16777219, 16777220.0_f32, f32),
+            ("f32.convert_i64_u", 42, 42.0_f32, f32),
             ("f32.convert_i64_u", i64::MAX, i64::MAX as f32, f32),
-            ("f64.convert_i32_u", 42, 42.0, f64),
+            ("f32.convert_i64_u", 1, 1.0_f32, f32),
+            ("f32.convert_i64_u", 0, 0.0_f32, f32),
+            (
+                "f32.convert_i64_u",
+                9223372036854775807_i64,
+                9223372036854775807_f32,
+                f32
+            ),
+            (
+                "f32.convert_i64_u",
+                -9223372036854775808_i64,
+                9223372036854775808_f32,
+                f32
+            ),
+            (
+                "f32.convert_i64_u",
+                0xffffffffffffffff_u64 as i64,
+                18446744073709551616.0_f32,
+                f32
+            ),
+            ("f32.convert_i64_u", 16777217, 16777216.0_f32, f32),
+            ("f32.convert_i64_u", 16777219, 16777220.0_f32, f32),
+            (
+                "f32.convert_i64_u",
+                0x0020000020000001_i64,
+                1.000_000_1_f32 * 2f32.powi(53),
+                f32
+            ),
+            (
+                "f32.convert_i64_u",
+                0x7fffffbfffffffff_i64,
+                1.999_999_9_f32 * 2f32.powi(62),
+                f32
+            ),
+            (
+                "f32.convert_i64_u",
+                0x8000008000000001_u64 as i64,
+                1.000_000_1_f32 * 2f32.powi(63),
+                f32
+            ),
+            (
+                "f32.convert_i64_u",
+                0xfffffe8000000001_u64 as i64,
+                1.999_999_9_f32 * 2f32.powi(63),
+                f32
+            ),
+            ("f64.convert_i32_u", 42, 42.0_f64, f64),
             ("f64.convert_i32_u", i32::MAX, i32::MAX as f64, f64),
-            ("f64.convert_i64_u", 42, 42.0, f64),
+            ("f64.convert_i32_u", 1, 1.0_f64, f64),
+            ("f64.convert_i32_u", 0, 0.0_f64, f64),
+            ("f64.convert_i32_u", 2147483647, 2147483647_f64, f64),
+            ("f64.convert_i32_u", -2147483648, 2147483648_f64, f64),
+            (
+                "f64.convert_i32_u",
+                0xffffffff_i64 as i32,
+                4294967295.0_f64,
+                f64
+            ),
+            ("f64.convert_i64_u", 42, 42.0_f64, f64),
             ("f64.convert_i64_u", i64::MAX, i64::MAX as f64, f64),
+            ("f64.convert_i64_u", 1_i64, 1.0_f64, f64),
+            ("f64.convert_i64_u", 0_i64, 0.0_f64, f64),
+            (
+                "f64.convert_i64_u",
+                9223372036854775807_i64,
+                9223372036854775807_f64,
+                f64
+            ),
+            (
+                "f64.convert_i64_u",
+                -9223372036854775808_i64,
+                9223372036854775808_f64,
+                f64
+            ),
+            (
+                "f64.convert_i64_u",
+                0xffffffffffffffff_u64 as i64,
+                18446744073709551616.0_f64,
+                f64
+            ),
+            (
+                "f64.convert_i64_u",
+                0x8000000000000400_u64 as i64,
+                2f64.powi(63),
+                f64
+            ),
+            (
+                "f64.convert_i64_u",
+                0x8000000000000401_u64 as i64,
+                1.0000000000000002 * 2f64.powi(63),
+                f64
+            ),
+            (
+                "f64.convert_i64_u",
+                0x8000000000000402_u64 as i64,
+                1.0000000000000002 * 2f64.powi(63),
+                f64
+            ),
+            (
+                "f64.convert_i64_u",
+                0xfffffffffffff400_u64 as i64,
+                1.8446744073709548e19_f64,
+                f64
+            ),
+            (
+                "f64.convert_i64_u",
+                0xfffffffffffff401_u64 as i64,
+                1.844674407370955e19_f64,
+                f64
+            ),
+            (
+                "f64.convert_i64_u",
+                0xfffffffffffff402_u64 as i64,
+                1.844674407370955e19_f64,
+                f64
+            ),
+            (
+                "f64.convert_i64_u",
+                9007199254740993_i64,
+                9007199254740992_f64,
+                f64
+            ),
+            (
+                "f64.convert_i64_u",
+                9007199254740995_i64,
+                9007199254740996_f64,
+                f64
+            ),
             (
                 "f64.promote_f32",
                 f32::consts::PI,
@@ -970,25 +1819,708 @@ fn test_wasm_conversions() -> Result<()> {
             ),
             ("f64.promote_f32", -f32::consts::E, -2.7182817459106445, f64),
             ("f64.promote_f32", f32::MAX, f32::MAX as f64, f64),
+            ("f64.promote_f32", 0.0_f32, 0.0_f64, f64),
+            ("f64.promote_f32", -0.0_f32, -0.0_f64, f64),
+            ("f64.promote_f32", 1e-45_f32, 1.401298464324817e-45_f64, f64),
+            (
+                "f64.promote_f32",
+                -1e-45_f32,
+                -1.401298464324817e-45_f64,
+                f64
+            ),
+            ("f64.promote_f32", 1.0_f32, 1.0_f64, f64),
+            ("f64.promote_f32", -1.0_f32, -1.0_f64, f64),
+            (
+                "f64.promote_f32",
+                -3.402_823_5e38_f32,             // -0x1.fffffep+127
+                -3.402_823_466_385_288_6e38_f64, // -0x1.fffffep+127
+                f64
+            ),
+            (
+                "f64.promote_f32",
+                3.402_823_5e38_f32,             // 0x1.fffffep+127
+                3.402_823_466_385_288_6e38_f64, // 0x1.fffffep+127
+                f64
+            ),
+            ("f64.promote_f32", 2f32.powi(-119), 2f64.powi(-119), f64),
+            (
+                "f64.promote_f32",
+                6.638_253_7e37_f32,
+                6.638_253_671_010_439_5e37_f64,
+                f64
+            ),
+            ("f64.promote_f32", f32::INFINITY, f64::INFINITY, f64),
+            ("f64.promote_f32", -f32::INFINITY, -f64::INFINITY, f64),
+            // ("f64.promote_f32", f32::NAN, nan:canonical_f64, f64), // TODO for Timi
+            // ("f64.promote_f32", nan:0x200000, nan:arithmetic_f64, f64), // TODO for Timi
+            // ("f64.promote_f32", -f32::NAN, nan:canonical_f64, f64), // TODO for Timi
+            // ("f64.promote_f32", -nan:0x200000_f64, nan:arithmetic_f64, f64), // TODO for Timi
             ("f32.demote_f64", f64::consts::PI, f32::consts::PI, f32),
+            ("f32.demote_f64", 0.0_f64, 0.0, f32),
+            ("f32.demote_f64", -0.0_f64, -0.0, f32),
+            ("f32.demote_f64", 1.5e-323_f64, 0.0_f32, f32),
+            ("f32.demote_f64", -1.5e-323_f64, -0.0_f32, f32),
+            ("f32.demote_f64", 1.0_f64, 1.0_f32, f32),
+            ("f32.demote_f64", -1.0_f64, -1.0_f32, f32),
+            (
+                "f32.demote_f64",
+                1.9999998807907104_f64 * 2f64.powi(-127),
+                2f32.powi(-126),
+                f32
+            ),
+            (
+                "f32.demote_f64",
+                -1.9999998807907104_f64 * 2f64.powi(-127),
+                -2f32.powi(-126),
+                f32
+            ),
+            (
+                "f32.demote_f64",
+                1.9999999999999396_f64 * 2f64.powi(-127),
+                1.999_999_9_f32 * 2f32.powi(-127),
+                f32
+            ),
+            (
+                "f32.demote_f64",
+                -1.9999999999999396_f64 * 2f64.powi(-127),
+                -1.999_999_9_f32 * 2f32.powi(-127),
+                f32
+            ),
+            (
+                "f32.demote_f64",
+                1.401298464324817e-45_f64, // 0x1p-149,
+                1e-45_f32,                 // 0x1p-149
+                f32
+            ),
+            (
+                "f32.demote_f64",
+                -1.401298464324817e-45_f64,
+                -1e-45_f32,
+                f32
+            ),
+            (
+                "f32.demote_f64",
+                3.402_823_364_973_240_6e38_f64, // 0x1.fffffd0000000p+127,
+                3.402_823_3e38_f32,             // 0x1.fffffcp+127,
+                f32
+            ),
+            (
+                "f32.demote_f64",
+                -3.402_823_364_973_240_6e38_f64, // -0x1.fffffd0000000p+127,
+                -3.402_823_3e38_f32,             // -0x1.fffffd0000000p+127,
+                f32
+            ),
+            (
+                "f32.demote_f64",
+                3.402_823_364_973_240_6e38_f64, // 0x1.fffffd0000001p+127,
+                3.402_823_3e38_f32,             // 0x1.fffffcp+127
+                f32
+            ),
+            (
+                "f32.demote_f64",
+                -3.402_823_364_973_240_6e38_f64, // -0x1.fffffd0000001p+127
+                -3.402_823_3e38_f32,             // -0x1.fffffcp+127
+                f32
+            ),
+            (
+                "f32.demote_f64",
+                3.402_823_466_385_288_6e38_f64, // 0x1.fffffep+127
+                3.402_823_5e38_f32,             // 0x1.fffffep+127
+                f32
+            ),
+            (
+                "f32.demote_f64",
+                -3.402_823_466_385_288_6e38_f64, // -0x1.fffffep+127
+                -3.402_823_5e38_f32,             // -0x1.fffffep+127
+                f32
+            ),
+            (
+                "f32.demote_f64",
+                3.402_823_567_797_336_2e38_f64, // 0x1.fffffefffffffp+127
+                3.402_823_5e38_f32,             // 0x1.fffffep+127
+                f32
+            ),
+            (
+                "f32.demote_f64",
+                -3.402_823_567_797_336_2e38_f64, // -0x1.fffffefffffffp+127
+                -3.402_823_5e38_f32,             // -0x1.fffffep+127
+                f32
+            ),
+            (
+                "f32.demote_f64",
+                3.402_823_567_797_336_6e38_f64, // 0x1.ffffffp+127,
+                f32::INFINITY,
+                f32
+            ),
+            (
+                "f32.demote_f64",
+                -3.402_823_567_797_336_6e38_f64, // -0x1.ffffffp+127_f64
+                -f32::INFINITY,
+                f32
+            ),
+            ("f32.demote_f64", 2f64.powi(-119), 2f32.powi(-119), f32),
+            (
+                "f32.demote_f64",
+                1.531_746_015_930_176_f64 * 2f64.powi(125), // 0x1.8f867ep+125,
+                1.531_746_f32 * 2f32.powi(125),
+                f32
+            ),
+            ("f32.demote_f64", f64::INFINITY, f32::INFINITY, f32),
+            ("f32.demote_f64", -f64::INFINITY, -f32::INFINITY, f32),
+            ("f32.demote_f64", 1.0000000000000002f64, 1.0, f32),
+            ("f32.demote_f64", 1.0_f64, 1.0, f32),
+            ("f32.demote_f64", 1.0000000000001192_f64, 1f32, f32),
+            (
+                "f32.demote_f64",
+                1.000000059604645_f64, // 0x1.0000010000001p+0,
+                1.000_000_1_f32,       // 0x1.000002p+0
+                f32
+            ),
+            (
+                "f32.demote_f64",
+                1.000000178813934_f64, // 0x1.000002fffffffp+0,
+                1.000_000_1_f32,       // 0x1.000002p+0
+                f32
+            ),
+            (
+                "f32.demote_f64",
+                1.0000001788139343_f64, // 0x1.0000030000000p+0,
+                1.000_000_2_f32,        // 0x1.000004p+0,
+                f32
+            ),
+            (
+                "f32.demote_f64",
+                1.0000002980232239_f64, // "0x1.0000050000000p+0",
+                1.000_000_2_f32,        // "0x1.000004p+0",
+                f32
+            ),
+            (
+                "f32.demote_f64",
+                16777217.0_f64, // "0x1.0000010000000p+24",
+                16777216.0_f32, // "0x1.0p+24"
+                f32
+            ),
+            (
+                "f32.demote_f64",
+                16777217.000000004_f64, // "0x1.0000010000001p+24",
+                16777218.0_f32,         // 0x1.000002p+24,
+                f32
+            ),
+            (
+                "f32.demote_f64",
+                16777218.999999996_f64, // "0x1.000002fffffffp+24",
+                16777218.0_f32,         // 0x1.000002p+24
+                f32
+            ),
+            (
+                "f32.demote_f64",
+                16777219.0_f64, // "0x1.0000030000000p+24",
+                16777220.0_f32, // "0x1.000004p+24",
+                f32
+            ),
+            (
+                "f32.demote_f64",
+                4.242_584_432_991_427e32_f64, // "0x1.4eae4f7024c7p+108",
+                4.242_584_5e32_f32,           // "0x1.4eae5p+108",
+                f32
+            ),
+            (
+                "f32.demote_f64",
+                1.569262107843488e-34_f64, // 0x1.a12e71e358685p-113_f64,
+                1.569_262_1e-34_f32,       // 0x1.a12e72p-113,
+                f32
+            ),
+            (
+                "f32.demote_f64",
+                1.0551773688605172e-38_f64, // 0x1.cb98354d521ffp-127_f64,
+                1.055_177_3e-38_f32,        // 0x1.cb9834p-127,
+                f32
+            ),
+            (
+                "f32.demote_f64",
+                -2.8238128484141933_f64, // "-0x1.6972b30cfb562p+1",
+                -2.823_813_f32,          // "-0x1.6972b4p+1",
+                f32
+            ),
+            (
+                "f32.demote_f64",
+                -9.063_376_370_095_757e33_f64, // -0x1.bedbe4819d4c4p+112,
+                -9.063_376e33_f32,             // -0x1.bedbe4p+112,
+                f32
+            ),
+            // // ("f32.demote_f64", f64::NAN, nan:canonical, f32), // TODO for Timi
+            // // ("f32.demote_f64", nan:0x4000000000000_f64, nan:arithmetic, f32), // TODO for Timi
+            // // ("f32.demote_f64", -f64::NAN, nan:canonical, f32), // TODO for Timi
+            // // ("f32.demote_f64", -nan:0x4000000000000_f64, nan:arithmetic, f32), // TODO for Timi
+            (
+                "f32.demote_f64",
+                2.2250738585072014e-308_f64, // 0x1p-1022,
+                0.0_f32,
+                f32
+            ),
+            (
+                "f32.demote_f64",
+                2.2250738585072014e-308_f64, // -0x1p-1022
+                0.0_f32,
+                f32
+            ),
+            (
+                "f32.demote_f64",
+                7.006492321624085e-46_f64, // "0x1.0p-150",
+                0.0_f32,
+                f32
+            ),
+            (
+                "f32.demote_f64",
+                -7.006492321624085e-46_f64, // "-0x1.0p-150_f64",
+                0.0,
+                f32
+            ),
+            (
+                "f32.demote_f64",
+                7.006492321624087e-46_f64, // "0x1.0000000000001p-150"
+                1e-45_f32,                 // 2f32.powi(-149)
+                f32
+            ),
+            (
+                "f32.demote_f64",
+                -7.006492321624087e-46_f64, // "-0x1.0000000000001p-150",
+                -1e-45_f32,
+                f32
+            ),
             ("f32.reinterpret_i32", 0, 0_f32, f32),
             ("f32.reinterpret_i32", 1, 1e-45_f32, f32),
+            ("f32.reinterpret_i32", 0, 0.0_f32, f32),
+            ("f32.reinterpret_i32", 0x80000000_i64 as i32, -0.0_f32, f32),
+            ("f32.reinterpret_i32", 1, 1e-45_f32, f32),
+            // (
+            //     "f32.reinterpret_i32",
+            //     -1,
+            //     unsafe { std::mem::transmute::<i32, f32>(-0x7fffff) }, // -nan:0x7fffff,
+            //     f32
+            // ), // TODO for Timi
+            (
+                "f32.reinterpret_i32",
+                123456789,
+                1.653_599_7e-34_f32, // 0x1.b79a2ap-113,
+                f32
+            ),
+            ("f32.reinterpret_i32", -2147483647, -1e-45_f32, f32),
+            ("f32.reinterpret_i32", 0x7f800000, f32::INFINITY, f32),
+            (
+                "f32.reinterpret_i32",
+                0xff800000_u32 as i32,
+                -f32::INFINITY,
+                f32
+            ),
+            // (
+            //     "f32.reinterpret_i32",
+            //     0x7fc00000,
+            //     f32::NAN,
+            //     f32
+            // ), // TODO for Timi
+            // (
+            //     "f32.reinterpret_i32",
+            //     0xffc00000_u32 as i32,
+            //     -f32::NAN,
+            //     f32
+            // ), // TODO for Timi
+            // (
+            //     "f32.reinterpret_i32",
+            //     0x7fa00000,
+            //     nan:0x200000,
+            //     f32
+            // ), // TODO for Timi
+            // (
+            //     "f32.reinterpret_i32",
+            //     0xffa00000_u32 as i32,
+            //     -nan:0x200000,
+            //     f32
+            // ), // TODO for Timi
             ("f64.reinterpret_i64", 0, 0_f64, f64),
             ("f64.reinterpret_i64", 1, 5e-324_f64, f64),
+            // (
+            //     "f64.reinterpret_i64",
+            //     -1_i64,
+            //     unsafe { std::mem::transmute::<i64, f64>(-0xfffffffffffff) }, // -nan:0xfffffffffffff_f64,
+            //     f64
+            // ), // TODO for Timi
+            (
+                "f64.reinterpret_i64",
+                0x8000000000000000_u64 as i64,
+                -0.0_f64,
+                f64
+            ),
+            (
+                "f64.reinterpret_i64",
+                1234567890_i64,
+                6.09957582e-315_f64, // "0x0.00000499602d2p-1022"
+                f64
+            ),
+            (
+                "f64.reinterpret_i64",
+                -9223372036854775807_i64,
+                -5e-324_f64, // -0x0.0000000000001p-1022
+                f64
+            ),
+            (
+                "f64.reinterpret_i64",
+                0x7ff0000000000000_i64,
+                f64::INFINITY,
+                f64
+            ),
+            (
+                "f64.reinterpret_i64",
+                0xfff0000000000000_u64 as i64,
+                -f64::INFINITY,
+                f64
+            ),
+            // (
+            //     "f64.reinterpret_i64",
+            //     0x7ff8000000000000_i64,
+            //     f64::NAN,
+            //     f64
+            // ),  // TODO failed when comparing NaN === NaN
+            // (
+            //     "f64.reinterpret_i64",
+            //     0xfff8000000000000_u64 as i64,
+            //     -f64::NAN,
+            //     f64
+            // ), // TODO failed when comparing NaN === NaN
+            // (
+            //     "f64.reinterpret_i64",
+            //     0x7ff4000000000000_i64,
+            //     f64::from_bits(0x4000000000000_u64), // nan:0x4000000000000
+            //     f64
+            // ),   // TODO for Timi
+            // (
+            //     "f64.reinterpret_i64",
+            //     0xfff4000000000000_u64 as i64,
+            //     -f64::from_bits(0x4000000000000_u64), // -nan:0x4000000000000
+            //     f64
+            // ),  // TODO for Timi
             ("i32.reinterpret_f32", 0_f32, 0, i32),
             ("i32.reinterpret_f32", 1.1_f32, 1066192077, i32),
+            ("i32.reinterpret_f32", 0.0_f32, 0, i32),
+            ("i32.reinterpret_f32", -0.0_f32, 0x80000000_i64 as i32, i32),
+            (
+                "i32.reinterpret_f32",
+                1e-45_f32, // 0x1p-149
+                1,
+                i32
+            ),
+            // (
+            //     "i32.reinterpret_f32",
+            //     unsafe { std::mem::transmute::<i32, f32>(-0x7fffff) }, // -nan:0x7fffff,
+            //     -1,
+            //     i32
+            // ), // TODO for Timi
+            (
+                "i32.reinterpret_f32",
+                -1e-45_f32,
+                0x80000001_i64 as i32, // 0x80000001
+                i32
+            ),
+            ("i32.reinterpret_f32", 1.0_f32, 1065353216, i32),
+            ("i32.reinterpret_f32", f32::consts::PI, 1078530011, i32),
+            ("i32.reinterpret_f32", 3.4028235e38_f32, 2139095039, i32),
+            ("i32.reinterpret_f32", -3.4028235e38_f32, -8388609, i32),
+            ("i32.reinterpret_f32", f32::INFINITY, 0x7f800000, i32),
+            (
+                "i32.reinterpret_f32",
+                -f32::INFINITY,
+                0xff800000_i64 as i32,
+                i32
+            ),
+            ("i32.reinterpret_f32", f32::NAN, 0x7fc00000, i32),
+            ("i32.reinterpret_f32", -f32::NAN, 0xffc00000_i64 as i32, i32),
+            // (
+            //     "i32.reinterpret_f32",
+            //     f32::from_bits(0x200000_u32), // nan:0x200000
+            //     0x7fa00000,
+            //     i32
+            // ), // TODO for Timi
+            // (
+            //     "i32.reinterpret_f32",
+            //     -f32::from_bits(0x200000_u32), // nan:0x-200000
+            //     0xffa00000_i64 as i32,
+            //     i32
+            // ), // TODO for Timi
             ("i64.reinterpret_f64", 0_f64, 0, i64),
-            ("i64.reinterpret_f64", 1.1_f64, 4607632778762754458, i64),
-            ("i32.trunc_f32_s", 666666.0_f32, 666666, i32),
-            ("i32.trunc_f32_s", 2147483520.0_f32, 2147483520, i32),
+            ("i64.reinterpret_f64", 1.1_f64, 4607632778762754458_i64, i64),
+            ("i64.reinterpret_f64", 0.0_f64, 0_i64, i64),
+            (
+                "i64.reinterpret_f64",
+                -0.0_f64,
+                0x8000000000000000_u64 as i64,
+                i64
+            ),
+            ("i64.reinterpret_f64", 5e-324_f64, 1_i64, i64),
+            // (
+            //     "i64.reinterpret_f64",
+            //     unsafe { std::mem::transmute::<i64, f64>(-0xfffffffffffff) }, // -nan:0xfffffffffffff,
+            //     -1_i64,
+            //     i64
+            // ), // TODO for Timi
+            (
+                "i64.reinterpret_f64",
+                -5e-324_f64,
+                0x8000000000000001_u64 as i64,
+                i64
+            ),
+            ("i64.reinterpret_f64", 1.0_f64, 4607182418800017408, i64),
+            (
+                "i64.reinterpret_f64",
+                f64::consts::PI, // 3.14159265358979_f64,
+                4614256656552045848,
+                i64
+            ),
+            (
+                "i64.reinterpret_f64",
+                1.797_693_134_862_315_7e308_f64, // 0x1.fffffffffffffp+1023,
+                9218868437227405311,
+                i64
+            ),
+            (
+                "i64.reinterpret_f64",
+                -1.797_693_134_862_315_7e308_f64, // -0x1.fffffffffffffp+1023,
+                -4503599627370497,
+                i64
+            ),
+            (
+                "i64.reinterpret_f64",
+                f64::INFINITY,
+                0x7ff0000000000000,
+                i64
+            ),
+            (
+                "i64.reinterpret_f64",
+                -f64::INFINITY,
+                0xfff0000000000000_u64 as i64,
+                i64
+            ),
+            (
+                "i64.reinterpret_f64",
+                f64::NAN,
+                0x7ff8000000000000_u64 as i64,
+                i64
+            ),
+            (
+                "i64.reinterpret_f64",
+                -f64::NAN,
+                0xfff8000000000000_u64 as i64,
+                i64
+            ),
+            // (
+            //     "i64.reinterpret_f64",
+            //     f64::from_bits(0x4000000000000_u64), // nan:0x4000000000000,
+            //     0x7ff4000000000000_i64,
+            //     i64
+            // ),   // TODO for Timi
+            // (
+            //     "i64.reinterpret_f64",
+            //     -f64::from_bits(0x4000000000000_u64), // -nan:0x4000000000000
+            //     0xfff4000000000000_u64 as i64,
+            //     i64
+            // ) // TODO for Timi
         ]
     );
+    #[cfg(target_os = "linux")]
     generate_error_test_cases!(
         &artifact,
         [
             ("i32.trunc_f32_u", f32::MAX, "integer overflow"),
             ("i32.trunc_f32_s", 2147483648.0_f32, "integer overflow"),
             ("i32.trunc_f32_s", -2147483904.0_f32, "integer overflow"),
+            ("i32.trunc_f32_s", f32::INFINITY, "integer overflow"),
+            ("i32.trunc_f32_s", -f32::INFINITY, "integer overflow"),
+            ("i32.trunc_f32_s", f32::NAN, "invalid conversion to integer"),
+            (
+                "i32.trunc_f32_s",
+                f32::from_bits(0x200000), // nan:0x200000
+                "invalid conversion to integer"
+            ),
+            (
+                "i32.trunc_f32_s",
+                -f32::NAN,
+                "invalid conversion to integer"
+            ),
+            (
+                "i32.trunc_f32_s",
+                -f32::from_bits(0x200000), // nan:0x200000,
+                "invalid conversion to integer"
+            ),
+            ("i32.trunc_f32_u", 4294967296.0_f32, "integer overflow"),
+            ("i32.trunc_f32_u", -1.0_f32, "integer overflow"),
+            ("i32.trunc_f32_u", f32::INFINITY, "integer overflow"),
+            ("i32.trunc_f32_u", -f32::INFINITY, "integer overflow"),
+            ("i32.trunc_f32_u", f32::NAN, "invalid conversion to integer"),
+            (
+                "i32.trunc_f32_u",
+                f32::from_bits(0x200000), // nan:0x200000,
+                "invalid conversion to integer"
+            ),
+            (
+                "i32.trunc_f32_u",
+                -f32::NAN,
+                "invalid conversion to integer"
+            ),
+            (
+                "i32.trunc_f32_u",
+                f32::from_bits(0x200000), // nan:0x200000,
+                "invalid conversion to integer"
+            ),
+            ("i32.trunc_f64_s", 2147483648.0_f64, "integer overflow"),
+            ("i32.trunc_f64_s", -2147483649.0_f64, "integer overflow"),
+            ("i32.trunc_f64_s", f64::INFINITY, "integer overflow"),
+            ("i32.trunc_f64_s", -f64::INFINITY, "integer overflow"),
+            ("i32.trunc_f64_s", f64::NAN, "invalid conversion to integer"),
+            (
+                "i32.trunc_f64_s",
+                f64::from_bits(0x4000000000000), // nan:0x4000000000000,
+                "invalid conversion to integer"
+            ),
+            (
+                "i32.trunc_f64_s",
+                -f64::NAN,
+                "invalid conversion to integer"
+            ),
+            (
+                "i32.trunc_f64_s",
+                -f64::from_bits(0x4000000000000), // -nan:0x4000000000000,
+                "invalid conversion to integer"
+            ),
+            ("i32.trunc_f64_u", 4294967296.0_f64, "integer overflow"),
+            ("i32.trunc_f64_u", -1.0_f64, "integer overflow"),
+            ("i32.trunc_f64_u", 1e16_f64, "integer overflow"),
+            ("i32.trunc_f64_u", 1e30_f64, "integer overflow"),
+            (
+                "i32.trunc_f64_u",
+                9223372036854775808_f64,
+                "integer overflow"
+            ),
+            ("i32.trunc_f64_u", f64::INFINITY, "integer overflow"),
+            ("i32.trunc_f64_u", -f64::INFINITY, "integer overflow"),
+            ("i32.trunc_f64_u", f64::NAN, "invalid conversion to integer"),
+            (
+                "i32.trunc_f64_u",
+                f64::from_bits(0x4000000000000), // nan:0x4000000000000,
+                "invalid conversion to integer"
+            ),
+            (
+                "i32.trunc_f64_u",
+                -f64::NAN,
+                "invalid conversion to integer"
+            ),
+            (
+                "i32.trunc_f64_u",
+                -f64::from_bits(0x4000000000000), // -nan:0x4000000000000,
+                "invalid conversion to integer"
+            ),
+            (
+                "i64.trunc_f32_s",
+                9223372036854775808.0_f32,
+                "integer overflow"
+            ),
+            (
+                "i64.trunc_f32_s",
+                -9223373136366403584.0_f32,
+                "integer overflow"
+            ),
+            ("i64.trunc_f32_s", f32::INFINITY, "integer overflow"),
+            ("i64.trunc_f32_s", -f32::INFINITY, "integer overflow"),
+            ("i64.trunc_f32_s", f32::NAN, "invalid conversion to integer"),
+            (
+                "i64.trunc_f32_s",
+                f32::from_bits(0x200000), // nan:0x200000,
+                "invalid conversion to integer"
+            ),
+            (
+                "i64.trunc_f32_s",
+                -f32::NAN,
+                "invalid conversion to integer"
+            ),
+            (
+                "i64.trunc_f32_s",
+                -f32::from_bits(0x200000), // -nan:0x200000,
+                "invalid conversion to integer"
+            ),
+            (
+                "i64.trunc_f32_u",
+                18446744073709551616.0_f32,
+                "integer overflow"
+            ),
+            ("i64.trunc_f32_u", -1.0_f32, "integer overflow"),
+            ("i64.trunc_f32_u", f32::INFINITY, "integer overflow"),
+            ("i64.trunc_f32_u", -f32::INFINITY, "integer overflow"),
+            ("i64.trunc_f32_u", f32::NAN, "invalid conversion to integer"),
+            (
+                "i64.trunc_f32_u",
+                f32::from_bits(0x200000), // nan:0x200000,
+                "invalid conversion to integer"
+            ),
+            (
+                "i64.trunc_f32_u",
+                -f32::NAN,
+                "invalid conversion to integer"
+            ),
+            (
+                "i64.trunc_f32_u",
+                -f32::from_bits(0x200000), // -nan:0x200000,
+                "invalid conversion to integer"
+            ),
+            (
+                "i64.trunc_f64_s",
+                9223372036854775808.0_f64,
+                "integer overflow"
+            ),
+            (
+                "i64.trunc_f64_s",
+                -9223372036854777856.0_f64,
+                "integer overflow"
+            ),
+            ("i64.trunc_f64_s", f64::INFINITY, "integer overflow"),
+            ("i64.trunc_f64_s", -f64::INFINITY, "integer overflow"),
+            ("i64.trunc_f64_s", f64::NAN, "invalid conversion to integer"),
+            (
+                "i64.trunc_f64_s",
+                f64::from_bits(0x4000000000000), // nan:0x4000000000000,
+                "invalid conversion to integer"
+            ),
+            (
+                "i64.trunc_f64_s",
+                -f64::NAN,
+                "invalid conversion to integer"
+            ),
+            (
+                "i64.trunc_f64_s",
+                -f64::from_bits(0x4000000000000), // -nan:0x4000000000000,
+                "invalid conversion to integer"
+            ),
+            (
+                "i64.trunc_f64_u",
+                18446744073709551616.0_f64,
+                "integer overflow"
+            ),
+            ("i64.trunc_f64_u", -1.0_f64, "integer overflow"),
+            ("i64.trunc_f64_u", f64::INFINITY, "integer overflow"),
+            ("i64.trunc_f64_u", -f64::INFINITY, "integer overflow"),
+            ("i64.trunc_f64_u", f64::NAN, "invalid conversion to integer"),
+            (
+                "i64.trunc_f64_u",
+                f64::from_bits(0x4000000000000), // nan:0x4000000000000,
+                "invalid conversion to integer"
+            ),
+            (
+                "i64.trunc_f64_u",
+                -f64::NAN,
+                "invalid conversion to integer"
+            ),
+            (
+                "i64.trunc_f64_u",
+                -f64::from_bits(0x4000000000000), // -nan:0x4000000000000,
+                "invalid conversion to integer"
+            ),
         ]
     );
     Ok(())
