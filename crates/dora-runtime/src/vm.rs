@@ -169,14 +169,16 @@ impl<'a, DB: Database> VM<'a, DB> {
     fn transact_preverified(&mut self, initial_gas_cost: u64) -> Result<ResultAndState, VMError> {
         let ctx = &mut self.context;
         // Pre execution
-        {
+        let pre_exec_gas_refund = {
             // Load access list and beneficiary if needed.
             ctx.load_accounts()?;
             // Set precompile addresses into the warm preloaded address list.
             ctx.set_precompiles();
             // Deduce caller balance with its limit.
             ctx.deduct_caller()?;
-        }
+            // Apply EIP-7702 auth list
+            ctx.apply_eip7702_auth_list()?
+        };
 
         // Execution
         let mut result = {
@@ -212,9 +214,9 @@ impl<'a, DB: Database> VM<'a, DB> {
 
         // Post excution
         {
-            // TODO: Calculate final refund and add EIP-7702 refund to gas.
-            let eip7702_gas_refund = 0;
-            result.gas_refunded += eip7702_gas_refund;
+            // Record the pre execution refunded gas including EIP-7702, etc.
+            result.record_refund(pre_exec_gas_refund as i64);
+            // Set a refund value for final refund.
             result.set_final_refund(ctx.spec_id().is_enabled_in(SpecId::LONDON));
             // Reimburse the caller with gas that were not used.
             ctx.reimburse_caller(result.gas_remaining, result.gas_refunded)?;
