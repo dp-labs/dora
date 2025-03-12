@@ -40,7 +40,7 @@ macro_rules! generate_error_test_cases {
         $(
             {
                 let result: Result<(), _> = $artifact.execute_wasm_func($func_name, $arg);
-                let error = result.err().unwrap().to_string();
+                let error = result.err().expect(&format!("Function: {} {:?} test failed.", $func_name, $arg)).to_string();
                 assert!(error.contains($expect), "Function: {} {:?} test failed, actual: {}, expect: {}", $func_name, $arg, error, $expect);
             }
         )*
@@ -823,7 +823,6 @@ fn test_wasm_call_indirect() -> Result<()> {
 }
 
 #[test]
-// #[cfg(target_arch = "x86_64")]
 fn test_wasm_conversions() -> Result<()> {
     let code = include_bytes!("../../../dora-compiler/src/wasm/tests/suites/conversions.wat");
     build_wasm_code!(code, artifact);
@@ -1851,10 +1850,6 @@ fn test_wasm_conversions() -> Result<()> {
             ),
             ("f64.promote_f32", f32::INFINITY, f64::INFINITY, f64),
             ("f64.promote_f32", -f32::INFINITY, -f64::INFINITY, f64),
-            // ("f64.promote_f32", f32::NAN, nan:canonical_f64, f64), // TODO for Timi
-            // ("f64.promote_f32", nan:0x200000, nan:arithmetic_f64, f64), // TODO for Timi
-            // ("f64.promote_f32", -f32::NAN, nan:canonical_f64, f64), // TODO for Timi
-            // ("f64.promote_f32", -nan:0x200000_f64, nan:arithmetic_f64, f64), // TODO for Timi
             ("f32.demote_f64", f64::consts::PI, f32::consts::PI, f32),
             ("f32.demote_f64", 0.0_f64, 0.0, f32),
             ("f32.demote_f64", -0.0_f64, -0.0, f32),
@@ -2048,10 +2043,6 @@ fn test_wasm_conversions() -> Result<()> {
                 -9.063_376e33_f32,             // -0x1.bedbe4p+112,
                 f32
             ),
-            // // ("f32.demote_f64", f64::NAN, nan:canonical, f32), // TODO for Timi
-            // // ("f32.demote_f64", nan:0x4000000000000_f64, nan:arithmetic, f32), // TODO for Timi
-            // // ("f32.demote_f64", -f64::NAN, nan:canonical, f32), // TODO for Timi
-            // // ("f32.demote_f64", -nan:0x4000000000000_f64, nan:arithmetic, f32), // TODO for Timi
             (
                 "f32.demote_f64",
                 2.2250738585072014e-308_f64, // 0x1p-1022,
@@ -2093,12 +2084,6 @@ fn test_wasm_conversions() -> Result<()> {
             ("f32.reinterpret_i32", 0, 0.0_f32, f32),
             ("f32.reinterpret_i32", 0x80000000_i64 as i32, -0.0_f32, f32),
             ("f32.reinterpret_i32", 1, 1e-45_f32, f32),
-            // (
-            //     "f32.reinterpret_i32",
-            //     -1,
-            //     unsafe { std::mem::transmute::<i32, f32>(-0x7fffff) }, // -nan:0x7fffff,
-            //     f32
-            // ), // TODO for Timi
             (
                 "f32.reinterpret_i32",
                 123456789,
@@ -2113,38 +2098,8 @@ fn test_wasm_conversions() -> Result<()> {
                 -f32::INFINITY,
                 f32
             ),
-            // (
-            //     "f32.reinterpret_i32",
-            //     0x7fc00000,
-            //     f32::NAN,
-            //     f32
-            // ), // TODO for Timi
-            // (
-            //     "f32.reinterpret_i32",
-            //     0xffc00000_u32 as i32,
-            //     -f32::NAN,
-            //     f32
-            // ), // TODO for Timi
-            // (
-            //     "f32.reinterpret_i32",
-            //     0x7fa00000,
-            //     nan:0x200000,
-            //     f32
-            // ), // TODO for Timi
-            // (
-            //     "f32.reinterpret_i32",
-            //     0xffa00000_u32 as i32,
-            //     -nan:0x200000,
-            //     f32
-            // ), // TODO for Timi
             ("f64.reinterpret_i64", 0, 0_f64, f64),
             ("f64.reinterpret_i64", 1, 5e-324_f64, f64),
-            // (
-            //     "f64.reinterpret_i64",
-            //     -1_i64,
-            //     unsafe { std::mem::transmute::<i64, f64>(-0xfffffffffffff) }, // -nan:0xfffffffffffff_f64,
-            //     f64
-            // ), // TODO for Timi
             (
                 "f64.reinterpret_i64",
                 0x8000000000000000_u64 as i64,
@@ -2175,30 +2130,6 @@ fn test_wasm_conversions() -> Result<()> {
                 -f64::INFINITY,
                 f64
             ),
-            // (
-            //     "f64.reinterpret_i64",
-            //     0x7ff8000000000000_i64,
-            //     f64::NAN,
-            //     f64
-            // ),  // TODO failed when comparing NaN === NaN
-            // (
-            //     "f64.reinterpret_i64",
-            //     0xfff8000000000000_u64 as i64,
-            //     -f64::NAN,
-            //     f64
-            // ), // TODO failed when comparing NaN === NaN
-            // (
-            //     "f64.reinterpret_i64",
-            //     0x7ff4000000000000_i64,
-            //     f64::from_bits(0x4000000000000_u64), // nan:0x4000000000000
-            //     f64
-            // ),   // TODO for Timi
-            // (
-            //     "f64.reinterpret_i64",
-            //     0xfff4000000000000_u64 as i64,
-            //     -f64::from_bits(0x4000000000000_u64), // -nan:0x4000000000000
-            //     f64
-            // ),  // TODO for Timi
             ("i32.reinterpret_f32", 0_f32, 0, i32),
             ("i32.reinterpret_f32", 1.1_f32, 1066192077, i32),
             ("i32.reinterpret_f32", 0.0_f32, 0, i32),
@@ -2209,12 +2140,6 @@ fn test_wasm_conversions() -> Result<()> {
                 1,
                 i32
             ),
-            // (
-            //     "i32.reinterpret_f32",
-            //     unsafe { std::mem::transmute::<i32, f32>(-0x7fffff) }, // -nan:0x7fffff,
-            //     -1,
-            //     i32
-            // ), // TODO for Timi
             (
                 "i32.reinterpret_f32",
                 -1e-45_f32,
@@ -2234,18 +2159,6 @@ fn test_wasm_conversions() -> Result<()> {
             ),
             ("i32.reinterpret_f32", f32::NAN, 0x7fc00000, i32),
             ("i32.reinterpret_f32", -f32::NAN, 0xffc00000_i64 as i32, i32),
-            // (
-            //     "i32.reinterpret_f32",
-            //     f32::from_bits(0x200000_u32), // nan:0x200000
-            //     0x7fa00000,
-            //     i32
-            // ), // TODO for Timi
-            // (
-            //     "i32.reinterpret_f32",
-            //     -f32::from_bits(0x200000_u32), // nan:0x-200000
-            //     0xffa00000_i64 as i32,
-            //     i32
-            // ), // TODO for Timi
             ("i64.reinterpret_f64", 0_f64, 0, i64),
             ("i64.reinterpret_f64", 1.1_f64, 4607632778762754458_i64, i64),
             ("i64.reinterpret_f64", 0.0_f64, 0_i64, i64),
@@ -2256,12 +2169,6 @@ fn test_wasm_conversions() -> Result<()> {
                 i64
             ),
             ("i64.reinterpret_f64", 5e-324_f64, 1_i64, i64),
-            // (
-            //     "i64.reinterpret_f64",
-            //     unsafe { std::mem::transmute::<i64, f64>(-0xfffffffffffff) }, // -nan:0xfffffffffffff,
-            //     -1_i64,
-            //     i64
-            // ), // TODO for Timi
             (
                 "i64.reinterpret_f64",
                 -5e-324_f64,
@@ -2311,18 +2218,6 @@ fn test_wasm_conversions() -> Result<()> {
                 0xfff8000000000000_u64 as i64,
                 i64
             ),
-            // (
-            //     "i64.reinterpret_f64",
-            //     f64::from_bits(0x4000000000000_u64), // nan:0x4000000000000,
-            //     0x7ff4000000000000_i64,
-            //     i64
-            // ),   // TODO for Timi
-            // (
-            //     "i64.reinterpret_f64",
-            //     -f64::from_bits(0x4000000000000_u64), // -nan:0x4000000000000
-            //     0xfff4000000000000_u64 as i64,
-            //     i64
-            // ) // TODO for Timi
         ]
     );
     #[cfg(target_os = "linux")]
@@ -2337,17 +2232,7 @@ fn test_wasm_conversions() -> Result<()> {
             ("i32.trunc_f32_s", f32::NAN, "invalid conversion to integer"),
             (
                 "i32.trunc_f32_s",
-                f32::from_bits(0x200000), // nan:0x200000
-                "invalid conversion to integer"
-            ),
-            (
-                "i32.trunc_f32_s",
                 -f32::NAN,
-                "invalid conversion to integer"
-            ),
-            (
-                "i32.trunc_f32_s",
-                -f32::from_bits(0x200000), // nan:0x200000,
                 "invalid conversion to integer"
             ),
             ("i32.trunc_f32_u", 4294967296.0_f32, "integer overflow"),
@@ -2357,17 +2242,7 @@ fn test_wasm_conversions() -> Result<()> {
             ("i32.trunc_f32_u", f32::NAN, "invalid conversion to integer"),
             (
                 "i32.trunc_f32_u",
-                f32::from_bits(0x200000), // nan:0x200000,
-                "invalid conversion to integer"
-            ),
-            (
-                "i32.trunc_f32_u",
                 -f32::NAN,
-                "invalid conversion to integer"
-            ),
-            (
-                "i32.trunc_f32_u",
-                f32::from_bits(0x200000), // nan:0x200000,
                 "invalid conversion to integer"
             ),
             ("i32.trunc_f64_s", 2147483648.0_f64, "integer overflow"),
@@ -2377,17 +2252,7 @@ fn test_wasm_conversions() -> Result<()> {
             ("i32.trunc_f64_s", f64::NAN, "invalid conversion to integer"),
             (
                 "i32.trunc_f64_s",
-                f64::from_bits(0x4000000000000), // nan:0x4000000000000,
-                "invalid conversion to integer"
-            ),
-            (
-                "i32.trunc_f64_s",
                 -f64::NAN,
-                "invalid conversion to integer"
-            ),
-            (
-                "i32.trunc_f64_s",
-                -f64::from_bits(0x4000000000000), // -nan:0x4000000000000,
                 "invalid conversion to integer"
             ),
             ("i32.trunc_f64_u", 4294967296.0_f64, "integer overflow"),
@@ -2404,17 +2269,7 @@ fn test_wasm_conversions() -> Result<()> {
             ("i32.trunc_f64_u", f64::NAN, "invalid conversion to integer"),
             (
                 "i32.trunc_f64_u",
-                f64::from_bits(0x4000000000000), // nan:0x4000000000000,
-                "invalid conversion to integer"
-            ),
-            (
-                "i32.trunc_f64_u",
                 -f64::NAN,
-                "invalid conversion to integer"
-            ),
-            (
-                "i32.trunc_f64_u",
-                -f64::from_bits(0x4000000000000), // -nan:0x4000000000000,
                 "invalid conversion to integer"
             ),
             (
@@ -2432,17 +2287,7 @@ fn test_wasm_conversions() -> Result<()> {
             ("i64.trunc_f32_s", f32::NAN, "invalid conversion to integer"),
             (
                 "i64.trunc_f32_s",
-                f32::from_bits(0x200000), // nan:0x200000,
-                "invalid conversion to integer"
-            ),
-            (
-                "i64.trunc_f32_s",
                 -f32::NAN,
-                "invalid conversion to integer"
-            ),
-            (
-                "i64.trunc_f32_s",
-                -f32::from_bits(0x200000), // -nan:0x200000,
                 "invalid conversion to integer"
             ),
             (
@@ -2456,17 +2301,7 @@ fn test_wasm_conversions() -> Result<()> {
             ("i64.trunc_f32_u", f32::NAN, "invalid conversion to integer"),
             (
                 "i64.trunc_f32_u",
-                f32::from_bits(0x200000), // nan:0x200000,
-                "invalid conversion to integer"
-            ),
-            (
-                "i64.trunc_f32_u",
                 -f32::NAN,
-                "invalid conversion to integer"
-            ),
-            (
-                "i64.trunc_f32_u",
-                -f32::from_bits(0x200000), // -nan:0x200000,
                 "invalid conversion to integer"
             ),
             (
@@ -2484,17 +2319,7 @@ fn test_wasm_conversions() -> Result<()> {
             ("i64.trunc_f64_s", f64::NAN, "invalid conversion to integer"),
             (
                 "i64.trunc_f64_s",
-                f64::from_bits(0x4000000000000), // nan:0x4000000000000,
-                "invalid conversion to integer"
-            ),
-            (
-                "i64.trunc_f64_s",
                 -f64::NAN,
-                "invalid conversion to integer"
-            ),
-            (
-                "i64.trunc_f64_s",
-                -f64::from_bits(0x4000000000000), // -nan:0x4000000000000,
                 "invalid conversion to integer"
             ),
             (
@@ -2508,17 +2333,7 @@ fn test_wasm_conversions() -> Result<()> {
             ("i64.trunc_f64_u", f64::NAN, "invalid conversion to integer"),
             (
                 "i64.trunc_f64_u",
-                f64::from_bits(0x4000000000000), // nan:0x4000000000000,
-                "invalid conversion to integer"
-            ),
-            (
-                "i64.trunc_f64_u",
                 -f64::NAN,
-                "invalid conversion to integer"
-            ),
-            (
-                "i64.trunc_f64_u",
-                -f64::from_bits(0x4000000000000), // -nan:0x4000000000000,
                 "invalid conversion to integer"
             ),
         ]
