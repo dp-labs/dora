@@ -12,7 +12,8 @@ pub use revm::primitives::{
     EvmStorageSlot, FixedBytes, GAS_PER_BLOB, I256, InvalidHeader, InvalidTransaction,
     KECCAK_EMPTY, Log, LogData, MAX_CODE_SIZE, MAX_INITCODE_SIZE, RecoveredAuthority,
     RecoveredAuthorization, SignedAuthorization, SpecId, TxEnv, TxKind, TxType, U256, address,
-    alloy_primitives, b256, calc_blob_gasprice, calc_excess_blob_gas, eip7702,
+    alloy_primitives, b256, calc_blob_gasprice, calc_excess_blob_gas,
+    eip7702::{self, PER_AUTH_BASE_COST, PER_EMPTY_ACCOUNT_COST},
     eof::{Eof, EofBody, TypesSection},
     fixed_bytes,
     hex::{FromHex, ToHexExt},
@@ -46,6 +47,14 @@ macro_rules! as_u64_saturated {
 macro_rules! as_usize_saturated {
     ($v:expr) => {
         usize::try_from($crate::as_u64_saturated!($v)).unwrap_or(usize::MAX)
+    };
+}
+
+/// Converts a [U256] value to a [isize], saturating to [MAX][isize] if the value is too large.
+#[macro_export]
+macro_rules! as_isize_saturated {
+    ($v:expr) => {
+        isize::try_from($crate::as_u64_saturated!($v)).unwrap_or(isize::MAX)
     };
 }
 
@@ -93,6 +102,12 @@ impl Bytecode {
     #[inline]
     pub fn new_wasm_default() -> Self {
         Bytecode::WASM(Bytes::default())
+    }
+
+    /// Creates a new EIP-7702 [`Bytecode`] from [`Address`].
+    #[inline]
+    pub fn new_eip7702(address: Address) -> Self {
+        Bytecode::EVM(EVMBytecode::new_eip7702(address))
     }
 
     /// Creates an empty EVM [Bytecode].

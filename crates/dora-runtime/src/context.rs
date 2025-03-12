@@ -17,8 +17,9 @@ use crate::wasm::trap::wasm_raise_trap;
 use crate::{ExitStatusCode, gas, symbols};
 use dora_primitives::{
     Address, B256, BLOCK_HASH_HISTORY, BLOCKHASH_STORAGE_ADDRESS, Bytecode, Bytes, Bytes32, CfgEnv,
-    EOF_MAGIC_BYTES, EOF_MAGIC_HASH, Env, KECCAK_EMPTY, Log, LogData, OpCode, PrecompileErrors,
-    PrecompileSpecId, Precompiles, SpecId, U256, as_u64_saturated, as_usize_saturated, keccak256,
+    EOF_MAGIC_BYTES, EOF_MAGIC_HASH, Env, KECCAK_EMPTY, Log, LogData, OpCode, PER_AUTH_BASE_COST,
+    PER_EMPTY_ACCOUNT_COST, PrecompileErrors, PrecompileSpecId, Precompiles, SpecId, U256,
+    as_u64_saturated, as_usize_saturated, keccak256,
 };
 
 /// Function type for the EVM main entrypoint of the generated code.
@@ -166,6 +167,84 @@ impl<'a, DB: Database> VMContext<'a, DB> {
                 .push(JournalEntry::NonceChange { address: caller });
         }
         Ok(())
+    }
+
+    /// Deducts the caller balance to the transaction limit and returns the
+    /// refunded gas.
+    pub fn apply_eip7702_auth_list(&mut self) -> Result<u64, VMError> {
+        if !self.spec_id().is_enabled_in(SpecId::PRAGUE) {
+            return Ok(0);
+        }
+
+        // Return if there is no auth list.
+        let Some(authorization_list) = self.env.tx.authorization_list.as_ref() else {
+            return Ok(0);
+        };
+
+        let mut refunded_accounts = 0;
+        for authorization in authorization_list.recovered_iter() {
+            // 1. Verify the chain id is either 0 or the chain's current ID.
+            let chain_id = *authorization.chain_id();
+            if !chain_id.is_zero() && chain_id != U256::from(self.env.cfg.chain_id) {
+                continue;
+            }
+
+            // 2. Verify the `nonce` is less than `2**64 - 1`.
+            if authorization.nonce() == u64::MAX {
+                continue;
+            }
+
+            // recover authority and authorized addresses.
+            // 3. `authority = ecrecover(keccak(MAGIC || rlp([chain_id, address, nonce])), y_parity, r, s]`
+            let Some(authority) = authorization.authority() else {
+                continue;
+            };
+
+            // warm authority account and check nonce.
+            // 4. Add `authority` to `accessed_addresses` (as defined in [EIP-2929](./eip-2929.md).)
+            let mut authority_acc = self
+                .journaled_state
+                .load_code(authority, &mut self.db)
+                .map_err(|_| VMError::Database(DatabaseError))?;
+
+            // 5. Verify the code of `authority` is either empty or already delegated.
+            if let Some(bytecode) = &authority_acc.info.code {
+                // if it is not empty and it is not eip7702
+                if !bytecode.is_empty() && !bytecode.is_eip7702() {
+                    continue;
+                }
+            }
+
+            // 6. Verify the nonce of `authority` is equal to `nonce`. In case `authority` does not exist in the trie, verify that `nonce` is equal to `0`.
+            if authorization.nonce() != authority_acc.info.nonce {
+                continue;
+            }
+
+            // 7. Add `PER_EMPTY_ACCOUNT_COST - PER_AUTH_BASE_COST` gas to the global refund counter if `authority` exists in the trie.
+            if !authority_acc.is_empty() {
+                refunded_accounts += 1;
+            }
+
+            // 8. Set the code of `authority` to be `0xef0100 || address`. This is a delegation designation.
+            //  * As a special case, if `address` is `0x0000000000000000000000000000000000000000` do not write the designation. Clear the accounts code and reset the account's code hash to the empty hash `0xc5d2460186f7233c927e7db2dcc703c0e500b653ca82273b7bfad8045d85a470`.
+            let (bytecode, hash) = if authorization.address.is_zero() {
+                (Bytecode::default(), KECCAK_EMPTY)
+            } else {
+                let bytecode = Bytecode::new_eip7702(authorization.address);
+                let hash = bytecode.hash_slow();
+                (bytecode, hash)
+            };
+            authority_acc.info.code_hash = hash;
+            authority_acc.info.code = Some(bytecode);
+
+            // 9. Increase the nonce of `authority` by one.
+            authority_acc.info.nonce = authority_acc.info.nonce.saturating_add(1);
+            authority_acc.mark_touch();
+        }
+
+        let refunded_gas = refunded_accounts * (PER_EMPTY_ACCOUNT_COST - PER_AUTH_BASE_COST);
+
+        Ok(refunded_gas)
     }
 
     /// Reimburse the caller with gas that were not used.

@@ -251,6 +251,12 @@ impl From<InvalidHeader> for VMError {
     }
 }
 
+impl From<DatabaseError> for VMError {
+    fn from(value: DatabaseError) -> Self {
+        VMError::Database(value)
+    }
+}
+
 /// Represents the reason a transaction successfully completed.
 ///
 /// This enum describes various reasons for successful completion:
