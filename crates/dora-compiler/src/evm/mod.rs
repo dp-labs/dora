@@ -246,12 +246,15 @@ impl<'c> EVMCompiler<'c> {
         // Note: make opcode not found as the runtime halt error,
         // because normal opcodes still consumes GAS during runtime.
         if op_info.is_unknown() || op_info.is_disabled() {
-            return Self::invalid_with_error_code(
-                ctx,
-                region,
+            return Ok((
                 start_block,
-                ExitStatusCode::OpcodeNotFound,
-            );
+                Self::invalid_with_error_code(
+                    ctx,
+                    region,
+                    start_block,
+                    ExitStatusCode::OpcodeNotFound,
+                )?,
+            ));
         }
 
         let mut op_start_block = start_block;
@@ -262,11 +265,12 @@ impl<'c> EVMCompiler<'c> {
         }
 
         // Stack overflow/underflow check.
+        // Note that there is no need to check for EOF Bytecode, as stack operations are statically determined at compile time.
         if !ctx.program.is_eof() && opts.stack_bound_checks {
             op_start_block = Self::stack_bound_checks_block(ctx, region, op_start_block, op)?;
         }
 
-        let (_op_start_block, op_end_block) = match &op {
+        let op_end_block = match &op {
             // Arithmetic instructions
             Operation::Add => EVMCompiler::add(ctx, op_start_block),
             Operation::Mul => EVMCompiler::mul(ctx, op_start_block),
