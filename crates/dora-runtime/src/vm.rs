@@ -12,7 +12,7 @@ use crate::{
     constants::env::DORA_TRACING,
     context::VMContext,
     db::{Database, DatabaseError},
-    gas,
+    gas::{self, InitialGas},
     result::{
         ExecutionResult, HaltReason, OutOfGasError, Output, ResultAndState, SuccessReason, VMError,
     },
@@ -40,11 +40,11 @@ impl<'a, DB: Database> VM<'a, DB> {
     /// This function will validate the transaction.
     #[inline]
     pub fn transact(&mut self) -> Result<ResultAndState, VMError> {
-        let initial_gas_cost = self.preverify_transaction().inspect_err(|_| {
+        let gas = self.preverify_transaction().inspect_err(|_| {
             self.clear();
         })?;
 
-        let output = self.transact_preverified(initial_gas_cost);
+        let output = self.transact_preverified(gas);
         self.clear();
         output
     }
@@ -58,13 +58,13 @@ impl<'a, DB: Database> VM<'a, DB> {
 
     /// Pre verify transaction inner.
     #[inline]
-    fn preverify_transaction(&mut self) -> Result<u64, VMError> {
+    fn preverify_transaction(&mut self) -> Result<InitialGas, VMError> {
         let spec_id = self.spec_id();
         spec_to_generic!(spec_id, self.env.validate_block_env::<SPEC>())?;
         spec_to_generic!(spec_id, self.env.validate_tx::<SPEC>())?;
-        let initial_gas_cost = Self::validate_initial_tx_gas(&self.context.env, self.spec_id())?;
+        let gas = Self::validate_initial_tx_gas(&self.context.env, spec_id)?;
         self.validate_tx_against_state()?;
-        Ok(initial_gas_cost)
+        Ok(gas)
     }
 
     /// Validates transaction against the state.
@@ -84,7 +84,7 @@ impl<'a, DB: Database> VM<'a, DB> {
     }
 
     /// Validate initial transaction gas.
-    fn validate_initial_tx_gas(env: &Env, spec_id: SpecId) -> Result<u64, VMError> {
+    fn validate_initial_tx_gas(env: &Env, spec_id: SpecId) -> Result<InitialGas, VMError> {
         let is_create = env.tx.transact_to.is_create();
         let authorization_list_num = env
             .tx
@@ -92,7 +92,7 @@ impl<'a, DB: Database> VM<'a, DB> {
             .as_ref()
             .map(|l| l.len() as u64)
             .unwrap_or_default();
-        let initial_gas_cost = gas::validate_initial_tx_gas(
+        let gas = gas::calculate_initial_tx_gas(
             spec_id,
             &env.tx.data,
             is_create,
@@ -100,12 +100,17 @@ impl<'a, DB: Database> VM<'a, DB> {
             authorization_list_num,
         );
         // Additional check to see if limit is big enough to cover initial gas.
-        if initial_gas_cost > env.tx.gas_limit {
+        if gas.initial_gas > env.tx.gas_limit {
             return Err(VMError::Transaction(
                 InvalidTransaction::CallGasCostMoreThanGasLimit,
             ));
         }
-        Ok(initial_gas_cost)
+        // EIP-7623
+        if spec_id.is_enabled_in(SpecId::PRAGUE) && gas.floor_gas > env.tx.gas_limit {
+            return Err(InvalidTransaction::GasFloorMoreThanGasLimit.into());
+        };
+
+        Ok(gas)
     }
 
     /// Validate account against the transaction.
@@ -166,7 +171,7 @@ impl<'a, DB: Database> VM<'a, DB> {
     }
 
     /// Transact pre-verified transaction.
-    fn transact_preverified(&mut self, initial_gas_cost: u64) -> Result<ResultAndState, VMError> {
+    fn transact_preverified(&mut self, gas: InitialGas) -> Result<ResultAndState, VMError> {
         let ctx = &mut self.context;
         // Pre execution
         let pre_exec_gas_refund = {
@@ -182,7 +187,7 @@ impl<'a, DB: Database> VM<'a, DB> {
 
         // Execution
         let mut result = {
-            let gas_limit = ctx.env.tx.gas_limit - initial_gas_cost;
+            let gas_limit = ctx.env.tx.gas_limit - gas.initial_gas;
             let call_msg = CallMessage {
                 kind: if ctx.env.tx.transact_to.is_create() {
                     CallKind::Create
@@ -218,6 +223,12 @@ impl<'a, DB: Database> VM<'a, DB> {
             result.record_refund(pre_exec_gas_refund as i64);
             // Set a refund value for final refund.
             result.set_final_refund(ctx.spec_id().is_enabled_in(SpecId::LONDON));
+            // EIP-7623: Increase calldata cost spend at least a gas_floor amount of gas.
+            if result.spent_sub_refunded() < gas.floor_gas {
+                result.set_spent(gas.floor_gas);
+                // Clear refund
+                result.set_refund(0);
+            }
             // Reimburse the caller with gas that were not used.
             ctx.reimburse_caller(result.gas_remaining, result.gas_refunded)?;
             // Reward beneficiary

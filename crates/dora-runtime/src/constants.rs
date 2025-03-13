@@ -30,6 +30,21 @@ pub mod gas_cost {
     pub const SSTORE_SET: u64 = 20000;
     pub const SSTORE_RESET: u64 = 5000;
     pub const REFUND_SSTORE_CLEARS: i64 = 15000;
+    /// The standard cost of calldata token.
+    pub const STANDARD_TOKEN_COST: u64 = 4;
+    /// The cost of a non-zero byte in calldata.
+    pub const NON_ZERO_BYTE_DATA_COST: u64 = 68;
+    /// The multiplier for a non zero byte in calldata.
+    pub const NON_ZERO_BYTE_MULTIPLIER: u64 = NON_ZERO_BYTE_DATA_COST / STANDARD_TOKEN_COST;
+    /// The cost of a non-zero byte in calldata adjusted by [EIP-2028](https://eips.ethereum.org/EIPS/eip-2028).
+    pub const NON_ZERO_BYTE_DATA_COST_ISTANBUL: u64 = 16;
+    /// The multiplier for a non zero byte in calldata adjusted by [EIP-2028](https://eips.ethereum.org/EIPS/eip-2028).
+    pub const NON_ZERO_BYTE_MULTIPLIER_ISTANBUL: u64 =
+        NON_ZERO_BYTE_DATA_COST_ISTANBUL / STANDARD_TOKEN_COST;
+    // The cost floor per token as defined by [EIP-2028](https://eips.ethereum.org/EIPS/eip-2028).
+    pub const TOTAL_COST_FLOOR_PER_TOKEN: u64 = 10;
+    // The EOF create operator gas cost.
+    pub const EOF_CREATE_GAS: u64 = 32000;
     pub const TRANSACTION_ZERO_DATA: u64 = 4;
     pub const ACCESS_LIST_ADDRESS: u64 = 2400;
     pub const ACCESS_LIST_STORAGE_KEY: u64 = 1900;

@@ -221,9 +221,27 @@ impl CallResult {
             (self.gas_refunded as u64).min(self.gas_used() / max_refund_quotient) as i64;
     }
 
+    /// Set a refund value. This overrides the current refund value.
+    #[inline]
+    pub fn set_refund(&mut self, refund: i64) {
+        self.gas_refunded = refund;
+    }
+
+    /// Set a spent value. This overrides the current spent value.
+    #[inline]
+    pub fn set_spent(&mut self, spent: u64) {
+        self.gas_remaining = self.gas_limit.saturating_sub(spent);
+    }
+
     /// Returns the total amount of gas used.
     #[inline]
     pub const fn gas_used(&self) -> u64 {
         self.gas_limit - self.gas_remaining
+    }
+
+    /// Returns the total amount of gas spent, minus the refunded gas.
+    #[inline]
+    pub const fn spent_sub_refunded(&self) -> u64 {
+        self.gas_used().saturating_sub(self.gas_refunded as u64)
     }
 }
