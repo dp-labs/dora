@@ -55,6 +55,9 @@ pub const RETURNDATA_COPY: &str = "dora_fn_returndata_copy";
 pub const TLOAD: &str = "dora_fn_tload";
 pub const TSTORE: &str = "dora_fn_tstore";
 pub const SELFDESTRUCT: &str = "dora_fn_selfdestruct";
+pub const FUNC_STACK_PUSH: &str = "dora_fn_func_stack_push";
+pub const FUNC_STACK_POP: &str = "dora_fn_func_stack_pop";
+pub const FUNC_STACK_GROW: &str = "dora_fn_func_stack_grow";
 
 // WASM Related libcall functions
 pub mod wasm {

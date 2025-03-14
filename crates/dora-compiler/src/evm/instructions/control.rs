@@ -88,9 +88,11 @@ impl<'c> EVMCompiler<'c> {
     }
 
     pub(crate) fn retf<'r>(
-        _ctx: &mut CtxType<'c>,
+        ctx: &mut CtxType<'c>,
         start_block: BlockRef<'r, 'c>,
     ) -> Result<BlockRef<'r, 'c>> {
+        let mut _builder = Self::make_builder(ctx, start_block);
+
         // TODO : Needs EVMBuilder complete
         Ok(start_block)
     }

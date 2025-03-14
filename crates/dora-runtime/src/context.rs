@@ -4,7 +4,7 @@ use crate::account::Account;
 use crate::call::{CallKind, CallMessage, CallResult, CallType, ExtCallType};
 use crate::constants::env::DORA_TRACING;
 use crate::constants::gas_cost::MIN_CALLEE_GAS;
-use crate::constants::{CALL_STACK_LIMIT, MAX_STACK_SIZE, gas_cost};
+use crate::constants::{CALL_STACK_LIMIT, MAX_FUNCTION_STACK_SIZE, MAX_STACK_SIZE, gas_cost};
 use crate::db::{Database, DatabaseError};
 use crate::executor::ExecutionEngine;
 use crate::handler::{Frame, Handler};
@@ -1004,6 +1004,8 @@ pub struct InnerContext {
     exit_status: Option<ExitStatusCode>,
     /// The instruction result buffer.
     result: RuntimeResult<u64>,
+    /// EOF function stack
+    function_stack: FunctionStack,
     /// Depth in the call stack.
     pub depth: usize,
     /// Whether the context is static.
@@ -1024,6 +1026,7 @@ impl Default for InnerContext {
             gas_refunded: Default::default(),
             exit_status: Default::default(),
             result: Default::default(),
+            function_stack: Default::default(),
             depth: Default::default(),
             is_static: Default::default(),
             is_eof_init: Default::default(),
@@ -1107,6 +1110,69 @@ impl Contract {
             input: calldata.as_ref().to_vec().into(),
             ..Default::default()
         }
+    }
+}
+
+/// Function return frame.
+/// Needed information for returning from a function.
+#[derive(Debug, Default, Clone, Copy, PartialEq, Eq, Hash)]
+pub struct FunctionReturnFrame {
+    /// The index of the code container that this frame is executing.
+    pub idx: usize,
+    /// The program counter where frame execution should continue.
+    pub pc: usize,
+}
+
+impl FunctionReturnFrame {
+    /// Return new function frame.
+    pub fn new(idx: usize, pc: usize) -> Self {
+        Self { idx, pc }
+    }
+}
+
+/// Function Stack
+#[derive(Clone, Debug, Default, PartialEq, Eq)]
+pub struct FunctionStack {
+    pub return_stack: Vec<FunctionReturnFrame>,
+    pub current_code_idx: usize,
+}
+
+impl FunctionStack {
+    /// Returns new function stack.
+    pub fn new() -> Self {
+        Self {
+            return_stack: Vec::new(),
+            current_code_idx: 0,
+        }
+    }
+
+    /// Pushes a new frame to the stack. and sets current_code_idx to new value.
+    pub fn push(&mut self, program_counter: usize, new_idx: usize) {
+        self.return_stack.push(FunctionReturnFrame {
+            idx: self.current_code_idx,
+            pc: program_counter,
+        });
+        self.current_code_idx = new_idx;
+    }
+
+    /// Return the function stack length.
+    #[inline]
+    pub fn return_stack_len(&self) -> usize {
+        self.return_stack.len()
+    }
+
+    /// Pops a frame from the stack and sets current_code_idx to the popped frame's idx.
+    #[inline]
+    pub fn pop(&mut self) -> Option<FunctionReturnFrame> {
+        self.return_stack
+            .pop()
+            .inspect(|frame| self.current_code_idx = frame.idx)
+    }
+
+    /// Sets current_code_idx, this is needed for JUMPF opcode.
+    #[inline]
+    pub fn set_current_code_idx(&mut self, idx: usize) {
+        self.current_code_idx = idx;
     }
 }
 
@@ -2458,6 +2524,26 @@ impl RuntimeContext<'_> {
         self.host
             .tstore(self.contract.target_address, *stg_key, *stg_value);
     }
+
+    extern "C" fn func_stack_push(&mut self, pc: usize, new_idx: usize) -> ExitStatusCode {
+        if self.inner.function_stack.return_stack_len() >= MAX_FUNCTION_STACK_SIZE {
+            return ExitStatusCode::EOFFunctionStackOverflow;
+        }
+        self.inner.function_stack.push(pc, new_idx);
+        ExitStatusCode::Continue
+    }
+
+    extern "C" fn func_stack_pop(&mut self) -> usize {
+        self.inner
+            .function_stack
+            .pop()
+            .expect("RETF with empty return stack")
+            .pc
+    }
+
+    extern "C" fn func_stack_grow(&mut self) {
+        self.inner.function_stack.return_stack.reserve(1);
+    }
 }
 
 type SymbolSignature = (&'static str, *const fn() -> ());
@@ -2612,6 +2698,18 @@ impl RuntimeContext<'_> {
                 ),
                 (symbols::TLOAD, RuntimeContext::tload as *const _),
                 (symbols::TSTORE, RuntimeContext::tstore as *const _),
+                (
+                    symbols::FUNC_STACK_PUSH,
+                    RuntimeContext::func_stack_push as *const _,
+                ),
+                (
+                    symbols::FUNC_STACK_POP,
+                    RuntimeContext::func_stack_pop as *const _,
+                ),
+                (
+                    symbols::FUNC_STACK_GROW,
+                    RuntimeContext::func_stack_grow as *const _,
+                ),
             ];
 
             for (symbol, signature) in symbols_and_signatures {

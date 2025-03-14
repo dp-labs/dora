@@ -1,5 +1,7 @@
 /// Max stack size
 pub const MAX_STACK_SIZE: usize = 1024;
+/// Max EOF function stack size
+pub const MAX_FUNCTION_STACK_SIZE: usize = 1024;
 /// VM call stack limit.
 pub const CALL_STACK_LIMIT: usize = 1024;
 /// MLIR call entry point name.

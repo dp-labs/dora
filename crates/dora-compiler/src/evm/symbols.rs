@@ -16,7 +16,7 @@ pub(crate) fn declare_symbols(context: &MLIRContext, module: &MLIRModule) {
 
     let uint8 = builder.i8_ty();
     let uint64 = builder.i64_ty();
-    let index_type = builder.index_ty();
+    let size_type = builder.isize_ty();
     let ptr_type = builder.ptr_ty();
 
     let attributes = &[(
@@ -136,7 +136,7 @@ pub(crate) fn declare_symbols(context: &MLIRContext, module: &MLIRModule) {
         ),
         (
             symbols::RETURNCONTRACT,
-            &[ptr_type, uint8, uint64, uint64, index_type, uint64, uint8],
+            &[ptr_type, uint8, uint64, uint64, size_type, uint64, uint8],
             &[ptr_type],
         ),
         (
@@ -172,6 +172,13 @@ pub(crate) fn declare_symbols(context: &MLIRContext, module: &MLIRModule) {
         (symbols::SELFDESTRUCT, &[ptr_type, ptr_type], &[ptr_type]),
         (symbols::TLOAD, &[ptr_type, ptr_type, ptr_type], &[]),
         (symbols::TSTORE, &[ptr_type, ptr_type, ptr_type], &[]),
+        (
+            symbols::FUNC_STACK_PUSH,
+            &[ptr_type, size_type, size_type],
+            &[uint8],
+        ),
+        (symbols::FUNC_STACK_POP, &[ptr_type], &[size_type]),
+        (symbols::FUNC_STACK_GROW, &[ptr_type], &[]),
     ];
 
     for (name, input_types, output_types) in function_signatures.iter() {
