@@ -159,6 +159,11 @@ pub(crate) fn declare_symbols(context: &MLIRContext, module: &MLIRModule) {
             &[ptr_type],
         ),
         (
+            symbols::EXTCALL_ADDR_VALIDATE,
+            &[ptr_type, ptr_type],
+            &[uint8],
+        ),
+        (
             symbols::EXTCALL,
             &[ptr_type, ptr_type, ptr_type, uint64, uint64, uint64, uint8],
             &[ptr_type],

@@ -50,6 +50,7 @@ pub const CALL: &str = "dora_fn_call";
 pub const CREATE: &str = "dora_fn_create";
 pub const CREATE2: &str = "dora_fn_create2";
 pub const EXTCALL: &str = "dora_fn_extcall";
+pub const EXTCALL_ADDR_VALIDATE: &str = "dora_fn_extcall_addr_validate";
 pub const RETURNDATA: &str = "dora_fn_returndata";
 pub const RETURNDATA_SIZE: &str = "dora_fn_returndata_size";
 pub const RETURNDATA_COPY: &str = "dora_fn_returndata_copy";

@@ -5152,10 +5152,35 @@ fn staticcall() {
     run_program_assert_num_result(env, db, SpecId::CANCUN, 1_u8.into());
 }
 
-// TODO : check ext calls after eof contract creation resolved
-
 #[test]
 fn extcall() {
+    let operations = vec![
+        Operation::Push((1_u8, 0_u32.into())),
+        Operation::Push((1_u8, 1_u32.into())),
+        Operation::Push((1_u8, 32_u32.into())),
+        Operation::Push((1_u8, 64_u32.into())),
+        Operation::ExtCall,
+        // Return result
+        Operation::Push0,
+        Operation::MStore,
+        Operation::Push((1_u8, 32_u8.into())),
+        Operation::Push0,
+        Operation::Return,
+    ];
+
+    let program = Program::from_operations(operations, true);
+
+    let eof = Eof::new(EofBody {
+        code_section: vec![Bytes::from(program.to_opcode())],
+        ..EofBody::default()
+    });
+
+    let (env, db) = default_env_and_db_setup_eof(eof);
+    run_program_assert_num_result(env, db, SpecId::OSAKA, 0_u8.into());
+}
+
+#[test]
+fn extcall_out_of_funds() {
     let operations = vec![
         Operation::Push((1_u8, 32_u32.into())),
         Operation::Push((1_u8, 1_u32.into())),
@@ -5178,7 +5203,7 @@ fn extcall() {
     });
 
     let (env, db) = default_env_and_db_setup_eof(eof);
-    run_program_assert_num_result(env, db, SpecId::OSAKA, 0_u8.into());
+    run_program_assert_num_result(env, db, SpecId::OSAKA, 1_u8.into());
 }
 
 #[test]
@@ -5204,7 +5229,8 @@ fn extdelegatecall() {
     });
 
     let (env, db) = default_env_and_db_setup_eof(eof);
-    run_program_assert_num_result(env, db, SpecId::OSAKA, 0_u8.into());
+    // The result is 1 because the InvalidExtDelegatecallTarget error.
+    run_program_assert_num_result(env, db, SpecId::OSAKA, 1_u8.into());
 }
 
 #[test]

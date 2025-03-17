@@ -1,4 +1,7 @@
-use dora_primitives::{Address, B256, FixedBytes, ToHexExt, U256, fixed_bytes, keccak256, uint};
+use alloy_sol_types::{SolCall, sol};
+use dora_primitives::{
+    Address, B256, FixedBytes, ToHexExt, U256, Uint, fixed_bytes, keccak256, uint,
+};
 use dora_runtime::{account::AccountStatus, db::DbAccount};
 use rustc_hash::FxHashMap;
 
@@ -165,6 +168,22 @@ impl FactoryContract {
                 ..Default::default()
             },
         )
+    }
+
+    pub fn create_pool_abi_encode(token_a: Address, token_b: Address, fee: Uint<24, 1>) -> Vec<u8> {
+        sol! {
+            function createPool(
+                address tokenA,
+                address tokenB,
+                uint24 fee
+            ) external override noDelegateCall returns (address pool);
+        }
+        createPoolCall {
+            tokenA: token_a,
+            tokenB: token_b,
+            fee,
+        }
+        .abi_encode()
     }
 }
 

@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-pub use alloy_primitives::{PrimitiveSignature, SignatureError, Signed};
+pub use alloy_primitives::{PrimitiveSignature, SignatureError, Signed, Uint};
 pub use revm::interpreter::{AccountLoad, Eip7702CodeLoad, OpCode, SelfDestructResult, StateLoad};
 pub use revm::precompile::{
     Precompile, PrecompileErrors, PrecompileOutput, PrecompileSpecId, Precompiles,

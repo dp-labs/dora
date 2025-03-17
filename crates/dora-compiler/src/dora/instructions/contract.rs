@@ -571,6 +571,22 @@ impl ConversionPass<'_> {
         let uint256 = rewriter.i256_ty();
         let ptr_type = rewriter.ptr_ty();
 
+        let value_ptr =
+            memory::allocate_u256_and_assign_value(context, &rewriter, value, location)?;
+        let target_address_ptr =
+            memory::allocate_u256_and_assign_value(context, &rewriter, target_address, location)?;
+        // Check the EXT*CALL target address is valid.
+        let error = rewriter.make(func::call(
+            context,
+            FlatSymbolRefAttribute::new(context, symbols::EXTCALL_ADDR_VALIDATE),
+            &[syscall_ctx.into(), target_address_ptr],
+            &[uint8],
+            location,
+        ))?;
+        // Check the runtime halt error
+        check_runtime_error!(op, rewriter, error);
+        rewrite_ctx!(context, op, rewriter, _location, NoDefer);
+
         u256_as_usize_or_fail!(op, rewriter, input_size);
         u256_as_usize_or_fail!(op, rewriter, input_offset);
         let size_is_not_zero =
@@ -610,10 +626,6 @@ impl ConversionPass<'_> {
         );
         rewrite_ctx!(context, op, rewriter, NoDefer);
         let remaining_gas = rewriter.make(rewriter.load(gas_counter_ptr, uint64))?;
-        let value_ptr =
-            memory::allocate_u256_and_assign_value(context, &rewriter, value, location)?;
-        let target_address_ptr =
-            memory::allocate_u256_and_assign_value(context, &rewriter, target_address, location)?;
         let call_type_value = rewriter.make(arith_constant!(
             rewriter,
             context,
@@ -621,8 +633,6 @@ impl ConversionPass<'_> {
             call_type as u8 as i64,
             location
         ))?;
-        // TODO : Check `target_address` has any high 12 bytes in 32 byte value itself,
-        // since CALLCODE is deprecated and only 20-byte address is allowed.
         let result_ptr = rewriter.make(func::call(
             context,
             FlatSymbolRefAttribute::new(context, symbols::EXTCALL),
