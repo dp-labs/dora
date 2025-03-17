@@ -49,6 +49,7 @@ pub(crate) fn declare_symbols(context: &MLIRContext, module: &MLIRModule) {
             &[ptr_type, uint64, ptr_type, uint64],
             &[],
         ),
+        (symbols::DATA_LOAD, &[ptr_type, ptr_type], &[]),
         (symbols::DATA_SECTION, &[ptr_type], &[ptr_type]),
         (symbols::DATA_SECTION_SIZE, &[ptr_type], &[uint64]),
         (

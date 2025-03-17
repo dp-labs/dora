@@ -2,6 +2,7 @@ use crate::Compiler;
 use crate::context::Context;
 use crate::evm::program::{Operation, Program};
 use crate::evm::{EVMCompileOptions, EVMCompiler};
+use dora_primitives::SpecId;
 use num_bigint::BigInt;
 use num_bigint::BigUint;
 
@@ -11,8 +12,13 @@ macro_rules! assert_snapshot {
     };
     ($operations:expr, $is_eof:expr) => {
         let program = Program::from_operations($operations, $is_eof);
+        let spec_id = if $is_eof {
+            SpecId::OSAKA
+        } else {
+            SpecId::CANCUN
+        };
         let context = Context::new();
-        let compiler = EVMCompiler::new(&context, EVMCompileOptions::default());
+        let compiler = EVMCompiler::new(&context, EVMCompileOptions::default().spec_id(spec_id));
         let mut module = compiler
             .compile(&program)
             .expect("failed to compile program");

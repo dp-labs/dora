@@ -2,7 +2,7 @@ use crate::Compiler;
 use crate::context::Context;
 use crate::evm::program::{Operation, Program};
 use crate::evm::{EVMCompileOptions, EVMCompiler};
-use dora_primitives::Bytecode;
+use dora_primitives::{Bytecode, SpecId};
 use num_bigint::BigUint;
 
 macro_rules! assert_snapshot {
@@ -16,8 +16,13 @@ macro_rules! assert_snapshot {
         } else {
             Program::new_raw(&opcodes)
         };
+        let spec_id = if $is_eof {
+            SpecId::OSAKA
+        } else {
+            SpecId::CANCUN
+        };
         let context = Context::new();
-        let compiler = EVMCompiler::new(&context, EVMCompileOptions::default());
+        let compiler = EVMCompiler::new(&context, EVMCompileOptions::default().spec_id(spec_id));
         // Compile EVM Bytecode to MLIR EVM Dialect
         let module = compiler
             .compile(&program)
@@ -71,6 +76,12 @@ fn push0_pop() {
 fn push0_iszero_pop() {
     let operations = vec![Operation::Push0, Operation::IsZero, Operation::Pop];
     assert_snapshot!(operations);
+}
+
+#[test]
+fn push_extcall() {
+    let operations = vec![Operation::ExtCall];
+    assert_snapshot!(operations, true);
 }
 
 #[test]

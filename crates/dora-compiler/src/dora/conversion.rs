@@ -234,7 +234,6 @@ impl ConversionPass<'_> {
             } else if name == "dora.log4" {
                 Self::log(context, op, 4)?;
             } else if name == "dora.dataload" || name == "dora.dataloadn" {
-                // Optimize code by merging the same two LLVM/MLIR codes
                 Self::dataload(context, op)?;
             } else if name == "dora.datasize" {
                 Self::datasize(context, op)?;

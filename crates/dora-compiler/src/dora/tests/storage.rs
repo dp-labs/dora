@@ -3,7 +3,7 @@ use crate::evm::program::Operation;
 use crate::evm::{EVMCompileOptions, EVMCompiler, Program};
 use crate::pass::run;
 use crate::{context::Context, dora::storage::STORAGE_MEMORY_MAP_CODE};
-use dora_primitives::config::OptimizationLevel;
+use dora_primitives::{OptimizationLevel, SpecId};
 use melior::ExecutionEngine;
 use melior::ir::Module;
 use num_bigint::BigUint;
@@ -14,11 +14,17 @@ macro_rules! assert_snapshot {
     };
     ($operations:expr, $is_eof:expr) => {
         let program = Program::from_operations($operations, $is_eof);
+        let spec_id = if $is_eof {
+            SpecId::OSAKA
+        } else {
+            SpecId::CANCUN
+        };
         let context = Context::new();
         let compiler = EVMCompiler::new(
             &context,
             EVMCompileOptions {
                 inline: true,
+                spec_id,
                 ..Default::default()
             },
         );

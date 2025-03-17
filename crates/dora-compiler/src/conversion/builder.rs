@@ -586,6 +586,18 @@ impl<'c, 'a> OpBuilder<'c, 'a> {
         self.iconst_256(BigUint::from(value))
     }
 
+    /// Creates an usize integer constant operation with the specified value.
+    ///
+    /// # Parameters
+    /// - `value`: The usize value.
+    ///
+    /// # Returns
+    /// An integer constant operation of type `isize_ty`.
+    #[inline]
+    pub fn iconst_usize(&self, value: usize) -> Op<'c, '_> {
+        self.iconst(self.intrinsics.isize_ty, value as i64)
+    }
+
     /// Creates a floating-point constant operation with the specified type and value.
     ///
     /// # Parameters
