@@ -17,9 +17,9 @@ use crate::wasm::trap::wasm_raise_trap;
 use crate::{ExitStatusCode, gas, symbols};
 use dora_primitives::{
     Address, B256, BLOCK_HASH_HISTORY, BLOCKHASH_STORAGE_ADDRESS, Bytecode, Bytes, Bytes32, CfgEnv,
-    EOF_MAGIC_BYTES, EOF_MAGIC_HASH, Env, KECCAK_EMPTY, Log, LogData, OpCode, PER_AUTH_BASE_COST,
-    PER_EMPTY_ACCOUNT_COST, PrecompileErrors, PrecompileSpecId, Precompiles, SpecId, U256,
-    as_u64_saturated, as_usize_saturated, keccak256,
+    EOF_MAGIC_BYTES, EOF_MAGIC_HASH, EVMBytecode, Env, KECCAK_EMPTY, Log, LogData, OpCode,
+    PER_AUTH_BASE_COST, PER_EMPTY_ACCOUNT_COST, PrecompileErrors, PrecompileSpecId, Precompiles,
+    SpecId, U256, as_u64_saturated, as_usize_saturated, keccak256,
 };
 
 /// Function type for the EVM main entrypoint of the generated code.
@@ -495,14 +495,22 @@ impl<'a, DB: Database> VMContext<'a, DB> {
             ));
         }
         match msg.kind {
-            CallKind::Call | CallKind::Callcode | CallKind::Delegatecall | CallKind::Staticcall => {
+            CallKind::Call
+            | CallKind::Callcode
+            | CallKind::Delegatecall
+            | CallKind::Staticcall
+            | CallKind::ExtCall
+            | CallKind::ExtStaticcall
+            | CallKind::ExtDelegatecall => {
                 // Make account warm and loaded
                 let _ = self
                     .journaled_state
                     .load_account_delegated(msg.code_address, &mut self.db);
+                // Create subroutine checkpoint
                 let checkpoint = self.journaled_state.checkpoint();
+                // Touch address. For "EIP-158 State Clear", this will erase empty accounts.
                 if !matches!(msg.kind, CallKind::Delegatecall) {
-                    // Create the checkpont for the sub call.
+                    // If transfer value is zero, load account and force the touch.
                     if msg.value.is_zero() {
                         self.load_account(msg.recipient)
                             .map_err(|_| VMError::Database(DatabaseError))?;
@@ -523,115 +531,67 @@ impl<'a, DB: Database> VMContext<'a, DB> {
                         }
                     }
                 }
-                if let Some(call_result) =
-                    self.call_precompile(msg.code_address, &msg.input.clone(), msg.gas_limit)?
-                {
-                    if call_result.status.is_ok() {
-                        self.journaled_state.checkpoint_commit();
-                    } else {
-                        self.journaled_state.checkpoint_revert(checkpoint);
+                let is_ext_delegate = matches!(msg.kind, CallKind::ExtDelegatecall);
+                if !is_ext_delegate {
+                    if let Some(call_result) =
+                        self.call_precompile(msg.code_address, &msg.input.clone(), msg.gas_limit)?
+                    {
+                        if call_result.status.is_ok() {
+                            self.journaled_state.checkpoint_commit();
+                        } else {
+                            self.journaled_state.checkpoint_revert(checkpoint);
+                        }
+                        return Ok(call_result);
                     }
-                    Ok(call_result)
-                } else {
-                    let account = self
-                        .journaled_state
-                        .load_code(msg.code_address, &mut self.db)
-                        .map_err(|_| VMError::Database(DatabaseError))?;
-                    let code_hash = account.info.code_hash;
-                    let bytecode = account.info.code.clone().unwrap_or_default();
-                    if bytecode.is_empty() {
-                        self.journaled_state.checkpoint_commit();
-                        return Ok(CallResult::new_with_gas_limit_and_status(
-                            msg.gas_limit,
-                            ExitStatusCode::Stop,
-                        ));
-                    }
-                    let contract = Contract::new_with_call_message(
-                        &msg,
-                        msg.input.clone(),
-                        bytecode,
-                        Some(code_hash),
-                    );
-                    let call_result = self.invoke_call_handler(Frame {
-                        contract,
-                        gas_limit: msg.gas_limit,
-                        is_static: msg.is_static,
-                        is_eof_init: msg.is_eof_init,
-                        validate_eof: msg.validate_eof,
-                        depth: self.journaled_state.depth(),
-                    })?;
-                    self.call_return(&call_result.status, checkpoint);
-                    Ok(call_result)
                 }
-            }
-            CallKind::ExtCall | CallKind::ExtStaticcall | CallKind::ExtDelegatecall => {
-                // Make account warm and loaded
-                let _ = self
+                // Load account and bytecode
+                let account = self
                     .journaled_state
-                    .load_account_delegated(msg.code_address, &mut self.db);
-                let checkpoint = self.journaled_state.checkpoint();
-                if matches!(msg.kind, CallKind::ExtDelegatecall) {
-                    // Create the checkpont for the sub call.
-                    if msg.value.is_zero() {
-                        self.load_account(msg.recipient)
-                            .map_err(|_| VMError::Database(DatabaseError))?;
-                        self.journaled_state.touch(&msg.recipient);
-                    } else {
-                        // Transfer value from caller to called account. As value get transferred
-                        // target gets touched.
-                        if let Some(status) = self
-                            .journaled_state
-                            .transfer(&msg.caller, &msg.recipient, msg.value, &mut self.db)
-                            .map_err(|_| VMError::Database(DatabaseError))?
-                        {
-                            self.journaled_state.checkpoint_revert(checkpoint);
-                            return Ok(CallResult::new_with_gas_limit_and_status(
-                                msg.gas_limit,
-                                status,
-                            ));
-                        }
-                    }
+                    .load_code(msg.code_address, &mut self.db)
+                    .map_err(|_| VMError::Database(DatabaseError))?;
+                let code_hash = account.info.code_hash;
+                let mut bytecode = account.info.code.clone().unwrap_or_default();
+                // ExtDelegateCall is not allowed to call non-EOF contracts.
+                if is_ext_delegate && !bytecode.bytecode().starts_with(&EOF_MAGIC_BYTES) {
+                    return Ok(CallResult::new_with_gas_limit_and_status(
+                        msg.gas_limit,
+                        ExitStatusCode::InvalidExtDelegatecallTarget,
+                    ));
                 }
-                if let Some(call_result) =
-                    self.call_precompile(msg.code_address, &msg.input.clone(), msg.gas_limit)?
-                {
-                    if call_result.status.is_ok() {
-                        self.journaled_state.checkpoint_commit();
-                    } else {
-                        self.journaled_state.checkpoint_revert(checkpoint);
-                    }
-                    Ok(call_result)
-                } else {
-                    let account = self
+                if bytecode.is_empty() {
+                    self.journaled_state.checkpoint_commit();
+                    return Ok(CallResult::new_with_gas_limit_and_status(
+                        msg.gas_limit,
+                        ExitStatusCode::Stop,
+                    ));
+                }
+                if let Bytecode::EVM(EVMBytecode::Eip7702(eip7702_bytecode)) = bytecode {
+                    bytecode = self
                         .journaled_state
-                        .load_code(msg.code_address, &mut self.db)
-                        .map_err(|_| VMError::Database(DatabaseError))?;
-                    let code_hash = account.info.code_hash;
-                    let bytecode = account.info.code.clone().unwrap_or_default();
-                    if bytecode.is_empty() {
-                        self.journaled_state.checkpoint_commit();
-                        return Ok(CallResult::new_with_gas_limit_and_status(
-                            msg.gas_limit,
-                            ExitStatusCode::Stop,
-                        ));
-                    }
-                    let contract = Contract::new_with_call_message(
-                        &msg,
-                        msg.input.clone(),
-                        bytecode,
-                        Some(code_hash),
-                    );
-                    let call_result = self.invoke_call_handler(Frame {
-                        contract,
-                        gas_limit: msg.gas_limit,
-                        is_static: msg.is_static,
-                        is_eof_init: msg.is_eof_init,
-                        validate_eof: msg.validate_eof,
-                        depth: self.journaled_state.depth(),
-                    })?;
-                    self.call_return(&call_result.status, checkpoint);
-                    Ok(call_result)
+                        .load_code(eip7702_bytecode.delegated_address, &mut self.db)
+                        .map_err(|_| VMError::Database(DatabaseError))?
+                        .info
+                        .code
+                        .clone()
+                        .unwrap_or_default();
                 }
+
+                let contract = Contract::new_with_call_message(
+                    &msg,
+                    msg.input.clone(),
+                    bytecode,
+                    Some(code_hash),
+                );
+                let call_result = self.invoke_call_handler(Frame {
+                    contract,
+                    gas_limit: msg.gas_limit,
+                    is_static: msg.is_static,
+                    is_eof_init: msg.is_eof_init,
+                    validate_eof: msg.validate_eof,
+                    depth: self.journaled_state.depth(),
+                })?;
+                self.call_return(&call_result.status, checkpoint);
+                Ok(call_result)
             }
             CallKind::EofCreate => {
                 // Fetch balance of caller.
@@ -1586,6 +1546,16 @@ impl RuntimeContext<'_> {
         &self.inner.result as _
     }
 
+    extern "C" fn extcall_addr_validate(&mut self, address: &Bytes32) -> ExitStatusCode {
+        let address_bytes = address.to_be_bytes();
+        let (pad, _) = address_bytes.split_last_chunk::<20>().unwrap();
+        if !pad.iter().all(|i| *i == 0) {
+            ExitStatusCode::InvalidExtCallTarget
+        } else {
+            ExitStatusCode::Continue
+        }
+    }
+
     extern "C" fn extcall(
         &mut self,
         call_to_address: &Bytes32,
@@ -1626,8 +1596,6 @@ impl RuntimeContext<'_> {
         let gas_reduce = (gas_remaining / 64).max(5000);
         let gas_limit = gas_remaining.saturating_sub(gas_reduce);
 
-        self.inner.returndata.clear();
-
         // The MIN_CALLEE_GAS rule is a replacement for stipend:
         // it simplifies the reasoning about the gas costs and is
         // applied uniformly for all introduced EXT*CALL instructions.
@@ -1641,7 +1609,12 @@ impl RuntimeContext<'_> {
             return &self.inner.result as _;
         }
 
-        let (gas_remaining, _) = gas_remaining.overflowing_sub(gas_limit);
+        let (gas_remaining, out_of_gas) = gas_remaining.overflowing_sub(gas_limit);
+        if out_of_gas {
+            self.inner.result.error = ExitStatusCode::OutOfGas.to_u8();
+            self.inner.result.value = 1;
+            return &self.inner.result as _;
+        }
 
         let call_msg = CallMessage {
             kind: call_type.into(),
@@ -1676,14 +1649,14 @@ impl RuntimeContext<'_> {
             validate_eof: true,
         };
         if std::env::var(DORA_TRACING).is_ok() {
-            println!("info: sub call msg {:?}", call_msg);
+            println!("info: sub ext call msg {:?}", call_msg);
         }
         let call_result = self
             .host
             .call(call_msg)
             .unwrap_or_else(|_| CallResult::new_with_gas_limit(gas_limit));
         if std::env::var(DORA_TRACING).is_ok() {
-            println!("info: sub call ret {:?}", call_result);
+            println!("info: sub ext call ret {:?}", call_result);
         }
         self.inner.returndata = call_result.output.to_vec();
         // Check the error message.
@@ -2344,9 +2317,9 @@ impl RuntimeContext<'_> {
         // Check the error message.
         if call_result.status.is_ok() {
             let new_address = call_result.create_address.unwrap_or_default();
-            // Call ReturnContract with the new address
+            // Call EOF Create with the new address
             let call_msg = CallMessage {
-                kind: CallKind::ReturnContract,
+                kind: CallKind::EofCreate,
                 input: input.into(),
                 value: value.to_u256(),
                 depth: self.inner.depth as u32,
@@ -2695,6 +2668,10 @@ impl RuntimeContext<'_> {
                 (symbols::CREATE, RuntimeContext::create as *const _),
                 (symbols::CREATE2, RuntimeContext::create2 as *const _),
                 (symbols::CALL, RuntimeContext::call as *const _),
+                (
+                    symbols::EXTCALL_ADDR_VALIDATE,
+                    RuntimeContext::extcall_addr_validate as *const _,
+                ),
                 (symbols::EXTCALL, RuntimeContext::extcall as *const _),
                 (symbols::RETURNDATA, RuntimeContext::returndata as *const _),
                 (
