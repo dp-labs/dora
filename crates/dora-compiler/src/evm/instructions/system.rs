@@ -4,6 +4,7 @@ use crate::backend::{Builder, EVMBuilder};
 use crate::errors::Result;
 
 use crate::evm::{CtxType, EVMCompiler};
+use crate::value::ToContextValue;
 
 impl<'c> EVMCompiler<'c> {
     pub(crate) fn keccak256<'r>(
@@ -98,7 +99,9 @@ impl<'c> EVMCompiler<'c> {
         offset: u16,
     ) -> Result<BlockRef<'r, 'c>> {
         let mut builder = Self::make_builder(ctx, start_block);
-        let offset = builder.iconst_16(offset as i16)?;
+        let offset = builder
+            .make(builder.iconst_256_from_u64(offset as u64)?)?
+            .to_ctx_value();
         let value = builder.dataloadn(offset)?;
         builder.stack_push(value)?;
         Ok(start_block)

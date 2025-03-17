@@ -12,6 +12,7 @@ module {
   func.func private @dora_fn_calldata(!llvm.ptr) -> !llvm.ptr
   func.func private @dora_fn_calldata_size(!llvm.ptr) -> i64
   func.func private @dora_fn_calldata_copy(!llvm.ptr, i64, !llvm.ptr, i64)
+  func.func private @dora_fn_data_load(!llvm.ptr, !llvm.ptr)
   func.func private @dora_fn_data_section(!llvm.ptr) -> !llvm.ptr
   func.func private @dora_fn_data_section_size(!llvm.ptr) -> i64
   func.func private @dora_fn_data_section_copy(!llvm.ptr, i64, !llvm.ptr, i64)
@@ -71,11 +72,26 @@ module {
   ^bb2(%2: i8):  // no predecessors
     return %2 : i8
   ^bb3:  // pred: ^bb0
-    %c85_i8 = arith.constant 85 : i8
-    cf.br ^bb1(%c85_i8 : i8)
-  ^bb4:  // no predecessors
-    cf.br ^bb5
-  ^bb5:  // pred: ^bb4
+    %3 = llvm.load %arg1 : !llvm.ptr -> i64
+    %c3_i64 = arith.constant 3 : i64
+    call @dora_fn_nop() : () -> ()
+    %4 = arith.cmpi uge, %3, %c3_i64 : i64
+    %c80_i8 = arith.constant 80 : i8
+    cf.cond_br %4, ^bb5, ^bb1(%c80_i8 : i8)
+  ^bb4:  // pred: ^bb5
+    %5 = llvm.load %arg4 : !llvm.ptr -> !llvm.ptr
+    %6 = llvm.getelementptr %5[-17] : (!llvm.ptr) -> !llvm.ptr, i256
+    %7 = llvm.getelementptr %5[-33] : (!llvm.ptr) -> !llvm.ptr, i256
+    %8 = llvm.load %6 : !llvm.ptr -> i256
+    %9 = llvm.load %7 : !llvm.ptr -> i256
+    llvm.store %8, %7 : i256, !llvm.ptr
+    llvm.store %9, %6 : i256, !llvm.ptr
+    cf.br ^bb6
+  ^bb5:  // pred: ^bb3
+    %10 = arith.subi %3, %c3_i64 : i64
+    llvm.store %10, %arg1 : i64, !llvm.ptr
+    cf.br ^bb4
+  ^bb6:  // pred: ^bb4
     %c0_i8 = arith.constant 0 : i8
     return %c0_i8 : i8
   }

@@ -181,7 +181,7 @@ impl ConversionPass<'_> {
 
         rewrite_ctx!(context, op, rewriter, NoDefer);
         let offset = rewriter.make(arith::trunci(aux_data_offset, uint64, location))?;
-        let max_code_size = rewriter.make(rewriter.index(limit_contract_code_size))?;
+        let max_code_size = rewriter.make(rewriter.iconst_usize(limit_contract_code_size))?;
         let gas_counter = rewriter.make(rewriter.load(gas_counter_ptr, uint64))?;
 
         let result_ptr = rewriter.make(func::call(
@@ -196,7 +196,7 @@ impl ConversionPass<'_> {
                 gas_counter,
                 reason,
             ],
-            &[],
+            &[rewriter.ptr_ty()],
             location,
         ))?;
         let error = rewriter.get_field_value(
@@ -539,39 +539,10 @@ impl ConversionPass<'_> {
         op: &OperationRef<'_, '_>,
         call_type: ExtCallType,
     ) -> Result<()> {
-        rewrite_ctx!(context, op, rewriter, location, NoDefer);
-
-        let uint8 = rewriter.i8_ty();
-
+        rewrite_ctx!(context, op, rewriter, NoDefer);
         match call_type {
             ExtCallType::Call => {
-                let value = op.operand(3)?;
-
-                block_argument!(op, syscall_ctx);
-                // Static call value is zero check
-                let ctx_is_static_u8 = rewriter.make(func::call(
-                    context,
-                    FlatSymbolRefAttribute::new(context, symbols::CTX_IS_STATIC),
-                    &[syscall_ctx.into()],
-                    &[uint8],
-                    location,
-                ))?;
-                let ctx_is_static =
-                    rewriter.make(rewriter.icmp_imm(IntCC::NotEqual, ctx_is_static_u8, 0)?)?;
-                let zero = rewriter.make(rewriter.iconst_256_from_u64(0)?)?;
-                let value_is_not_zero =
-                    rewriter.make(rewriter.icmp(IntCC::NotEqual, value, zero))?;
-                let revert_flag =
-                    rewriter.make(arith::andi(ctx_is_static, value_is_not_zero, location))?;
-
-                maybe_revert_here!(
-                    op,
-                    rewriter,
-                    revert_flag,
-                    ExitStatusCode::CallNotAllowedInsideStatic
-                );
-
-                Self::ext_intern_call(context, op, value, call_type)?;
+                Self::ext_intern_call(context, op, op.operand(3)?, call_type)?;
             }
             ExtCallType::Staticcall | ExtCallType::Delegatecall => {
                 Self::ext_intern_call(
@@ -616,7 +587,27 @@ impl ConversionPass<'_> {
                 input_size,
             )?;
         });
+        rewrite_ctx!(context, op, rewriter, NoDefer);
+        // Static call value is zero check
+        let ctx_is_static_u8 = rewriter.make(func::call(
+            context,
+            FlatSymbolRefAttribute::new(context, symbols::CTX_IS_STATIC),
+            &[syscall_ctx.into()],
+            &[uint8],
+            location,
+        ))?;
+        let ctx_is_static =
+            rewriter.make(rewriter.icmp_imm(IntCC::NotEqual, ctx_is_static_u8, 0)?)?;
+        let zero = rewriter.make(rewriter.iconst_256_from_u64(0)?)?;
+        let value_is_not_zero = rewriter.make(rewriter.icmp(IntCC::NotEqual, value, zero))?;
+        let revert_flag = rewriter.make(arith::andi(ctx_is_static, value_is_not_zero, location))?;
 
+        maybe_revert_here!(
+            op,
+            rewriter,
+            revert_flag,
+            ExitStatusCode::CallNotAllowedInsideStatic
+        );
         rewrite_ctx!(context, op, rewriter, NoDefer);
         let remaining_gas = rewriter.make(rewriter.load(gas_counter_ptr, uint64))?;
         let value_ptr =
@@ -697,8 +688,6 @@ impl ConversionPass<'_> {
             &[uint64],
             location,
         ))?;
-        // convert `offset` from u16 to u256
-        let offset = rewriter.make(arith::extui(offset, uint256, location))?;
         // convert `returndata_size` from u64 to u256
         let returndata_size = rewriter.make(arith::extui(returndata_size, uint256, location))?;
         // Define the maximum slice width (32 bytes)

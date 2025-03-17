@@ -10,6 +10,7 @@ pub const MEMORY_SIZE: &str = "dora_fn_memory_size";
 pub const CALLDATA: &str = "dora_fn_calldata";
 pub const CALLDATA_SIZE: &str = "dora_fn_calldata_size";
 pub const CALLDATA_COPY: &str = "dora_fn_calldata_copy";
+pub const DATA_LOAD: &str = "dora_fn_data_load";
 pub const DATA_SECTION: &str = "dora_fn_data_section";
 pub const DATA_SECTION_SIZE: &str = "dora_fn_data_section_size";
 pub const DATA_SECTION_COPY: &str = "dora_fn_data_section_copy";

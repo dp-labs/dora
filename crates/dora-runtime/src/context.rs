@@ -1823,6 +1823,18 @@ impl RuntimeContext<'_> {
         }
     }
 
+    extern "C" fn data_load(&mut self, offset: &mut Bytes32) {
+        let slice = self
+            .contract
+            .code
+            .eof()
+            .unwrap()
+            .data_slice(as_usize_saturated!(offset.as_u256()), 32);
+        let mut word = [0u8; 32];
+        word[..slice.len()].copy_from_slice(slice);
+        *offset = Bytes32::from_be_bytes(word);
+    }
+
     extern "C" fn data_section(&mut self) -> *mut u8 {
         self.contract.code.eof().expect("eof").data().as_ptr() as _
     }
@@ -2608,6 +2620,7 @@ impl RuntimeContext<'_> {
                     symbols::CALLDATA_COPY,
                     RuntimeContext::calldata_copy as *const _,
                 ),
+                (symbols::DATA_LOAD, RuntimeContext::data_load as *const _),
                 (
                     symbols::DATA_SECTION,
                     RuntimeContext::data_section as *const _,
