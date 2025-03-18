@@ -239,8 +239,8 @@ impl Host for EvmcDelegateHost<'_> {
                 transmute::<[u8; 32], evmc_bytes32>(Bytes32::from(msg.value).to_be_bytes()),
                 transmute::<B256, evmc_bytes32>(msg.salt.unwrap_or_default()),
                 transmute::<Address, evmc_address>(msg.code_address),
-                if msg.input.len() > 0 {
-                    Some(&msg.input.0)
+                if msg.init_code.len() > 0 {
+                    Some(&msg.init_code.0)
                 } else {
                     None
                 },
