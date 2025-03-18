@@ -14,7 +14,7 @@ use crate::call::{CallKind, CallMessage, CallResult, CallType};
 use crate::constants::env::DORA_DISABLE_CONSOLE;
 use crate::context::RuntimeContext;
 use dora_primitives::{
-    Address, B256, Bytes32, KECCAK_EMPTY, Log, LogData, U256, as_u64_saturated,
+    Address, B256, Bytes, Bytes32, KECCAK_EMPTY, Log, LogData, U256, as_u64_saturated,
     keccak256 as native_keccak256,
 };
 use wasmer::{Memory, MemoryAccessError, MemoryView, Pages, StoreMut, WasmPtr};
@@ -946,6 +946,7 @@ fn intern_call(
     let call_msg = CallMessage {
         kind: call_type.into(),
         input: call_data.into(),
+        init_code: Bytes::new(),
         value: if call_type == CallType::Delegatecall {
             runtime_context.contract.call_value
         } else {
@@ -996,7 +997,8 @@ fn intern_create(
         } else {
             CallKind::Create
         },
-        input: code.into(),
+        input: Bytes::new(),
+        init_code: code.into(),
         value,
         depth: runtime_context.inner.depth as u32,
         gas_limit,

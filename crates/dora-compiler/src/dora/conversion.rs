@@ -240,7 +240,7 @@ impl ConversionPass<'_> {
             } else if name == "dora.datacopy" {
                 Self::datacopy(context, op)?;
             } else if name == "dora.eofcreate" {
-                Self::eofcreate(context, op, self.limit_contract_code_size)?;
+                Self::eofcreate(context, op)?;
             } else if name == "dora.returncontract" {
                 Self::returncontract(context, op, self.limit_contract_code_size)?;
             } else if name == "dora.create" {

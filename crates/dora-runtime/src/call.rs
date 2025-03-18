@@ -104,6 +104,8 @@ pub struct CallMessage {
     pub kind: CallKind,
     /// The call data of the execution.
     pub input: Bytes,
+    /// The init code of the execution.
+    pub init_code: Bytes,
     /// Call value.
     pub value: U256,
     /// The present depth of the message call stack.

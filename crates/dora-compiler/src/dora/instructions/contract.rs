@@ -6,7 +6,7 @@ use crate::{
     create_var,
     dora::{
         conversion::ConversionPass,
-        gas::{compute_eofcreate_create2_cost, compute_initcode_cost},
+        gas::{compute_create2_cost, compute_initcode_cost},
         memory,
     },
     ensure_non_staticcall,
@@ -35,11 +35,7 @@ use num_bigint::BigUint;
 use std::mem::offset_of;
 
 impl ConversionPass<'_> {
-    pub(crate) fn eofcreate(
-        context: &Context,
-        op: &OperationRef<'_, '_>,
-        limit_contract_code_size: usize,
-    ) -> Result<()> {
+    pub(crate) fn eofcreate(context: &Context, op: &OperationRef<'_, '_>) -> Result<()> {
         operands!(
             op,
             initcontainer_index,
@@ -64,20 +60,6 @@ impl ConversionPass<'_> {
         let size_is_not_zero =
             rewriter.make(rewriter.icmp_imm(IntCC::NotEqual, input_size, 0)?)?;
         if_here!(op, rewriter, size_is_not_zero, {
-            let revert_flag = rewriter.make(rewriter.icmp_imm(
-                IntCC::UnsignedGreaterThan,
-                input_size,
-                limit_contract_code_size as i64,
-            )?)?;
-            maybe_revert_here!(
-                op,
-                rewriter,
-                revert_flag,
-                ExitStatusCode::CreateContractSizeLimit
-            );
-
-            // Deduct gas cost for possible memory expansion
-            rewrite_ctx!(context, op, rewriter, NoDefer);
             u256_as_usize_or_fail!(op, rewriter, input_offset);
             memory::resize_memory(
                 context,
@@ -89,11 +71,6 @@ impl ConversionPass<'_> {
                 input_size,
             )?;
         });
-
-        // Calculate the gas cost and check the gas limit
-        rewrite_ctx!(context, op, rewriter, NoDefer);
-        let gas = compute_eofcreate_create2_cost(&rewriter, input_size)?;
-        gas_or_fail!(op, rewriter, gas, gas_counter_ptr);
 
         rewrite_ctx!(context, op, rewriter, NoDefer);
         let offset = rewriter.make(arith::trunci(input_offset, uint64, location))?;
@@ -264,7 +241,7 @@ impl ConversionPass<'_> {
         });
         let rewriter = Rewriter::new_with_op(context, *op);
         let gas = if is_create2 {
-            compute_eofcreate_create2_cost(&rewriter, size)
+            compute_create2_cost(&rewriter, size)
         } else {
             rewriter.make(rewriter.iconst_64(gas_cost::CREATE))
         }?;

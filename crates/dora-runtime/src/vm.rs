@@ -3,7 +3,7 @@ use std::{
     ops::{Deref, DerefMut},
 };
 
-use dora_primitives::{Env, InvalidTransaction, SpecId, U256, spec_to_generic};
+use dora_primitives::{Bytes, Env, InvalidTransaction, SpecId, U256, spec_to_generic};
 
 use crate::{
     ExitStatusCode,
@@ -195,6 +195,11 @@ impl<'a, DB: Database> VM<'a, DB> {
                     CallKind::Call
                 },
                 input: ctx.env.tx.data.clone(),
+                init_code: if ctx.env.tx.transact_to.is_create() {
+                    ctx.env.tx.data.clone()
+                } else {
+                    Bytes::new()
+                },
                 value: ctx.env.tx.value,
                 depth: 0,
                 gas_limit,

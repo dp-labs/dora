@@ -176,7 +176,7 @@ pub(crate) fn compute_initcode_cost<'c>(
     compute_per_word_cost(rewriter, memory_byte_size, INITCODE_WORD_COST)
 }
 
-/// Computes eofcreate/create2 cost, which is given by the following equations:
+/// Computes create2 cost, which is given by the following equations:
 ///
 /// ```no_check
 /// size_word   = (len + 31) / 32
@@ -184,7 +184,7 @@ pub(crate) fn compute_initcode_cost<'c>(
 /// cost        = len * memory_cost
 /// ```
 #[inline]
-pub(crate) fn compute_eofcreate_create2_cost<'c>(
+pub(crate) fn compute_create2_cost<'c>(
     rewriter: &'c Rewriter,
     len: Value<'c, 'c>,
 ) -> Result<Value<'c, 'c>> {
