@@ -195,11 +195,7 @@ impl<'a, DB: Database> VM<'a, DB> {
                     CallKind::Call
                 },
                 input: ctx.env.tx.data.clone(),
-                init_code: if ctx.env.tx.transact_to.is_create() {
-                    ctx.env.tx.data.clone()
-                } else {
-                    Bytes::new()
-                },
+                init_code: Bytes::new(),
                 value: ctx.env.tx.value,
                 depth: 0,
                 gas_limit,

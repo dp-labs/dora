@@ -997,8 +997,8 @@ fn intern_create(
         } else {
             CallKind::Create
         },
-        input: Bytes::new(),
-        init_code: code.into(),
+        input: code.into(),
+        init_code: Bytes::new(),
         value,
         depth: runtime_context.inner.depth as u32,
         gas_limit,

@@ -104,7 +104,7 @@ pub struct CallMessage {
     pub kind: CallKind,
     /// The call data of the execution.
     pub input: Bytes,
-    /// The init code of the execution.
+    /// The init code of the execution for the EOFCreate operation.
     pub init_code: Bytes,
     /// Call value.
     pub value: U256,

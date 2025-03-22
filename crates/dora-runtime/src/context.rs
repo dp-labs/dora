@@ -702,7 +702,7 @@ impl<'a, DB: Database> VMContext<'a, DB> {
                 let mut init_code_hash = B256::ZERO;
                 let created_address = match msg.salt {
                     Some(s) => {
-                        init_code_hash = keccak256(&msg.init_code);
+                        init_code_hash = keccak256(&msg.input);
                         msg.caller.create2(s.0, init_code_hash)
                     }
                     _ => msg.caller.create(old_nonce),
@@ -734,8 +734,8 @@ impl<'a, DB: Database> VMContext<'a, DB> {
                 };
 
                 let contract = Contract {
-                    input: msg.input,
-                    code: Bytecode::new(msg.init_code.clone()),
+                    input: Bytes::new(),
+                    code: Bytecode::new(msg.input.clone()),
                     hash: Some(init_code_hash),
                     target_address: created_address,
                     code_address: created_address,
@@ -2243,8 +2243,8 @@ impl RuntimeContext<'_> {
             } else {
                 CallKind::Create
             },
-            input: Bytes::new(),
-            init_code: bytecode.into(),
+            input: bytecode.into(),
+            init_code: Bytes::new(),
             value: value.to_u256(),
             depth: self.inner.depth as u32,
             gas_limit,
