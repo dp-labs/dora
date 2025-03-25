@@ -39,9 +39,12 @@ use num_bigint::{BigInt, BigUint};
 ///   the block. New operations will be inserted after this point, if specified.
 ///
 /// # Example Usage:
-/// ```no_check
-/// let builder = OpBuilder::new(&mlir_context);
-/// // Use the builder to insert operations into the specified block
+/// ```
+/// use dora_compiler::conversion::builder::OpBuilder;
+/// use dora_compiler::Context;
+/// 
+/// let ctx = Context::new();
+/// let builder = OpBuilder::new(&ctx.mlir_context);
 /// ```
 ///
 /// # Purpose:
@@ -1101,7 +1104,7 @@ impl<'c, 'a> OpBuilder<'c, 'a> {
     /// Returns a `Result::Err` if any step in the pointer computation, memory load, or value casting fails.
     ///
     /// # Example
-    /// ```no_check
+    /// ```
     /// let value = context.get_field_value(base_ptr, 8, field_type)?;
     /// ```
     pub fn get_field_value(

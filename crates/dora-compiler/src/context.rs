@@ -16,7 +16,8 @@ use std::path::PathBuf;
 ///   of IR elements.
 ///
 /// # Example Usage:
-/// ```no_check
+/// ```
+/// use dora_compiler::Context;
 /// let ctx = Context::new();
 /// ```
 ///
@@ -56,7 +57,10 @@ impl Context {
 ///   It is `None` if the after-pass MLIR file path is not provided.
 ///
 /// # Example Usage:
-/// ```no_check
+/// ```
+/// use std::path::PathBuf;
+/// use dora_compiler::context::Session;
+/// 
 /// let session = Session {
 ///     raw_mlir_path: Some(PathBuf::from("input.mlir")),
 ///     after_pass_mlir_path: Some(PathBuf::from("output.mlir")),

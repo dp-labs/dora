@@ -358,7 +358,19 @@ impl<'c> Rewriter<'c, '_> {
 ///
 /// # Example Usage:
 /// ```no_check
-/// let deferred_rewriter = DeferredRewriter::new_with_op(&mlir_context, op);
+/// use dora_compiler::conversion::rewriter::DeferredRewriter;
+/// use melior::{
+///     Context as MLIRContext,
+///     ir::{Location, Module as MLIRModule, operation::OperationRef},
+/// };
+/// 
+/// let ctx = MLIRContext::new();
+/// let mlir_module = MLIRModule::new(Location::unknown(&ctx));
+/// let operation = mlir_module.as_operation();
+/// let deferred_rewriter = DeferredRewriter::new_with_op(
+///     &ctx,
+///     operation
+/// );
 /// // Defer an operation rewrite and apply changes later when needed.
 /// ```
 ///

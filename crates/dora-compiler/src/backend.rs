@@ -1089,7 +1089,7 @@ pub trait EVMBuilder: Builder {
     ///
     /// The destination address is calculated as follows:
     ///
-    /// ```no_check
+    /// ```
     ///     initialisation_code = eof_container[initcontainer_index]
     ///     address = keccak256(0xff + sender_address + salt + keccak256(initialisation_code))[12:]
     /// ```

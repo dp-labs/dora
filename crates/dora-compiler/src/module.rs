@@ -13,8 +13,15 @@ use melior::{
 ///   for managing the lifetime and scope of the MLIR constructs within the module.
 ///
 /// # Example Usage:
-/// ```no_check
-/// let mlir_module = MLIRModule::new();
+/// ```
+/// use dora_compiler::Module;
+/// use melior::{
+///     Context as MLIRContext,
+///     ir::{Location, Module as MLIRModule},
+/// };
+/// 
+/// let ctx = MLIRContext::new();
+/// let mlir_module = MLIRModule::new(Location::unknown(&ctx));
 /// let module = Module::new(mlir_module);
 /// ```
 ///

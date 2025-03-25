@@ -150,7 +150,9 @@ impl<'c, 'a> ControlFrame<'c, 'a> {
 ///   that allow the struct to be debugged, compared, cloned, and hashed.
 ///
 /// # Example:
-/// ```no_check
+/// ```
+/// use dora_compiler::state::ExtraInfo;
+/// 
 /// let info = ExtraInfo { state: 0 };
 /// let default_info = ExtraInfo::default();
 /// ```
@@ -178,7 +180,8 @@ pub struct ExtraInfo {
 ///   render certain paths unreachable.
 ///
 /// # Example Usage:
-/// ```no_check
+/// ```
+/// use dora_compiler::state::State;
 /// let state = State::new();
 /// ```
 ///
