@@ -273,6 +273,11 @@ impl<'a, DB: Database> VM<'a, DB> {
                 output: Output::Call(return_values.into()),
                 logs,
             },
+            ExitStatusCode::Suspend => ExecutionResult::Halt {
+                reason: HaltReason::InvalidSuspend,
+                gas_limit,
+                gas_used,
+            },
             ExitStatusCode::Revert
             | ExitStatusCode::CreateInitCodeStartingEF00
             | ExitStatusCode::InvalidEOFInitCode => ExecutionResult::Revert {

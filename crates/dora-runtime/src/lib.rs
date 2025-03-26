@@ -37,6 +37,8 @@ pub enum ExitStatusCode {
     Stop = 2,
     /// Self-destruct the current contract.
     Selfdestruct = 3,
+    /// Suspend
+    Suspend = 4,
 
     /* Revert Codes */
     /// Revert the transaction.

@@ -180,7 +180,8 @@ fn status_to_evmc_status(status: ExitStatusCode) -> StatusCode {
         | ExitStatusCode::EofAuxDataOverflow
         | ExitStatusCode::EofAuxDataTooSmall
         | ExitStatusCode::InvalidExtCallTarget
-        | ExitStatusCode::FatalExternalError => StatusCode::EVMC_FAILURE,
+        | ExitStatusCode::FatalExternalError
+        | ExitStatusCode::Suspend => StatusCode::EVMC_FAILURE,
     }
 }
 

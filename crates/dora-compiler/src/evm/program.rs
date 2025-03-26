@@ -1046,8 +1046,10 @@ impl Program {
     }
 
     /// Mark `PUSH<N>` followed by `JUMP[I]` as `STATIC_JUMP` and resolve the target.
-    pub fn has_dynamic_jumps(&mut self) -> bool {
-        debug_assert!(!self.is_eof());
+    pub fn has_dynamic_jumps(&self) -> bool {
+        if self.is_eof() {
+            return false;
+        }
         for i in 0..self.operations.len() {
             let op = &self.operations[i];
             let is_jump = matches!(op, Operation::Jump | Operation::JumpI);
@@ -1061,6 +1063,14 @@ impl Program {
             }
         }
         false
+    }
+
+    /// Whether the program suspend suspend execution.
+    ///
+    /// This can only happen if the bytecode contains call or create operations.
+    pub fn may_suspend(&self) -> bool {
+        let is_eof = self.is_eof();
+        self.operations.iter().any(|op| op.may_suspend(is_eof))
     }
 
     /// Returns the program counter of the given EOF section index.
@@ -1134,119 +1144,144 @@ impl Program {
     }
 }
 
-/// Returns the number of input and output stack elements of the given opcode.
-pub const fn stack_io(op: &Operation) -> (u8, u8) {
-    match op {
-        Operation::Stop => (0, 0),
-        Operation::Add => (2, 1),
-        Operation::Mul => (2, 1),
-        Operation::Sub => (2, 1),
-        Operation::Div => (2, 1),
-        Operation::SDiv => (2, 1),
-        Operation::Mod => (2, 1),
-        Operation::SMod => (2, 1),
-        Operation::AddMod => (3, 1),
-        Operation::MulMod => (3, 1),
-        Operation::Exp => (2, 1),
-        Operation::SignExtend => (2, 1),
-        Operation::Lt => (2, 1),
-        Operation::Gt => (2, 1),
-        Operation::Slt => (2, 1),
-        Operation::Sgt => (2, 1),
-        Operation::Eq => (2, 1),
-        Operation::IsZero => (1, 1),
-        Operation::And => (2, 1),
-        Operation::Or => (2, 1),
-        Operation::Xor => (2, 1),
-        Operation::Not => (1, 1),
-        Operation::Byte => (2, 1),
-        Operation::Shl => (2, 1),
-        Operation::Shr => (2, 1),
-        Operation::Sar => (2, 1),
-        Operation::Keccak256 => (2, 1),
-        Operation::Address => (0, 1),
-        Operation::Balance => (1, 1),
-        Operation::Origin => (0, 1),
-        Operation::Caller => (0, 1),
-        Operation::CallValue => (0, 1),
-        Operation::CalldataLoad => (1, 1),
-        Operation::CalldataSize => (0, 1),
-        Operation::CalldataCopy => (3, 0),
-        Operation::CodeSize => (0, 1),
-        Operation::CodeCopy => (3, 0),
-        Operation::GasPrice => (0, 1),
-        Operation::ExtCodeCopy => (4, 0),
-        Operation::ReturndataSize => (0, 1),
-        Operation::ReturndataCopy => (3, 0),
-        Operation::ExtCodeHash => (1, 1),
-        Operation::BlockHash => (1, 1),
-        Operation::ExtCodeSize => (1, 1),
-        Operation::Coinbase => (0, 1),
-        Operation::Timestamp => (0, 1),
-        Operation::Number => (0, 1),
-        Operation::Prevrandao => (0, 1),
-        Operation::GasLimit => (0, 1),
-        Operation::Chainid => (0, 1),
-        Operation::SelfBalance => (0, 1),
-        Operation::BaseFee => (0, 1),
-        Operation::BlobHash => (1, 1),
-        Operation::BlobBaseFee => (0, 1),
-        Operation::Pop => (1, 0),
-        Operation::MLoad => (1, 1),
-        Operation::MStore => (2, 0),
-        Operation::MStore8 => (2, 0),
-        Operation::SLoad => (1, 1),
-        Operation::SStore => (2, 0),
-        Operation::Jump => (1, 0),
-        Operation::JumpI => (2, 0),
-        Operation::MSize => (0, 1),
-        Operation::Gas => (0, 1),
-        Operation::TLoad => (1, 1),
-        Operation::TStore => (2, 0),
-        Operation::MCopy => (3, 0),
-        Operation::Push0 => (0, 1),
-        Operation::DataLoad => (1, 1),
-        Operation::DataLoadN(_) => (0, 1),
-        Operation::DataSize => (0, 1),
-        Operation::DataCopy => (3, 0),
-        Operation::RJump(_) => (0, 0),
-        Operation::RJumpI(_) => (1, 0),
-        Operation::RJumpV((_, _)) => (1, 0),
-        Operation::CallF(_) => (0, 0),
-        Operation::RetF => (0, 0),
-        Operation::JumpF(_) => (0, 0),
-        Operation::DupN(_) => (0, 0),
-        Operation::SwapN(_) => (0, 0),
-        Operation::Exchange(_) => (0, 0),
-        Operation::EofCreate(_) => (4, 1),
-        Operation::ReturnContract(_) => (2, 0),
-        Operation::Create => (3, 1),
-        Operation::Call => (7, 1),
-        Operation::Callcode => (7, 1),
-        Operation::Return => (2, 0),
-        Operation::Delegatecall => (6, 1),
-        Operation::Create2 => (4, 1),
-        Operation::ReturndataLoad => (1, 1),
-        Operation::ExtCall => (4, 1),
-        Operation::ExtDelegatecall => (3, 1),
-        Operation::Staticcall => (6, 1),
-        Operation::ExtStaticcall => (3, 1),
-        Operation::Revert => (2, 0),
-        Operation::Invalid => (0, 0),
-        Operation::Selfdestruct => (1, 0),
-        Operation::PC { .. } => (0, 1),
-        Operation::Jumpdest { .. } => (0, 0),
-        Operation::Push(_) => (0, 1),
-        Operation::Dup(_) => (0, 1),
-        Operation::Swap(n) => (*n + 1, *n + 1),
-        Operation::Log(n) => (*n + 2, 0),
+impl Operation {
+    /// Returns `true` if this instruction may suspend execution e.g. CALL and CREATE operations.
+    pub const fn may_suspend(&self, is_eof: bool) -> bool {
+        if is_eof {
+            matches!(
+                self,
+                Operation::ExtCall
+                    | Operation::ExtDelegatecall
+                    | Operation::ExtStaticcall
+                    | Operation::EofCreate(_)
+            )
+        } else {
+            matches!(
+                self,
+                Operation::Call
+                    | Operation::Callcode
+                    | Operation::Delegatecall
+                    | Operation::Create
+                    | Operation::Create2
+                    | Operation::Staticcall
+            )
+        }
     }
-}
 
-/// Returns the number of section input of the given opcode.
-pub const fn stack_section_input(op: &Operation) -> u8 {
-    match op {
-        Operation::Dup(n) | Operation::DupN(n) => *n,
-        _ => stack_io(op).0,
+    /// Returns the number of input and output stack elements of the given opcode.
+    pub const fn stack_io(&self) -> (u8, u8) {
+        match self {
+            Operation::Stop => (0, 0),
+            Operation::Add => (2, 1),
+            Operation::Mul => (2, 1),
+            Operation::Sub => (2, 1),
+            Operation::Div => (2, 1),
+            Operation::SDiv => (2, 1),
+            Operation::Mod => (2, 1),
+            Operation::SMod => (2, 1),
+            Operation::AddMod => (3, 1),
+            Operation::MulMod => (3, 1),
+            Operation::Exp => (2, 1),
+            Operation::SignExtend => (2, 1),
+            Operation::Lt => (2, 1),
+            Operation::Gt => (2, 1),
+            Operation::Slt => (2, 1),
+            Operation::Sgt => (2, 1),
+            Operation::Eq => (2, 1),
+            Operation::IsZero => (1, 1),
+            Operation::And => (2, 1),
+            Operation::Or => (2, 1),
+            Operation::Xor => (2, 1),
+            Operation::Not => (1, 1),
+            Operation::Byte => (2, 1),
+            Operation::Shl => (2, 1),
+            Operation::Shr => (2, 1),
+            Operation::Sar => (2, 1),
+            Operation::Keccak256 => (2, 1),
+            Operation::Address => (0, 1),
+            Operation::Balance => (1, 1),
+            Operation::Origin => (0, 1),
+            Operation::Caller => (0, 1),
+            Operation::CallValue => (0, 1),
+            Operation::CalldataLoad => (1, 1),
+            Operation::CalldataSize => (0, 1),
+            Operation::CalldataCopy => (3, 0),
+            Operation::CodeSize => (0, 1),
+            Operation::CodeCopy => (3, 0),
+            Operation::GasPrice => (0, 1),
+            Operation::ExtCodeCopy => (4, 0),
+            Operation::ReturndataSize => (0, 1),
+            Operation::ReturndataCopy => (3, 0),
+            Operation::ExtCodeHash => (1, 1),
+            Operation::BlockHash => (1, 1),
+            Operation::ExtCodeSize => (1, 1),
+            Operation::Coinbase => (0, 1),
+            Operation::Timestamp => (0, 1),
+            Operation::Number => (0, 1),
+            Operation::Prevrandao => (0, 1),
+            Operation::GasLimit => (0, 1),
+            Operation::Chainid => (0, 1),
+            Operation::SelfBalance => (0, 1),
+            Operation::BaseFee => (0, 1),
+            Operation::BlobHash => (1, 1),
+            Operation::BlobBaseFee => (0, 1),
+            Operation::Pop => (1, 0),
+            Operation::MLoad => (1, 1),
+            Operation::MStore => (2, 0),
+            Operation::MStore8 => (2, 0),
+            Operation::SLoad => (1, 1),
+            Operation::SStore => (2, 0),
+            Operation::Jump => (1, 0),
+            Operation::JumpI => (2, 0),
+            Operation::MSize => (0, 1),
+            Operation::Gas => (0, 1),
+            Operation::TLoad => (1, 1),
+            Operation::TStore => (2, 0),
+            Operation::MCopy => (3, 0),
+            Operation::Push0 => (0, 1),
+            Operation::DataLoad => (1, 1),
+            Operation::DataLoadN(_) => (0, 1),
+            Operation::DataSize => (0, 1),
+            Operation::DataCopy => (3, 0),
+            Operation::RJump(_) => (0, 0),
+            Operation::RJumpI(_) => (1, 0),
+            Operation::RJumpV((_, _)) => (1, 0),
+            Operation::CallF(_) => (0, 0),
+            Operation::RetF => (0, 0),
+            Operation::JumpF(_) => (0, 0),
+            Operation::DupN(_) => (0, 0),
+            Operation::SwapN(_) => (0, 0),
+            Operation::Exchange(_) => (0, 0),
+            Operation::EofCreate(_) => (4, 1),
+            Operation::ReturnContract(_) => (2, 0),
+            Operation::Create => (3, 1),
+            Operation::Call => (7, 1),
+            Operation::Callcode => (7, 1),
+            Operation::Return => (2, 0),
+            Operation::Delegatecall => (6, 1),
+            Operation::Create2 => (4, 1),
+            Operation::ReturndataLoad => (1, 1),
+            Operation::ExtCall => (4, 1),
+            Operation::ExtDelegatecall => (3, 1),
+            Operation::Staticcall => (6, 1),
+            Operation::ExtStaticcall => (3, 1),
+            Operation::Revert => (2, 0),
+            Operation::Invalid => (0, 0),
+            Operation::Selfdestruct => (1, 0),
+            Operation::PC { .. } => (0, 1),
+            Operation::Jumpdest { .. } => (0, 0),
+            Operation::Push(_) => (0, 1),
+            Operation::Dup(_) => (0, 1),
+            Operation::Swap(n) => (*n + 1, *n + 1),
+            Operation::Log(n) => (*n + 2, 0),
+        }
+    }
+
+    /// Returns the number of section input of the given opcode.
+    pub const fn stack_section_input(&self) -> u8 {
+        match self {
+            Operation::Dup(n) | Operation::DupN(n) => *n,
+            _ => self.stack_io().0,
+        }
     }
 }

@@ -328,6 +328,8 @@ pub enum HaltReason {
     InvalidExtCallTarget,
     /// Check for target address validity is only done inside sub delegate call.
     InvalidExtDelegatecallTarget,
+    /// Invalid suspend return result for the last frame.
+    InvalidSuspend,
 }
 
 impl HaltReason {
@@ -419,6 +421,9 @@ impl fmt::Display for HaltReason {
             HaltReason::InvalidExtCallTarget => write!(f, "Invalid external call target"),
             HaltReason::InvalidExtDelegatecallTarget => {
                 write!(f, "Invalid external delegatecall target")
+            }
+            HaltReason::InvalidSuspend => {
+                write!(f, "Invalid suspend exit code")
             }
         }
     }

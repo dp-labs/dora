@@ -1240,6 +1240,12 @@ impl<'c, 'a> OpBuilder<'c, 'a> {
             .build()
             .expect("valid operation")
     }
+
+    /// Creates a llvm.unreachable operation.
+    #[inline]
+    pub fn unreachable(&self) -> Op<'c, '_> {
+        llvm::unreachable(self.intrinsics.unknown_loc)
+    }
 }
 
 impl<'c, 'a> OpBuilder<'c, 'a> {

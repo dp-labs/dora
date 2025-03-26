@@ -15,6 +15,7 @@ pub(crate) fn declare_symbols(context: &MLIRContext, module: &MLIRModule) {
     let location = builder.get_insert_location();
 
     let uint8 = builder.i8_ty();
+    let uint32 = builder.i32_ty();
     let uint64 = builder.i64_ty();
     let size_type = builder.isize_ty();
     let ptr_type = builder.ptr_ty();
@@ -185,6 +186,8 @@ pub(crate) fn declare_symbols(context: &MLIRContext, module: &MLIRModule) {
         ),
         (symbols::FUNC_STACK_POP, &[ptr_type], &[size_type]),
         (symbols::FUNC_STACK_GROW, &[ptr_type], &[]),
+        (symbols::SET_RESUME, &[ptr_type, uint32], &[]),
+        (symbols::GET_RESUME, &[ptr_type], &[uint32]),
     ];
 
     for (name, input_types, output_types) in function_signatures.iter() {

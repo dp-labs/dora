@@ -39,6 +39,11 @@ macro_rules! assert_snapshot {
 }
 
 #[test]
+fn empty() {
+    assert_snapshot!(vec![]);
+}
+
+#[test]
 fn push_push_add() {
     assert_snapshot!(vec![
         Operation::Push((1_u8, 10_u8.into())),
