@@ -350,8 +350,8 @@ impl<'c> EVMCompiler<'c> {
             Operation::SwapN(x) => EVMCompiler::swapn(ctx, op_start_block, *x),
             Operation::Exchange(x) => EVMCompiler::exchange(ctx, op_start_block, *x),
             // Control instructions
-            Operation::Jump => EVMCompiler::jump(ctx, region, op_start_block),
-            Operation::JumpI => EVMCompiler::jumpi(ctx, region, op_start_block),
+            Operation::Jump => EVMCompiler::jump(ctx, region, op_start_block, index),
+            Operation::JumpI => EVMCompiler::jumpi(ctx, region, op_start_block, index),
             Operation::RJump(x) => EVMCompiler::rjump(ctx, region, op_start_block, *x),
             Operation::RJumpI(x) => EVMCompiler::rjumpi(ctx, region, op_start_block, *x),
             Operation::RJumpV((x1, x2)) => {
@@ -613,6 +613,7 @@ impl<'c> EVMCompiler<'c> {
         let pre_exec_block = main_region.append_block(Block::new(&[]));
         setup_block.append_operation(cf::br(&pre_exec_block, &[], location));
         let mut last_block = pre_exec_block;
+        let has_dynamic_or_invalid_jumps = ctx.program.has_dynamic_or_jumps();
         // Suspend execution when encountering call or create instructions.
         let suspend = self.opts.suspend && ctx.program.may_suspend();
         // Generate all opcode with the inline mode.
@@ -817,7 +818,7 @@ impl<'c> EVMCompiler<'c> {
             builder.create(builder.unreachable());
         }
         // Deal jump operations
-        ctx.populate_jumptable()?;
+        ctx.populate_jumptable(has_dynamic_or_invalid_jumps)?;
         module.body().append_operation(main_func);
         Ok(())
     }
@@ -1156,54 +1157,57 @@ impl<'c> CtxType<'c> {
     ///
     /// # Returns
     /// A `Result<()>` indicating success or failure of the operation.
-    pub fn populate_jumptable(&self) -> Result<()> {
+    pub fn populate_jumptable(&self, has_dynamic_or_invalid_jumps: bool) -> Result<()> {
         let context = self.context;
         let program = self.program;
         let block = self.jumptable_block;
-
         let location = Location::unknown(context);
-        let uint256 = IntegerType::new(context, 256);
-        let uint8 = IntegerType::new(context, 8);
 
-        let jumpdest_pcs: Vec<i64> = program
-            .operations()
-            .iter()
-            .filter_map(|op| match op {
-                Operation::Jumpdest { pc } => Some(*pc as i64),
-                _ => None,
-            })
-            .collect();
+        if has_dynamic_or_invalid_jumps {
+            let uint256 = IntegerType::new(context, 256);
+            let uint8 = IntegerType::new(context, 8);
 
-        let arg = block.argument(0)?;
+            let jumpdest_pcs: Vec<i64> = program
+                .operations()
+                .iter()
+                .filter_map(|op| match op {
+                    Operation::Jumpdest { pc } => Some(*pc as i64),
+                    _ => None,
+                })
+                .collect();
 
-        let case_destinations: Vec<_> = self
-            .jumpdest_blocks
-            .values()
-            .map(|b| {
-                let x: (&Block, &[Value]) = (b, &[]);
-                x
-            })
-            .collect();
+            let arg = block.argument(0)?;
 
-        let code = block
-            .append_operation(arith::constant(
+            let case_destinations: Vec<_> = self
+                .jumpdest_blocks
+                .values()
+                .map(|b| {
+                    let x: (&Block, &[Value]) = (b, &[]);
+                    x
+                })
+                .collect();
+
+            let code = block
+                .append_operation(arith::constant(
+                    context,
+                    IntegerAttribute::new(uint8.into(), ExitStatusCode::InvalidJump.to_u8() as i64)
+                        .into(),
+                    location,
+                ))
+                .result(0)?;
+
+            block.append_operation(cf::switch(
                 context,
-                IntegerAttribute::new(uint8.into(), ExitStatusCode::InvalidJump.to_u8() as i64)
-                    .into(),
+                &jumpdest_pcs,
+                arg.into(),
+                uint256.into(),
+                (&self.revert_block, &[code.into()]),
+                &case_destinations,
                 location,
-            ))
-            .result(0)?;
-
-        block.append_operation(cf::switch(
-            context,
-            &jumpdest_pcs,
-            arg.into(),
-            uint256.into(),
-            (&self.revert_block, &[code.into()]),
-            &case_destinations,
-            location,
-        )?);
-
+            )?);
+        } else {
+            block.append_operation(llvm::unreachable(location));
+        }
         Ok(())
     }
 

@@ -940,6 +940,10 @@ pub struct Program {
     eof: Option<Arc<Eof>>,
     /// Mapping from program counter to instruction
     pc_to_index_mapping: FxHashMap<usize, usize>,
+    /// Mapping from the jump index to the destination index.
+    jump_to_pc_mapping: FxHashMap<usize, usize>,
+    /// Has dynamic or invalid jump operations.
+    has_dynamic_or_invalid_jumps: bool,
 }
 
 impl From<Bytecode> for Program {
@@ -963,12 +967,16 @@ impl Program {
         let (operations, pc_to_index_mapping, _) = Self::parse_operations(opcodes, eof.is_some());
         let code_size = Self::calculate_code_size(&operations);
 
-        Self {
+        let mut program = Self {
             operations,
             code_size,
             eof,
             pc_to_index_mapping,
-        }
+            jump_to_pc_mapping: FxHashMap::default(),
+            has_dynamic_or_invalid_jumps: false,
+        };
+        program.dynamic_jump_analysis();
+        program
     }
 
     /// Constructs a `Program` from a slice of operations without error checking.
@@ -1046,23 +1054,37 @@ impl Program {
     }
 
     /// Mark `PUSH<N>` followed by `JUMP[I]` as `STATIC_JUMP` and resolve the target.
-    pub fn has_dynamic_jumps(&self) -> bool {
+    pub fn dynamic_jump_analysis(&mut self) {
         if self.is_eof() {
-            return false;
+            return;
         }
+        self.jump_to_pc_mapping.clear();
         for i in 0..self.operations.len() {
             let op = &self.operations[i];
             let is_jump = matches!(op, Operation::Jump | Operation::JumpI);
-            let is_push = i > 0
-                && matches!(
-                    self.operations[i - 1],
-                    Operation::Push0 | Operation::Push(_)
-                );
-            if is_jump && !is_push {
-                return true;
+            if is_jump {
+                if i > 0 {
+                    let push_const = op.push_constant();
+                    if let Some(push_const) = push_const {
+                        if let Ok(pc) = TryInto::<usize>::try_into(push_const) {
+                            self.jump_to_pc_mapping.insert(i, pc);
+                        } else {
+                            self.has_dynamic_or_invalid_jumps = true;
+                        }
+                    } else {
+                        self.has_dynamic_or_invalid_jumps = true;
+                    }
+                } else {
+                    self.has_dynamic_or_invalid_jumps = true;
+                }
             }
         }
-        false
+    }
+
+    /// Has dynamic jump operations.
+    #[inline]
+    pub fn has_dynamic_or_jumps(&self) -> bool {
+        self.has_dynamic_or_invalid_jumps
     }
 
     /// Whether the program suspend suspend execution.
@@ -1084,6 +1106,15 @@ impl Program {
     /// Returns the operation index of the given EOF section index.
     pub fn eof_section_index(&self, section: usize) -> usize {
         self.pc_to_index_mapping[&self.eof_section_pc(section)]
+    }
+
+    /// Get the static operation index of the given jump operation index.
+    pub fn jump_index(&self, index: usize) -> Option<usize> {
+        if let Some(pc) = self.jump_to_pc_mapping.get(&index) {
+            self.pc_to_index_mapping.get(pc).copied()
+        } else {
+            None
+        }
     }
 
     fn parse_operations(
@@ -1133,6 +1164,7 @@ impl Program {
         Ok((op, pc))
     }
 
+    #[inline]
     fn calculate_code_size(operations: &[Operation]) -> u32 {
         operations
             .iter()
@@ -1282,6 +1314,15 @@ impl Operation {
         match self {
             Operation::Dup(n) | Operation::DupN(n) => *n,
             _ => self.stack_io().0,
+        }
+    }
+
+    /// Returns the operation is an imm constant after the PUSH opcode.
+    pub fn push_constant(&self) -> Option<BigUint> {
+        match self {
+            Operation::Push0 => Some(BigUint::ZERO),
+            Operation::Push((_, x)) => Some(x.clone()),
+            _ => None,
         }
     }
 }
