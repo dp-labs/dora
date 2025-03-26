@@ -20,7 +20,6 @@ use melior::{
     },
 };
 use num_bigint::BigUint;
-use program::{stack_io, stack_section_input};
 use revmc::{OpcodeInfo, op_info_map};
 use rustc_hash::FxHashMap;
 use std::collections::BTreeMap;
@@ -412,8 +411,8 @@ impl<'c> EVMCompiler<'c> {
         stack_check_block: BlockRef<'r, 'c>,
         op: &Operation,
     ) -> Result<BlockRef<'r, 'c>> {
-        let (i, o) = stack_io(op);
-        let section_input = stack_section_input(op);
+        let (i, o) = op.stack_io();
+        let section_input = op.stack_section_input();
         let diff = o as i64 - i as i64;
         let may_underflow = section_input > 0;
         let may_overflow = diff > 0;
@@ -609,10 +608,13 @@ impl<'c> EVMCompiler<'c> {
 
         let main_region = main_func.region(0)?;
         let setup_block = main_region.append_block(Block::new(&[]));
-
         let mut ctx =
             CtxType::new_main_func_ctx(self.ctx, module, &main_region, &setup_block, program)?;
-        let mut last_block = setup_block;
+        let pre_exec_block = main_region.append_block(Block::new(&[]));
+        setup_block.append_operation(cf::br(&pre_exec_block, &[], location));
+        let mut last_block = pre_exec_block;
+        // Suspend execution when encountering call or create instructions.
+        let suspend = self.opts.suspend && ctx.program.may_suspend();
         // Generate all opcode with the inline mode.
         if self.opts.inline {
             // Generate code for the program
@@ -753,6 +755,67 @@ impl<'c> EVMCompiler<'c> {
                 module.body().append_operation(op_func);
             }
         }
+        // Suspend execution when encountering call or create instructions.
+        if suspend {
+            // Build resume block and start from here before entering the op loop.
+            {
+                let builder = OpBuilder::new_with_block(ctx.context, ctx.resume_block);
+                let resume_index = builder.make(func::call(
+                    builder.context(),
+                    FlatSymbolRefAttribute::new(builder.context(), runtime_symbols::GET_RESUME),
+                    &[ctx.values.syscall_ctx],
+                    &[builder.i32_ty()],
+                    builder.get_insert_location(),
+                ))?;
+                // Switch resume blocks using the resume index.
+                // Note: the resume block is the next block of the call or create operation.
+                // resume index `0` debnotes the last block of the first operation.
+                ctx.resume_blocks.insert(0, pre_exec_block);
+                let case_values: Vec<i64> =
+                    (0..ctx.resume_blocks.len()).map(|i| i as i64).collect();
+                let case_destinations: Vec<_> = ctx
+                    .resume_blocks
+                    .iter()
+                    .map(|b| {
+                        let x: (&Block, &[Value]) = (b, &[]);
+                        x
+                    })
+                    .collect();
+                let code =
+                    builder.make(builder.iconst_8(ExitStatusCode::InvalidJump.to_u8() as i8))?;
+                builder.create(cf::switch(
+                    context,
+                    &case_values,
+                    resume_index,
+                    builder.i32_ty(),
+                    (&ctx.revert_block, &[code]),
+                    &case_destinations,
+                    location,
+                )?);
+            }
+            // Build suspend block from the call or create operations.
+            {
+                let builder = OpBuilder::new_with_block(ctx.context, ctx.suspend_block);
+                let resume_index: Value = ctx.suspend_block.argument(0)?.into();
+                builder.create(func::call(
+                    builder.context(),
+                    FlatSymbolRefAttribute::new(builder.context(), runtime_symbols::SET_RESUME),
+                    &[ctx.values.syscall_ctx, resume_index],
+                    &[],
+                    builder.get_insert_location(),
+                ));
+                // Set the resume index to the runtime context.
+                let reason =
+                    builder.make(builder.iconst_8(ExitStatusCode::Suspend.to_u8() as i8))?;
+                builder.create(func::r#return(&[reason], builder.get_insert_location()));
+            }
+        } else {
+            debug_assert!(ctx.resume_blocks.is_empty());
+            let builder = OpBuilder::new_with_block(ctx.context, ctx.suspend_block);
+            builder.create(builder.unreachable());
+            let builder = OpBuilder::new_with_block(ctx.context, ctx.resume_block);
+            builder.create(builder.unreachable());
+        }
         // Deal jump operations
         ctx.populate_jumptable()?;
         module.body().append_operation(main_func);
@@ -800,6 +863,11 @@ pub struct EVMCompileOptions {
     /// Check for stack overflow or underflow errors. Note that there is no need to check for EOF Bytecode,
     /// as stack operations are statically determined at compile time.
     pub stack_bound_checks: bool,
+    /// When we encounter call or create instructions, do we suspend execution? When suspended,
+    /// the runtime processes the call frame in a loop, and when not suspended, the runtime
+    /// processes the call frame recursively. This is because revm and evmc have different ways of
+    /// handling the call host API.
+    pub suspend: bool,
     /// Use common op functions instead of inlining everything
     pub inline: bool,
 }
@@ -810,6 +878,7 @@ impl Default for EVMCompileOptions {
             spec_id: SpecId::CANCUN,
             gas_metering: true,
             stack_bound_checks: true,
+            suspend: false,
             inline: false,
         }
     }
@@ -831,6 +900,12 @@ impl EVMCompileOptions {
     /// Set whether to check for stack overflow or underflow errors.
     pub fn stack_bound_checks(mut self, stack_bound_checks: bool) -> Self {
         self.stack_bound_checks = stack_bound_checks;
+        self
+    }
+
+    /// Set whether to suspend the execution progress.
+    pub fn suspend(mut self, suspend: bool) -> Self {
+        self.suspend = suspend;
         self
     }
 }
@@ -926,6 +1001,12 @@ pub struct CtxType<'c> {
     pub revert_block: BlockRef<'c, 'c>,
     /// The block used to handle stop logic with a return code in the EVM execution model.
     pub stop_block: BlockRef<'c, 'c>,
+    /// The block used to handle the suspend process for the call and create operations in the EVM bytecode.
+    pub suspend_block: BlockRef<'c, 'c>,
+    /// The block used to handle the resume process for the call and create operations in the EVM bytecode.
+    pub resume_block: BlockRef<'c, 'c>,
+    /// A vector that holds all basic blocks of resume process.
+    pub resume_blocks: Vec<BlockRef<'c, 'c>>,
     /// The block used to handle jump table operations in the EVM bytecode.
     pub jumptable_block: BlockRef<'c, 'c>,
     /// A map from jump destination indices in EVM to their corresponding blocks in MLIR.
@@ -995,6 +1076,8 @@ impl<'c> CtxType<'c> {
         )?);
         let jumptable_block = region.append_block(Block::new(&[(uint256, location)]));
         let return_block = region.append_block(return_block(&context.mlir_context)?);
+        let suspend_block = region.append_block(Block::new(&[(builder.i32_ty(), location)]));
+        let resume_block = region.append_block(Block::new(&[]));
         let mut operation_blocks = vec![];
         for _ in 0..program.operations().len() {
             operation_blocks.push(region.append_block(Block::new(&[])));
@@ -1011,6 +1094,9 @@ impl<'c> CtxType<'c> {
             },
             revert_block,
             stop_block: return_block,
+            suspend_block,
+            resume_block,
+            resume_blocks: Default::default(),
             jumptable_block,
             jumpdest_blocks: Default::default(),
             operation_blocks,
@@ -1049,6 +1135,11 @@ impl<'c> CtxType<'c> {
             },
             revert_block,
             stop_block: return_block,
+            // Note that we perform suspend and resume processing at all calls to the op function rather than within
+            // the op function itself, so this is an impossible situation.
+            suspend_block: revert_block,
+            resume_block: revert_block,
+            resume_blocks: Default::default(),
             // Note that we perform jump processing at all calls to the op function rather than within
             // the op function itself, so this is an impossible situation.
             jumptable_block: revert_block,

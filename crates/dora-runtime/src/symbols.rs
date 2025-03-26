@@ -60,6 +60,8 @@ pub const SELFDESTRUCT: &str = "dora_fn_selfdestruct";
 pub const FUNC_STACK_PUSH: &str = "dora_fn_func_stack_push";
 pub const FUNC_STACK_POP: &str = "dora_fn_func_stack_pop";
 pub const FUNC_STACK_GROW: &str = "dora_fn_func_stack_grow";
+pub const GET_RESUME: &str = "dora_fn_get_resume";
+pub const SET_RESUME: &str = "dora_fn_set_resume";
 
 // WASM Related libcall functions
 pub mod wasm {

@@ -1025,6 +1025,9 @@ pub struct InnerContext {
     pub is_static: bool,
     /// Whether the context is EOF init.
     pub is_eof_init: bool,
+    /// An index that is used internally to keep track of where execution should resume.
+    /// `0` is the initial state.
+    pub resume_at: u32,
     /// VM spec id
     pub spec_id: SpecId,
 }
@@ -1043,6 +1046,7 @@ impl Default for InnerContext {
             depth: Default::default(),
             is_static: Default::default(),
             is_eof_init: Default::default(),
+            resume_at: Default::default(),
             spec_id: Default::default(),
         }
     }
@@ -2589,6 +2593,14 @@ impl RuntimeContext<'_> {
     extern "C" fn func_stack_grow(&mut self) {
         self.inner.function_stack.return_stack.reserve(1);
     }
+
+    extern "C" fn set_resume(&mut self, resume: u32) {
+        self.inner.resume_at = resume;
+    }
+
+    extern "C" fn get_resume(&mut self) -> u32 {
+        self.inner.resume_at
+    }
 }
 
 type SymbolSignature = (&'static str, *const fn() -> ());
@@ -2760,6 +2772,8 @@ impl RuntimeContext<'_> {
                     symbols::FUNC_STACK_GROW,
                     RuntimeContext::func_stack_grow as *const _,
                 ),
+                (symbols::SET_RESUME, RuntimeContext::set_resume as *const _),
+                (symbols::GET_RESUME, RuntimeContext::get_resume as *const _),
             ];
 
             for (symbol, signature) in symbols_and_signatures {
