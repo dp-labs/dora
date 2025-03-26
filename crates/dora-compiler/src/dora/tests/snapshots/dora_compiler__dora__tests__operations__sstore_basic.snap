@@ -140,16 +140,13 @@ module {
     %0 = llvm.alloca %c0_i64 x !llvm.ptr : (i64) -> !llvm.ptr
     llvm.store %arg2, %0 : !llvm.ptr, !llvm.ptr
     cf.br ^bb9
-  ^bb1(%1: i8):  // 7 preds: ^bb2, ^bb6, ^bb7, ^bb9, ^bb10, ^bb12, ^bb13
+  ^bb1(%1: i8):  // 6 preds: ^bb6, ^bb7, ^bb9, ^bb10, ^bb12, ^bb13
     %c0_i64_0 = arith.constant 0 : i64
     %2 = llvm.load %arg1 : !llvm.ptr -> i64
     call @dora_fn_write_result(%arg0, %c0_i64_0, %c0_i64_0, %2, %1) : (!llvm.ptr, i64, i64, i64, i8) -> ()
     return %1 : i8
   ^bb2(%3: i256):  // no predecessors
-    %c89_i8 = arith.constant 89 : i8
-    cf.switch %3 : i256, [
-      default: ^bb1(%c89_i8 : i8)
-    ]
+    llvm.unreachable
   ^bb3(%4: i8):  // 2 preds: ^bb8, ^bb15
     return %4 : i8
   ^bb4(%5: i32):  // no predecessors

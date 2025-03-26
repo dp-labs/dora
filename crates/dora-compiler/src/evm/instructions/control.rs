@@ -18,13 +18,23 @@ impl<'c> EVMCompiler<'c> {
         ctx: &mut CtxType<'c>,
         region: &'r Region<'c>,
         start_block: BlockRef<'r, 'c>,
+        index: usize,
     ) -> Result<BlockRef<'r, 'c>> {
         let mut builder = Self::make_builder(ctx, start_block);
         let pc = builder.stack_pop()?;
-        // Appends operation to ok_block to jump to the `jump table block`
-        // in the jump table block the pc is checked and if its ok
-        // then it jumps to the block associated with that pc
-        builder.ctx.add_jump_op(start_block, pc, builder.location());
+        // Static jump
+        if let Some(index) = builder.ctx.program.jump_index(index) {
+            start_block.append_operation(cf::br(
+                &builder.ctx.operation_blocks[index],
+                &[],
+                builder.location(),
+            ));
+        } else {
+            // Appends operation to ok_block to jump to the `jump table block`
+            // in the jump table block the pc is checked and if its ok
+            // then it jumps to the block associated with that pc
+            builder.ctx.add_jump_op(start_block, pc, builder.location());
+        }
         let empty_block = region.append_block(Block::new(&[]));
         Ok(empty_block)
     }
@@ -33,6 +43,7 @@ impl<'c> EVMCompiler<'c> {
         ctx: &mut CtxType<'c>,
         region: &'r Region<'c>,
         start_block: BlockRef<'r, 'c>,
+        index: usize,
     ) -> Result<BlockRef<'r, 'c>> {
         let mut builder = Self::make_builder(ctx, start_block);
         let pc = builder.stack_pop()?;
@@ -40,7 +51,18 @@ impl<'c> EVMCompiler<'c> {
         let false_block = region.append_block(Block::new(&[]));
         let zero = builder.iconst_256(BigUint::ZERO)?;
         let cond = builder.icmp(IntCC::NotEqual, condition, zero)?;
-        builder.brif(cond, builder.ctx.jumptable_block, false_block, &[pc], &[]);
+        // Static jump
+        if let Some(index) = builder.ctx.program.jump_index(index) {
+            builder.brif(
+                cond,
+                builder.ctx.operation_blocks[index],
+                false_block,
+                &[],
+                &[],
+            );
+        } else {
+            builder.brif(cond, builder.ctx.jumptable_block, false_block, &[pc], &[]);
+        }
         Ok(false_block)
     }
 
