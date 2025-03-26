@@ -357,9 +357,65 @@ impl<'c> Rewriter<'c, '_> {
 /// are rewritten when needed without immediate execution.
 ///
 /// # Example Usage:
-/// ```no_check
-/// let deferred_rewriter = DeferredRewriter::new_with_op(&mlir_context, op);
-/// // Defer an operation rewrite and apply changes later when needed.
+/// ```
+/// use dora_compiler::conversion::DeferredRewriter;
+/// use melior::{
+///     Context as MLIRContext,
+///     dialect::{arith, func, DialectRegistry},
+///     ir::{
+///         Location, Module as MLIRModule, Region, Block,
+///         attribute::{IntegerAttribute, StringAttribute, TypeAttribute},
+///         r#type::{FunctionType, IntegerType},
+///     },
+///     utility::{register_all_dialects, register_all_llvm_translations},
+/// };
+///
+/// let context = &MLIRContext::new();
+/// let registry = DialectRegistry::new();
+/// register_all_dialects(&registry);
+/// register_all_llvm_translations(context);
+/// context.append_dialect_registry(&registry);
+/// context.load_all_available_dialects();
+/// let module = MLIRModule::new(Location::unknown(&context));
+///
+/// let index_type = IntegerType::new(context, 32).into();
+/// let location = Location::unknown(context);
+/// // Create your own module and operations here
+/// module.body().append_operation(func::func(
+///     context,
+///     StringAttribute::new(context, "add"),
+///     TypeAttribute::new(
+///         FunctionType::new(context, &[index_type, index_type], &[index_type]).into(),
+///     ),
+///     {
+///         let block = Block::new(&[(index_type, location), (index_type, location)]);
+///
+///         let sum = block.append_operation(arith::addi(
+///             block.argument(0).unwrap().into(),
+///             block.argument(1).unwrap().into(),
+///             location,
+///         ));
+///         let constant = block.append_operation(arith::constant(
+///             context,
+///             IntegerAttribute::new(index_type, 0).into(),
+///             location,
+///         ));
+///         let sum = block.append_operation(arith::subi(
+///             constant.result(0).unwrap().into(),
+///             sum.result(0).unwrap().into(),
+///             location,
+///         ));
+///         block.append_operation(func::r#return(&[sum.result(0).unwrap().into()], location));
+///
+///         let region = Region::new();
+///         region.append_block(block);
+///         region
+///     },
+///     &[],
+///     location,
+/// ));
+/// let operation = module.as_operation();
+/// let rewriter = DeferredRewriter::new_with_op(&context, operation);
 /// ```
 ///
 /// # Notes:

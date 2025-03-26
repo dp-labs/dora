@@ -1,17 +1,14 @@
-use attribute::IntegerAttribute;
 use melior::{
     Context, ContextRef,
     dialect::{DialectHandle, DialectRegistry, arith, func},
     ir::{
-        Identifier, Module, OperationRef,
-        attribute::{StringAttribute, TypeAttribute},
-        r#type::TypeId,
-        *,
+        Block, Identifier, Location, Module, OperationRef, Region,
+        attribute::{IntegerAttribute, StringAttribute, TypeAttribute},
+        r#type::{FunctionType, IntegerType, TypeId},
     },
     pass::{ExternalPass, Pass, PassManager, RunExternalPass, create_external},
     utility::{register_all_dialects, register_all_llvm_translations},
 };
-use r#type::{FunctionType, IntegerType};
 
 use crate::conversion::{
     builder::OpBuilder,
