@@ -901,6 +901,13 @@ operations!(
     (Invalid, INVALID),
 );
 
+pub type ParseOperationResult = (
+    Vec<Operation>,
+    FxHashMap<usize, usize>,
+    FxHashMap<usize, usize>,
+    Vec<OpcodeParseError>,
+);
+
 /// Represents a program that has been parsed and is ready for execution. The `Program` struct
 /// holds a list of operations and the total code size of the bytecode it represents.
 ///
@@ -932,14 +939,16 @@ operations!(
 ///   the total size of the bytecode.
 #[derive(Debug, Clone)]
 pub struct Program {
-    /// A vector of operations parsed from the bytecode
+    /// A vector of operations parsed from the bytecode.
     operations: Vec<Operation>,
-    /// The total size of the bytecode (in bytes)
+    /// The total size of the bytecode (in bytes).
     code_size: u32,
-    /// Optional field for eof bytecode
+    /// Optional field for eof bytecode.
     eof: Option<Arc<Eof>>,
-    /// Mapping from program counter to instruction
+    /// Mapping from program counter to instruction.
     pc_to_index_mapping: FxHashMap<usize, usize>,
+    /// Mapping from to instruction to program counter.
+    index_to_pc_mapping: FxHashMap<usize, usize>,
     /// Mapping from the jump index to the destination index.
     jump_to_pc_mapping: FxHashMap<usize, usize>,
     /// Has dynamic or invalid jump operations.
@@ -964,7 +973,8 @@ impl Program {
     /// # Returns
     /// A `Program` instance constructed from the parsed operations.
     pub fn from_opcodes(opcodes: &[u8], eof: Option<Arc<Eof>>) -> Self {
-        let (operations, pc_to_index_mapping, _) = Self::parse_operations(opcodes, eof.is_some());
+        let (operations, pc_to_index_mapping, index_to_pc_mapping, _) =
+            Self::parse_operations(opcodes, eof.is_some());
         let code_size = Self::calculate_code_size(&operations);
 
         let mut program = Self {
@@ -972,6 +982,7 @@ impl Program {
             code_size,
             eof,
             pc_to_index_mapping,
+            index_to_pc_mapping,
             jump_to_pc_mapping: FxHashMap::default(),
             has_dynamic_or_invalid_jumps: false,
         };
@@ -1104,6 +1115,7 @@ impl Program {
     }
 
     /// Returns the operation index of the given EOF section index.
+    #[inline]
     pub fn eof_section_index(&self, section: usize) -> usize {
         self.pc_to_index_mapping[&self.eof_section_pc(section)]
     }
@@ -1117,22 +1129,24 @@ impl Program {
         }
     }
 
-    fn parse_operations(
-        opcodes: &[u8],
-        is_eof: bool,
-    ) -> (
-        Vec<Operation>,
-        FxHashMap<usize, usize>,
-        Vec<OpcodeParseError>,
-    ) {
+    /// Get the pc of the given operation index.
+    #[inline]
+    pub fn index_to_pc(&self, index: usize) -> Option<usize> {
+        self.index_to_pc_mapping.get(&index).copied()
+    }
+
+    fn parse_operations(opcodes: &[u8], is_eof: bool) -> ParseOperationResult {
         let mut operations = vec![];
         let mut pc_to_index_mapping =
+            FxHashMap::with_capacity_and_hasher(opcodes.len(), Default::default());
+        let mut index_to_pc_mapping =
             FxHashMap::with_capacity_and_hasher(opcodes.len(), Default::default());
         let mut failed_opcodes = vec![];
         let mut pc = 0;
         let mut index = 0;
 
         pc_to_index_mapping.insert(pc, index);
+        index_to_pc_mapping.insert(index, pc);
 
         while pc < opcodes.len() {
             match Self::parse_operation(opcodes, pc, is_eof) {
@@ -1141,6 +1155,7 @@ impl Program {
                     pc = new_pc;
                     index += 1;
                     pc_to_index_mapping.insert(pc, index);
+                    index_to_pc_mapping.insert(index, pc);
                 }
                 Err(e) => {
                     operations.push(Operation::Invalid);
@@ -1150,7 +1165,12 @@ impl Program {
             }
         }
 
-        (operations, pc_to_index_mapping, failed_opcodes)
+        (
+            operations,
+            pc_to_index_mapping,
+            index_to_pc_mapping,
+            failed_opcodes,
+        )
     }
 
     fn parse_operation(

@@ -260,7 +260,8 @@ impl<'c> EVMCompiler<'c> {
 
         // Static gas metering needs to be done before stack checking.
         if opts.gas_metering {
-            op_start_block = Self::gas_metering_block(ctx, region, op_start_block, op, &op_info)?;
+            op_start_block =
+                Self::gas_metering_block(ctx, region, op_start_block, index, op, &op_info)?;
         }
 
         // Stack overflow/underflow check.
@@ -498,6 +499,7 @@ impl<'c> EVMCompiler<'c> {
         ctx: &mut CtxType<'c>,
         region: &'r Region<'c>,
         gas_check_block: BlockRef<'r, 'c>,
+        index: usize,
         op: &Operation,
         op_info: &OpcodeInfo,
     ) -> Result<BlockRef<'r, 'c>> {
@@ -512,17 +514,18 @@ impl<'c> EVMCompiler<'c> {
         let gas_counter = builder.make(builder.load(ctx.values.gas_counter_ptr, uint64))?;
         let gas_value = builder.make(builder.iconst_64(base_gas as i64))?;
         if std::env::var(DORA_TRACING).is_ok() {
-            let opcode = builder
-                .create(builder.iconst(uint8, op.opcode() as i64))
-                .result(0)?
-                .into();
+            let opcode = builder.make(builder.iconst(uint8, op.opcode() as i64))?;
+            let pc = ctx.program.index_to_pc(index).unwrap_or_default();
+            let pc = builder.make(builder.iconst(builder.isize_ty(), pc as i64))?;
             builder.create(func::call(
                 builder.context(),
                 FlatSymbolRefAttribute::new(builder.context(), runtime_symbols::TRACING),
                 &[
                     ctx.values.syscall_ctx,
+                    pc,
                     opcode,
                     gas_counter,
+                    gas_value,
                     ctx.values.stack_ptr,
                     ctx.values.stack_size_ptr,
                 ],

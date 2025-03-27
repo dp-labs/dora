@@ -9,7 +9,6 @@ use crate::{
     ExitStatusCode,
     account::Account,
     call::{CallKind, CallMessage, CallResult},
-    constants::env::DORA_TRACING,
     context::VMContext,
     db::{Database, DatabaseError},
     gas::{self, InitialGas},
@@ -207,14 +206,8 @@ impl<'a, DB: Database> VM<'a, DB> {
                 is_eof_init: false,
                 validate_eof: true,
             };
-            if std::env::var(DORA_TRACING).is_ok() {
-                println!("info: tx call msg {:?}", call_msg);
-            }
             let mut result = ctx.call(call_msg)?;
             ctx.last_frame_return(&mut result);
-            if std::env::var(DORA_TRACING).is_ok() {
-                println!("info: tx call ret {:?}", result);
-            }
             result
         };
 
