@@ -3,7 +3,6 @@ use std::sync::Arc;
 
 use crate::account::Account;
 use crate::call::{CallKind, CallMessage, CallResult, CallType, ExtCallType};
-use crate::constants::env::DORA_TRACING;
 use crate::constants::gas_cost::MIN_CALLEE_GAS;
 use crate::constants::{CALL_STACK_LIMIT, MAX_FUNCTION_STACK_SIZE, MAX_STACK_SIZE, gas_cost};
 use crate::db::{Database, DatabaseError};
@@ -1378,31 +1377,28 @@ impl<'a> RuntimeContext<'a> {
 impl RuntimeContext<'_> {
     extern "C" fn nop() {}
 
+    /// EIP-3155: EVM trace specification - A JSON format for EVM traces: https://eips.ethereum.org/EIPS/eip-3155
+    /// For example:
+    /// {"pc":21,"op":0,"gas":"0x4c3fe","gasCost":"0x0","memSize":32,"stack":[],"depth":1,"refund":0,"opName":"STOP"}
     extern "C" fn tracing(
         &mut self,
+        pc: usize,
         op: u8,
         gas: u64,
+        gas_cost: u64,
         stack_ptr: *mut Bytes32,
         stack_size_ptr: *mut u64,
     ) {
         let stack_size = unsafe { *stack_size_ptr } as usize;
         let stack =
             unsafe { Vec::<Bytes32>::from_raw_parts(stack_ptr, stack_size, MAX_STACK_SIZE) };
-        let nano_seconds = if let Ok(duration_since_epoch) =
-            std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH)
-        {
-            duration_since_epoch.as_nanos()
-        } else {
-            0
-        };
         let op_name = OpCode::new(op).map(|i| i.as_str()).unwrap();
         println!(
-            "time: {}ns, op: {}, opHex: {:x}, opName: {}, gas: 0x{:x}, memSize: {}, stack: {:?}, stackSize: {}, depth: {}",
-            nano_seconds,
+            "{{\"pc\":{},\"op\":{},\"gas\":\"0x{:x}\",\"gasCost\":\"0x{:x}\",\"memSize\":{},\"stack:{:?},\"depth\":{},\"refund\":{},\"opName\":{:?}}}",
+            pc,
             op,
-            op,
-            op_name,
             gas,
+            gas_cost,
             self.memory().len(),
             stack
                 .iter()
@@ -1415,8 +1411,9 @@ impl RuntimeContext<'_> {
                     format!("0x{v}")
                 })
                 .collect::<Vec<_>>(),
-            stack_size,
             self.inner.depth,
+            self.inner.gas_refunded,
+            op_name,
         );
         // DO NOT free the stack pointer.
         stack.leak();
@@ -1562,16 +1559,10 @@ impl RuntimeContext<'_> {
             is_eof_init: false,
             validate_eof: true,
         };
-        if std::env::var(DORA_TRACING).is_ok() {
-            println!("info: sub call msg {:?}", call_msg);
-        }
         let call_result = self
             .host
             .call(call_msg)
             .unwrap_or_else(|_| CallResult::new_with_gas_limit(gas_limit));
-        if std::env::var(DORA_TRACING).is_ok() {
-            println!("info: sub call ret {:?}", call_result);
-        }
         self.inner.returndata = call_result.output.to_vec();
         let ret_offset = ret_offset as usize;
         let ret_size = ret_size as usize;
@@ -1707,16 +1698,10 @@ impl RuntimeContext<'_> {
             is_eof_init: true,
             validate_eof: true,
         };
-        if std::env::var(DORA_TRACING).is_ok() {
-            println!("info: sub ext call msg {:?}", call_msg);
-        }
         let call_result = self
             .host
             .call(call_msg)
             .unwrap_or_else(|_| CallResult::new_with_gas_limit(gas_limit));
-        if std::env::var(DORA_TRACING).is_ok() {
-            println!("info: sub ext call ret {:?}", call_result);
-        }
         self.inner.returndata = call_result.output.to_vec();
         // Check the error message.
         if call_result.status.is_ok() {
