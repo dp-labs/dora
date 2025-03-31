@@ -872,7 +872,7 @@ pub struct EVMCompileOptions {
     /// processes the call frame recursively. This is because revm and evmc have different ways of
     /// handling the call host API.
     pub suspend: bool,
-    /// Use common op functions instead of inlining everything
+    /// Use common op functions instead of inlining everything.
     pub inline: bool,
 }
 
