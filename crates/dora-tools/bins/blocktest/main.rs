@@ -47,14 +47,19 @@ struct RunArgs {
 }
 
 pub type Test = HashMap<String, Suite>;
+pub type WSet = HashMap<Address, HashMap<U256, U256>>;
 
 #[derive(Debug, PartialEq, Eq, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct Suite {
     env: TestEnv,
+    // The key denotes the tx index + 1
     transactions: HashMap<String, Transaction>,
     pre: HashMap<Address, Account>,
+    // The key denotes the tx index
     logs: HashMap<String, HashMap<String, ExpectLog>>,
+    // The key denotes the tx index
+    wset: Option<HashMap<String, WSet>>,
 }
 
 #[derive(Debug, PartialEq, Eq, Deserialize)]
