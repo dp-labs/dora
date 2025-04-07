@@ -1,30 +1,43 @@
-use std::sync::Arc;
+use std::{cmp::min, sync::Arc};
 
 pub use alloy_primitives::{PrimitiveSignature, SignatureError, Signed, Uint};
-pub use revm::interpreter::{AccountLoad, Eip7702CodeLoad, OpCode, SelfDestructResult, StateLoad};
-pub use revm::precompile::{
-    Precompile, PrecompileErrors, PrecompileOutput, PrecompileSpecId, Precompiles,
+pub use revm::bytecode::{
+    Bytecode as EVMBytecode,
+    eip7702::Eip7702Bytecode,
+    eof::{CodeInfo as EofCodeInfo, EOF_MAGIC_BYTES, EOF_MAGIC_HASH, Eof, EofBody},
+    opcode::{OpCode, OpCodeInfo},
 };
+use revm::context::Block;
+pub use revm::context::{BlockEnv, CfgEnv, TxEnv};
+pub use revm::context_interface::{
+    block::{BlobExcessGasAndPrice, calc_blob_gasprice, calc_excess_blob_gas},
+    cfg::Cfg,
+    context::{SStoreResult, SelfDestructResult},
+    journaled_state::{AccountLoad, StateLoad},
+    result::{InvalidHeader, InvalidTransaction},
+    transaction::{
+        AccessList, AccessListItem, Authorization, AuthorizationTr, RecoveredAuthority,
+        RecoveredAuthorization, SignedAuthorization, TransactionType,
+    },
+};
+pub use revm::precompile::{PrecompileError, PrecompileOutput, PrecompileSpecId, Precompiles};
 pub use revm::primitives::{
-    AccessList, AccessListItem, Address, Authorization, AuthorizationList, B256,
-    BLOCK_HASH_HISTORY, BLOCKHASH_SERVE_WINDOW, BLOCKHASH_STORAGE_ADDRESS, BlobExcessGasAndPrice,
-    BlockEnv, Bytecode as EVMBytecode, Bytes, CfgEnv, EOF_MAGIC_BYTES, EOF_MAGIC_HASH, Env,
-    EvmStorageSlot, FixedBytes, GAS_PER_BLOB, I256, InvalidHeader, InvalidTransaction,
-    KECCAK_EMPTY, Log, LogData, MAX_CODE_SIZE, MAX_INITCODE_SIZE, RecoveredAuthority,
-    RecoveredAuthorization, SignedAuthorization, SpecId, TxEnv, TxKind, TxType, U256, address,
-    alloy_primitives, b256, calc_blob_gasprice, calc_excess_blob_gas,
+    Address, B256, BLOCK_HASH_HISTORY, Bytes, FixedBytes, I256, KECCAK_EMPTY, Log, LogData, TxKind,
+    U256, address, alloy_primitives, b256,
+    constants::MAX_INITCODE_SIZE,
+    eip4844::{self, GAS_PER_BLOB},
     eip7702::{self, PER_AUTH_BASE_COST, PER_EMPTY_ACCOUNT_COST},
-    eof::{Eof, EofBody, TypesSection},
     fixed_bytes,
     hex::{FromHex, ToHexExt},
     keccak256, uint,
 };
+pub use revm::state::EvmStorageSlot;
 
 pub mod config;
 pub mod spec;
 
 pub use config::OptimizationLevel;
-pub use spec::{Spec, SpecName, spec_to_generic};
+pub use spec::{SpecId, SpecName};
 
 /// Converts a [U256] value to a [u64], saturating to [MAX][u64] if the value is too large.
 #[macro_export]
@@ -67,6 +80,94 @@ macro_rules! tri {
             None => return None,
         }
     };
+}
+
+#[derive(Clone, Debug, Default, PartialEq, Eq)]
+pub struct Env {
+    pub block: BlockEnv,
+    pub tx: TxEnv,
+    pub cfg: CfgEnv,
+}
+
+impl Env {
+    /// Gas price for the transaction.
+    /// It is only applicable for Legacy and EIP-2930 transactions.
+    /// For Eip1559 it is max_fee_per_gas.
+    #[inline]
+    pub fn gas_price(&self) -> u128 {
+        self.tx.gas_price
+    }
+
+    /// Returns maximum fee that can be paid for the transaction.
+    pub fn max_fee_per_gas(&self) -> u128 {
+        self.gas_price()
+    }
+
+    /// Maximum priority fee per gas.
+    #[inline]
+    pub fn max_priority_fee_per_gas(&self) -> Option<u128> {
+        self.tx.gas_priority_fee
+    }
+
+    /// Returns vector of fixed size hash(32 bytes)
+    ///
+    /// Note : EIP-4844 transaction field.
+    #[inline]
+    pub fn blob_versioned_hashes(&self) -> &[B256] {
+        self.tx.blob_hashes.as_slice()
+    }
+
+    /// Max fee per data gas
+    ///
+    /// Note : EIP-4844 transaction field.
+    #[inline]
+    pub fn max_fee_per_blob_gas(&self) -> u128 {
+        self.tx.max_fee_per_blob_gas
+    }
+
+    /// See [EIP-4844] and [`calc_blob_gasprice`].
+    ///
+    /// Returns `None` if `Cancun` is not enabled.
+    ///
+    /// [EIP-4844]: https://eips.ethereum.org/EIPS/eip-4844
+    #[inline]
+    pub fn blob_gasprice(&self) -> Option<u128> {
+        self.block
+            .blob_excess_gas_and_price
+            .map(|a| a.blob_gasprice)
+    }
+
+    /// Total gas for all blobs. Max number of blocks is already checked
+    /// so we dont need to check for overflow.
+    #[inline]
+    pub fn total_blob_gas(&self) -> u64 {
+        GAS_PER_BLOB * self.blob_versioned_hashes().len() as u64
+    }
+
+    /// Calculates the maximum [EIP-4844] `data_fee` of the transaction.
+    ///
+    /// This is used for ensuring that the user has at least enough funds to pay the
+    /// `max_fee_per_blob_gas * total_blob_gas`, on top of regular gas costs.
+    ///
+    /// See EIP-4844:
+    /// <https://github.com/ethereum/EIPs/blob/master/EIPS/eip-4844.md#execution-layer-validation>
+    pub fn calc_max_data_fee(&self) -> U256 {
+        let blob_gas = U256::from(self.total_blob_gas());
+        let max_blob_fee = U256::from(self.max_fee_per_blob_gas());
+        max_blob_fee.saturating_mul(blob_gas)
+    }
+
+    /// Returns effective gas price is gas price field for Legacy and Eip2930 transaction.
+    ///
+    /// While for transactions after Eip1559 it is minimum of max_fee and `base + max_priority_fee`.
+    pub fn effective_gas_price(&self) -> u128 {
+        let base_fee = self.block.basefee() as u128;
+        let max_fee = self.gas_price();
+        let Some(max_priority_fee) = self.max_priority_fee_per_gas() else {
+            return max_fee;
+        };
+        min(max_fee, base_fee.saturating_add(max_priority_fee))
+    }
 }
 
 /// WASM bytecode is a normal bytes that start with the magic bytes `\0asm`.
@@ -120,9 +221,9 @@ impl Bytecode {
     ///
     /// In case of EOF EVM bytecode, this will be the first code section.
     #[inline]
-    pub fn bytecode(&self) -> &Bytes {
+    pub fn bytecode(&self) -> &[u8] {
         match self {
-            Bytecode::EVM(bytecode) => bytecode.bytecode(),
+            Bytecode::EVM(bytecode) => bytecode.original_byte_slice(),
             Bytecode::WASM(bytes) => bytes,
         }
     }
@@ -131,7 +232,7 @@ impl Bytecode {
     #[inline]
     pub fn bytes(&self) -> Bytes {
         match self {
-            Bytecode::EVM(bytecode) => bytecode.bytes(),
+            Bytecode::EVM(bytecode) => bytecode.original_bytes(),
             Bytecode::WASM(bytes) => bytes.clone(),
         }
     }

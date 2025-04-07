@@ -1,9 +1,5 @@
-use std::sync::Arc;
-
 use dora_compiler::evm::{Program, program::Operation};
-use dora_primitives::{
-    Address, Bytecode, Bytes, Bytes32, EVMBytecode, Env, Eof, Log, TxKind, U256, spec::SpecId,
-};
+use dora_primitives::{Address, Bytecode, Bytes, Bytes32, Env, Log, TxKind, U256, spec::SpecId};
 use dora_runtime::{
     ExitStatusCode,
     context::{Contract, RuntimeContext},
@@ -92,57 +88,18 @@ pub(crate) fn run_result_with_spec(operations: Vec<Operation>, spec_id: SpecId) 
     }
 }
 
-#[inline]
-pub(crate) fn run_result_eof(eof: Eof) -> TestResult {
-    run_result_with_spec_eof(eof, SpecId::OSAKA)
-}
-
-pub(crate) fn run_result_with_spec_eof(eof: Eof, spec_id: SpecId) -> TestResult {
-    let mut env = Env::default();
-    env.tx.gas_limit = INIT_GAS;
-    env.tx.data = Bytes::from_static(&[0xCC; 64]);
-    let contract =
-        Contract::new_with_env(&env, Bytecode::EVM(EVMBytecode::Eof(Arc::new(eof))), None);
-    let mut host = DummyHost::new(env);
-    let mut runtime_context =
-        RuntimeContext::new(contract, 1, false, false, &mut host, spec_id, INIT_GAS);
-    runtime_context.set_returndata(vec![0xDD; 64]);
-    let result = run_with_context::<MemoryDB>(runtime_context).unwrap();
-    TestResult {
-        status: result.status,
-        output: result.output.to_vec(),
-        gas_used: INIT_GAS - result.gas_remaining,
-        host,
-    }
-}
-
 pub(crate) fn default_env_and_db_setup(operations: Vec<Operation>) -> (Env, MemoryDB) {
     let mut env = Env::default();
     env.tx.gas_limit = INIT_GAS;
-    env.block.gas_limit = Bytes32::from(INIT_GAS).into_u256();
+    env.block.gas_limit = INIT_GAS;
     let program = Program::from_operations(operations, false);
     let (address, bytecode) = (
         Address::left_padding_from(&[40]),
         Bytes::from(program.to_opcode()),
     );
-    env.tx.transact_to = TxKind::Call(address);
-    env.block.coinbase = Address::left_padding_from(&[80]);
+    env.tx.kind = TxKind::Call(address);
+    env.block.beneficiary = Address::left_padding_from(&[80]);
     let mut db = MemoryDB::new().with_contract(address, Bytecode::new(bytecode));
-    db.set_balance(address, U256::from(10));
-    (env, db)
-}
-
-pub(crate) fn default_env_and_db_setup_eof(eof: Eof) -> (Env, MemoryDB) {
-    let mut env = Env::default();
-    env.tx.gas_limit = INIT_GAS;
-    env.block.gas_limit = Bytes32::from(INIT_GAS).into_u256();
-    let (address, bytecode) = (
-        Address::left_padding_from(&[40]),
-        Bytecode::EVM(EVMBytecode::Eof(Arc::new(eof))),
-    );
-    env.tx.transact_to = TxKind::Call(address);
-    env.block.coinbase = Address::left_padding_from(&[80]);
-    let mut db = MemoryDB::new().with_contract(address, bytecode);
     db.set_balance(address, U256::from(10));
     (env, db)
 }

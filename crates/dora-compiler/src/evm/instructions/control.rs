@@ -215,7 +215,7 @@ impl<'c> EVMCompiler<'c> {
         ))?;
         let types = eof
             .body
-            .types_section
+            .code_info
             .get(target_section_index as usize)
             .ok_or(anyhow::anyhow!(
                 "section {target_section_index}: types not found"

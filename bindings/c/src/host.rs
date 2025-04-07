@@ -37,15 +37,30 @@ impl<'a> EvmcDelegateHost<'a> {
             .map(|b| B256::from_slice(&b.bytes))
             .collect()
         };
+        let mut tx = TxEnv {
+            caller: evmc_address_to_address(&tx_context.tx_origin),
+            gas_price: U256::from_be_bytes(tx_context.tx_gas_price.bytes)
+                .try_into()
+                .unwrap_or(u128::MAX),
+            blob_hashes,
+            max_fee_per_blob_gas: U256::from_be_bytes(tx_context.blob_base_fee.bytes)
+                .try_into()
+                .unwrap_or(u128::MAX),
+            chain_id: Some(chain_id),
+            ..Default::default()
+        };
+        let _ = tx.derive_tx_type();
         Self {
             env: Env {
                 cfg: CfgEnv::default().with_chain_id(chain_id),
                 block: BlockEnv {
-                    number: U256::from(tx_context.block_number),
-                    coinbase: evmc_address_to_address(&tx_context.block_coinbase),
-                    timestamp: U256::from(tx_context.block_timestamp),
-                    gas_limit: U256::from(tx_context.block_gas_limit),
-                    basefee: U256::from_be_bytes(tx_context.block_base_fee.bytes),
+                    number: tx_context.block_number as u64,
+                    beneficiary: evmc_address_to_address(&tx_context.block_coinbase),
+                    timestamp: tx_context.block_timestamp as u64,
+                    gas_limit: tx_context.block_gas_limit as u64,
+                    basefee: as_u64_saturated!(U256::from_be_bytes(
+                        tx_context.block_base_fee.bytes
+                    )),
                     difficulty: U256::from_be_bytes(tx_context.block_prev_randao.bytes),
                     prevrandao: Some(B256::from_slice(&tx_context.block_prev_randao.bytes)),
                     blob_excess_gas_and_price: Some(BlobExcessGasAndPrice::new(
@@ -53,14 +68,7 @@ impl<'a> EvmcDelegateHost<'a> {
                         spec_id.is_enabled_in(SpecId::PRAGUE),
                     )),
                 },
-                tx: TxEnv {
-                    caller: evmc_address_to_address(&tx_context.tx_origin),
-                    gas_price: U256::from_be_bytes(tx_context.tx_gas_price.bytes),
-                    blob_hashes,
-                    max_fee_per_blob_gas: Some(U256::from_be_bytes(tx_context.blob_base_fee.bytes)),
-                    chain_id: Some(chain_id),
-                    ..Default::default()
-                },
+                tx,
             },
             context,
         }
@@ -134,7 +142,7 @@ impl Host for EvmcDelegateHost<'_> {
         }
     }
 
-    fn load_account_delegated(&mut self, _addr: Address) -> Option<AccountLoad> {
+    fn load_account_delegated(&mut self, _addr: Address) -> Option<StateLoad<AccountLoad>> {
         // Nothing to do
         None
     }

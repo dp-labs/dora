@@ -79,7 +79,7 @@ fn run_evm_bench(c: &mut Criterion, bench: &Bench) {
     let mut env: Env = Default::default();
     env.tx.gas_limit = gas_limit;
     env.tx.data = Bytes::from(calldata.to_vec());
-    env.tx.transact_to = TxKind::Call(Address::left_padding_from(&[40]));
+    env.tx.kind = TxKind::Call(Address::left_padding_from(&[40]));
     env.tx.caller = address!("6666000000000000000000000000000000000000");
     let contract = Contract::new_with_env(&env, Bytecode::new(program.to_opcode().into()), None);
     let mut host = DummyHost::new(env);
@@ -142,7 +142,7 @@ fn run_wasm_bench(c: &mut Criterion, bench: &Bench) {
     let mut env: Env = Default::default();
     env.tx.gas_limit = gas_limit;
     env.tx.data = Bytes::from(calldata.to_vec());
-    env.tx.transact_to = TxKind::Call(Address::left_padding_from(&[40]));
+    env.tx.kind = TxKind::Call(Address::left_padding_from(&[40]));
     env.tx.caller = address!("6666000000000000000000000000000000000000");
     let contract = Contract::new_with_env(&env, Bytecode::new(bytecode.to_vec().into()), None);
     let instance = compiler.build_instance(bytecode).unwrap();
@@ -292,15 +292,15 @@ fn run_evm_uniswapv3_bench(c: &mut Criterion) {
         tx: TxEnv {
             caller: seller,
             gas_limit: 2_000_000,
-            gas_price: U256::from(0xb2d05e07u64),
-            transact_to: TxKind::Call(swap_address),
+            gas_price: 0xb2d05e07u128,
+            kind: TxKind::Call(swap_address),
             data: [
                 &fixed_bytes!("c92b0891")[..],
                 &B256::from(U256::from(2000))[..],
             ]
             .concat()
             .into(),
-            nonce: Some(1),
+            nonce: 1,
             ..Default::default()
         },
         ..Default::default()

@@ -14,8 +14,7 @@ use crate::call::{CallKind, CallMessage, CallResult, CallType};
 use crate::constants::env::DORA_DISABLE_CONSOLE;
 use crate::context::RuntimeContext;
 use dora_primitives::{
-    Address, B256, Bytes, Bytes32, KECCAK_EMPTY, Log, LogData, U256, as_u64_saturated,
-    keccak256 as native_keccak256,
+    Address, B256, Bytes, Bytes32, KECCAK_EMPTY, Log, LogData, U256, keccak256 as native_keccak256,
 };
 use wasmer::{Memory, MemoryAccessError, MemoryView, Pages, StoreMut, WasmPtr};
 
@@ -279,7 +278,7 @@ pub fn block_basefee(
 ) -> MaybeEscape {
     let host = HostInfo::from_env(&mut env)?;
     let basefee = with_runtime_context(|runtime_context| runtime_context.host.env().block.basefee);
-    host.write_slice(dest, &basefee.to_be_bytes_vec())?;
+    host.write_slice(dest, &basefee.to_be_bytes())?;
     Ok(())
 }
 
@@ -294,7 +293,8 @@ pub fn block_blobbasefee(
             .host
             .env()
             .block
-            .get_blob_gasprice()
+            .blob_excess_gas_and_price
+            .map(|a| a.blob_gasprice)
             .unwrap_or_default()
     });
     let basefee = Bytes32::from(basefee);
@@ -309,7 +309,7 @@ pub fn block_coinbase(
 ) -> MaybeEscape {
     let host = HostInfo::from_env(&mut env)?;
     let coinbase =
-        with_runtime_context(|runtime_context| runtime_context.host.env().block.coinbase);
+        with_runtime_context(|runtime_context| runtime_context.host.env().block.beneficiary);
     host.write_slice(dest, &coinbase.0.0)?;
     Ok(())
 }
@@ -318,21 +318,21 @@ pub fn block_coinbase(
 pub fn block_gas_limit(mut _env: WASMEnvMut) -> EscapeResult<u64> {
     let gas_limit =
         with_runtime_context(|runtime_context| runtime_context.host.env().block.gas_limit);
-    Ok(as_u64_saturated!(gas_limit))
+    Ok(gas_limit)
 }
 
 /// Gets the number of ancestor blocks of this block (block height).
 pub fn block_number(mut _env: WASMEnvMut) -> EscapeResult<u64> {
     let block_number =
         with_runtime_context(|runtime_context| runtime_context.host.env().block.number);
-    Ok(as_u64_saturated!(block_number))
+    Ok(block_number)
 }
 
 /// Gets the timestamp of the block in seconds since the UNIX epoch.
 pub fn block_timestamp(mut _env: WASMEnvMut) -> EscapeResult<u64> {
     let block_timestamp =
         with_runtime_context(|runtime_context| runtime_context.host.env().block.timestamp);
-    Ok(as_u64_saturated!(block_timestamp))
+    Ok(block_timestamp)
 }
 
 /// Gets the unique chain identifier.
@@ -912,7 +912,7 @@ pub fn gas_price(
     let host = HostInfo::from_env(&mut env)?;
     let price =
         with_runtime_context(|runtime_context| runtime_context.host.env().effective_gas_price());
-    host.write_slice(gas_price, &price.to_be_bytes_vec())?;
+    host.write_slice(gas_price, &price.to_be_bytes())?;
     Ok(())
 }
 
