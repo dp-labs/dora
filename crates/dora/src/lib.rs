@@ -130,7 +130,7 @@ pub fn run_bytecode_hex(
     let calldata = hex::decode(calldata)?;
     let address = Bytes32::from(40_u32).to_address();
     let mut env = Env::default();
-    env.tx.transact_to = TxKind::Call(address);
+    env.tx.kind = TxKind::Call(address);
     env.tx.gas_limit = initial_gas;
     env.tx.data = Bytes::from(calldata);
     env.tx.caller = Bytes32::from(10000_u32).to_address();
@@ -169,7 +169,7 @@ pub fn build_evm_artifact<DB: Database>(
 ) -> anyhow::Result<DB::Artifact> {
     let spec_id = opts.spec_id;
     // Compile the contract code
-    let program = Program::from_opcodes(code.bytecode(), code.eof().cloned());
+    let program = Program::from_opcodes(code.original_byte_slice(), code.eof().cloned());
     let context = Context::new();
     let compiler = EVMCompiler::new(&context, opts);
     let mut module = compiler.compile(&program)?;

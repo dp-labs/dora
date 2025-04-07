@@ -3,7 +3,10 @@ use std::{
     ops::{Deref, DerefMut},
 };
 
-use dora_primitives::{Bytes, Env, InvalidTransaction, SpecId, U256, spec_to_generic};
+use dora_primitives::{
+    B256, Bytes, Cfg, Env, InvalidHeader, InvalidTransaction, SpecId, TransactionType, U256,
+    eip4844,
+};
 
 use crate::{
     ExitStatusCode,
@@ -58,12 +61,224 @@ impl<'a, DB: Database> VM<'a, DB> {
     /// Pre verify transaction inner.
     #[inline]
     fn preverify_transaction(&mut self) -> Result<InitialGas, VMError> {
-        let spec_id = self.spec_id();
-        spec_to_generic!(spec_id, self.env.validate_block_env::<SPEC>())?;
-        spec_to_generic!(spec_id, self.env.validate_tx::<SPEC>())?;
-        let gas = Self::validate_initial_tx_gas(&self.context.env, spec_id)?;
+        self.validate_env()?;
+        let gas = Self::validate_initial_tx_gas(&self.context.env, self.spec_id())?;
         self.validate_tx_against_state()?;
         Ok(gas)
+    }
+
+    fn validate_env(&mut self) -> Result<(), VMError> {
+        let spec_id = self.spec_id();
+        if spec_id.is_enabled_in(SpecId::MERGE) && self.env.block.prevrandao.is_none() {
+            return Err(VMError::Header(InvalidHeader::PrevrandaoNotSet));
+        }
+        if spec_id.is_enabled_in(SpecId::CANCUN)
+            && self.env.block.blob_excess_gas_and_price.is_none()
+        {
+            return Err(VMError::Header(InvalidHeader::ExcessBlobGasNotSet));
+        }
+        let tx_type = self.env.tx.tx_type;
+        let base_fee = if self.env.cfg.is_base_fee_check_disabled() {
+            None
+        } else {
+            Some(self.env.block.basefee as u128)
+        };
+
+        match TransactionType::from(tx_type) {
+            TransactionType::Legacy => {
+                // Check chain_id only if it is present in the legacy transaction.
+                // EIP-155: Simple replay attack protection
+                if let Some(chain_id) = self.env.tx.chain_id {
+                    if chain_id != self.env.cfg.chain_id() {
+                        return Err(VMError::Transaction(InvalidTransaction::InvalidChainId));
+                    }
+                }
+                // Gas price must be at least the basefee.
+                if let Some(base_fee) = base_fee {
+                    if self.env.tx.gas_price < base_fee {
+                        return Err(VMError::Transaction(
+                            InvalidTransaction::GasPriceLessThanBasefee,
+                        ));
+                    }
+                }
+            }
+            TransactionType::Eip2930 => {
+                // Enabled in BERLIN hardfork
+                if !spec_id.is_enabled_in(SpecId::BERLIN) {
+                    return Err(VMError::Transaction(
+                        InvalidTransaction::Eip2930NotSupported,
+                    ));
+                }
+
+                if Some(self.env.cfg.chain_id()) != self.env.tx.chain_id {
+                    return Err(VMError::Transaction(InvalidTransaction::InvalidChainId));
+                }
+
+                // Gas price must be at least the basefee.
+                if let Some(base_fee) = base_fee {
+                    if self.env.tx.gas_price < base_fee {
+                        return Err(VMError::Transaction(
+                            InvalidTransaction::GasPriceLessThanBasefee,
+                        ));
+                    }
+                }
+            }
+            TransactionType::Eip1559 => {
+                if !spec_id.is_enabled_in(SpecId::LONDON) {
+                    return Err(VMError::Transaction(
+                        InvalidTransaction::Eip1559NotSupported,
+                    ));
+                }
+                if Some(self.env.cfg.chain_id()) != self.env.tx.chain_id {
+                    return Err(VMError::Transaction(InvalidTransaction::InvalidChainId));
+                }
+
+                Self::validate_priority_fee_tx(
+                    self.env.max_fee_per_gas(),
+                    self.env.max_priority_fee_per_gas().unwrap_or_default(),
+                    base_fee,
+                )?;
+            }
+            TransactionType::Eip4844 => {
+                if !spec_id.is_enabled_in(SpecId::CANCUN) {
+                    return Err(VMError::Transaction(
+                        InvalidTransaction::Eip4844NotSupported,
+                    ));
+                }
+
+                if Some(self.env.cfg.chain_id()) != self.env.tx.chain_id {
+                    return Err(VMError::Transaction(InvalidTransaction::InvalidChainId));
+                }
+
+                Self::validate_priority_fee_tx(
+                    self.env.max_fee_per_gas(),
+                    self.env.max_priority_fee_per_gas().unwrap_or_default(),
+                    base_fee,
+                )?;
+
+                Self::validate_eip4844_tx(
+                    self.env.blob_versioned_hashes(),
+                    self.env.max_fee_per_blob_gas(),
+                    self.env.blob_gasprice().unwrap_or_default(),
+                    self.env.cfg.blob_max_count(spec_id),
+                )?;
+            }
+            TransactionType::Eip7702 => {
+                // Check if EIP-7702 transaction is enabled.
+                if !spec_id.is_enabled_in(SpecId::PRAGUE) {
+                    return Err(VMError::Transaction(
+                        InvalidTransaction::Eip7702NotSupported,
+                    ));
+                }
+
+                if Some(self.env.cfg.chain_id()) != self.env.tx.chain_id {
+                    return Err(VMError::Transaction(InvalidTransaction::InvalidChainId));
+                }
+
+                Self::validate_priority_fee_tx(
+                    self.env.max_fee_per_gas(),
+                    self.env.max_priority_fee_per_gas().unwrap_or_default(),
+                    base_fee,
+                )?;
+
+                // The transaction is considered invalid if the length of authorization_list is zero.
+                if self.env.tx.authorization_list.is_empty() {
+                    return Err(VMError::Transaction(
+                        InvalidTransaction::EmptyAuthorizationList,
+                    ));
+                }
+            }
+            TransactionType::Custom => {
+                // Custom transaction type check is not done here.
+            }
+        };
+
+        // Check if gas_limit is more than block_gas_limit
+        if !self.env.cfg.is_block_gas_limit_disabled()
+            && self.env.tx.gas_limit > self.env.block.gas_limit
+        {
+            return Err(VMError::Transaction(
+                InvalidTransaction::CallerGasLimitMoreThanBlock,
+            ));
+        }
+
+        // EIP-3860: Limit and meter initcode
+        if spec_id.is_enabled_in(SpecId::SHANGHAI) && self.env.tx.kind.is_create() {
+            let max_initcode_size = self.env.cfg.max_code_size().saturating_mul(2);
+            if self.env.tx.data.len() > max_initcode_size {
+                return Err(VMError::Transaction(
+                    InvalidTransaction::CreateInitCodeSizeLimit,
+                ));
+            }
+        }
+
+        Ok(())
+    }
+
+    /// Validate transaction that has EIP-1559 priority fee
+    fn validate_priority_fee_tx(
+        max_fee: u128,
+        max_priority_fee: u128,
+        base_fee: Option<u128>,
+    ) -> Result<(), VMError> {
+        if max_priority_fee > max_fee {
+            // Or gas_max_fee for eip1559
+            return Err(VMError::Transaction(
+                InvalidTransaction::PriorityFeeGreaterThanMaxFee,
+            ));
+        }
+
+        // Check minimal cost against basefee
+        if let Some(base_fee) = base_fee {
+            let effective_gas_price =
+                std::cmp::min(max_fee, base_fee.saturating_add(max_priority_fee));
+            if effective_gas_price < base_fee {
+                return Err(VMError::Transaction(
+                    InvalidTransaction::GasPriceLessThanBasefee,
+                ));
+            }
+        }
+
+        Ok(())
+    }
+
+    /// Validate EIP-4844 transaction.
+    fn validate_eip4844_tx(
+        blobs: &[B256],
+        max_blob_fee: u128,
+        block_blob_gas_price: u128,
+        max_blobs: u8,
+    ) -> Result<(), VMError> {
+        // Ensure that the user was willing to at least pay the current blob gasprice
+        if block_blob_gas_price > max_blob_fee {
+            return Err(VMError::Transaction(
+                InvalidTransaction::BlobGasPriceGreaterThanMax,
+            ));
+        }
+
+        // There must be at least one blob
+        if blobs.is_empty() {
+            return Err(VMError::Transaction(InvalidTransaction::EmptyBlobs));
+        }
+
+        // All versioned blob hashes must start with VERSIONED_HASH_VERSION_KZG
+        for blob in blobs {
+            if blob[0] != eip4844::VERSIONED_HASH_VERSION_KZG {
+                return Err(VMError::Transaction(
+                    InvalidTransaction::BlobVersionNotSupported,
+                ));
+            }
+        }
+
+        // Ensure the total blob gas spent is at most equal to the limit
+        // assert blob_gas_used <= MAX_BLOB_GAS_PER_BLOCK
+        if blobs.len() > max_blobs as usize {
+            return Err(VMError::Transaction(InvalidTransaction::TooManyBlobs {
+                have: blobs.len(),
+                max: max_blobs as usize,
+            }));
+        }
+        Ok(())
     }
 
     /// Validates transaction against the state.
@@ -74,7 +289,7 @@ impl<'a, DB: Database> VM<'a, DB> {
         let caller_account = self
             .context
             .journaled_state
-            .load_code(tx_caller, &mut self.context.db)
+            .load_code(&mut self.context.db, tx_caller)
             .map_err(|_| VMError::Database(DatabaseError))?;
         Self::validate_tx_against_account(caller_account.data, &self.context.env, spec_id)
             .map_err(VMError::Transaction)?;
@@ -84,29 +299,31 @@ impl<'a, DB: Database> VM<'a, DB> {
 
     /// Validate initial transaction gas.
     fn validate_initial_tx_gas(env: &Env, spec_id: SpecId) -> Result<InitialGas, VMError> {
-        let is_create = env.tx.transact_to.is_create();
-        let authorization_list_num = env
-            .tx
-            .authorization_list
-            .as_ref()
-            .map(|l| l.len() as u64)
-            .unwrap_or_default();
         let gas = gas::calculate_initial_tx_gas(
             spec_id,
             &env.tx.data,
-            is_create,
+            env.tx.kind.is_create(),
             &env.tx.access_list,
-            authorization_list_num,
+            env.tx.authorization_list.len() as u64,
         );
         // Additional check to see if limit is big enough to cover initial gas.
         if gas.initial_gas > env.tx.gas_limit {
             return Err(VMError::Transaction(
-                InvalidTransaction::CallGasCostMoreThanGasLimit,
+                InvalidTransaction::CallGasCostMoreThanGasLimit {
+                    gas_limit: env.tx.gas_limit,
+                    initial_gas: gas.initial_gas,
+                },
             ));
         }
-        // EIP-7623
+        // EIP-7623: Increase calldata cost
+        // floor gas should be less than gas limit.
         if spec_id.is_enabled_in(SpecId::PRAGUE) && gas.floor_gas > env.tx.gas_limit {
-            return Err(InvalidTransaction::GasFloorMoreThanGasLimit.into());
+            return Err(VMError::Transaction(
+                InvalidTransaction::GasFloorMoreThanGasLimit {
+                    gas_floor: gas.floor_gas,
+                    gas_limit: env.tx.gas_limit,
+                },
+            ));
         };
 
         Ok(gas)
@@ -127,7 +344,8 @@ impl<'a, DB: Database> VM<'a, DB> {
             }
         }
         // Check that the transaction's nonce is correct
-        if let Some(tx) = env.tx.nonce {
+        if !env.cfg.is_nonce_check_disabled() {
+            let tx = env.tx.nonce;
             let state = account.info.nonce;
             match tx.cmp(&state) {
                 Ordering::Greater => {
@@ -142,13 +360,13 @@ impl<'a, DB: Database> VM<'a, DB> {
 
         // gas_limit * max_fee + value
         let mut balance_check = U256::from(env.tx.gas_limit)
-            .checked_mul(env.tx.gas_price)
+            .checked_mul(U256::from(env.max_fee_per_gas()))
             .and_then(|gas_cost| gas_cost.checked_add(env.tx.value))
             .ok_or(InvalidTransaction::OverflowPaymentInTransaction)?;
 
         if spec_id.is_enabled_in(SpecId::CANCUN) {
             // if the tx is not a blob tx, this will be None, so we add zero
-            let data_fee = env.calc_max_data_fee().unwrap_or_default();
+            let data_fee = env.calc_max_data_fee();
             balance_check = balance_check
                 .checked_add(data_fee)
                 .ok_or(InvalidTransaction::OverflowPaymentInTransaction)?;
@@ -188,7 +406,7 @@ impl<'a, DB: Database> VM<'a, DB> {
         let mut result = {
             let gas_limit = ctx.env.tx.gas_limit - gas.initial_gas;
             let call_msg = CallMessage {
-                kind: if ctx.env.tx.transact_to.is_create() {
+                kind: if ctx.env.tx.kind.is_create() {
                     CallKind::Create
                 } else {
                     CallKind::Call
@@ -199,9 +417,9 @@ impl<'a, DB: Database> VM<'a, DB> {
                 depth: 0,
                 gas_limit,
                 caller: ctx.env.tx.caller,
-                recipient: ctx.env.tx.transact_to.into_to().unwrap_or_default(),
+                recipient: ctx.env.tx.kind.into_to().unwrap_or_default(),
                 salt: None,
-                code_address: ctx.env.tx.transact_to.into_to().unwrap_or_default(),
+                code_address: ctx.env.tx.kind.into_to().unwrap_or_default(),
                 is_static: false,
                 is_eof_init: false,
                 validate_eof: true,

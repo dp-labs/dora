@@ -16,10 +16,10 @@ use crate::wasm::host::gas_limit;
 use crate::wasm::trap::wasm_raise_trap;
 use crate::{ExitStatusCode, gas, symbols};
 use dora_primitives::{
-    Address, B256, BLOCK_HASH_HISTORY, BLOCKHASH_STORAGE_ADDRESS, Bytecode, Bytes, Bytes32, CfgEnv,
+    Address, AuthorizationTr, B256, BLOCK_HASH_HISTORY, Bytecode, Bytes, Bytes32, Cfg, CfgEnv,
     EOF_MAGIC_BYTES, EOF_MAGIC_HASH, EVMBytecode, Env, Eof, KECCAK_EMPTY, Log, LogData, OpCode,
-    PER_AUTH_BASE_COST, PER_EMPTY_ACCOUNT_COST, PrecompileErrors, PrecompileSpecId, Precompiles,
-    SpecId, U256, as_u64_saturated, as_usize_saturated, keccak256,
+    PER_AUTH_BASE_COST, PER_EMPTY_ACCOUNT_COST, PrecompileError, PrecompileSpecId, Precompiles,
+    SpecId, TransactionType, U256, as_u64_saturated, as_usize_saturated, keccak256,
 };
 
 /// Function type for the EVM main entrypoint of the generated code.
@@ -77,7 +77,7 @@ impl<'a, DB: Database> VMContext<'a, DB> {
     /// Loading of accounts/storages is needed to make them warm.
     #[inline]
     pub fn load_access_list(&mut self) -> Result<(), DB::Error> {
-        for access_list in &self.env.tx.access_list {
+        for access_list in &self.env.tx.access_list.0 {
             self.journaled_state.initial_account_load(
                 access_list.address,
                 access_list
@@ -96,18 +96,10 @@ impl<'a, DB: Database> VMContext<'a, DB> {
         // load coinbase
         // EIP-3651: Warm COINBASE. Starts the `COINBASE` address warm
         if self.spec_id().is_enabled_in(SpecId::SHANGHAI) {
-            let coinbase = self.env.block.coinbase;
+            let coinbase = self.env.block.beneficiary;
             self.journaled_state
                 .warm_preloaded_addresses
                 .insert(coinbase);
-        }
-
-        // Load blockhash storage address
-        // EIP-2935: Serve historical block hashes from state
-        if self.spec_id().is_enabled_in(SpecId::PRAGUE) {
-            self.journaled_state
-                .warm_preloaded_addresses
-                .insert(BLOCKHASH_STORAGE_ADDRESS);
         }
 
         // Load access list
@@ -134,16 +126,16 @@ impl<'a, DB: Database> VMContext<'a, DB> {
             .load_account(caller, &mut self.db)
             .map_err(|_| VMError::Database(DatabaseError))?;
 
-        let is_call = self.env.tx.transact_to.is_call();
+        let is_call = self.env.tx.kind.is_call();
 
         // Subtract gas costs from the caller's account.
         // We need to saturate the gas cost to prevent underflow in case that `disable_balance_check` is enabled.
-        let mut gas_cost =
-            U256::from(self.env.tx.gas_limit).saturating_mul(self.env.effective_gas_price());
+        let mut gas_cost = U256::from(self.env.tx.gas_limit)
+            .saturating_mul(U256::from(self.env.effective_gas_price()));
 
         // EIP-4844
-        if let Some(data_fee) = self.env.calc_data_fee() {
-            gas_cost = gas_cost.saturating_add(data_fee);
+        if self.env.tx.tx_type == TransactionType::Eip4844 {
+            gas_cost = gas_cost.saturating_add(self.env.calc_max_data_fee());
         }
 
         // Set new caller account balance.
@@ -177,14 +169,14 @@ impl<'a, DB: Database> VMContext<'a, DB> {
         }
 
         // Return if there is no auth list.
-        let Some(authorization_list) = self.env.tx.authorization_list.as_ref() else {
+        if self.env.tx.tx_type != TransactionType::Eip7702 {
             return Ok(0);
-        };
+        }
 
         let mut refunded_accounts = 0;
-        for authorization in authorization_list.recovered_iter() {
+        for authorization in self.env.tx.authorization_list.iter() {
             // 1. Verify the chain id is either 0 or the chain's current ID.
-            let chain_id = *authorization.chain_id();
+            let chain_id = authorization.chain_id();
             if !chain_id.is_zero() && chain_id != U256::from(self.env.cfg.chain_id) {
                 continue;
             }
@@ -204,7 +196,7 @@ impl<'a, DB: Database> VMContext<'a, DB> {
             // 4. Add `authority` to `accessed_addresses` (as defined in [EIP-2929](./eip-2929.md).)
             let mut authority_acc = self
                 .journaled_state
-                .load_code(authority, &mut self.db)
+                .load_code(&mut self.db, authority)
                 .map_err(|_| VMError::Database(DatabaseError))?;
 
             // 5. Verify the code of `authority` is either empty or already delegated.
@@ -262,23 +254,27 @@ impl<'a, DB: Database> VMContext<'a, DB> {
             .load_account(caller, &mut self.db)
             .map_err(|_| VMError::Database(DatabaseError))?;
 
-        caller_account.data.info.balance =
-            caller_account.data.info.balance.saturating_add(
-                effective_gas_price * U256::from(gas_remaining + gas_refunded as u64),
-            );
+        let reimbursed =
+            effective_gas_price.saturating_mul((gas_remaining + gas_refunded as u64) as u128);
+
+        caller_account.data.info.balance = caller_account
+            .data
+            .info
+            .balance
+            .saturating_add(U256::from(reimbursed));
 
         Ok(())
     }
 
     /// Reward beneficiary with gas fee.
     pub fn reward_beneficiary(&mut self, gas_used: u64, gas_refunded: i64) -> Result<(), VMError> {
-        let beneficiary = self.env.block.coinbase;
+        let beneficiary = self.env.block.beneficiary;
         let effective_gas_price = self.env.effective_gas_price();
 
         // transfer fee to coinbase/beneficiary.
         // EIP-1559 discard basefee for coinbase transfer. Basefee amount of gas is discarded.
         let coinbase_gas_price = if self.spec_id().is_enabled_in(SpecId::LONDON) {
-            effective_gas_price.saturating_sub(self.env.block.basefee)
+            effective_gas_price.saturating_sub(self.env.block.basefee as u128)
         } else {
             effective_gas_price
         };
@@ -289,11 +285,14 @@ impl<'a, DB: Database> VMContext<'a, DB> {
             .map_err(|_| VMError::Database(DatabaseError))?;
 
         coinbase_account.data.mark_touch();
-        coinbase_account.data.info.balance = coinbase_account
-            .data
-            .info
-            .balance
-            .saturating_add(coinbase_gas_price * U256::from(gas_used - gas_refunded as u64));
+        coinbase_account.data.info.balance =
+            coinbase_account
+                .data
+                .info
+                .balance
+                .saturating_add(U256::from(
+                    coinbase_gas_price * (gas_used - gas_refunded as u64) as u128,
+                ));
 
         Ok(())
     }
@@ -347,7 +346,10 @@ impl<'a, DB: Database> VMContext<'a, DB> {
     ///
     /// Return boolean pair where first is `is_cold` second bool `exists`.
     #[inline]
-    pub fn load_account_delegated(&mut self, address: Address) -> Result<AccountLoad, DB::Error> {
+    pub fn load_account_delegated(
+        &mut self,
+        address: Address,
+    ) -> Result<StateLoad<AccountLoad>, DB::Error> {
         self.journaled_state
             .load_account_delegated(address, &mut self.db)
     }
@@ -363,7 +365,7 @@ impl<'a, DB: Database> VMContext<'a, DB> {
     /// Return account code bytes and if address is cold loaded.
     #[inline]
     pub fn code(&mut self, address: Address) -> Result<StateLoad<Bytes>, DB::Error> {
-        let acc = self.journaled_state.load_code(address, &mut self.db)?;
+        let acc = self.journaled_state.load_code(&mut self.db, address)?;
         // SAFETY: safe to unwrap as load_code will insert code if it is empty.
         let code = acc.info.code.as_ref().unwrap();
 
@@ -379,7 +381,7 @@ impl<'a, DB: Database> VMContext<'a, DB> {
     /// Get code hash of address.
     #[inline]
     pub fn code_hash(&mut self, address: Address) -> Result<StateLoad<Bytes32>, DB::Error> {
-        let acc = self.journaled_state.load_code(address, &mut self.db)?;
+        let acc = self.journaled_state.load_code(&mut self.db, address)?;
         if acc.is_empty() {
             return Ok(StateLoad::new(Bytes32::ZERO, acc.is_cold));
         }
@@ -460,7 +462,7 @@ impl<'a, DB: Database> VMContext<'a, DB> {
         gas_limit: u64,
     ) -> Result<Option<CallResult>, VMError> {
         let result = match self.precompiles.get(&address) {
-            Some(precompile) => (*precompile).call_ref(calldata, gas_limit, &self.env),
+            Some(precompile) => (*precompile)(calldata, gas_limit),
             None => return Ok(None),
         };
         let mut call_result = CallResult::new_with_gas_limit(gas_limit);
@@ -471,15 +473,15 @@ impl<'a, DB: Database> VMContext<'a, DB> {
                     call_result.status = ExitStatusCode::PrecompileOOG;
                 }
             }
-            Err(PrecompileErrors::Error(e)) => {
+            Err(PrecompileError::Fatal(e)) => {
+                return Err(VMError::Precompile(e));
+            }
+            Err(e) => {
                 if e.is_oog() {
                     call_result.status = ExitStatusCode::PrecompileOOG;
                 } else {
                     call_result.status = ExitStatusCode::PrecompileError;
                 };
-            }
-            Err(PrecompileErrors::Fatal { msg }) => {
-                return Err(VMError::Precompile(msg));
             }
         }
         Ok(Some(call_result))
@@ -547,7 +549,7 @@ impl<'a, DB: Database> VMContext<'a, DB> {
                 // Load account and bytecode
                 let account = self
                     .journaled_state
-                    .load_code(msg.code_address, &mut self.db)
+                    .load_code(&mut self.db, msg.code_address)
                     .map_err(|_| VMError::Database(DatabaseError))?;
                 let code_hash = account.info.code_hash;
                 let mut bytecode = account.info.code.clone().unwrap_or_default();
@@ -568,7 +570,7 @@ impl<'a, DB: Database> VMContext<'a, DB> {
                 if let Bytecode::EVM(EVMBytecode::Eip7702(eip7702_bytecode)) = bytecode {
                     bytecode = self
                         .journaled_state
-                        .load_code(eip7702_bytecode.delegated_address, &mut self.db)
+                        .load_code(&mut self.db, eip7702_bytecode.delegated_address)
                         .map_err(|_| VMError::Database(DatabaseError))?
                         .info
                         .code
@@ -922,7 +924,7 @@ impl<DB: Database> Host for VMContext<'_, DB> {
     }
 
     #[inline]
-    fn load_account_delegated(&mut self, addr: Address) -> Option<AccountLoad> {
+    fn load_account_delegated(&mut self, addr: Address) -> Option<StateLoad<AccountLoad>> {
         self.load_account_delegated(addr).ok()
     }
 
@@ -956,7 +958,7 @@ impl<DB: Database> Host for VMContext<'_, DB> {
     }
 
     fn block_hash(&mut self, number: u64) -> Option<Bytes32> {
-        let block_number = as_u64_saturated!(self.env.block.number);
+        let block_number = self.env.block.number;
         let Some(diff) = block_number.checked_sub(number) else {
             return Some(Bytes32::ZERO);
         };
@@ -1093,7 +1095,7 @@ impl Contract {
             input: env.tx.data.clone(),
             code: bytecode,
             hash,
-            target_address: env.tx.transact_to.into_to().unwrap_or_default(),
+            target_address: env.tx.kind.into_to().unwrap_or_default(),
             caller: env.tx.caller,
             code_address: env.tx.caller,
             call_value: env.tx.value,
@@ -1797,7 +1799,8 @@ impl RuntimeContext<'_> {
             .host
             .env()
             .block
-            .get_blob_gasprice()
+            .blob_excess_gas_and_price
+            .map(|a| a.blob_gasprice)
             .unwrap_or_default()
             .into()
     }
@@ -1926,7 +1929,7 @@ impl RuntimeContext<'_> {
                 memory_offset,
                 code_offset,
                 size,
-                &self.contract.code.bytecode().clone(),
+                &self.contract.code.bytes(),
             );
         }
     }
@@ -2110,7 +2113,7 @@ impl RuntimeContext<'_> {
     }
 
     extern "C" fn coinbase(&self) -> *mut u8 {
-        self.host.env().block.coinbase.as_ptr() as *mut u8
+        self.host.env().block.beneficiary.as_ptr() as *mut u8
     }
 
     extern "C" fn store_in_timestamp_ptr(&self, value: &mut Bytes32) {

@@ -5,10 +5,10 @@ use crate::{
     ExitStatusCode,
     account::Account,
     db::{Database, StorageSlot},
-    host::{AccountLoad, Eip7702CodeLoad, SStoreResult, SStoreSlot, SelfDestructResult},
+    host::{AccountLoad, SStoreResult, SStoreSlot, SelfDestructResult},
 };
 use dora_primitives::{
-    Address, B256, Bytecode, Bytes32, KECCAK_EMPTY, Log, SpecId, StateLoad, U256,
+    Address, B256, Bytecode, Bytes32, EVMBytecode, KECCAK_EMPTY, Log, SpecId, StateLoad, U256,
 };
 use rustc_hash::{FxHashMap, FxHashSet};
 
@@ -432,7 +432,7 @@ impl JournaledState {
 
     /// Reverts all changes to state until given checkpoint.
     pub fn checkpoint_revert(&mut self, checkpoint: JournalCheckpoint) {
-        let is_spurious_dragon_enabled = SpecId::enabled(self.spec_id, SpecId::SPURIOUS_DRAGON);
+        let is_spurious_dragon_enabled = self.spec_id.is_enabled_in(SpecId::SPURIOUS_DRAGON);
         let state = &mut self.state;
         let transient_storage = &mut self.transient_storage;
         self.depth -= 1;
@@ -491,7 +491,7 @@ impl JournaledState {
         let acc = self.state.get_mut(&address).unwrap();
         let balance = acc.info.balance;
         let previously_destroyed = acc.is_selfdestructed();
-        let is_cancun_enabled = SpecId::enabled(self.spec_id, SpecId::CANCUN);
+        let is_cancun_enabled = self.spec_id.is_enabled_in(SpecId::CANCUN);
 
         // EIP-6780 (Cancun hard-fork): selfdestruct only if contract is created in the same tx
         let journal_entry = if acc.is_created() || !is_cancun_enabled {
@@ -606,37 +606,90 @@ impl JournaledState {
         &mut self,
         address: Address,
         db: &mut DB,
-    ) -> Result<AccountLoad, DB::Error> {
+    ) -> Result<StateLoad<AccountLoad>, DB::Error> {
         let spec_id = self.spec_id;
-        let account = self.load_code(address, db)?;
+        let is_eip7702_enabled = spec_id.is_enabled_in(SpecId::PRAGUE);
+        let account = self.load_account_optional(db, address, is_eip7702_enabled)?;
         let is_empty = account.state_clear_aware_is_empty(spec_id);
-
-        Ok(AccountLoad {
-            is_empty,
-            load: Eip7702CodeLoad {
-                state_load: StateLoad::new((), account.is_cold),
+        let mut account_load = StateLoad::new(
+            AccountLoad {
                 is_delegate_account_cold: None,
+                is_empty,
             },
-        })
+            account.is_cold,
+        );
+        // load delegate code if account is EIP-7702
+        if let Some(Bytecode::EVM(EVMBytecode::Eip7702(code))) = &account.info.code {
+            let address = code.address();
+            let delegate_account = self.load_account(address, db)?;
+            account_load.data.is_delegate_account_cold = Some(delegate_account.is_cold);
+        }
+        Ok(account_load)
     }
 
     /// Loads code.
+    #[inline]
     pub fn load_code<DB: Database>(
         &mut self,
-        address: Address,
         db: &mut DB,
+        address: Address,
     ) -> Result<StateLoad<&mut Account>, DB::Error> {
-        let account_load = self.load_account(address, db)?;
-        let acc = &mut account_load.data.info;
-        if acc.code.is_none() {
-            if acc.code_hash == KECCAK_EMPTY {
-                acc.code = Some(Bytecode::empty());
-            } else {
-                let code = db.code_by_hash(acc.code_hash)?;
-                acc.code = Some(code);
+        self.load_account_optional(db, address, true)
+    }
+
+    /// Loads code
+    #[inline]
+    pub fn load_account_optional<DB: Database>(
+        &mut self,
+        db: &mut DB,
+        address: Address,
+        load_code: bool,
+    ) -> Result<StateLoad<&mut Account>, DB::Error> {
+        let load = match self.state.entry(address) {
+            Entry::Occupied(entry) => {
+                let account = entry.into_mut();
+                let is_cold = account.mark_warm();
+                StateLoad {
+                    data: account,
+                    is_cold,
+                }
+            }
+            Entry::Vacant(vac) => {
+                let account = if let Some(account) = db.basic(address)? {
+                    account.into()
+                } else {
+                    Account::new_not_existing()
+                };
+
+                // Precompiles among some other account are warm loaded so we need to take that into account
+                let is_cold = !self.warm_preloaded_addresses.contains(&address);
+
+                StateLoad {
+                    data: vac.insert(account),
+                    is_cold,
+                }
+            }
+        };
+        // journal loading of cold account.
+        if load.is_cold {
+            self.journal
+                .last_mut()
+                .unwrap()
+                .push(JournalEntry::AccountWarmed { address });
+        }
+        if load_code {
+            let info = &mut load.data.info;
+            if info.code.is_none() {
+                let code = if info.code_hash == KECCAK_EMPTY {
+                    Bytecode::default()
+                } else {
+                    db.code_by_hash(info.code_hash)?
+                };
+                info.code = Some(code);
             }
         }
-        Ok(account_load)
+
+        Ok(load)
     }
 
     /// Load storage slot

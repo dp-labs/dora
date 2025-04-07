@@ -63,8 +63,8 @@ struct RunArgs {
     timestamp: u64,
 
     /// VM Spec id
-    #[arg(long, default_value = "CANCUN")]
-    spec_id: SpecId,
+    #[arg(long, default_value = "Cancun")]
+    spec_id: String,
 }
 
 fn main() -> Result<()> {
@@ -129,14 +129,20 @@ fn main() -> Result<()> {
             env.tx.gas_limit = run_args.gas_limit;
             env.tx.value = U256::from_str(&run_args.value).context("Failed to parse value")?;
             env.tx.caller = sender;
-            env.tx.transact_to = TxKind::Call(address);
+            env.tx.kind = TxKind::Call(address);
             env.tx.data = Bytes::from(calldata);
-            env.block.number = U256::from(run_args.block_number);
-            env.block.timestamp = U256::from(run_args.timestamp);
+            let _ = env.tx.derive_tx_type();
+            env.block.number = run_args.block_number;
+            env.block.timestamp = run_args.timestamp;
             // Set DB
             let db = MemoryDB::new().with_contract(address, Bytecode::new(bytecode.into()));
             // Run the contract
-            match dora::run(env, db, run_args.spec_id) {
+            match dora::run(
+                env,
+                db,
+                SpecId::from_str(&run_args.spec_id)
+                    .map_err(|_| anyhow::anyhow!("unknown spec id"))?,
+            ) {
                 Ok(result) => {
                     info!("Execution result: {:#?}", result);
                 }

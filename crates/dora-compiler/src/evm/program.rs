@@ -1,4 +1,4 @@
-use dora_primitives::{Bytecode, Bytes, Eof, EofBody};
+use dora_primitives::{Bytecode, EVMBytecode, Eof};
 use num_bigint::BigUint;
 pub use revmc::{OpcodeInfo, op_info_map};
 use rustc_hash::FxHashMap;
@@ -976,7 +976,6 @@ impl Program {
         let (operations, pc_to_index_mapping, index_to_pc_mapping, _) =
             Self::parse_operations(opcodes, eof.is_some());
         let code_size = Self::calculate_code_size(&operations);
-
         let mut program = Self {
             operations,
             code_size,
@@ -1000,6 +999,7 @@ impl Program {
     }
 
     /// Constructs a `Program` from a slice of raw opcodes without error checking.
+    #[inline]
     pub fn new_raw(opcodes: &[u8]) -> Self {
         Self::from_opcodes(opcodes, None)
     }
@@ -1007,16 +1007,9 @@ impl Program {
     /// Constructs a `Program` from a slice of eof opcodes without error checking.
     /// Note: the opcode bytes do not start with the EOF magic header
     pub fn new_eof(opcodes: &[u8]) -> Self {
-        let eof = Self::eof_body(&[opcodes], vec![]).into_eof();
-        Self::from_opcodes(opcodes, Some(Arc::new(eof)))
-    }
-
-    fn eof_body(code: &[&[u8]], containers: Vec<Bytes>) -> EofBody {
-        EofBody {
-            code_section: code.iter().copied().map(Bytes::copy_from_slice).collect(),
-            container_section: containers,
-            ..Default::default()
-        }
+        let bytecode = opcodes.to_vec().into();
+        let bytecode = EVMBytecode::new_raw(bytecode);
+        Self::from_opcodes(opcodes, bytecode.eof().cloned())
     }
 
     /// Gets `operations` field.
@@ -1109,9 +1102,9 @@ impl Program {
     /// Returns the program counter of the given EOF section index.
     pub fn eof_section_pc(&self, section: usize) -> usize {
         let code = &self.eof.as_ref().unwrap().body.code_section;
-        let first = code.first().unwrap().as_ptr();
-        let section_ptr = code[section].as_ptr();
-        section_ptr as usize - first as usize
+        let first = *code.first().unwrap();
+        let section_ptr = code[section];
+        section_ptr - first
     }
 
     /// Returns the operation index of the given EOF section index.

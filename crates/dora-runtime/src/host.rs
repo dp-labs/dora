@@ -5,7 +5,7 @@ use std::{collections::hash_map::Entry, fmt::Debug};
 use crate::call::{CallKind, CallMessage, CallResult};
 use crate::result::VMError;
 
-pub use dora_primitives::{AccountLoad, Eip7702CodeLoad, SelfDestructResult, StateLoad};
+pub use dora_primitives::{AccountLoad, SelfDestructResult, StateLoad};
 
 /// The [`Host`] trait defines the interface for interacting with the Dora runtime environment.
 ///
@@ -38,7 +38,7 @@ pub trait Host {
     fn tstore(&mut self, addr: Address, key: Bytes32, value: Bytes32);
 
     /// Load account from database to JournaledState.
-    fn load_account_delegated(&mut self, addr: Address) -> Option<AccountLoad>;
+    fn load_account_delegated(&mut self, addr: Address) -> Option<StateLoad<AccountLoad>>;
 
     /// Retrieves the balance of a specified account.
     fn balance(&mut self, addr: Address) -> Option<StateLoad<Bytes32>>;
@@ -240,7 +240,7 @@ impl Host for DummyHost {
     }
 
     #[inline]
-    fn load_account_delegated(&mut self, _addr: Address) -> Option<AccountLoad> {
+    fn load_account_delegated(&mut self, _addr: Address) -> Option<StateLoad<AccountLoad>> {
         Some(Default::default())
     }
 

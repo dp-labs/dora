@@ -7,9 +7,7 @@ use crate::constants::gas_cost::{
     SSTORE_RESET, SSTORE_SET, STANDARD_TOKEN_COST, TOTAL_COST_FLOOR_PER_TOKEN, WARM_SLOAD_COST,
     WARM_SSTORE_RESET,
 };
-use crate::host::{
-    AccountLoad, Eip7702CodeLoad, SStoreResult, SStoreStatus, SelfDestructResult, StateLoad,
-};
+use crate::host::{AccountLoad, SStoreResult, SStoreStatus, SelfDestructResult, StateLoad};
 use dora_primitives::eip7702::PER_EMPTY_ACCOUNT_COST;
 use dora_primitives::spec::SpecId;
 use dora_primitives::{AccessListItem, U256};
@@ -345,9 +343,9 @@ pub const fn warm_cold_cost(is_cold: bool) -> u64 {
     }
 }
 
-const fn warm_cold_cost_with_delegation(load: Eip7702CodeLoad<()>) -> u64 {
-    let mut gas = warm_cold_cost(load.state_load.is_cold);
-    if let Some(is_cold) = load.is_delegate_account_cold {
+const fn warm_cold_cost_with_delegation(load: StateLoad<AccountLoad>) -> u64 {
+    let mut gas = warm_cold_cost(load.is_cold);
+    if let Some(is_cold) = load.data.is_delegate_account_cold {
         gas += warm_cold_cost(is_cold);
     }
     gas
@@ -472,10 +470,15 @@ pub const fn selfdestruct_cost(spec_id: SpecId, res: &StateLoad<SelfDestructResu
 
 /// Calculate call gas cost for the call instruction.
 #[inline]
-pub const fn call_cost(spec_id: SpecId, transfers_value: bool, account_load: AccountLoad) -> u64 {
+pub const fn call_cost(
+    spec_id: SpecId,
+    transfers_value: bool,
+    account_load: StateLoad<AccountLoad>,
+) -> u64 {
+    let is_empty = account_load.data.is_empty;
     // Account access.
     let mut gas = if spec_id.is_enabled_in(SpecId::BERLIN) {
-        warm_cold_cost_with_delegation(account_load.load)
+        warm_cold_cost_with_delegation(account_load)
     } else if spec_id.is_enabled_in(SpecId::TANGERINE) {
         // EIP-150: Gas cost changes for IO-heavy operations
         700
@@ -486,7 +489,7 @@ pub const fn call_cost(spec_id: SpecId, transfers_value: bool, account_load: Acc
     if transfers_value {
         gas += CALLVALUE;
     }
-    if account_load.is_empty {
+    if is_empty {
         if spec_id.is_enabled_in(SpecId::SPURIOUS_DRAGON) {
             if transfers_value {
                 gas += NEWACCOUNT;

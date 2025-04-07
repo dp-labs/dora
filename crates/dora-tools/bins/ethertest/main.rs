@@ -12,17 +12,16 @@ use anyhow::Result;
 use clap::{Args, Parser, Subcommand};
 use dora::compile_handler;
 use dora_primitives::{
-    AccessList, Address, AuthorizationList, B256, Bytecode, Bytes, Env, EvmStorageSlot, Log,
-    PrimitiveSignature, SignedAuthorization, SpecId, SpecName, TxKind, U256, as_u64_saturated,
-    calc_excess_blob_gas, keccak256,
+    AccessList, Address, B256, Bytecode, Bytes, Env, EvmStorageSlot, Log, PrimitiveSignature,
+    SignedAuthorization, SpecId, SpecName, TxKind, U256, as_u64_saturated, calc_excess_blob_gas,
+    keccak256,
 };
-use dora_runtime::{
-    Account, Database, MemoryDB, RUNTIME_STACK_SIZE, VM, VMContext, constants::env::DORA_TRACING,
-};
+use dora_runtime::{Account, Database, MemoryDB, RUNTIME_STACK_SIZE, VM, VMContext};
 use dora_tools::find_all_json_tests;
 use hash_db::Hasher;
 use indicatif::{ProgressBar, ProgressDrawTarget};
 use plain_hasher::PlainHasher;
+use revm::{ExecuteEvm, MainBuilder, MainContext};
 use serde::{Deserialize, Serialize, de};
 use std::{
     collections::{BTreeMap, HashMap},
@@ -154,26 +153,6 @@ pub struct PostStateTest {
     /// Output state.
     #[serde(default)]
     pub state: HashMap<Address, TestAccountInfo>,
-}
-
-impl PostStateTest {
-    pub fn eip7702_authorization_list(
-        &self,
-    ) -> Result<Option<AuthorizationList>, alloy_rlp::Error> {
-        let Some(txbytes) = self.txbytes.as_ref() else {
-            return Ok(None);
-        };
-
-        if txbytes.first() == Some(&0x04) {
-            let mut txbytes = &txbytes[1..];
-            let tx = TxEip7702::decode(&mut txbytes)?;
-            return Ok(Some(
-                AuthorizationList::Signed(tx.authorization_list).into_recovered(),
-            ));
-        }
-
-        Ok(None)
-    }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -531,7 +510,7 @@ fn execute_test(path: &Path) -> Result<(), TestError> {
         // Mapping account into
         let mut db = MemoryDB::new();
         // Revm comparative test
-        let mut cache_state = revm::CacheState::new(false);
+        let mut cache_state = revm::database::CacheState::new(false);
         for (address, info) in suite.pre.iter() {
             let code_hash = keccak256(info.code.clone());
             db = db.with_contract(address.to_owned(), Bytecode::new(info.code.clone()));
@@ -542,8 +521,8 @@ fn execute_test(path: &Path) -> Result<(), TestError> {
                 info.storage.iter().map(|(k, v)| (*k, *v)).collect(),
             );
 
-            let bytecode = revm::primitives::Bytecode::new_raw(info.code.clone());
-            let acc_info = revm::primitives::AccountInfo {
+            let bytecode = revm::bytecode::Bytecode::new_raw(info.code.clone());
+            let acc_info = revm::state::AccountInfo {
                 balance: info.balance,
                 code_hash,
                 code: Some(bytecode),
@@ -557,7 +536,7 @@ fn execute_test(path: &Path) -> Result<(), TestError> {
         }
         let mut cache = cache_state.clone();
         cache.set_state_clear_flag(true);
-        let mut state = revm::db::State::builder()
+        let mut state = revm::database::State::builder()
             .with_cached_prestate(cache)
             .with_bundle_update()
             .build();
@@ -596,7 +575,7 @@ fn execute_test(path: &Path) -> Result<(), TestError> {
                     .get(test_case.indexes.data)
                     .unwrap()
                     .clone();
-                env.tx.nonce = Some(as_u64_saturated!(suite.transaction.nonce));
+                env.tx.nonce = u64::try_from(suite.transaction.nonce).unwrap();
                 info!(
                     "testing {:?} suite {:?} index {:?}",
                     name, suite_name, test_case.indexes
@@ -606,31 +585,40 @@ fn execute_test(path: &Path) -> Result<(), TestError> {
                     .transaction
                     .access_lists
                     .get(test_case.indexes.data)
-                    .and_then(Option::as_deref)
                     .cloned()
+                    .flatten()
                     .unwrap_or_default();
 
-                let Ok(auth_list) = test_case.eip7702_authorization_list() else {
-                    continue;
-                };
-                env.tx.authorization_list = auth_list;
+                env.tx.authorization_list = suite
+                    .transaction
+                    .authorization_list
+                    .clone()
+                    .map(|auth_list| auth_list.into_iter().map(Into::into).collect::<Vec<_>>())
+                    .unwrap_or_default();
 
                 // Revm comparative test
-                let evm = revm::Evm::builder()
+                let evm = revm::Context::mainnet()
                     .with_db(&mut state)
-                    .with_spec_id(spec_id)
-                    .modify_cfg_env(|cfg| {
+                    .modify_cfg_chained(|cfg| {
                         cfg.chain_id = 1;
+                        cfg.spec = spec_id;
                     })
-                    .modify_block_env(|block| {
-                        block.number = suite.env.current_number;
-                        block.coinbase = suite.env.current_coinbase;
-                        block.gas_limit = suite.env.current_gas_limit;
-                        block.timestamp = suite.env.current_timestamp;
+                    .modify_block_chained(|block| {
+                        block.number = suite.env.current_number.try_into().unwrap_or(u64::MAX);
+                        block.beneficiary = suite.env.current_coinbase;
+                        block.gas_limit =
+                            suite.env.current_gas_limit.try_into().unwrap_or(u64::MAX);
+                        block.timestamp =
+                            suite.env.current_timestamp.try_into().unwrap_or(u64::MAX);
                         block.difficulty = suite.env.current_difficulty;
-                        block.basefee = suite.env.current_base_fee.unwrap_or_default();
+                        block.basefee = suite
+                            .env
+                            .current_base_fee
+                            .unwrap_or_default()
+                            .try_into()
+                            .unwrap_or(u64::MAX);
                     })
-                    .modify_tx_env(|etx| {
+                    .modify_tx_chained(|etx| {
                         etx.data = suite
                             .transaction
                             .data
@@ -643,9 +631,14 @@ fn execute_test(path: &Path) -> Result<(), TestError> {
                             .transaction
                             .gas_price
                             .or(suite.transaction.max_fee_per_gas)
-                            .unwrap_or_default();
-                        etx.gas_priority_fee = suite.transaction.max_priority_fee_per_gas;
-                        etx.nonce = Some(as_u64_saturated!(suite.transaction.nonce));
+                            .unwrap_or_default()
+                            .try_into()
+                            .unwrap_or(u128::MAX);
+                        etx.gas_priority_fee =
+                            suite.transaction.max_priority_fee_per_gas.map(|b| {
+                                u128::try_from(b).expect("max priority fee less than u128::MAX")
+                            });
+                        etx.nonce = as_u64_saturated!(suite.transaction.nonce);
                         etx.caller = suite.transaction.sender.unwrap_or_default();
                         etx.value = suite
                             .transaction
@@ -653,23 +646,12 @@ fn execute_test(path: &Path) -> Result<(), TestError> {
                             .get(test_case.indexes.value)
                             .cloned()
                             .unwrap_or_default();
-                        etx.transact_to = match suite.transaction.to {
+                        etx.kind = match suite.transaction.to {
                             Some(to) => TxKind::Call(to),
                             None => TxKind::Create,
                         };
                     });
-                if std::env::var(DORA_TRACING).is_ok() {
-                    let mut evm = evm
-                        .with_external_context(
-                            revm::inspectors::TracerEip3155::new(Box::new(std::io::stdout()))
-                                .without_summary(),
-                        )
-                        .append_handler_register(revm::inspector_handle_register)
-                        .build();
-                    let _ = evm.transact();
-                } else {
-                    let _ = evm.build().transact();
-                }
+                let _ = evm.build_mainnet().replay();
                 // Run the VM and get the state result.
                 let mut vm = VM::new(VMContext::new(db.clone(), env, spec_id, compile_handler()));
                 let res = vm.transact_commit();
@@ -801,11 +783,16 @@ fn execute_test(path: &Path) -> Result<(), TestError> {
 fn setup_env(name: &str, test: &Test, spec_id: SpecId) -> Result<Env, TestError> {
     let mut env = Env::default();
     env.cfg.chain_id = 1;
-    env.block.number = test.env.current_number;
-    env.block.coinbase = test.env.current_coinbase;
-    env.block.gas_limit = test.env.current_gas_limit;
-    env.block.timestamp = test.env.current_timestamp;
-    env.block.basefee = test.env.current_base_fee.unwrap_or_default();
+    env.block.number = test.env.current_number.try_into().unwrap_or(u64::MAX);
+    env.block.beneficiary = test.env.current_coinbase;
+    env.block.gas_limit = test.env.current_gas_limit.try_into().unwrap_or(u64::MAX);
+    env.block.timestamp = test.env.current_timestamp.try_into().unwrap_or(u64::MAX);
+    env.block.basefee = test
+        .env
+        .current_base_fee
+        .unwrap_or_default()
+        .try_into()
+        .unwrap_or(u64::MAX);
     env.block.difficulty = test.env.current_difficulty;
     env.block.prevrandao = test.env.current_random;
     // EIP-4844
@@ -835,7 +822,7 @@ fn setup_env(name: &str, test: &Test, spec_id: SpecId) -> Result<Env, TestError>
         Some(addr) => TxKind::Call(addr),
         None => TxKind::Create,
     };
-    env.tx.transact_to = to;
+    env.tx.kind = to;
     env.tx.caller = if let Some(address) = test.transaction.sender {
         address
     } else {
@@ -851,12 +838,21 @@ fn setup_env(name: &str, test: &Test, spec_id: SpecId) -> Result<Env, TestError>
         .transaction
         .gas_price
         .or(test.transaction.max_fee_per_gas)
-        .unwrap_or_default();
-    env.tx.gas_priority_fee = test.transaction.max_priority_fee_per_gas;
+        .unwrap_or_default()
+        .try_into()
+        .unwrap_or(u128::MAX);
+    env.tx.gas_priority_fee = test
+        .transaction
+        .max_priority_fee_per_gas
+        .map(|b| u128::try_from(b).expect("max priority fee less than u128::MAX"));
     env.tx
         .blob_hashes
         .clone_from(&test.transaction.blob_versioned_hashes);
-    env.tx.max_fee_per_blob_gas = test.transaction.max_fee_per_blob_gas;
+    env.tx.max_fee_per_blob_gas = test
+        .transaction
+        .max_fee_per_blob_gas
+        .map(|b| u128::try_from(b).expect("max fee less than u128::MAX"))
+        .unwrap_or(u128::MAX);
     Ok(env)
 }
 

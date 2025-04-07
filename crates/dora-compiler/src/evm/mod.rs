@@ -233,7 +233,9 @@ impl<'c> EVMCompiler<'c> {
         op: &Operation,
         opts: &EVMCompileOptions,
     ) -> Result<(BlockRef<'c, 'c>, BlockRef<'c, 'c>)> {
-        let op_infos = op_info_map(opts.spec_id);
+        let op_infos = op_info_map(unsafe {
+            std::mem::transmute::<dora_primitives::SpecId, revmc::primitives::SpecId>(opts.spec_id)
+        });
         let op_info = op_infos[op.opcode()];
         // Single operation function does not contains multiple operation blocks
         let start_block = if ctx.operation_blocks.is_empty() {

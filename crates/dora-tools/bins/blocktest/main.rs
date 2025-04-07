@@ -18,7 +18,9 @@ use dora_runtime::executor::RUNTIME_STACK_SIZE;
 use dora_runtime::vm::VM;
 use dora_tools::find_all_json_tests;
 use indicatif::{ProgressBar, ProgressDrawTarget};
+use revm::ExecuteCommitEvm;
 use revm::primitives::TxKind;
+use revm::{MainBuilder, MainContext};
 use serde::Deserialize;
 use std::{
     collections::HashMap,
@@ -153,15 +155,15 @@ fn execute_test(path: &Path) -> Result<(), TestError> {
     })?;
     // Create database and insert cache
     let mut db = MemoryDB::default();
-    let mut cache_state = revm::CacheState::new(false);
+    let mut cache_state = revm::database::CacheState::new(false);
     for (name, suite) in suites {
         for (address, info) in &suite.pre {
             let code_hash = keccak256(info.code.clone());
             if let Some(cc_code_hash) = info.code_hash {
                 assert_eq!(cc_code_hash, code_hash);
             }
-            let bytecode = revm::primitives::Bytecode::new_raw(info.code.clone());
-            let acc_info = revm::primitives::AccountInfo {
+            let bytecode = revm::bytecode::Bytecode::new_raw(info.code.clone());
+            let acc_info = revm::state::AccountInfo {
                 balance: info.balance,
                 code_hash,
                 code: Some(bytecode),
@@ -186,7 +188,7 @@ fn execute_test(path: &Path) -> Result<(), TestError> {
         }
         let mut cache = cache_state.clone();
         cache.set_state_clear_flag(true);
-        let mut state = revm::db::State::builder()
+        let mut state = revm::database::State::builder()
             .with_cached_prestate(cache)
             .with_bundle_update()
             .build();
@@ -214,58 +216,62 @@ fn execute_test(path: &Path) -> Result<(), TestError> {
             );
             let mut env = Env::default();
             env.cfg.chain_id = 1;
-            env.block.number = suite.env.block_number;
-            env.block.coinbase = suite.env.current_coinbase;
-            env.block.gas_limit = suite.env.current_gas_limit;
-            env.block.timestamp = suite.env.current_timestamp;
+            env.block.number = as_u64_saturated!(suite.env.block_number);
+            env.block.beneficiary = suite.env.current_coinbase;
+            env.block.gas_limit = as_u64_saturated!(suite.env.current_gas_limit);
+            env.block.timestamp = as_u64_saturated!(suite.env.current_timestamp);
             env.block.difficulty = suite.env.current_difficulty;
             env.tx.data = tx.data.clone();
             env.tx.data = tx.data.clone();
             env.tx.gas_limit = as_u64_saturated!(tx.gas_limit);
-            env.tx.gas_price = tx.gas_price.unwrap_or_default();
-            env.tx.nonce = Some(as_u64_saturated!(tx.nonce));
+            env.tx.gas_price = tx
+                .gas_price
+                .or(tx.max_fee_per_gas)
+                .unwrap_or_default()
+                .try_into()
+                .unwrap_or(u128::MAX);
+            env.tx.nonce = as_u64_saturated!(tx.nonce);
             env.tx.caller = tx.sender.unwrap_or_default();
             env.tx.value = tx.value;
-            env.tx.transact_to = match tx.to {
+            env.tx.kind = match tx.to {
                 Some(to) => TxKind::Call(to),
                 None => TxKind::Create,
             };
             vm.env = Box::new(env);
             vm.set_spec_id(spec_id);
             info!("testing name: {} tx idx {}", name, idx);
-            let mut evm = revm::Evm::builder()
+            let mut evm = revm::Context::mainnet()
                 .with_db(&mut state)
-                .with_spec_id(spec_id)
-                .modify_cfg_env(|cfg| {
+                .modify_cfg_chained(|cfg| {
                     cfg.chain_id = 1;
+                    cfg.spec = spec_id;
                 })
-                .modify_block_env(|block| {
-                    block.number = suite.env.block_number;
-                    block.coinbase = suite.env.current_coinbase;
-                    block.gas_limit = suite.env.current_gas_limit;
-                    block.timestamp = suite.env.current_timestamp;
+                .modify_block_chained(|block| {
+                    block.number = as_u64_saturated!(suite.env.block_number);
+                    block.beneficiary = suite.env.current_coinbase;
+                    block.gas_limit = as_u64_saturated!(suite.env.current_gas_limit);
+                    block.timestamp = as_u64_saturated!(suite.env.current_timestamp);
                     block.difficulty = suite.env.current_difficulty;
                 })
-                .modify_tx_env(|etx| {
+                .modify_tx_chained(|etx| {
                     etx.data = tx.data.clone();
                     etx.gas_limit = as_u64_saturated!(tx.gas_limit);
-                    etx.gas_price = tx.gas_price.unwrap_or_default();
-                    etx.nonce = Some(as_u64_saturated!(tx.nonce));
+                    etx.gas_price = tx
+                        .gas_price
+                        .unwrap_or_default()
+                        .try_into()
+                        .unwrap_or(u128::MAX);
+                    etx.nonce = as_u64_saturated!(tx.nonce);
                     etx.caller = tx.sender.unwrap_or_default();
                     etx.value = tx.value;
-                    etx.transact_to = match tx.to {
+                    etx.kind = match tx.to {
                         Some(to) => TxKind::Call(to),
                         None => TxKind::Create,
                     };
                 })
-                // .with_external_context(
-                //     revm::inspectors::TracerEip3155::new(Box::new(std::io::stdout()))
-                //         .without_summary(),
-                // )
-                // .append_handler_register(revm::inspector_handle_register)
-                .build();
+                .build_mainnet();
             // Run the revm and get the state result.
-            let revm_res = evm.transact_commit().unwrap();
+            let revm_res = evm.replay_commit().unwrap();
             // Run the dora VM and get the state result.
             let dora_res = vm.transact_commit().unwrap();
             info!(
