@@ -72,7 +72,7 @@ pub(crate) fn run_result_with_spec(operations: Vec<Operation>, spec_id: SpecId) 
     let initial_gas = env.tx.gas_limit;
     let contract = Contract::new_with_env(
         &env,
-        Bytecode::new(Program::operations_to_opcode(&operations).into()),
+        Bytecode::new_raw(Program::operations_to_opcode(&operations).into()),
         None,
     );
     let mut host = DummyHost::new(env);
@@ -99,7 +99,7 @@ pub(crate) fn default_env_and_db_setup(operations: Vec<Operation>) -> (Env, Memo
     );
     env.tx.kind = TxKind::Call(address);
     env.block.beneficiary = Address::left_padding_from(&[80]);
-    let mut db = MemoryDB::new().with_contract(address, Bytecode::new(bytecode));
+    let mut db = MemoryDB::new().with_contract(address, Bytecode::new_raw(bytecode));
     db.set_balance(address, U256::from(10));
     (env, db)
 }

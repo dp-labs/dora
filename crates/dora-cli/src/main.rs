@@ -135,7 +135,7 @@ fn main() -> Result<()> {
             env.block.number = run_args.block_number;
             env.block.timestamp = run_args.timestamp;
             // Set DB
-            let db = MemoryDB::new().with_contract(address, Bytecode::new(bytecode.into()));
+            let db = MemoryDB::new().with_contract(address, Bytecode::new_raw(bytecode.into()));
             // Run the contract
             match dora::run(
                 env,

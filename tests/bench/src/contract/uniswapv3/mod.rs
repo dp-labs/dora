@@ -1,8 +1,8 @@
 use alloy_sol_types::{SolCall, sol};
 use dora_primitives::{
-    Address, B256, FixedBytes, ToHexExt, U256, Uint, fixed_bytes, keccak256, uint,
+    AccountStatus, Address, B256, FixedBytes, ToHexExt, U256, Uint, fixed_bytes, keccak256, uint,
 };
-use dora_runtime::{account::AccountStatus, db::DbAccount};
+use dora_runtime::db::DbAccount;
 use rustc_hash::FxHashMap;
 
 use super::{address_to_u256, indices_to_u256, keccak256_slice_list, str_to_u256, tick_to_u256};

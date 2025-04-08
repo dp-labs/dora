@@ -4,6 +4,7 @@ mod tests;
 pub use dora_compiler as compiler;
 pub use dora_ir as ir;
 pub use dora_primitives as primitives;
+pub use dora_primitives::IsWASMBytecode;
 pub use dora_runtime as runtime;
 
 pub use dora_compiler::{
@@ -134,11 +135,12 @@ pub fn run_bytecode_hex(
     env.tx.gas_limit = initial_gas;
     env.tx.data = Bytes::from(calldata);
     env.tx.caller = Bytes32::from(10000_u32).to_address();
-    let db = MemoryDB::new().with_contract(address, Bytecode::new(Bytes::from(opcodes)));
+    let db = MemoryDB::new().with_contract(address, Bytecode::new_raw(Bytes::from(opcodes)));
     run(env, db, spec_id).map_err(|err| anyhow::anyhow!(err))
 }
 
 /// Run transaction with the runtime context.
+#[inline]
 pub fn run_with_context<DB: Database>(
     runtime_context: RuntimeContext,
 ) -> anyhow::Result<CallResult> {
@@ -150,15 +152,15 @@ pub fn run_with_context<DB: Database>(
 }
 
 /// Build the EVM or WASM bytecode to the native artifact.
+#[inline]
 pub fn build_artifact<DB: Database>(
     code: &Bytecode,
     spec_id: SpecId,
 ) -> anyhow::Result<DB::Artifact> {
-    match code {
-        Bytecode::EVM(code) => {
-            build_evm_artifact::<DB>(code, EVMCompileOptions::default().spec_id(spec_id))
-        }
-        Bytecode::WASM(code) => build_wasm_artifact::<DB>(code, WASMCompileOptions::default()),
+    if code.is_wasm() {
+        build_wasm_artifact::<DB>(code.bytecode(), WASMCompileOptions::default())
+    } else {
+        build_evm_artifact::<DB>(code, EVMCompileOptions::default().spec_id(spec_id))
     }
 }
 

@@ -81,7 +81,8 @@ fn run_evm_bench(c: &mut Criterion, bench: &Bench) {
     env.tx.data = Bytes::from(calldata.to_vec());
     env.tx.kind = TxKind::Call(Address::left_padding_from(&[40]));
     env.tx.caller = address!("6666000000000000000000000000000000000000");
-    let contract = Contract::new_with_env(&env, Bytecode::new(program.to_opcode().into()), None);
+    let contract =
+        Contract::new_with_env(&env, Bytecode::new_raw(program.to_opcode().into()), None);
     let mut host = DummyHost::new(env);
     let mut context = RuntimeContext::new(
         contract,
@@ -144,7 +145,7 @@ fn run_wasm_bench(c: &mut Criterion, bench: &Bench) {
     env.tx.data = Bytes::from(calldata.to_vec());
     env.tx.kind = TxKind::Call(Address::left_padding_from(&[40]));
     env.tx.caller = address!("6666000000000000000000000000000000000000");
-    let contract = Contract::new_with_env(&env, Bytecode::new(bytecode.to_vec().into()), None);
+    let contract = Contract::new_with_env(&env, Bytecode::new_raw(bytecode.to_vec().into()), None);
     let instance = compiler.build_instance(bytecode).unwrap();
     let executor = Executor::new(
         module.module(),
@@ -272,7 +273,7 @@ fn run_evm_uniswapv3_bench(c: &mut Criterion) {
 
     let mut db = MemoryDB::new();
     for (address, info) in state.clone() {
-        let code = Bytecode::new(info.0.into());
+        let code = Bytecode::new_raw(info.0.into());
         let artifact = build_artifact::<MemoryDB>(&code, SpecId::CANCUN).unwrap();
         db.set_artifact(info.1.bytecode_hash, artifact);
         db = db.with_contract(address, code);
