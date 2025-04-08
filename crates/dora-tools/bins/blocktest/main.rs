@@ -237,6 +237,18 @@ fn execute_test(path: &Path) -> Result<(), TestError> {
                 Some(to) => TxKind::Call(to),
                 None => TxKind::Create,
             };
+            let gas_priority_fee = if spec_id.is_enabled_in(SpecId::LONDON) {
+                Some(
+                    tx.max_priority_fee_per_gas
+                        .unwrap_or_default()
+                        .try_into()
+                        .unwrap_or(u128::MAX),
+                )
+            } else {
+                None
+            };
+            env.tx.gas_priority_fee = gas_priority_fee;
+            let _ = env.tx.derive_tx_type();
             vm.env = Box::new(env);
             vm.set_spec_id(spec_id);
             info!("testing name: {} tx idx {}", name, idx);
@@ -258,6 +270,7 @@ fn execute_test(path: &Path) -> Result<(), TestError> {
                     etx.gas_limit = as_u64_saturated!(tx.gas_limit);
                     etx.gas_price = tx
                         .gas_price
+                        .or(tx.max_fee_per_gas)
                         .unwrap_or_default()
                         .try_into()
                         .unwrap_or(u128::MAX);
@@ -268,6 +281,8 @@ fn execute_test(path: &Path) -> Result<(), TestError> {
                         Some(to) => TxKind::Call(to),
                         None => TxKind::Create,
                     };
+                    etx.gas_priority_fee = gas_priority_fee;
+                    let _ = etx.derive_tx_type();
                 })
                 .build_mainnet();
             // Run the revm and get the state result.
@@ -275,10 +290,15 @@ fn execute_test(path: &Path) -> Result<(), TestError> {
             // Run the dora VM and get the state result.
             let dora_res = vm.transact_commit().unwrap();
             info!(
-                "testing name: {} tx idx {} gas used {}",
+                "testing name: {} tx idx {} result {:?}",
+                name, idx, dora_res
+            );
+            assert_eq!(
+                revm_res.logs(),
+                dora_res.logs(),
+                "name: {} tx idx {}",
                 name,
-                idx,
-                dora_res.gas_used()
+                idx
             );
             assert_eq!(
                 revm_res.gas_used(),
