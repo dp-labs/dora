@@ -54,57 +54,50 @@ use std::sync::Arc;
 pub fn run<DB: Database + DatabaseCommit + 'static>(
     env: Env,
     db: DB,
-    spec_id: SpecId,
 ) -> Result<ExecutionResult, VMError> {
-    VM::new(VMContext::new(db, env, spec_id, compile_handler())).transact_commit()
+    VM::new(VMContext::new(db, env, compile_handler())).transact_commit()
 }
 
 /// Compile Handler for the VM.
 #[inline]
-pub fn compile_handler<'a, DB: Database + 'a>() -> Handler<'a, DB> {
+pub fn compile_handler<DB: Database>() -> Handler<DB> {
     Handler {
-        call_handler: Arc::new(compile_call_handler),
-    }
-}
-
-/// Default frame calling hanlder, using dora compiler and runtime to run EVM and WASM contract.
-fn compile_call_handler<DB: Database>(
-    frame: Frame,
-    ctx: &mut VMContext<'_, DB>,
-) -> Result<CallResult, VMError> {
-    // When meets empty account code, just return the default call result.
-    if frame.contract.code.is_empty() {
-        return Ok(CallResult::new_with_gas_limit(frame.gas_limit));
-    }
-    let code_hash = frame.contract.hash.unwrap_or_default();
-    let spec_id = ctx.spec_id();
-    // When code hash is empty, we do not save the artifact
-    let artifact = if !code_hash.is_zero() {
-        let artifact = ctx.get_artifact(code_hash);
-        if let Ok(Some(artifact)) = artifact {
+        call_handler: Arc::new(|frame, ctx| {
+            // When meets empty account code, just return the default call result.
+            if frame.contract.code.is_empty() {
+                return Ok(CallResult::new_with_gas_limit(frame.gas_limit));
+            }
+            let code_hash = frame.contract.hash.unwrap_or_default();
+            let spec_id = ctx.spec_id();
+            // When code hash is empty, we do not save the artifact
+            let artifact = if !code_hash.is_zero() {
+                let artifact = ctx.get_artifact(code_hash);
+                if let Ok(Some(artifact)) = artifact {
+                    artifact
+                } else {
+                    let artifact = build_artifact::<DB>(&frame.contract.code, ctx.spec_id())
+                        .map_err(|e| VMError::Compile(e.to_string()))?;
+                    ctx.set_artifact(code_hash, artifact.clone());
+                    artifact
+                }
+            } else {
+                build_artifact::<DB>(&frame.contract.code, ctx.spec_id())
+                    .map_err(|e| VMError::Compile(e.to_string()))?
+            };
+            let runtime_context = RuntimeContext::new(
+                frame.contract,
+                frame.depth,
+                frame.is_static,
+                frame.is_eof_init,
+                ctx,
+                spec_id,
+                frame.gas_limit,
+            );
             artifact
-        } else {
-            let artifact = build_artifact::<DB>(&frame.contract.code, ctx.spec_id())
-                .map_err(|e| VMError::Compile(e.to_string()))?;
-            ctx.set_artifact(code_hash, artifact.clone());
-            artifact
-        }
-    } else {
-        build_artifact::<DB>(&frame.contract.code, ctx.spec_id())
-            .map_err(|e| VMError::Compile(e.to_string()))?
-    };
-    let runtime_context = RuntimeContext::new(
-        frame.contract,
-        frame.depth,
-        frame.is_static,
-        frame.is_eof_init,
-        ctx,
-        spec_id,
-        frame.gas_limit,
-    );
-    artifact
-        .execute(runtime_context)
-        .map_err(|err| VMError::Handler(err.to_string()))
+                .execute(runtime_context)
+                .map_err(|err| VMError::Handler(err.to_string()))
+        }),
+    }
 }
 
 /// Run hex-encoded EVM or WASM bytecode with custom calldata and return the execution result and final state.
@@ -136,8 +129,9 @@ pub fn run_bytecode_hex(
     env.tx.gas_limit = initial_gas;
     env.tx.data = Bytes::from(calldata);
     env.tx.caller = Bytes32::from(10000_u32).to_address();
+    env.cfg.spec = spec_id;
     let db = MemoryDB::new().with_contract(address, Bytecode::new_raw(Bytes::from(opcodes)));
-    run(env, db, spec_id).map_err(|err| anyhow::anyhow!(err))
+    run(env, db).map_err(|err| anyhow::anyhow!(err))
 }
 
 /// Run transaction with the runtime context.

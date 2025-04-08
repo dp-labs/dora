@@ -31,7 +31,7 @@ fn add() {
         Operation::Return,
     ];
     let (env, db) = default_env_and_db_setup(operations);
-    run_program_assert_num_result(env, db, SpecId::CANCUN, a + b);
+    run_program_assert_num_result(env, db, a + b);
 }
 
 #[test]
@@ -49,7 +49,7 @@ fn add_overflow_u64() {
         Operation::Return,
     ];
     let (env, db) = default_env_and_db_setup(operations);
-    run_program_assert_num_result(env, db, SpecId::CANCUN, a + b);
+    run_program_assert_num_result(env, db, a + b);
 }
 
 #[test]
@@ -67,7 +67,7 @@ fn add_overflow_u128() {
         Operation::Return,
     ];
     let (env, db) = default_env_and_db_setup(operations);
-    run_program_assert_num_result(env, db, SpecId::CANCUN, a + b);
+    run_program_assert_num_result(env, db, a + b);
 }
 
 #[test]
@@ -85,7 +85,7 @@ fn mul() {
         Operation::Return,
     ];
     let (env, db) = default_env_and_db_setup(operations);
-    run_program_assert_num_result(env, db, SpecId::CANCUN, a * b);
+    run_program_assert_num_result(env, db, a * b);
 }
 
 #[test]
@@ -103,7 +103,7 @@ fn mul_large() {
         Operation::Return,
     ];
     let (env, db) = default_env_and_db_setup(operations);
-    run_program_assert_num_result(env, db, SpecId::CANCUN, a * b);
+    run_program_assert_num_result(env, db, a * b);
 }
 
 #[test]
@@ -121,7 +121,7 @@ fn mul_overflow() {
         Operation::Return,
     ];
     let (env, db) = default_env_and_db_setup(operations);
-    run_program_assert_num_result(env, db, SpecId::CANCUN, a * b);
+    run_program_assert_num_result(env, db, a * b);
 }
 
 #[test]
@@ -139,7 +139,7 @@ fn sub() {
         Operation::Return,
     ];
     let (env, db) = default_env_and_db_setup(operations);
-    run_program_assert_num_result(env, db, SpecId::CANCUN, a - b);
+    run_program_assert_num_result(env, db, a - b);
 }
 
 #[test]
@@ -160,7 +160,6 @@ fn sub_underflow() {
     run_program_assert_num_result(
         env,
         db,
-        SpecId::CANCUN,
         BigUint::from(2_u8).pow(256_u32) - BigUint::from(10_u8),
     );
 }
@@ -183,7 +182,6 @@ fn sub_underflow_u64() {
     run_program_assert_num_result(
         env,
         db,
-        SpecId::CANCUN,
         BigUint::from(2_u8).pow(256_u32) - BigUint::from(1_u8),
     );
 }
@@ -203,7 +201,7 @@ fn div() {
         Operation::Return,
     ];
     let (env, db) = default_env_and_db_setup(operations);
-    run_program_assert_num_result(env, db, SpecId::CANCUN, a / b);
+    run_program_assert_num_result(env, db, a / b);
 }
 
 #[test]
@@ -221,7 +219,7 @@ fn div_by_zero() {
         Operation::Return,
     ];
     let (env, db) = default_env_and_db_setup(operations);
-    run_program_assert_num_result(env, db, SpecId::CANCUN, 0_u8.into());
+    run_program_assert_num_result(env, db, 0_u8.into());
 }
 
 #[test]
@@ -239,7 +237,7 @@ fn div_by_one() {
         Operation::Return,
     ];
     let (env, db) = default_env_and_db_setup(operations);
-    run_program_assert_num_result(env, db, SpecId::CANCUN, 0_u8.into());
+    run_program_assert_num_result(env, db, 0_u8.into());
 }
 
 #[test]
@@ -257,7 +255,7 @@ fn div_by_eleven() {
         Operation::Return,
     ];
     let (env, db) = default_env_and_db_setup(operations);
-    run_program_assert_num_result(env, db, SpecId::CANCUN, 1_u8.into());
+    run_program_assert_num_result(env, db, 1_u8.into());
 }
 
 #[test]
@@ -275,7 +273,7 @@ fn div_zero() {
         Operation::Return,
     ];
     let (env, db) = default_env_and_db_setup(operations);
-    run_program_assert_num_result(env, db, SpecId::CANCUN, 0_u8.into());
+    run_program_assert_num_result(env, db, 0_u8.into());
 }
 
 #[test]
@@ -293,7 +291,7 @@ fn umod() {
         Operation::Return,
     ];
     let (env, db) = default_env_and_db_setup(operations);
-    run_program_assert_num_result(env, db, SpecId::CANCUN, 2_u8.into());
+    run_program_assert_num_result(env, db, 2_u8.into());
 }
 
 #[test]
@@ -311,7 +309,7 @@ fn umod_by_zero() {
         Operation::Return,
     ];
     let (env, db) = default_env_and_db_setup(operations);
-    run_program_assert_num_result(env, db, SpecId::CANCUN, 0_u8.into());
+    run_program_assert_num_result(env, db, 0_u8.into());
 }
 
 #[test]
@@ -329,7 +327,7 @@ fn umod_by_one() {
         Operation::Return,
     ];
     let (env, db) = default_env_and_db_setup(operations);
-    run_program_assert_num_result(env, db, SpecId::CANCUN, 1_u8.into());
+    run_program_assert_num_result(env, db, 1_u8.into());
 }
 
 #[test]
@@ -347,7 +345,7 @@ fn smod_by_zero() {
         Operation::Return,
     ];
     let (env, db) = default_env_and_db_setup(operations);
-    run_program_assert_num_result(env, db, SpecId::CANCUN, 0_u8.into());
+    run_program_assert_num_result(env, db, 0_u8.into());
 }
 
 #[test]
@@ -365,7 +363,7 @@ fn umod_zero() {
         Operation::Return,
     ];
     let (env, db) = default_env_and_db_setup(operations);
-    run_program_assert_num_result(env, db, SpecId::CANCUN, 0_u8.into());
+    run_program_assert_num_result(env, db, 0_u8.into());
 }
 
 #[test]
@@ -383,7 +381,7 @@ fn smod_zero() {
         Operation::Return,
     ];
     let (env, db) = default_env_and_db_setup(operations);
-    run_program_assert_num_result(env, db, SpecId::CANCUN, 0_u8.into());
+    run_program_assert_num_result(env, db, 0_u8.into());
 }
 
 #[test]
@@ -401,7 +399,7 @@ fn sdiv_positive() {
         Operation::Return,
     ];
     let (env, db) = default_env_and_db_setup(operations);
-    run_program_assert_num_result(env, db, SpecId::CANCUN, a / b);
+    run_program_assert_num_result(env, db, a / b);
 }
 
 #[test]
@@ -430,7 +428,7 @@ fn sdiv_negative() {
         Operation::Return,
     ];
     let (env, db) = default_env_and_db_setup(operations);
-    run_program_assert_num_result(env, db, SpecId::CANCUN, 1_u8.into());
+    run_program_assert_num_result(env, db, 1_u8.into());
 }
 
 #[test]
@@ -448,7 +446,7 @@ fn modulus() {
         Operation::Return,
     ];
     let (env, db) = default_env_and_db_setup(operations);
-    run_program_assert_num_result(env, db, SpecId::CANCUN, a % b);
+    run_program_assert_num_result(env, db, a % b);
 }
 
 #[test]
@@ -466,7 +464,7 @@ fn modulus_large_numbers() {
         Operation::Return,
     ];
     let (env, db) = default_env_and_db_setup(operations);
-    run_program_assert_num_result(env, db, SpecId::CANCUN, a % b);
+    run_program_assert_num_result(env, db, a % b);
 }
 
 #[test]
@@ -484,7 +482,7 @@ fn smod() {
         Operation::Return,
     ];
     let (env, db) = default_env_and_db_setup(operations);
-    run_program_assert_num_result(env, db, SpecId::CANCUN, a % b);
+    run_program_assert_num_result(env, db, a % b);
 }
 
 #[test]
@@ -505,12 +503,7 @@ fn smod_negative() {
         Operation::Return,
     ];
     let (env, db) = default_env_and_db_setup(operations);
-    run_program_assert_num_result(
-        env,
-        db,
-        SpecId::CANCUN,
-        biguint_256_from_bigint(BigInt::from(-2_i8)),
-    );
+    run_program_assert_num_result(env, db, biguint_256_from_bigint(BigInt::from(-2_i8)));
 }
 
 #[test]
@@ -533,7 +526,7 @@ fn addmod() {
         Operation::Return,
     ];
     let (env, db) = default_env_and_db_setup(operations);
-    run_program_assert_num_result(env, db, SpecId::CANCUN, (a + b) % den);
+    run_program_assert_num_result(env, db, (a + b) % den);
 }
 
 #[test]
@@ -556,7 +549,7 @@ fn addmod_large_mod() {
         Operation::Return,
     ];
     let (env, db) = default_env_and_db_setup(operations);
-    run_program_assert_num_result(env, db, SpecId::CANCUN, (a + b) % den);
+    run_program_assert_num_result(env, db, (a + b) % den);
 }
 
 #[test]
@@ -579,7 +572,7 @@ fn mulmod() {
         Operation::Return,
     ];
     let (env, db) = default_env_and_db_setup(operations);
-    run_program_assert_num_result(env, db, SpecId::CANCUN, (a * b) % den);
+    run_program_assert_num_result(env, db, (a * b) % den);
 }
 
 #[test]
@@ -602,7 +595,7 @@ fn mulmod_zero_mod() {
         Operation::Return,
     ];
     let (env, db) = default_env_and_db_setup(operations);
-    run_program_assert_num_result(env, db, SpecId::CANCUN, 0_u8.into());
+    run_program_assert_num_result(env, db, 0_u8.into());
 }
 
 #[test]
@@ -620,7 +613,7 @@ fn exp() {
         Operation::Return,
     ];
     let (env, db) = default_env_and_db_setup(operations);
-    run_program_assert_num_result(env, db, SpecId::CANCUN, a.pow(b));
+    run_program_assert_num_result(env, db, a.pow(b));
 }
 
 #[test]
@@ -638,7 +631,7 @@ fn exp_large_base() {
         Operation::Return,
     ];
     let (env, db) = default_env_and_db_setup(operations);
-    run_program_assert_num_result(env, db, SpecId::CANCUN, a.pow(b));
+    run_program_assert_num_result(env, db, a.pow(b));
 }
 
 #[test]
@@ -662,7 +655,7 @@ fn exp_large_u256_exponent() {
         Operation::Return,
     ];
     let (env, db) = default_env_and_db_setup(operations);
-    run_program_assert_num_result(env, db, SpecId::CANCUN, BigUint::from_str(
+    run_program_assert_num_result(env, db, BigUint::from_str(
         &U256::from(0xFF).pow(U256::from_str("102161150204658159326162171757797299165741800222807601117528975009918212890625").unwrap()).to_string()
     ).unwrap());
 }
@@ -682,7 +675,7 @@ fn exp_edge_case() {
         Operation::Return,
     ];
     let (env, db) = default_env_and_db_setup(operations);
-    run_program_assert_num_result(env, db, SpecId::CANCUN, a.pow(b));
+    run_program_assert_num_result(env, db, a.pow(b));
 }
 
 #[test]
@@ -700,12 +693,7 @@ fn signextend() {
         Operation::Return,
     ];
     let (env, db) = default_env_and_db_setup(operations);
-    run_program_assert_num_result(
-        env,
-        db,
-        SpecId::CANCUN,
-        biguint_256_from_bigint(BigInt::from(-1_i8)),
-    );
+    run_program_assert_num_result(env, db, biguint_256_from_bigint(BigInt::from(-1_i8)));
 }
 
 #[test]
@@ -723,7 +711,7 @@ fn lt() {
         Operation::Return,
     ];
     let (env, db) = default_env_and_db_setup(operations);
-    run_program_assert_num_result(env, db, SpecId::CANCUN, (a < b).into());
+    run_program_assert_num_result(env, db, (a < b).into());
 }
 
 #[test]
@@ -741,7 +729,7 @@ fn gt() {
         Operation::Return,
     ];
     let (env, db) = default_env_and_db_setup(operations);
-    run_program_assert_num_result(env, db, SpecId::CANCUN, (a > b).into());
+    run_program_assert_num_result(env, db, (a > b).into());
 }
 
 #[test]
@@ -759,7 +747,7 @@ fn eq_true() {
         Operation::Return,
     ];
     let (env, db) = default_env_and_db_setup(operations);
-    run_program_assert_num_result(env, db, SpecId::CANCUN, (a == b).into());
+    run_program_assert_num_result(env, db, (a == b).into());
 }
 
 #[test]
@@ -777,7 +765,7 @@ fn eq_false() {
         Operation::Return,
     ];
     let (env, db) = default_env_and_db_setup(operations);
-    run_program_assert_num_result(env, db, SpecId::CANCUN, (a == b).into());
+    run_program_assert_num_result(env, db, (a == b).into());
 }
 
 #[test]
@@ -793,7 +781,7 @@ fn iszero_true() {
         Operation::Return,
     ];
     let (env, db) = default_env_and_db_setup(operations);
-    run_program_assert_num_result(env, db, SpecId::CANCUN, 1_u8.into());
+    run_program_assert_num_result(env, db, 1_u8.into());
 }
 
 #[test]
@@ -809,7 +797,7 @@ fn iszero_false() {
         Operation::Return,
     ];
     let (env, db) = default_env_and_db_setup(operations);
-    run_program_assert_num_result(env, db, SpecId::CANCUN, 0_u8.into());
+    run_program_assert_num_result(env, db, 0_u8.into());
 }
 
 #[test]
@@ -826,7 +814,7 @@ fn and_identical_non_zero() {
         Operation::Return,
     ];
     let (env, db) = default_env_and_db_setup(operations);
-    run_program_assert_num_result(env, db, SpecId::CANCUN, 0xFF_u8.into());
+    run_program_assert_num_result(env, db, 0xFF_u8.into());
 }
 
 #[test]
@@ -843,7 +831,7 @@ fn and_zero_with_non_zero() {
         Operation::Return,
     ];
     let (env, db) = default_env_and_db_setup(operations);
-    run_program_assert_num_result(env, db, SpecId::CANCUN, 0_u32.into());
+    run_program_assert_num_result(env, db, 0_u32.into());
 }
 
 #[test]
@@ -866,7 +854,7 @@ fn and_zero_with_large() {
         Operation::Return,
     ];
     let (env, db) = default_env_and_db_setup(operations);
-    run_program_assert_num_result(env, db, SpecId::CANCUN, 0_u32.into());
+    run_program_assert_num_result(env, db, 0_u32.into());
 }
 
 #[test]
@@ -883,7 +871,7 @@ fn or_identical_non_zero() {
         Operation::Return,
     ];
     let (env, db) = default_env_and_db_setup(operations);
-    run_program_assert_num_result(env, db, SpecId::CANCUN, 0xFF_u8.into());
+    run_program_assert_num_result(env, db, 0xFF_u8.into());
 }
 
 #[test]
@@ -900,7 +888,7 @@ fn or_zero_with_non_zero() {
         Operation::Return,
     ];
     let (env, db) = default_env_and_db_setup(operations);
-    run_program_assert_num_result(env, db, SpecId::CANCUN, 0xFF_u8.into());
+    run_program_assert_num_result(env, db, 0xFF_u8.into());
 }
 
 #[test]
@@ -926,7 +914,6 @@ fn or_zero_with_large() {
     run_program_assert_num_result(
         env,
         db,
-        SpecId::CANCUN,
         BigUint::from_bytes_be(&[
             0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF,
             0xFF, 0xFF,
@@ -948,7 +935,7 @@ fn xor_non_zero() {
         Operation::Return,
     ];
     let (env, db) = default_env_and_db_setup(operations);
-    run_program_assert_num_result(env, db, SpecId::CANCUN, 0xFF_u8.into());
+    run_program_assert_num_result(env, db, 0xFF_u8.into());
 }
 
 #[test]
@@ -965,7 +952,7 @@ fn xor_zero_with_non_zero() {
         Operation::Return,
     ];
     let (env, db) = default_env_and_db_setup(operations);
-    run_program_assert_num_result(env, db, SpecId::CANCUN, 0xFF_u8.into());
+    run_program_assert_num_result(env, db, 0xFF_u8.into());
 }
 
 #[test]
@@ -986,7 +973,7 @@ fn xor_large_with_zero() {
         Operation::Return,
     ];
     let (env, db) = default_env_and_db_setup(operations);
-    run_program_assert_num_result(env, db, SpecId::CANCUN, a);
+    run_program_assert_num_result(env, db, a);
 }
 
 #[test]
@@ -1005,7 +992,6 @@ fn not() {
     run_program_assert_num_result(
         env,
         db,
-        SpecId::CANCUN,
         BigUint::from_bytes_be(&[
             0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
             0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
@@ -1028,7 +1014,7 @@ fn byte() {
         Operation::Return,
     ];
     let (env, db) = default_env_and_db_setup(operations);
-    run_program_assert_num_result(env, db, SpecId::CANCUN, 0_u8.into());
+    run_program_assert_num_result(env, db, 0_u8.into());
 }
 
 #[test]
@@ -1045,7 +1031,7 @@ fn shl() {
         Operation::Return,
     ];
     let (env, db) = default_env_and_db_setup(operations);
-    run_program_assert_num_result(env, db, SpecId::CANCUN, 2_u8.into());
+    run_program_assert_num_result(env, db, 2_u8.into());
 }
 
 #[test]
@@ -1062,7 +1048,7 @@ fn shr() {
         Operation::Return,
     ];
     let (env, db) = default_env_and_db_setup(operations);
-    run_program_assert_num_result(env, db, SpecId::CANCUN, 0_u8.into());
+    run_program_assert_num_result(env, db, 0_u8.into());
 }
 
 #[test]
@@ -1079,7 +1065,7 @@ fn sar() {
         Operation::Return,
     ];
     let (env, db) = default_env_and_db_setup(operations);
-    run_program_assert_num_result(env, db, SpecId::CANCUN, 1_u8.into());
+    run_program_assert_num_result(env, db, 1_u8.into());
 }
 
 #[test]
@@ -1101,7 +1087,7 @@ fn keccak256_empty_bytes() {
     )
     .unwrap();
     let (env, db) = default_env_and_db_setup(operations);
-    run_program_assert_num_result(env, db, SpecId::CANCUN, expected);
+    run_program_assert_num_result(env, db, expected);
 }
 
 #[test]
@@ -1133,7 +1119,7 @@ fn keccak256_padded_data() {
     )
     .unwrap();
     let (env, db) = default_env_and_db_setup(operations);
-    run_program_assert_num_result(env, db, SpecId::CANCUN, expected);
+    run_program_assert_num_result(env, db, expected);
 }
 
 #[test]
@@ -1155,7 +1141,7 @@ fn keccak256_single_byte() {
     )
     .unwrap();
     let (env, db) = default_env_and_db_setup(operations);
-    run_program_assert_num_result(env, db, SpecId::CANCUN, expected);
+    run_program_assert_num_result(env, db, expected);
 }
 
 #[test]
@@ -1170,7 +1156,7 @@ fn address() {
         Operation::Return,
     ];
     let (env, db) = default_env_and_db_setup(operations);
-    run_program_assert_num_result(env, db, SpecId::CANCUN, 40_u8.into());
+    run_program_assert_num_result(env, db, 40_u8.into());
 }
 
 #[test]
@@ -1186,7 +1172,7 @@ fn balance() {
         Operation::Return,
     ];
     let (env, db) = default_env_and_db_setup(operations);
-    run_program_assert_num_result(env, db, SpecId::CANCUN, 0_u8.into());
+    run_program_assert_num_result(env, db, 0_u8.into());
 }
 
 #[test]
@@ -1201,7 +1187,7 @@ fn origin() {
         Operation::Return,
     ];
     let (env, db) = default_env_and_db_setup(operations);
-    run_program_assert_num_result(env, db, SpecId::CANCUN, 0_u8.into());
+    run_program_assert_num_result(env, db, 0_u8.into());
 }
 
 #[test]
@@ -1216,7 +1202,7 @@ fn callvalue() {
         Operation::Return,
     ];
     let (env, db) = default_env_and_db_setup(operations);
-    run_program_assert_num_result(env, db, SpecId::CANCUN, 0_u8.into());
+    run_program_assert_num_result(env, db, 0_u8.into());
 }
 
 #[test]
@@ -1237,7 +1223,6 @@ fn calldataload() {
     run_program_assert_bytes_result(
         env,
         db,
-        SpecId::CANCUN,
         Bytes::from_static(&[
             0xFF, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
             0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
@@ -1261,7 +1246,7 @@ fn calldataload_zero_offset() {
     let (env, db) = default_env_and_db_setup(operations);
     let mut env = env.clone();
     env.tx.data = Bytes::from_static(&[0xFF; 32]);
-    run_program_assert_bytes_result(env, db, SpecId::CANCUN, Bytes::from_static(&[0xFF; 32]));
+    run_program_assert_bytes_result(env, db, Bytes::from_static(&[0xFF; 32]));
 }
 
 #[test]
@@ -1277,7 +1262,7 @@ fn calldataload_zero_offset_empty_calldata() {
         Operation::Return,
     ];
     let (env, db) = default_env_and_db_setup(operations);
-    run_program_assert_bytes_result(env, db, SpecId::CANCUN, Bytes::from_static(&[0x00; 32]));
+    run_program_assert_bytes_result(env, db, Bytes::from_static(&[0x00; 32]));
 }
 
 #[test]
@@ -1298,7 +1283,6 @@ fn calldataload_out_of_range() {
     run_program_assert_bytes_result(
         env,
         db,
-        SpecId::CANCUN,
         Bytes::from_static(&[
             0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0x00, 0x00, 0x00, 0x00,
             0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
@@ -1322,7 +1306,7 @@ fn calldataload_out_of_bounds() {
     let (env, db) = default_env_and_db_setup(operations);
     let mut env = env.clone();
     env.tx.data = Bytes::from_static(&[0xFF; 32]);
-    run_program_assert_bytes_result(env, db, SpecId::CANCUN, Bytes::from_static(&[0x00; 32]));
+    run_program_assert_bytes_result(env, db, Bytes::from_static(&[0x00; 32]));
 }
 
 #[test]
@@ -1338,7 +1322,7 @@ fn calldataload_out_of_bounds_empty_calldata() {
         Operation::Return,
     ];
     let (env, db) = default_env_and_db_setup(operations);
-    run_program_assert_bytes_result(env, db, SpecId::CANCUN, Bytes::from_static(&[0x00; 32]));
+    run_program_assert_bytes_result(env, db, Bytes::from_static(&[0x00; 32]));
 }
 
 #[test]
@@ -1355,7 +1339,7 @@ fn calldatasize() {
     let (env, db) = default_env_and_db_setup(operations);
     let mut env = env.clone();
     env.tx.data = Bytes::from_static(&[0xFF; 32]);
-    run_program_assert_num_result(env, db, SpecId::CANCUN, 32_u32.into());
+    run_program_assert_num_result(env, db, 32_u32.into());
 }
 
 #[test]
@@ -1370,7 +1354,7 @@ fn calldatasize_empty_calldata() {
         Operation::Return,
     ];
     let (env, db) = default_env_and_db_setup(operations);
-    run_program_assert_num_result(env, db, SpecId::CANCUN, 0_u32.into());
+    run_program_assert_num_result(env, db, 0_u32.into());
 }
 
 #[test]
@@ -1388,7 +1372,7 @@ fn calldatacopy_small_range() {
     let (env, db) = default_env_and_db_setup(operations);
     let mut env = env.clone();
     env.tx.data = Bytes::from_static(&[0xFF; 30]);
-    run_program_assert_bytes_result(env, db, SpecId::CANCUN, Bytes::from_static(&[0xFF; 10]));
+    run_program_assert_bytes_result(env, db, Bytes::from_static(&[0xFF; 10]));
 }
 
 #[test]
@@ -1406,7 +1390,7 @@ fn calldatacopy_large_range() {
     let (env, db) = default_env_and_db_setup(operations);
     let mut env = env.clone();
     env.tx.data = Bytes::from_static(&[0xFF; 110]);
-    run_program_assert_bytes_result(env, db, SpecId::CANCUN, Bytes::from_static(&[0xFF; 100]));
+    run_program_assert_bytes_result(env, db, Bytes::from_static(&[0xFF; 100]));
 }
 
 #[test]
@@ -1422,7 +1406,7 @@ fn calldatacopy_empty_calldata() {
         Operation::Return,
     ];
     let (env, db) = default_env_and_db_setup(operations);
-    run_program_assert_bytes_result(env, db, SpecId::CANCUN, Bytes::from_static(&[0x00; 32]));
+    run_program_assert_bytes_result(env, db, Bytes::from_static(&[0x00; 32]));
 }
 
 #[test]
@@ -1443,7 +1427,6 @@ fn calldatacopy_out_of_range() {
     run_program_assert_bytes_result(
         env,
         db,
-        SpecId::CANCUN,
         Bytes::from_static(&[0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0x00, 0x00, 0x00, 0x00, 0x00]),
     );
 }
@@ -1463,7 +1446,7 @@ fn calldatacopy_out_of_bounds() {
     let (env, db) = default_env_and_db_setup(operations);
     let mut env = env.clone();
     env.tx.data = Bytes::from_static(&[0xFF; 5]);
-    run_program_assert_bytes_result(env, db, SpecId::CANCUN, Bytes::from_static(&[0x00; 5]));
+    run_program_assert_bytes_result(env, db, Bytes::from_static(&[0x00; 5]));
 }
 
 #[test]
@@ -1479,7 +1462,7 @@ fn calldatacopy_out_of_bounds_empty_calldata() {
         Operation::Return,
     ];
     let (env, db) = default_env_and_db_setup(operations);
-    run_program_assert_bytes_result(env, db, SpecId::CANCUN, Bytes::from_static(&[0x00; 5]));
+    run_program_assert_bytes_result(env, db, Bytes::from_static(&[0x00; 5]));
 }
 
 #[test]
@@ -1494,7 +1477,7 @@ fn codesize() {
         Operation::Return,
     ];
     let (env, db) = default_env_and_db_setup(operations);
-    run_program_assert_num_result(env, db, SpecId::CANCUN, 7_u8.into());
+    run_program_assert_num_result(env, db, 7_u8.into());
 }
 
 #[test]
@@ -1511,7 +1494,7 @@ fn codesize_with_push_pop() {
         Operation::Return,
     ];
     let (env, db) = default_env_and_db_setup(operations);
-    run_program_assert_num_result(env, db, SpecId::CANCUN, 9_u8.into());
+    run_program_assert_num_result(env, db, 9_u8.into());
 }
 
 #[test]
@@ -1527,7 +1510,7 @@ fn codecopy() {
         Operation::Return,
     ];
     let (env, db) = default_env_and_db_setup(operations);
-    run_program_assert_num_result(env, db, SpecId::CANCUN, 0_u8.into());
+    run_program_assert_num_result(env, db, 0_u8.into());
 }
 
 #[test]
@@ -1553,7 +1536,6 @@ fn codecopy_with_large_value() {
     run_program_assert_num_result(
         env,
         db,
-        SpecId::CANCUN,
         BigUint::from_str(
             "50208493039807347493768565078611515464268940091219712940177602988105906782208",
         )
@@ -1574,7 +1556,7 @@ fn codecopy_partial() {
         Operation::Return,
     ];
     let (env, db) = default_env_and_db_setup(operations);
-    run_program_assert_num_result(env, db, SpecId::CANCUN, 0_u8.into());
+    run_program_assert_num_result(env, db, 0_u8.into());
 }
 
 #[test]
@@ -1590,7 +1572,7 @@ fn codecopy_large_offset() {
         Operation::Return,
     ];
     let (env, db) = default_env_and_db_setup(operations);
-    run_program_assert_num_result(env, db, SpecId::CANCUN, 0_u8.into());
+    run_program_assert_num_result(env, db, 0_u8.into());
 }
 
 #[test]
@@ -1605,7 +1587,7 @@ fn gasprice() {
         Operation::Return,
     ];
     let (env, db) = default_env_and_db_setup(operations);
-    run_program_assert_num_result(env, db, SpecId::CANCUN, 0_u8.into());
+    run_program_assert_num_result(env, db, 0_u8.into());
 }
 
 #[test]
@@ -1646,7 +1628,7 @@ fn test_extcodesize() {
     let _created_address = Address::left_padding_from(&[40]).create(1);
     // _created_address is the deployed contract address
     // 41 is the deployed contract code size.
-    run_program_assert_num_result(env, db, SpecId::CANCUN, 0_u8.into());
+    run_program_assert_num_result(env, db, 0_u8.into());
 }
 
 #[test]
@@ -1662,7 +1644,7 @@ fn extcodesize_nonexistent_address() {
         Operation::Return,
     ];
     let (env, db) = default_env_and_db_setup(operations);
-    run_program_assert_num_result(env, db, SpecId::CANCUN, 0_u8.into());
+    run_program_assert_num_result(env, db, 0_u8.into());
 }
 
 #[test]
@@ -1678,7 +1660,7 @@ fn extcodesize_zero_address() {
         Operation::Return,
     ];
     let (env, db) = default_env_and_db_setup(operations);
-    run_program_assert_num_result(env, db, SpecId::CANCUN, 0_u8.into());
+    run_program_assert_num_result(env, db, 0_u8.into());
 }
 
 #[test]
@@ -1727,12 +1709,7 @@ fn extcodecopy_full() {
     ];
     let (env, db) = default_env_and_db_setup(operations);
     let created_address = Address::left_padding_from(&[40]).create(1);
-    run_program_assert_num_result(
-        env,
-        db,
-        SpecId::CANCUN,
-        BigUint::from_bytes_be(&created_address.0.0),
-    );
+    run_program_assert_num_result(env, db, BigUint::from_bytes_be(&created_address.0.0));
 }
 
 #[test]
@@ -1749,7 +1726,7 @@ fn extcodecopy_specific_length() {
         Operation::Return,
     ];
     let (env, db) = default_env_and_db_setup(operations);
-    run_program_assert_num_result(env, db, SpecId::CANCUN, 0_u8.into());
+    run_program_assert_num_result(env, db, 0_u8.into());
 }
 
 #[test]
@@ -1766,7 +1743,7 @@ fn extcodecopy_partial() {
         Operation::Return,
     ];
     let (env, db) = default_env_and_db_setup(operations);
-    run_program_assert_num_result(env, db, SpecId::CANCUN, 0_u8.into());
+    run_program_assert_num_result(env, db, 0_u8.into());
 }
 
 #[test]
@@ -1787,7 +1764,7 @@ fn extcodecopy_out_of_bounds() {
         Operation::Return,
     ];
     let (env, db) = default_env_and_db_setup(operations);
-    run_program_assert_num_result(env, db, SpecId::CANCUN, 0_u8.into());
+    run_program_assert_num_result(env, db, 0_u8.into());
 }
 
 #[test]
@@ -1809,7 +1786,7 @@ fn returndatasize() {
         Operation::Return,
     ];
     let (env, db) = default_env_and_db_setup(operations);
-    run_program_assert_num_result(env, db, SpecId::CANCUN, 0_u32.into());
+    run_program_assert_num_result(env, db, 0_u32.into());
 }
 
 #[test]
@@ -1872,7 +1849,7 @@ fn returndatacopy_offset_size_adjustments() {
         Operation::Return,
     ];
     let (env, db) = default_env_and_db_setup(operations);
-    run_program_assert_num_result(env, db, SpecId::CANCUN, 0_u8.into());
+    run_program_assert_num_result(env, db, 0_u8.into());
 }
 
 #[test]
@@ -1888,7 +1865,7 @@ fn returndatacopy_out_of_bounds_with_empty_calldata() {
         Operation::Return,
     ];
     let (env, db) = default_env_and_db_setup(operations);
-    run_program_assert_halt(env, db, SpecId::CANCUN);
+    run_program_assert_halt(env, db);
 }
 
 #[test]
@@ -1962,7 +1939,6 @@ fn extcodehash() {
     run_program_assert_num_result(
         env,
         db,
-        SpecId::CANCUN,
         BigUint::from_str(
             "89477152217924674838424037953991966239322087453347756267410168184682657981552",
         )
@@ -1983,7 +1959,7 @@ fn extcodehash_nonexistent_address() {
         Operation::Return,
     ];
     let (env, db) = default_env_and_db_setup(operations);
-    run_program_assert_num_result(env, db, SpecId::CANCUN, 0_u8.into());
+    run_program_assert_num_result(env, db, 0_u8.into());
 }
 
 #[test]
@@ -1999,12 +1975,7 @@ fn extcodehash_empty_address() {
         Operation::Return,
     ];
     let (env, db) = default_env_and_db_setup(operations);
-    run_program_assert_num_result(
-        env,
-        db,
-        SpecId::CANCUN,
-        BigUint::from_bytes_be(&KECCAK_EMPTY.0),
-    );
+    run_program_assert_num_result(env, db, BigUint::from_bytes_be(&KECCAK_EMPTY.0));
 }
 
 #[test]
@@ -2020,7 +1991,7 @@ fn blockhash_invalid_block_number() {
         Operation::Return,
     ];
     let (env, db) = default_env_and_db_setup(operations);
-    run_program_assert_num_result(env, db, SpecId::CANCUN, 0_u8.into());
+    run_program_assert_num_result(env, db, 0_u8.into());
 }
 
 #[test]
@@ -2045,7 +2016,7 @@ fn blockhash_previous_block() {
         block_number as u64,
         B256::left_padding_from(&block_hash.to_be_bytes()),
     );
-    run_program_assert_num_result(env, db, SpecId::CANCUN, expected_block_hash);
+    run_program_assert_num_result(env, db, expected_block_hash);
 }
 
 #[test]
@@ -2060,7 +2031,7 @@ fn coinbase() {
         Operation::Return,
     ];
     let (env, db) = default_env_and_db_setup(operations);
-    run_program_assert_num_result(env, db, SpecId::CANCUN, 80_u8.into());
+    run_program_assert_num_result(env, db, 80_u8.into());
 }
 
 #[test]
@@ -2076,7 +2047,7 @@ fn timestamp() {
     ];
     let (env, db) = default_env_and_db_setup(operations);
     // The default timestamp is 1
-    run_program_assert_num_result(env, db, SpecId::CANCUN, 1_u8.into());
+    run_program_assert_num_result(env, db, 1_u8.into());
 }
 
 #[test]
@@ -2091,7 +2062,7 @@ fn number() {
         Operation::Return,
     ];
     let (env, db) = default_env_and_db_setup(operations);
-    run_program_assert_num_result(env, db, SpecId::CANCUN, 0_u8.into());
+    run_program_assert_num_result(env, db, 0_u8.into());
 }
 
 #[test]
@@ -2106,7 +2077,7 @@ fn prevrandao() {
         Operation::Return,
     ];
     let (env, db) = default_env_and_db_setup(operations);
-    run_program_assert_num_result(env, db, SpecId::CANCUN, 0_u8.into());
+    run_program_assert_num_result(env, db, 0_u8.into());
 }
 
 #[test]
@@ -2121,7 +2092,7 @@ fn gaslimit() {
         Operation::Return,
     ];
     let (env, db) = default_env_and_db_setup(operations);
-    run_program_assert_num_result(env, db, SpecId::CANCUN, INIT_GAS.into());
+    run_program_assert_num_result(env, db, INIT_GAS.into());
 }
 
 #[test]
@@ -2136,7 +2107,7 @@ fn chainid() {
         Operation::Return,
     ];
     let (env, db) = default_env_and_db_setup(operations);
-    run_program_assert_num_result(env, db, SpecId::CANCUN, 1_u8.into());
+    run_program_assert_num_result(env, db, 1_u8.into());
 }
 
 #[test]
@@ -2151,7 +2122,7 @@ fn selfbalance() {
         Operation::Return,
     ];
     let (env, db) = default_env_and_db_setup(operations);
-    run_program_assert_num_result(env, db, SpecId::CANCUN, 10_u8.into());
+    run_program_assert_num_result(env, db, 10_u8.into());
 }
 
 #[test]
@@ -2166,7 +2137,7 @@ fn basefee() {
         Operation::Return,
     ];
     let (env, db) = default_env_and_db_setup(operations);
-    run_program_assert_num_result(env, db, SpecId::CANCUN, 0_u8.into());
+    run_program_assert_num_result(env, db, 0_u8.into());
 }
 
 #[test]
@@ -2182,7 +2153,7 @@ fn blobhash() {
         Operation::Return,
     ];
     let (env, db) = default_env_and_db_setup(operations);
-    run_program_assert_num_result(env, db, SpecId::CANCUN, 0_u8.into());
+    run_program_assert_num_result(env, db, 0_u8.into());
 }
 
 #[test]
@@ -2198,7 +2169,7 @@ fn blobbasefee() {
     ];
     let (env, db) = default_env_and_db_setup(operations);
     // The default blobbasefee is 1
-    run_program_assert_num_result(env, db, SpecId::CANCUN, 1_u8.into());
+    run_program_assert_num_result(env, db, 1_u8.into());
 }
 
 #[test]
@@ -2215,7 +2186,7 @@ fn push_pop() {
         Operation::Return,
     ];
     let (env, db) = default_env_and_db_setup(operations);
-    run_program_assert_num_result(env, db, SpecId::CANCUN, 125986_u32.into());
+    run_program_assert_num_result(env, db, 125986_u32.into());
 }
 
 #[test]
@@ -2232,7 +2203,7 @@ fn push_pop_1() {
         Operation::Return,
     ];
     let (env, db) = default_env_and_db_setup(operations);
-    run_program_assert_num_result(env, db, SpecId::CANCUN, 24_u8.into());
+    run_program_assert_num_result(env, db, 24_u8.into());
 }
 
 #[test]
@@ -2251,7 +2222,7 @@ fn push_multiple_pop() {
         Operation::Return,
     ];
     let (env, db) = default_env_and_db_setup(operations);
-    run_program_assert_num_result(env, db, SpecId::CANCUN, 1_u8.into());
+    run_program_assert_num_result(env, db, 1_u8.into());
 }
 
 #[test]
@@ -2271,7 +2242,7 @@ fn push_stack_depth() {
         Operation::Return,
     ];
     let (env, db) = default_env_and_db_setup(operations);
-    run_program_assert_num_result(env, db, SpecId::CANCUN, 20_u8.into());
+    run_program_assert_num_result(env, db, 20_u8.into());
 }
 
 #[test]
@@ -2299,7 +2270,6 @@ fn mstore_mload() {
     run_program_assert_num_result(
         env,
         db,
-        SpecId::CANCUN,
         BigUint::from_bytes_be(&[
             0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
             0xFF,
@@ -2323,7 +2293,7 @@ fn mstore_mload_1() {
         Operation::Return,
     ];
     let (env, db) = default_env_and_db_setup(operations);
-    run_program_assert_num_result(env, db, SpecId::CANCUN, 1024_u64.into());
+    run_program_assert_num_result(env, db, 1024_u64.into());
 }
 
 #[test]
@@ -2338,7 +2308,7 @@ fn mstore_1() {
         Operation::Return,
     ];
     let (env, db) = default_env_and_db_setup(operations);
-    run_program_assert_num_result(env, db, SpecId::CANCUN, 0_u32.into());
+    run_program_assert_num_result(env, db, 0_u32.into());
 }
 
 #[test]
@@ -2356,7 +2326,7 @@ fn mstore_2() {
         Operation::Return,
     ];
     let (env, db) = default_env_and_db_setup(operations);
-    run_program_assert_num_result(env, db, SpecId::CANCUN, 0_u32.into());
+    run_program_assert_num_result(env, db, 0_u32.into());
 }
 
 #[test]
@@ -2380,7 +2350,6 @@ fn mstore() {
     run_program_assert_num_result(
         env,
         db,
-        SpecId::CANCUN,
         BigUint::from_bytes_be(&[
             0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
             0xFF,
@@ -2400,7 +2369,7 @@ fn mstore_high_address() {
         Operation::Return,
     ];
     let (env, db) = default_env_and_db_setup(operations);
-    run_program_assert_num_result(env, db, SpecId::CANCUN, 0_u32.into());
+    run_program_assert_num_result(env, db, 0_u32.into());
 }
 
 #[test]
@@ -2419,7 +2388,7 @@ fn mload_1() {
         Operation::Return,
     ];
     let (env, db) = default_env_and_db_setup(operations);
-    run_program_assert_num_result(env, db, SpecId::CANCUN, 0_u64.into());
+    run_program_assert_num_result(env, db, 0_u64.into());
 }
 
 #[test]
@@ -2435,7 +2404,7 @@ fn mload_uninitialized() {
         Operation::Return,
     ];
     let (env, db) = default_env_and_db_setup(operations);
-    run_program_assert_num_result(env, db, SpecId::CANCUN, 0_u32.into());
+    run_program_assert_num_result(env, db, 0_u32.into());
 }
 
 #[test]
@@ -2457,12 +2426,7 @@ fn mstore8() {
     let mut expect_bytes: Vec<u8> = vec![0x00; 31];
     expect_bytes.push(0xFF);
     let (env, db) = default_env_and_db_setup(operations);
-    run_program_assert_num_result(
-        env,
-        db,
-        SpecId::CANCUN,
-        BigUint::from_bytes_le(&expect_bytes),
-    );
+    run_program_assert_num_result(env, db, BigUint::from_bytes_le(&expect_bytes));
 }
 
 #[test]
@@ -2496,7 +2460,7 @@ fn mstore_mcopy_mload_with_zero_address_arbitrary_size() {
         result_bytes[32 - bytes.len()..].copy_from_slice(&bytes);
     }
     let (env, db) = default_env_and_db_setup(operations);
-    run_program_assert_num_result(env, db, SpecId::CANCUN, 33554432_u64.into());
+    run_program_assert_num_result(env, db, 33554432_u64.into());
 }
 
 #[test]
@@ -2515,7 +2479,7 @@ fn sload() {
         Operation::Return,
     ];
     let (env, db) = default_env_and_db_setup(operations);
-    run_program_assert_num_result(env, db, SpecId::CANCUN, 46_u8.into());
+    run_program_assert_num_result(env, db, 46_u8.into());
 }
 
 #[test]
@@ -2534,7 +2498,7 @@ fn sload_1() {
         Operation::Return,
     ];
     let (env, db) = default_env_and_db_setup(operations);
-    run_program_assert_num_result(env, db, SpecId::CANCUN, 0_u64.into());
+    run_program_assert_num_result(env, db, 0_u64.into());
 }
 
 #[test]
@@ -2553,7 +2517,7 @@ fn sstore() {
         Operation::Return,
     ];
     let (env, db) = default_env_and_db_setup(operations);
-    run_program_assert_num_result(env, db, SpecId::CANCUN, 100_u64.into());
+    run_program_assert_num_result(env, db, 100_u64.into());
 }
 
 #[test]
@@ -2572,7 +2536,7 @@ fn sstore_1() {
         Operation::Return,
     ];
     let (env, db) = default_env_and_db_setup(operations);
-    run_program_assert_num_result(env, db, SpecId::CANCUN, 65535_u32.into());
+    run_program_assert_num_result(env, db, 65535_u32.into());
 }
 
 #[test]
@@ -2598,7 +2562,7 @@ fn sstore_multiple_slots() {
     ];
     let (env, db) = default_env_and_db_setup(operations);
     // 3 means 2 + 1 from the storage slot 600 and slot 500
-    run_program_assert_num_result(env, db, SpecId::CANCUN, 3_u8.into());
+    run_program_assert_num_result(env, db, 3_u8.into());
 }
 
 #[test]
@@ -2618,7 +2582,7 @@ fn sstore_high_slot() {
         Operation::Return,
     ];
     let (env, db) = default_env_and_db_setup(operations);
-    run_program_assert_num_result(env, db, SpecId::CANCUN, 777_u64.into());
+    run_program_assert_num_result(env, db, 777_u64.into());
 }
 
 #[test]
@@ -2634,7 +2598,7 @@ fn sload_uninitialized() {
         Operation::Return,
     ];
     let (env, db) = default_env_and_db_setup(operations);
-    run_program_assert_num_result(env, db, SpecId::CANCUN, 0_u32.into());
+    run_program_assert_num_result(env, db, 0_u32.into());
 }
 
 #[test]
@@ -2654,7 +2618,7 @@ fn sload_high_slot() {
         Operation::Return,
     ];
     let (env, db) = default_env_and_db_setup(operations);
-    run_program_assert_num_result(env, db, SpecId::CANCUN, 0_u32.into());
+    run_program_assert_num_result(env, db, 0_u32.into());
 }
 
 #[test]
@@ -2678,7 +2642,7 @@ fn sload_multiple_slots() {
         Operation::Return,
     ];
     let (env, db) = default_env_and_db_setup(operations);
-    run_program_assert_num_result(env, db, SpecId::CANCUN, 0_u8.into());
+    run_program_assert_num_result(env, db, 0_u8.into());
 }
 
 #[test]
@@ -2699,7 +2663,7 @@ fn jump() {
         Operation::Return,
     ];
     let (env, db) = default_env_and_db_setup(operations);
-    run_program_assert_num_result(env, db, SpecId::CANCUN, a.into());
+    run_program_assert_num_result(env, db, a.into());
 }
 
 #[test]
@@ -2722,7 +2686,7 @@ fn jumpi_with_false_condition() {
         Operation::Return,
     ];
     let (env, db) = default_env_and_db_setup(operations);
-    run_program_assert_num_result(env, db, SpecId::CANCUN, b.into());
+    run_program_assert_num_result(env, db, b.into());
 }
 
 #[test]
@@ -2745,7 +2709,7 @@ fn jumpi_does_not_revert_if_pc_is_wrong_but_branch_is_not_taken() {
         Operation::Return,
     ];
     let (env, db) = default_env_and_db_setup(operations);
-    run_program_assert_num_result(env, db, SpecId::CANCUN, b.into());
+    run_program_assert_num_result(env, db, b.into());
 }
 
 #[test]
@@ -2763,7 +2727,7 @@ fn jumpdest() {
         Operation::Return,
     ];
     let (env, db) = default_env_and_db_setup(operations);
-    run_program_assert_num_result(env, db, SpecId::CANCUN, expected.into());
+    run_program_assert_num_result(env, db, expected.into());
 }
 
 #[test]
@@ -2783,7 +2747,7 @@ fn pc() {
         Operation::Return,
     ];
     let (env, db) = default_env_and_db_setup(operations);
-    run_program_assert_num_result(env, db, SpecId::CANCUN, 6_u8.into());
+    run_program_assert_num_result(env, db, 6_u8.into());
 }
 
 #[test]
@@ -2806,7 +2770,7 @@ fn mload_misze() {
         Operation::Return,
     ];
     let (env, db) = default_env_and_db_setup(operations);
-    run_program_assert_num_result(env, db, SpecId::CANCUN, 96_u8.into());
+    run_program_assert_num_result(env, db, 96_u8.into());
 }
 
 #[test]
@@ -2824,7 +2788,7 @@ fn gas() {
         Operation::Return,
     ];
     let (env, db) = default_env_and_db_setup(operations);
-    run_program_assert_num_result(env, db, SpecId::CANCUN, (INIT_GAS - 21000).into());
+    run_program_assert_num_result(env, db, (INIT_GAS - 21000).into());
 }
 
 #[test]
@@ -2843,7 +2807,7 @@ fn tstore_tload() {
         Operation::Return,
     ];
     let (env, db) = default_env_and_db_setup(operations);
-    run_program_assert_num_result(env, db, SpecId::CANCUN, 46_u8.into());
+    run_program_assert_num_result(env, db, 46_u8.into());
 }
 
 #[test]
@@ -2862,12 +2826,7 @@ fn tstore_0() {
         Operation::Return,
     ];
     let (env, db) = default_env_and_db_setup(operations);
-    run_program_assert_num_result(
-        env,
-        db,
-        SpecId::CANCUN,
-        BigUint::from_bytes_be(&[0xFF, 0xFF]),
-    );
+    run_program_assert_num_result(env, db, BigUint::from_bytes_be(&[0xFF, 0xFF]));
 }
 
 #[test]
@@ -2886,12 +2845,7 @@ fn tstore_1() {
         Operation::Return,
     ];
     let (env, db) = default_env_and_db_setup(operations);
-    run_program_assert_num_result(
-        env,
-        db,
-        SpecId::CANCUN,
-        BigUint::from_bytes_be(&[0xFF, 0xFF]),
-    );
+    run_program_assert_num_result(env, db, BigUint::from_bytes_be(&[0xFF, 0xFF]));
 }
 
 #[test]
@@ -2920,7 +2874,7 @@ fn mstore_mcopy() {
         Operation::Return,
     ];
     let (env, db) = default_env_and_db_setup(operations);
-    run_program_assert_num_result(env, db, SpecId::CANCUN, 254_u8.into());
+    run_program_assert_num_result(env, db, 254_u8.into());
 }
 
 #[test]
@@ -2949,7 +2903,7 @@ fn mcopy_large_size_overflow() {
     ];
     let (mut env, db) = default_env_and_db_setup(operations);
     env.tx.data = hex_literal::hex!("00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000001ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff").to_vec().into();
-    run_program_assert_halt(env, db, SpecId::CANCUN);
+    run_program_assert_halt(env, db);
 }
 
 #[test]
@@ -2965,7 +2919,7 @@ fn dup1() {
         Operation::Return,
     ];
     let (env, db) = default_env_and_db_setup(operations);
-    run_program_assert_num_result(env, db, SpecId::CANCUN, 1_u8.into());
+    run_program_assert_num_result(env, db, 1_u8.into());
 }
 
 #[test]
@@ -2982,7 +2936,7 @@ fn dup2() {
         Operation::Return,
     ];
     let (env, db) = default_env_and_db_setup(operations);
-    run_program_assert_num_result(env, db, SpecId::CANCUN, 1_u8.into());
+    run_program_assert_num_result(env, db, 1_u8.into());
 }
 
 #[test]
@@ -3000,7 +2954,7 @@ fn dup3() {
         Operation::Return,
     ];
     let (env, db) = default_env_and_db_setup(operations);
-    run_program_assert_num_result(env, db, SpecId::CANCUN, 1_u8.into());
+    run_program_assert_num_result(env, db, 1_u8.into());
 }
 
 #[test]
@@ -3019,7 +2973,7 @@ fn dup4() {
         Operation::Return,
     ];
     let (env, db) = default_env_and_db_setup(operations);
-    run_program_assert_num_result(env, db, SpecId::CANCUN, 1_u8.into());
+    run_program_assert_num_result(env, db, 1_u8.into());
 }
 
 #[test]
@@ -3039,7 +2993,7 @@ fn dup5() {
         Operation::Return,
     ];
     let (env, db) = default_env_and_db_setup(operations);
-    run_program_assert_num_result(env, db, SpecId::CANCUN, 1_u8.into());
+    run_program_assert_num_result(env, db, 1_u8.into());
 }
 
 #[test]
@@ -3060,7 +3014,7 @@ fn dup6() {
         Operation::Return,
     ];
     let (env, db) = default_env_and_db_setup(operations);
-    run_program_assert_num_result(env, db, SpecId::CANCUN, 1_u8.into());
+    run_program_assert_num_result(env, db, 1_u8.into());
 }
 
 #[test]
@@ -3082,7 +3036,7 @@ fn dup7() {
         Operation::Return,
     ];
     let (env, db) = default_env_and_db_setup(operations);
-    run_program_assert_num_result(env, db, SpecId::CANCUN, 1_u8.into());
+    run_program_assert_num_result(env, db, 1_u8.into());
 }
 
 #[test]
@@ -3105,7 +3059,7 @@ fn dup8() {
         Operation::Return,
     ];
     let (env, db) = default_env_and_db_setup(operations);
-    run_program_assert_num_result(env, db, SpecId::CANCUN, 1_u8.into());
+    run_program_assert_num_result(env, db, 1_u8.into());
 }
 
 #[test]
@@ -3129,7 +3083,7 @@ fn dup9() {
         Operation::Return,
     ];
     let (env, db) = default_env_and_db_setup(operations);
-    run_program_assert_num_result(env, db, SpecId::CANCUN, 1_u8.into());
+    run_program_assert_num_result(env, db, 1_u8.into());
 }
 
 #[test]
@@ -3154,7 +3108,7 @@ fn dup10() {
         Operation::Return,
     ];
     let (env, db) = default_env_and_db_setup(operations);
-    run_program_assert_num_result(env, db, SpecId::CANCUN, 1_u8.into());
+    run_program_assert_num_result(env, db, 1_u8.into());
 }
 
 #[test]
@@ -3180,7 +3134,7 @@ fn dup11() {
         Operation::Return,
     ];
     let (env, db) = default_env_and_db_setup(operations);
-    run_program_assert_num_result(env, db, SpecId::CANCUN, 1_u8.into());
+    run_program_assert_num_result(env, db, 1_u8.into());
 }
 
 #[test]
@@ -3207,7 +3161,7 @@ fn dup12() {
         Operation::Return,
     ];
     let (env, db) = default_env_and_db_setup(operations);
-    run_program_assert_num_result(env, db, SpecId::CANCUN, 1_u8.into());
+    run_program_assert_num_result(env, db, 1_u8.into());
 }
 
 #[test]
@@ -3235,7 +3189,7 @@ fn dup13() {
         Operation::Return,
     ];
     let (env, db) = default_env_and_db_setup(operations);
-    run_program_assert_num_result(env, db, SpecId::CANCUN, 1_u8.into());
+    run_program_assert_num_result(env, db, 1_u8.into());
 }
 
 #[test]
@@ -3264,7 +3218,7 @@ fn dup14() {
         Operation::Return,
     ];
     let (env, db) = default_env_and_db_setup(operations);
-    run_program_assert_num_result(env, db, SpecId::CANCUN, 1_u8.into());
+    run_program_assert_num_result(env, db, 1_u8.into());
 }
 
 #[test]
@@ -3294,7 +3248,7 @@ fn dup15() {
         Operation::Return,
     ];
     let (env, db) = default_env_and_db_setup(operations);
-    run_program_assert_num_result(env, db, SpecId::CANCUN, 1_u8.into());
+    run_program_assert_num_result(env, db, 1_u8.into());
 }
 
 #[test]
@@ -3325,7 +3279,7 @@ fn dup16() {
         Operation::Return,
     ];
     let (env, db) = default_env_and_db_setup(operations);
-    run_program_assert_num_result(env, db, SpecId::CANCUN, 1_u8.into());
+    run_program_assert_num_result(env, db, 1_u8.into());
 }
 
 #[test]
@@ -3342,7 +3296,7 @@ fn swap1() {
         Operation::Return,
     ];
     let (env, db) = default_env_and_db_setup(operations);
-    run_program_assert_num_result(env, db, SpecId::CANCUN, 2_u8.into());
+    run_program_assert_num_result(env, db, 2_u8.into());
 }
 
 #[test]
@@ -3360,7 +3314,7 @@ fn swap2() {
         Operation::Return,
     ];
     let (env, db) = default_env_and_db_setup(operations);
-    run_program_assert_num_result(env, db, SpecId::CANCUN, 2_u8.into());
+    run_program_assert_num_result(env, db, 2_u8.into());
 }
 
 #[test]
@@ -3379,7 +3333,7 @@ fn swap3() {
         Operation::Return,
     ];
     let (env, db) = default_env_and_db_setup(operations);
-    run_program_assert_num_result(env, db, SpecId::CANCUN, 2_u8.into());
+    run_program_assert_num_result(env, db, 2_u8.into());
 }
 
 #[test]
@@ -3399,7 +3353,7 @@ fn swap4() {
         Operation::Return,
     ];
     let (env, db) = default_env_and_db_setup(operations);
-    run_program_assert_num_result(env, db, SpecId::CANCUN, 2_u8.into());
+    run_program_assert_num_result(env, db, 2_u8.into());
 }
 
 #[test]
@@ -3420,7 +3374,7 @@ fn swap5() {
         Operation::Return,
     ];
     let (env, db) = default_env_and_db_setup(operations);
-    run_program_assert_num_result(env, db, SpecId::CANCUN, 2_u8.into());
+    run_program_assert_num_result(env, db, 2_u8.into());
 }
 
 #[test]
@@ -3442,7 +3396,7 @@ fn swap6() {
         Operation::Return,
     ];
     let (env, db) = default_env_and_db_setup(operations);
-    run_program_assert_num_result(env, db, SpecId::CANCUN, 2_u8.into());
+    run_program_assert_num_result(env, db, 2_u8.into());
 }
 
 #[test]
@@ -3465,7 +3419,7 @@ fn swap7() {
         Operation::Return,
     ];
     let (env, db) = default_env_and_db_setup(operations);
-    run_program_assert_num_result(env, db, SpecId::CANCUN, 2_u8.into());
+    run_program_assert_num_result(env, db, 2_u8.into());
 }
 
 #[test]
@@ -3489,7 +3443,7 @@ fn swap8() {
         Operation::Return,
     ];
     let (env, db) = default_env_and_db_setup(operations);
-    run_program_assert_num_result(env, db, SpecId::CANCUN, 2_u8.into());
+    run_program_assert_num_result(env, db, 2_u8.into());
 }
 
 #[test]
@@ -3514,7 +3468,7 @@ fn swap9() {
         Operation::Return,
     ];
     let (env, db) = default_env_and_db_setup(operations);
-    run_program_assert_num_result(env, db, SpecId::CANCUN, 2_u8.into());
+    run_program_assert_num_result(env, db, 2_u8.into());
 }
 
 #[test]
@@ -3540,7 +3494,7 @@ fn swap10() {
         Operation::Return,
     ];
     let (env, db) = default_env_and_db_setup(operations);
-    run_program_assert_num_result(env, db, SpecId::CANCUN, 2_u8.into());
+    run_program_assert_num_result(env, db, 2_u8.into());
 }
 
 #[test]
@@ -3567,7 +3521,7 @@ fn swap11() {
         Operation::Return,
     ];
     let (env, db) = default_env_and_db_setup(operations);
-    run_program_assert_num_result(env, db, SpecId::CANCUN, 2_u8.into());
+    run_program_assert_num_result(env, db, 2_u8.into());
 }
 
 #[test]
@@ -3595,7 +3549,7 @@ fn swap12() {
         Operation::Return,
     ];
     let (env, db) = default_env_and_db_setup(operations);
-    run_program_assert_num_result(env, db, SpecId::CANCUN, 2_u8.into());
+    run_program_assert_num_result(env, db, 2_u8.into());
 }
 
 #[test]
@@ -3624,7 +3578,7 @@ fn swap13() {
         Operation::Return,
     ];
     let (env, db) = default_env_and_db_setup(operations);
-    run_program_assert_num_result(env, db, SpecId::CANCUN, 2_u8.into());
+    run_program_assert_num_result(env, db, 2_u8.into());
 }
 
 #[test]
@@ -3654,7 +3608,7 @@ fn swap14() {
         Operation::Return,
     ];
     let (env, db) = default_env_and_db_setup(operations);
-    run_program_assert_num_result(env, db, SpecId::CANCUN, 2_u8.into());
+    run_program_assert_num_result(env, db, 2_u8.into());
 }
 
 #[test]
@@ -3685,7 +3639,7 @@ fn swap15() {
         Operation::Return,
     ];
     let (env, db) = default_env_and_db_setup(operations);
-    run_program_assert_num_result(env, db, SpecId::CANCUN, 2_u8.into());
+    run_program_assert_num_result(env, db, 2_u8.into());
 }
 
 #[test]
@@ -3717,7 +3671,7 @@ fn swap16() {
         Operation::Return,
     ];
     let (env, db) = default_env_and_db_setup(operations);
-    run_program_assert_num_result(env, db, SpecId::CANCUN, 2_u8.into());
+    run_program_assert_num_result(env, db, 2_u8.into());
 }
 
 #[test]
@@ -3736,12 +3690,7 @@ fn create() {
     ];
     let (env, db) = default_env_and_db_setup(operations);
     // The expect result is the empty code hash address.
-    run_program_assert_num_result(
-        env,
-        db,
-        SpecId::CANCUN,
-        BigUint::from_str(CREATE_ADDRESS_U256_STR).unwrap(),
-    );
+    run_program_assert_num_result(env, db, BigUint::from_str(CREATE_ADDRESS_U256_STR).unwrap());
 }
 
 #[test]
@@ -3761,12 +3710,7 @@ fn create_1() {
     ];
     let (env, db) = default_env_and_db_setup(operations);
     // The expect result is the empty code hash address.
-    run_program_assert_num_result(
-        env,
-        db,
-        SpecId::CANCUN,
-        BigUint::from_str(CREATE_ADDRESS_U256_STR).unwrap(),
-    );
+    run_program_assert_num_result(env, db, BigUint::from_str(CREATE_ADDRESS_U256_STR).unwrap());
 }
 
 #[test]
@@ -3786,7 +3730,7 @@ fn create_2() {
         Operation::Return,
     ];
     let (env, db) = default_env_and_db_setup(operations);
-    run_program_assert_num_result(env, db, SpecId::CANCUN, 0_u8.into());
+    run_program_assert_num_result(env, db, 0_u8.into());
 }
 
 #[test]
@@ -3813,12 +3757,7 @@ fn create_3() {
         Operation::Return,
     ];
     let (env, db) = default_env_and_db_setup(operations);
-    run_program_assert_num_result(
-        env,
-        db,
-        SpecId::CANCUN,
-        BigUint::from_str(CREATE_ADDRESS_U256_STR).unwrap(),
-    );
+    run_program_assert_num_result(env, db, BigUint::from_str(CREATE_ADDRESS_U256_STR).unwrap());
 }
 
 #[test]
@@ -3837,12 +3776,7 @@ fn create_with_value() {
         Operation::Return,
     ];
     let (env, db) = default_env_and_db_setup(operations);
-    run_program_assert_num_result(
-        env,
-        db,
-        SpecId::CANCUN,
-        BigUint::from_str(CREATE_ADDRESS_U256_STR).unwrap(),
-    );
+    run_program_assert_num_result(env, db, BigUint::from_str(CREATE_ADDRESS_U256_STR).unwrap());
 }
 
 #[test]
@@ -3864,7 +3798,6 @@ fn create2() {
     run_program_assert_bytes_result(
         env,
         db,
-        SpecId::CANCUN,
         Bytes::from_static(&[
             0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xe3, 0x7a,
             0x81, 0x34, 0x66, 0x59, 0x47, 0x83, 0x4e, 0xd6, 0x0a, 0xc4, 0xc8, 0xa1, 0xaa, 0x6f,
@@ -3896,7 +3829,7 @@ fn create2_with_large_salt() {
         Operation::Return,
     ];
     let (env, db) = default_env_and_db_setup(operations);
-    run_program_assert_num_result(env, db, SpecId::CANCUN, 0_u8.into());
+    run_program_assert_num_result(env, db, 0_u8.into());
 }
 
 #[test]
@@ -3914,7 +3847,7 @@ fn create_too_init_code_size_limit_halt() {
         Operation::Return,
     ];
     let (env, db) = default_env_and_db_setup(operations);
-    run_program_assert_halt(env, db, SpecId::CANCUN);
+    run_program_assert_halt(env, db);
 }
 
 #[test]
@@ -3929,7 +3862,7 @@ fn log0() {
         Operation::Return,
     ];
     let (env, db) = default_env_and_db_setup(operations);
-    run_program_assert_num_result(env, db, SpecId::CANCUN, 0_u8.into());
+    run_program_assert_num_result(env, db, 0_u8.into());
 }
 
 #[test]
@@ -3945,7 +3878,7 @@ fn log1() {
         Operation::Return,
     ];
     let (env, db) = default_env_and_db_setup(operations);
-    run_program_assert_num_result(env, db, SpecId::CANCUN, 0_u8.into());
+    run_program_assert_num_result(env, db, 0_u8.into());
 }
 
 #[test]
@@ -3962,7 +3895,7 @@ fn log2() {
         Operation::Return,
     ];
     let (env, db) = default_env_and_db_setup(operations);
-    run_program_assert_num_result(env, db, SpecId::CANCUN, 0_u8.into());
+    run_program_assert_num_result(env, db, 0_u8.into());
 }
 
 #[test]
@@ -3980,7 +3913,7 @@ fn log3() {
         Operation::Return,
     ];
     let (env, db) = default_env_and_db_setup(operations);
-    run_program_assert_num_result(env, db, SpecId::CANCUN, 0_u8.into());
+    run_program_assert_num_result(env, db, 0_u8.into());
 }
 
 #[test]
@@ -3999,7 +3932,7 @@ fn log4() {
         Operation::Return,
     ];
     let (env, db) = default_env_and_db_setup(operations);
-    run_program_assert_num_result(env, db, SpecId::CANCUN, 0_u8.into());
+    run_program_assert_num_result(env, db, 0_u8.into());
 }
 
 // TODO : `rjump`, `rjumpi`, `rjumpv`, `callf`, `retf` and `jumpf` unit tests
@@ -4024,7 +3957,7 @@ fn call() {
         Operation::Return,
     ];
     let (env, db) = default_env_and_db_setup(operations);
-    run_program_assert_num_result(env, db, SpecId::CANCUN, 0_u8.into());
+    run_program_assert_num_result(env, db, 0_u8.into());
 }
 
 #[test]
@@ -4059,7 +3992,7 @@ fn call_1() {
         Operation::Return,
     ];
     let (env, db) = default_env_and_db_setup(operations);
-    run_program_assert_num_result(env, db, SpecId::CANCUN, 0_u8.into());
+    run_program_assert_num_result(env, db, 0_u8.into());
 }
 
 #[test]
@@ -4102,7 +4035,7 @@ fn call_2() {
         Operation::Return,
     ];
     let (env, db) = default_env_and_db_setup(operations);
-    run_program_assert_num_result(env, db, SpecId::CANCUN, 1_u8.into());
+    run_program_assert_num_result(env, db, 1_u8.into());
 }
 
 #[test]
@@ -4145,7 +4078,7 @@ fn call_insufficient_value() {
         Operation::Return,
     ];
     let (env, db) = default_env_and_db_setup(operations);
-    run_program_assert_num_result(env, db, SpecId::CANCUN, 0_u8.into());
+    run_program_assert_num_result(env, db, 0_u8.into());
 }
 
 #[test]
@@ -4167,7 +4100,7 @@ fn callcode() {
         Operation::Return,
     ];
     let (env, db) = default_env_and_db_setup(operations);
-    run_program_assert_num_result(env, db, SpecId::CANCUN, 0_u8.into());
+    run_program_assert_num_result(env, db, 0_u8.into());
 }
 
 #[test]
@@ -4213,7 +4146,7 @@ fn callcode_1() {
         Operation::Return,
     ];
     let (env, db) = default_env_and_db_setup(operations);
-    run_program_assert_num_result(env, db, SpecId::CANCUN, 1_u8.into());
+    run_program_assert_num_result(env, db, 1_u8.into());
 }
 
 #[test]
@@ -4224,7 +4157,7 @@ fn rreturn() {
         Operation::Return,
     ];
     let (env, db) = default_env_and_db_setup(operations);
-    run_program_assert_num_result(env, db, SpecId::CANCUN, 0_u8.into());
+    run_program_assert_num_result(env, db, 0_u8.into());
 }
 
 #[test]
@@ -4235,7 +4168,7 @@ fn return_large_data() {
         Operation::Return,
     ];
     let (env, db) = default_env_and_db_setup(operations);
-    run_program_assert_num_result(env, db, SpecId::CANCUN, 0_u8.into());
+    run_program_assert_num_result(env, db, 0_u8.into());
 }
 
 #[test]
@@ -4255,7 +4188,7 @@ fn store_return() {
         Operation::Return,
     ];
     let (env, db) = default_env_and_db_setup(operations);
-    run_program_assert_num_result(env, db, SpecId::CANCUN, 0_u8.into());
+    run_program_assert_num_result(env, db, 0_u8.into());
 }
 
 #[test]
@@ -4276,7 +4209,7 @@ fn delegatecall() {
         Operation::Return,
     ];
     let (env, db) = default_env_and_db_setup(operations);
-    run_program_assert_num_result(env, db, SpecId::CANCUN, 1_u8.into());
+    run_program_assert_num_result(env, db, 1_u8.into());
 }
 
 #[test]
@@ -4321,7 +4254,7 @@ fn delegatecall_1() {
         Operation::Return,
     ];
     let (env, db) = default_env_and_db_setup(operations);
-    run_program_assert_num_result(env, db, SpecId::CANCUN, 1_u8.into());
+    run_program_assert_num_result(env, db, 1_u8.into());
 }
 
 #[test]
@@ -4342,7 +4275,7 @@ fn staticcall() {
         Operation::Return,
     ];
     let (env, db) = default_env_and_db_setup(operations);
-    run_program_assert_num_result(env, db, SpecId::CANCUN, 1_u8.into());
+    run_program_assert_num_result(env, db, 1_u8.into());
 }
 
 #[test]
@@ -4353,7 +4286,7 @@ fn revert() {
         Operation::Revert,
     ];
     let (env, db) = default_env_and_db_setup(operations);
-    run_program_assert_revert(env, db, SpecId::CANCUN);
+    run_program_assert_revert(env, db);
 }
 
 #[test]
@@ -4364,7 +4297,7 @@ fn revert_large_data() {
         Operation::Revert,
     ];
     let (env, db) = default_env_and_db_setup(operations);
-    run_program_assert_revert(env, db, SpecId::CANCUN);
+    run_program_assert_revert(env, db);
 }
 
 #[test]
@@ -4384,21 +4317,21 @@ fn mstore_revert() {
         Operation::Revert,
     ];
     let (env, db) = default_env_and_db_setup(operations);
-    run_program_assert_revert(env, db, SpecId::CANCUN);
+    run_program_assert_revert(env, db);
 }
 
 #[test]
 fn invalid() {
     let operations = vec![Operation::Invalid];
     let (env, db) = default_env_and_db_setup(operations);
-    run_program_assert_halt(env, db, SpecId::CANCUN);
+    run_program_assert_halt(env, db);
 }
 
 #[test]
 fn stop() {
     let operations = vec![Operation::Stop];
     let (env, db) = default_env_and_db_setup(operations);
-    run_program_assert_num_result(env, db, SpecId::CANCUN, 0_u8.into());
+    run_program_assert_num_result(env, db, 0_u8.into());
 }
 
 #[test]
@@ -4421,7 +4354,7 @@ fn selfdestruct() {
         Operation::Return,
     ];
     let (env, db) = default_env_and_db_setup(operations);
-    run_program_assert_num_result(env, db, SpecId::CANCUN, 0_u8.into());
+    run_program_assert_num_result(env, db, 0_u8.into());
 }
 
 #[test]
@@ -4438,5 +4371,5 @@ fn selfdestruct_zero_address() {
         Operation::Return,
     ];
     let (env, db) = default_env_and_db_setup(operations);
-    run_program_assert_num_result(env, db, SpecId::CANCUN, 0_u8.into());
+    run_program_assert_num_result(env, db, 0_u8.into());
 }

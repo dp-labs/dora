@@ -134,15 +134,12 @@ fn main() -> Result<()> {
             let _ = env.tx.derive_tx_type();
             env.block.number = run_args.block_number;
             env.block.timestamp = run_args.timestamp;
+            env.cfg.spec = SpecId::from_str(&run_args.spec_id)
+                .map_err(|_| anyhow::anyhow!("unknown spec id"))?;
             // Set DB
             let db = MemoryDB::new().with_contract(address, Bytecode::new_raw(bytecode.into()));
             // Run the contract
-            match dora::run(
-                env,
-                db,
-                SpecId::from_str(&run_args.spec_id)
-                    .map_err(|_| anyhow::anyhow!("unknown spec id"))?,
-            ) {
+            match dora::run(env, db) {
                 Ok(result) => {
                     info!("Execution result: {:#?}", result);
                 }
