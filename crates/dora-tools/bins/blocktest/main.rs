@@ -13,7 +13,7 @@ use dora_primitives::keccak256;
 use dora_primitives::spec::SpecId;
 use dora_primitives::{Address, B256, U256, as_u64_saturated};
 use dora_runtime::context::VMContext;
-use dora_runtime::db::{Database, MemoryDB};
+use dora_runtime::db::MemoryDB;
 use dora_runtime::executor::RUNTIME_STACK_SIZE;
 use dora_runtime::vm::VM;
 use dora_tools::find_all_json_tests;

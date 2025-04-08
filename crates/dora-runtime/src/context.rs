@@ -1,6 +1,9 @@
+use rustc_hash::FxHashMap;
 use std::cmp::min;
+use std::convert::Infallible;
 use std::sync::Arc;
 
+use crate::SymbolArtifact;
 use crate::call::{CallKind, CallMessage, CallResult, CallType, ExtCallType};
 use crate::constants::gas_cost::MIN_CALLEE_GAS;
 use crate::constants::{CALL_STACK_LIMIT, MAX_FUNCTION_STACK_SIZE, MAX_STACK_SIZE, gas_cost};
@@ -45,6 +48,8 @@ pub struct VMContext<'a, DB: Database> {
     pub journaled_state: JournaledState,
     /// Precompiles that are available for evm.
     pub precompiles: &'a Precompiles,
+    /// The compiled artifacts by the compiler.
+    pub artifacts: FxHashMap<B256, SymbolArtifact>,
 }
 
 impl<'a, DB: Database> VMContext<'a, DB> {
@@ -57,6 +62,7 @@ impl<'a, DB: Database> VMContext<'a, DB> {
             handler,
             journaled_state: JournaledState::new(spec_id, Default::default()),
             precompiles: Precompiles::new(PrecompileSpecId::from_spec_id(spec_id)),
+            artifacts: Default::default(),
         }
     }
 
@@ -327,7 +333,7 @@ impl<'a, DB: Database> VMContext<'a, DB> {
     /// Fetch block hash from database.
     #[inline]
     pub fn block_hash(&mut self, number: u64) -> Result<B256, DB::Error> {
-        self.db.block_hash(U256::from(number))
+        self.db.block_hash(number)
     }
 
     /// Mark account as touched as only touched accounts will be added to state.
@@ -883,6 +889,16 @@ impl<'a, DB: Database> VMContext<'a, DB> {
             .set_code(address, Bytecode::new_raw(result.output.clone()));
 
         result.status = ExitStatusCode::Return;
+    }
+
+    #[inline]
+    pub fn get_artifact(&self, code_hash: B256) -> Result<Option<SymbolArtifact>, Infallible> {
+        Ok(self.artifacts.get(&code_hash).cloned())
+    }
+
+    #[inline]
+    pub fn set_artifact(&mut self, code_hash: B256, artifact: SymbolArtifact) {
+        self.artifacts.insert(code_hash, artifact);
     }
 }
 

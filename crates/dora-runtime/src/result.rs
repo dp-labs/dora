@@ -1,21 +1,8 @@
-use crate::{db::DatabaseError, journaled_state::State};
+use crate::db::DatabaseError;
 use core::fmt;
 pub use dora_primitives::{ExecutionResult, HaltReason, OutOfGasError, Output, SuccessReason};
-use dora_primitives::{InvalidHeader, InvalidTransaction};
+pub use dora_primitives::{InvalidHeader, InvalidTransaction, ResultAndState};
 use std::{fmt::Debug, string::String};
-
-/// Represents the result of an VM execution along with the updated account state.
-///
-/// This struct holds two fields:
-/// - `result`: The `ExecutionResult` indicating the status of the transaction.
-/// - `state`: A `HashMap` representing the updated account state after execution.
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct ResultAndState {
-    /// Status of execution, containing details of success, revert, or halt.
-    pub result: ExecutionResult,
-    /// Updated state of accounts after execution.
-    pub state: State,
-}
 
 /// Represents errors that can occur during VM execution.
 ///

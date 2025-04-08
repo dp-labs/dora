@@ -1,3 +1,5 @@
+use std::collections::HashMap;
+
 use alloy_sol_types::{SolCall, sol};
 use dora_primitives::{AccountStatus, Address, U256, keccak256};
 use dora_runtime::db::DbAccount;
@@ -67,7 +69,7 @@ impl ERC20Contract {
         let bytecode = hex::decode(ERC20_BYTECODE_HEX).unwrap();
         let hash = keccak256(&bytecode);
 
-        let mut storage = FxHashMap::default();
+        let mut storage = HashMap::default();
         storage.insert(U256::from(0), U256::from(0));
         storage.insert(U256::from(1), U256::from(0));
         storage.insert(U256::from(2), self.total_supply);

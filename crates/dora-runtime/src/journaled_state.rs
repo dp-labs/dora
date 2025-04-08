@@ -6,13 +6,13 @@ use crate::{
     db::{Database, StorageSlot},
     host::{AccountLoad, SStoreResult, SStoreSlot, SelfDestructResult},
 };
+pub use dora_primitives::EvmState as State;
 use dora_primitives::{
     Account, Address, B256, Bytecode, Bytes32, EVMBytecode, EmptyBytecode, KECCAK_EMPTY, Log,
     SpecId, StateLoad, U256,
 };
 use rustc_hash::{FxHashMap, FxHashSet};
 
-pub type State = FxHashMap<Address, Account>;
 pub type TransientStorage = FxHashMap<(Address, Bytes32), Bytes32>;
 
 /// A journal of state changes internal to the VM.
@@ -50,8 +50,8 @@ impl JournaledState {
     /// And will not take into account if account is not existing or empty.
     pub fn new(spec_id: SpecId, warm_preloaded_addresses: FxHashSet<Address>) -> JournaledState {
         Self {
-            state: FxHashMap::default(),
-            transient_storage: FxHashMap::default(),
+            state: Default::default(),
+            transient_storage: Default::default(),
             logs: Vec::new(),
             journal: vec![vec![]],
             depth: 0,

@@ -6,6 +6,7 @@ pub use dora_ir as ir;
 pub use dora_primitives as primitives;
 pub use dora_primitives::IsWASMBytecode;
 pub use dora_runtime as runtime;
+use dora_runtime::DatabaseCommit;
 
 pub use dora_compiler::{
     Compiler,
@@ -22,7 +23,7 @@ pub use dora_runtime::context::RuntimeContext;
 pub use dora_runtime::executor::{ExecuteKind, Executor};
 pub use dora_runtime::stack::Stack;
 pub use dora_runtime::{
-    artifact::Artifact,
+    artifact::{Artifact, SymbolArtifact},
     call::CallResult,
     context::VMContext,
     handler::{Frame, Handler},
@@ -50,7 +51,7 @@ use std::sync::Arc;
 ///
 /// Returns an error if the program fails to execute or if the bytecode or address is invalid.
 #[inline]
-pub fn run<DB: Database + 'static>(
+pub fn run<DB: Database + DatabaseCommit + 'static>(
     env: Env,
     db: DB,
     spec_id: SpecId,
@@ -79,13 +80,13 @@ fn compile_call_handler<DB: Database>(
     let spec_id = ctx.spec_id();
     // When code hash is empty, we do not save the artifact
     let artifact = if !code_hash.is_zero() {
-        let artifact = ctx.db.get_artifact(code_hash);
+        let artifact = ctx.get_artifact(code_hash);
         if let Ok(Some(artifact)) = artifact {
             artifact
         } else {
             let artifact = build_artifact::<DB>(&frame.contract.code, ctx.spec_id())
                 .map_err(|e| VMError::Compile(e.to_string()))?;
-            ctx.db.set_artifact(code_hash, artifact.clone());
+            ctx.set_artifact(code_hash, artifact.clone());
             artifact
         }
     } else {
@@ -144,7 +145,7 @@ pub fn run_bytecode_hex(
 pub fn run_with_context<DB: Database>(
     runtime_context: RuntimeContext,
 ) -> anyhow::Result<CallResult> {
-    let artifact: DB::Artifact = build_artifact::<DB>(
+    let artifact: SymbolArtifact = build_artifact::<DB>(
         &runtime_context.contract.code,
         runtime_context.inner.spec_id,
     )?;
@@ -156,7 +157,7 @@ pub fn run_with_context<DB: Database>(
 pub fn build_artifact<DB: Database>(
     code: &Bytecode,
     spec_id: SpecId,
-) -> anyhow::Result<DB::Artifact> {
+) -> anyhow::Result<SymbolArtifact> {
     if code.is_wasm() {
         build_wasm_artifact::<DB>(code.bytecode(), WASMCompileOptions::default())
     } else {
@@ -168,7 +169,7 @@ pub fn build_artifact<DB: Database>(
 pub fn build_evm_artifact<DB: Database>(
     code: &EVMBytecode,
     opts: EVMCompileOptions,
-) -> anyhow::Result<DB::Artifact> {
+) -> anyhow::Result<SymbolArtifact> {
     let spec_id = opts.spec_id;
     // Compile the contract code
     let program = Program::from_opcodes(code.original_byte_slice(), code.eof().cloned());
@@ -189,14 +190,14 @@ pub fn build_evm_artifact<DB: Database>(
     pass::run(&context.mlir_context, &mut module.mlir_module)?;
     debug_assert!(module.mlir_module.as_operation().verify());
     let executor = Executor::new(module.module(), Default::default(), ExecuteKind::EVM);
-    Ok(DB::Artifact::new(executor))
+    Ok(SymbolArtifact::new(executor))
 }
 
 /// Build WASM opcode to the artifact
 pub fn build_wasm_artifact<DB: Database>(
     code: &WASMBytecode,
     opts: WASMCompileOptions,
-) -> anyhow::Result<DB::Artifact> {
+) -> anyhow::Result<SymbolArtifact> {
     let context = Context::new();
     let compiler = WASMCompiler::new(&context, opts);
     // Compile WASM Bytecode to MLIR WASM Dialect
@@ -221,5 +222,5 @@ pub fn build_wasm_artifact<DB: Database>(
         Default::default(),
         ExecuteKind::new_wasm(instance),
     );
-    Ok(DB::Artifact::new(executor))
+    Ok(SymbolArtifact::new(executor))
 }

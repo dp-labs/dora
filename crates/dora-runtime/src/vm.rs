@@ -4,8 +4,8 @@ use std::{
 };
 
 use dora_primitives::{
-    Account, B256, Bytes, Cfg, Env, InvalidHeader, InvalidTransaction, SpecId, TransactionType,
-    U256, eip4844,
+    Account, B256, Bytes, Cfg, DatabaseCommit, Env, InvalidHeader, InvalidTransaction, SpecId,
+    TransactionType, U256, eip4844,
 };
 
 use crate::{
@@ -48,13 +48,6 @@ impl<'a, DB: Database> VM<'a, DB> {
         let output = self.transact_preverified(gas);
         self.clear();
         output
-    }
-
-    /// Commit the changes to the database.
-    pub fn transact_commit(&mut self) -> Result<ExecutionResult, VMError> {
-        let ResultAndState { result, state } = self.transact()?;
-        self.context.db.commit(state);
-        Ok(result)
     }
 
     /// Pre verify transaction inner.
@@ -629,5 +622,14 @@ impl<'a, DB: Database> Deref for VM<'a, DB> {
 impl<DB: Database> DerefMut for VM<'_, DB> {
     fn deref_mut(&mut self) -> &mut Self::Target {
         &mut self.context
+    }
+}
+
+impl<DB: Database + DatabaseCommit> VM<'_, DB> {
+    /// Commit the changes to the database.
+    pub fn transact_commit(&mut self) -> Result<ExecutionResult, VMError> {
+        let ResultAndState { result, state } = self.transact()?;
+        self.db.commit(state);
+        Ok(result)
     }
 }

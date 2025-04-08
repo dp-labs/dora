@@ -16,7 +16,7 @@ use dora_primitives::{
     SignedAuthorization, SpecId, SpecName, StorageSlot as EvmStorageSlot, TxKind, U256,
     as_u64_saturated, calc_excess_blob_gas, keccak256,
 };
-use dora_runtime::{Account, Database, MemoryDB, RUNTIME_STACK_SIZE, VM, VMContext};
+use dora_runtime::{Account, MemoryDB, RUNTIME_STACK_SIZE, VM, VMContext};
 use dora_tools::find_all_json_tests;
 use hash_db::Hasher;
 use indicatif::{ProgressBar, ProgressDrawTarget};
@@ -509,7 +509,7 @@ fn execute_test(path: &Path) -> Result<(), TestError> {
         // Mapping account into
         let mut db = MemoryDB::new();
         // Revm comparative test
-        let mut cache_state = revm::database::CacheState::new(false);
+        let mut cache_state = revm::database::CacheState::new(true);
         for (address, info) in suite.pre.iter() {
             let code_hash = keccak256(info.code.clone());
             db = db.with_contract(address.to_owned(), Bytecode::new_raw(info.code.clone()));
@@ -533,12 +533,6 @@ fn execute_test(path: &Path) -> Result<(), TestError> {
                 info.storage.iter().map(|(k, v)| (*k, *v)).collect(),
             );
         }
-        let mut cache = cache_state.clone();
-        cache.set_state_clear_flag(true);
-        let mut state = revm::database::State::builder()
-            .with_cached_prestate(cache)
-            .with_bundle_update()
-            .build();
 
         // post and execution
         for (spec_name, tests) in &suite.post {
@@ -595,9 +589,13 @@ fn execute_test(path: &Path) -> Result<(), TestError> {
                     .map(|auth_list| auth_list.into_iter().map(Into::into).collect::<Vec<_>>())
                     .unwrap_or_default();
 
+                let state = revm::database::State::builder()
+                    .with_cached_prestate(cache_state.clone())
+                    .with_bundle_update()
+                    .build();
                 // Revm comparative test
                 let evm = revm::Context::mainnet()
-                    .with_db(&mut state)
+                    .with_db(state)
                     .modify_cfg_chained(|cfg| {
                         cfg.chain_id = 1;
                         cfg.spec = spec_id;

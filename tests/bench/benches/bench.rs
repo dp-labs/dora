@@ -1,6 +1,6 @@
 #![allow(missing_docs)]
 
-use ::dora::{Artifact, WASMCompiler, build_artifact, run};
+use ::dora::{Artifact, WASMCompiler, run};
 use criterion::{
     BenchmarkGroup, Criterion, criterion_group, criterion_main, measurement::WallTime,
 };
@@ -17,11 +17,11 @@ use dora_primitives::{Bytes, spec::SpecId};
 use dora_runtime::artifact::SymbolArtifact;
 use dora_runtime::constants::env::DORA_DISABLE_CONSOLE;
 use dora_runtime::context::{Contract, RuntimeContext};
-use dora_runtime::db::{Database, MemoryDB};
+use dora_runtime::db::MemoryDB;
 use dora_runtime::executor::{ExecuteKind, Executor};
 use dora_runtime::host::DummyHost;
 use dora_runtime::stack::Stack;
-use rustc_hash::FxHashMap;
+use std::collections::HashMap;
 use std::hint::black_box;
 use std::time::Duration;
 
@@ -274,8 +274,6 @@ fn run_evm_uniswapv3_bench(c: &mut Criterion) {
     let mut db = MemoryDB::new();
     for (address, info) in state.clone() {
         let code = Bytecode::new_raw(info.0.into());
-        let artifact = build_artifact::<MemoryDB>(&code, SpecId::CANCUN).unwrap();
-        db.set_artifact(info.1.bytecode_hash, artifact);
         db = db.with_contract(address, code);
         db.set_account(address, info.1.nonce, info.1.balance, info.1.storage);
     }
@@ -285,7 +283,7 @@ fn run_evm_uniswapv3_bench(c: &mut Criterion) {
             address,
             1,
             uint!(4_567_000_000_000_000_000_000_U256),
-            FxHashMap::default(),
+            HashMap::default(),
         );
     }
 

@@ -2042,7 +2042,7 @@ fn blockhash_previous_block() {
     let (mut env, mut db) = default_env_and_db_setup(operations);
     env.block.number = current_block_number;
     db.insert_block_hash(
-        U256::from(block_number),
+        block_number as u64,
         B256::left_padding_from(&block_hash.to_be_bytes()),
     );
     run_program_assert_num_result(env, db, SpecId::CANCUN, expected_block_hash);
