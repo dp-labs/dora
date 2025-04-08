@@ -220,7 +220,7 @@ impl<'a, DB: Database> VMContext<'a, DB> {
             // 8. Set the code of `authority` to be `0xef0100 || address`. This is a delegation designation.
             //  * As a special case, if `address` is `0x0000000000000000000000000000000000000000` do not write the designation. Clear the accounts code and reset the account's code hash to the empty hash `0xc5d2460186f7233c927e7db2dcc703c0e500b653ca82273b7bfad8045d85a470`.
             let (bytecode, hash) = if authorization.address.is_zero() {
-                (Bytecode::default(), KECCAK_EMPTY)
+                (Bytecode::empty(), KECCAK_EMPTY)
             } else {
                 let bytecode = Bytecode::new_eip7702(authorization.address);
                 let hash = bytecode.hash_slow();
@@ -372,7 +372,7 @@ impl<'a, DB: Database> VMContext<'a, DB> {
         let code = if code.is_eof() {
             EOF_MAGIC_BYTES.clone()
         } else {
-            code.bytes()
+            code.original_bytes()
         };
 
         Ok(StateLoad::new(code, acc.is_cold))
@@ -554,7 +554,8 @@ impl<'a, DB: Database> VMContext<'a, DB> {
                 let code_hash = account.info.code_hash;
                 let mut bytecode = account.info.code.clone().unwrap_or_default();
                 // ExtDelegateCall is not allowed to call non-EOF contracts.
-                if is_ext_delegate && !bytecode.bytecode().starts_with(&EOF_MAGIC_BYTES) {
+                if is_ext_delegate && !bytecode.original_byte_slice().starts_with(&EOF_MAGIC_BYTES)
+                {
                     return Ok(CallResult::new_with_gas_limit_and_status(
                         msg.gas_limit,
                         ExitStatusCode::InvalidExtDelegatecallTarget,
@@ -1929,7 +1930,7 @@ impl RuntimeContext<'_> {
                 memory_offset,
                 code_offset,
                 size,
-                &self.contract.code.bytes(),
+                &self.contract.code.original_bytes(),
             );
         }
     }
@@ -1963,7 +1964,7 @@ impl RuntimeContext<'_> {
         gas_remaining: u64,
     ) -> *const RuntimeResult<()> {
         if self.inner.is_static {
-            self.inner.result.error = ExitStatusCode::StateChangeDuringStaticcall.to_u8();
+            self.inner.result.error = ExitStatusCode::StateChangeDuringStaticCall.to_u8();
             return unsafe {
                 &*(&self.inner.result as *const RuntimeResult<u64> as *const RuntimeResult<()>)
             };

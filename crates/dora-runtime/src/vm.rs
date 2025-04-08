@@ -447,12 +447,11 @@ impl<'a, DB: Database> VM<'a, DB> {
             ctx.reward_beneficiary(result.gas_used(), result.gas_refunded)?;
         }
         // Returns output of transaction.
-        Ok(self.output(result))
+        self.output(result)
     }
 
     /// Build output using the call result
-    pub fn output(&mut self, result: CallResult) -> ResultAndState {
-        let gas_limit = self.env.tx.gas_limit;
+    pub fn output(&mut self, result: CallResult) -> Result<ResultAndState, VMError> {
         // Used gas with refund calculated.
         let gas_refunded = result.gas_refunded as u64;
         let gas_used = result.gas_used() - gas_refunded;
@@ -477,18 +476,14 @@ impl<'a, DB: Database> VM<'a, DB> {
                 output: Output::Call(return_values.into()),
                 logs,
             },
-            ExitStatusCode::Selfdestruct => ExecutionResult::Success {
-                reason: SuccessReason::Selfdestruct,
+            ExitStatusCode::SelfDestruct => ExecutionResult::Success {
+                reason: SuccessReason::SelfDestruct,
                 gas_used,
                 gas_refunded,
                 output: Output::Call(return_values.into()),
                 logs,
             },
-            ExitStatusCode::Suspend => ExecutionResult::Halt {
-                reason: HaltReason::InvalidSuspend,
-                gas_limit,
-                gas_used,
-            },
+            ExitStatusCode::Suspend => return Err(VMError::Compile("invalid suspend".to_string())),
             ExitStatusCode::Revert
             | ExitStatusCode::CreateInitCodeStartingEF00
             | ExitStatusCode::InvalidEOFInitCode => ExecutionResult::Revert {
@@ -497,154 +492,125 @@ impl<'a, DB: Database> VM<'a, DB> {
             },
             ExitStatusCode::CallTooDeep => ExecutionResult::Halt {
                 reason: HaltReason::CallTooDeep,
-                gas_limit,
                 gas_used,
             },
             ExitStatusCode::OutOfFunds => ExecutionResult::Halt {
                 reason: HaltReason::OutOfFunds,
-                gas_limit,
                 gas_used,
             },
             ExitStatusCode::OutOfGas => ExecutionResult::Halt {
                 reason: HaltReason::OutOfGas(OutOfGasError::Basic),
-                gas_limit,
                 gas_used,
             },
             ExitStatusCode::MemoryOOG => ExecutionResult::Halt {
                 reason: HaltReason::OutOfGas(OutOfGasError::Memory),
-                gas_limit,
                 gas_used,
             },
             ExitStatusCode::MemoryLimitOOG => ExecutionResult::Halt {
                 reason: HaltReason::OutOfGas(OutOfGasError::MemoryLimit),
-                gas_limit,
                 gas_used,
             },
             ExitStatusCode::PrecompileOOG => ExecutionResult::Halt {
                 reason: HaltReason::OutOfGas(OutOfGasError::Precompile),
-                gas_limit,
                 gas_used,
             },
             ExitStatusCode::InvalidOperandOOG => ExecutionResult::Halt {
                 reason: HaltReason::OutOfGas(OutOfGasError::InvalidOperand),
-                gas_limit,
                 gas_used,
             },
             ExitStatusCode::OpcodeNotFound => ExecutionResult::Halt {
                 reason: HaltReason::OpcodeNotFound,
-                gas_limit,
                 gas_used,
             },
             ExitStatusCode::CallNotAllowedInsideStatic => ExecutionResult::Halt {
                 reason: HaltReason::CallNotAllowedInsideStatic,
-                gas_limit,
                 gas_used,
             },
-            ExitStatusCode::StateChangeDuringStaticcall => ExecutionResult::Halt {
-                reason: HaltReason::StateChangeDuringStaticcall,
-                gas_limit,
+            ExitStatusCode::StateChangeDuringStaticCall => ExecutionResult::Halt {
+                reason: HaltReason::StateChangeDuringStaticCall,
                 gas_used,
             },
             ExitStatusCode::InvalidFEOpcode => ExecutionResult::Halt {
                 reason: HaltReason::InvalidFEOpcode,
-                gas_limit,
                 gas_used,
             },
             ExitStatusCode::InvalidJump => ExecutionResult::Halt {
                 reason: HaltReason::InvalidJump,
-                gas_limit,
                 gas_used,
             },
             ExitStatusCode::NotActivated => ExecutionResult::Halt {
                 reason: HaltReason::NotActivated,
-                gas_limit,
                 gas_used,
             },
             ExitStatusCode::StackUnderflow => ExecutionResult::Halt {
                 reason: HaltReason::StackUnderflow,
-                gas_limit,
                 gas_used,
             },
             ExitStatusCode::StackOverflow => ExecutionResult::Halt {
                 reason: HaltReason::StackOverflow,
-                gas_limit,
                 gas_used,
             },
             ExitStatusCode::OutOfOffset => ExecutionResult::Halt {
                 reason: HaltReason::OutOfOffset,
-                gas_limit,
                 gas_used,
             },
             ExitStatusCode::CreateCollision => ExecutionResult::Halt {
                 reason: HaltReason::CreateCollision,
-                gas_limit,
                 gas_used,
             },
             ExitStatusCode::OverflowPayment => ExecutionResult::Halt {
                 reason: HaltReason::OverflowPayment,
-                gas_limit,
                 gas_used,
             },
             ExitStatusCode::PrecompileError => ExecutionResult::Halt {
                 reason: HaltReason::PrecompileError,
-                gas_limit,
                 gas_used,
             },
             ExitStatusCode::NonceOverflow => ExecutionResult::Halt {
                 reason: HaltReason::NonceOverflow,
-                gas_limit,
                 gas_used,
             },
             ExitStatusCode::CreateContractSizeLimit => ExecutionResult::Halt {
                 reason: HaltReason::CreateContractSizeLimit,
-                gas_limit,
                 gas_used,
             },
             ExitStatusCode::CreateContractStartingWithEF => ExecutionResult::Halt {
                 reason: HaltReason::CreateContractStartingWithEF,
-                gas_limit,
                 gas_used,
             },
             ExitStatusCode::CreateInitCodeSizeLimit => ExecutionResult::Halt {
                 reason: HaltReason::CreateInitCodeSizeLimit,
-                gas_limit,
                 gas_used,
             },
             ExitStatusCode::EOFOpcodeDisabledInLegacy
             | ExitStatusCode::ReturnContractInNotInitEOF => ExecutionResult::Halt {
                 reason: HaltReason::OpcodeNotFound,
-                gas_limit,
                 gas_used,
             },
             ExitStatusCode::EOFFunctionStackOverflow => ExecutionResult::Halt {
-                reason: HaltReason::EOFFunctionStackOverflow,
-                gas_limit,
+                reason: HaltReason::EofAuxDataOverflow,
                 gas_used,
             },
             ExitStatusCode::EofAuxDataOverflow => ExecutionResult::Halt {
                 reason: HaltReason::EofAuxDataOverflow,
-                gas_limit,
                 gas_used,
             },
             ExitStatusCode::EofAuxDataTooSmall => ExecutionResult::Halt {
                 reason: HaltReason::EofAuxDataTooSmall,
-                gas_limit,
                 gas_used,
             },
             ExitStatusCode::InvalidExtCallTarget => ExecutionResult::Halt {
-                reason: HaltReason::InvalidExtCallTarget,
-                gas_limit,
+                reason: HaltReason::InvalidEXTCALLTarget,
                 gas_used,
             },
             ExitStatusCode::InvalidExtDelegatecallTarget => ExecutionResult::Halt {
-                reason: HaltReason::InvalidExtDelegatecallTarget,
-                gas_limit,
+                reason: HaltReason::InvalidEXTCALLTarget,
                 gas_used,
             },
-            ExitStatusCode::FatalExternalError => ExecutionResult::FatalExternalError,
+            ExitStatusCode::FatalExternalError => return Err(VMError::Database(DatabaseError)),
         };
 
-        ResultAndState { result, state }
+        Ok(ResultAndState { result, state })
     }
 
     #[inline]

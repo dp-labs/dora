@@ -14,12 +14,14 @@ pub use revm::context_interface::{
     cfg::Cfg,
     context::{SStoreResult, SelfDestructResult},
     journaled_state::{AccountLoad, StateLoad},
+    result::{ExecutionResult, HaltReason, OutOfGasError, Output, ResultAndState, SuccessReason},
     result::{InvalidHeader, InvalidTransaction},
     transaction::{
         AccessList, AccessListItem, Authorization, AuthorizationTr, RecoveredAuthority,
         RecoveredAuthorization, SignedAuthorization, TransactionType,
     },
 };
+pub use revm::database::{DBErrorMarker, Database, DatabaseCommit, DatabaseRef};
 pub use revm::precompile::{PrecompileError, PrecompileOutput, PrecompileSpecId, Precompiles};
 pub use revm::primitives::{
     Address, B256, BLOCK_HASH_HISTORY, Bytes, FixedBytes, I256, KECCAK_EMPTY, Log, LogData, TxKind,
@@ -31,7 +33,9 @@ pub use revm::primitives::{
     hex::{FromHex, ToHexExt},
     keccak256, uint,
 };
-pub use revm::state::EvmStorageSlot;
+pub use revm::state::{
+    Account, AccountInfo, AccountStatus, EvmState, EvmStorageSlot as StorageSlot,
+};
 
 pub mod config;
 pub mod spec;
@@ -195,12 +199,6 @@ impl Bytecode {
 
     /// New default EVM [Bytecode].
     #[inline]
-    pub fn new_evm_default() -> Self {
-        Bytecode::EVM(EVMBytecode::default())
-    }
-
-    /// New default EVM [Bytecode].
-    #[inline]
     pub fn new_wasm_default() -> Self {
         Bytecode::WASM(Bytes::default())
     }
@@ -215,26 +213,6 @@ impl Bytecode {
     #[inline]
     pub fn empty() -> Self {
         Self::new(Bytes::default())
-    }
-
-    /// Returns a reference to the bytecode.
-    ///
-    /// In case of EOF EVM bytecode, this will be the first code section.
-    #[inline]
-    pub fn bytecode(&self) -> &[u8] {
-        match self {
-            Bytecode::EVM(bytecode) => bytecode.original_byte_slice(),
-            Bytecode::WASM(bytes) => bytes,
-        }
-    }
-
-    /// Returns the cloned bytes.
-    #[inline]
-    pub fn bytes(&self) -> Bytes {
-        match self {
-            Bytecode::EVM(bytecode) => bytecode.original_bytes(),
-            Bytecode::WASM(bytes) => bytes.clone(),
-        }
     }
 
     /// Returns reference to the EOF if bytecode is EOF.
@@ -261,6 +239,15 @@ impl Bytecode {
         match self {
             Bytecode::EVM(bytecode) => bytecode.is_eip7702(),
             Bytecode::WASM(_) => false,
+        }
+    }
+
+    /// Returns the original bytecode.
+    #[inline]
+    pub fn original_bytes(&self) -> Bytes {
+        match self {
+            Bytecode::EVM(bytecode) => bytecode.original_bytes(),
+            Bytecode::WASM(bytes) => bytes.clone(),
         }
     }
 

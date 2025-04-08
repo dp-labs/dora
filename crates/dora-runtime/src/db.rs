@@ -2,7 +2,8 @@ use crate::{
     account::{Account, AccountInfo, AccountStatus},
     artifact::{Artifact, SymbolArtifact},
 };
-use dora_primitives::{Address, B256, Bytecode, KECCAK_EMPTY, U256, keccak256};
+pub use dora_primitives::StorageSlot;
+use dora_primitives::{Address, B256, Bytecode, DBErrorMarker, KECCAK_EMPTY, U256, keccak256};
 use rustc_hash::FxHashMap;
 use std::{convert::Infallible, fmt::Debug};
 use thiserror::Error;
@@ -126,117 +127,12 @@ pub trait Database: Clone + Debug + DatabaseCommit {
 #[error("Error during database access")]
 pub struct DatabaseError;
 
+impl DBErrorMarker for DatabaseError {}
+
 /// Database commit interface.
 pub trait DatabaseCommit {
     /// Commit changes to the database.
     fn commit(&mut self, changes: FxHashMap<Address, Account>);
-}
-
-/// Represents a storage slot's state, holding both the original value and the current value.
-///
-/// This struct is used to represent a single slot in an account's storage, including both its
-/// initial state (`original_value`) and its current state (`present_value`).
-///
-/// The `is_cold` field is used to track whether the storage slot has been accessed recently,
-/// which is relevant for gas cost calculations.
-///
-/// # Fields:
-/// - `original_value`: The value originally stored in the slot.
-/// - `present_value`: The current value of the storage slot.
-/// - `is_cold`: Indicates whether the slot is "cold" (i.e., not accessed recently).
-///
-/// # Example:
-/// ```no_run
-/// use dora_primitives::U256;
-/// use dora_runtime::db::StorageSlot;
-/// let slot = StorageSlot {
-///     original_value: U256::from(42),
-///     present_value: U256::from(100),
-///     is_cold: false,
-/// };
-/// ```
-/// Represents a storage slot's state.
-#[derive(Debug, Clone, Default, PartialEq, Eq, Hash)]
-pub struct StorageSlot {
-    pub original_value: U256,
-    pub present_value: U256,
-    pub is_cold: bool,
-}
-
-impl StorageSlot {
-    /// Creates a new _unchanged_ [`StorageSlot`] for the given value.
-    #[inline]
-    pub fn new(original: U256) -> Self {
-        Self {
-            original_value: original,
-            present_value: original,
-            is_cold: false,
-        }
-    }
-
-    /// Creates a new _changed_ [`StorageSlot`].
-    #[inline]
-    pub fn new_changed(original_value: U256, present_value: U256) -> Self {
-        Self {
-            original_value,
-            present_value,
-            is_cold: false,
-        }
-    }
-    /// Returns true if the present value differs from the original value.
-    #[inline]
-    pub fn is_changed(&self) -> bool {
-        self.original_value != self.present_value
-    }
-
-    /// Returns the original value of the storage slot.
-    #[inline]
-    pub fn original_value(&self) -> U256 {
-        self.original_value
-    }
-
-    /// Returns the current value of the storage slot.
-    #[inline]
-    pub fn present_value(&self) -> U256 {
-        self.present_value
-    }
-
-    /// Marks the storage slot as cold.
-    #[inline]
-    pub fn mark_cold(&mut self) {
-        self.is_cold = true;
-    }
-
-    /// Marks the storage slot as warm and returns a bool indicating if it was previously cold.
-    #[inline]
-    pub fn mark_warm(&mut self) -> bool {
-        core::mem::replace(&mut self.is_cold, false)
-    }
-}
-
-impl From<U256> for StorageSlot {
-    /// Converts a [`U256`] value directly into a [`StorageSlot`].
-    ///
-    /// The resulting slot will have both `original_value` and `present_value`
-    /// initialized to the given [`U256`] value, and `is_cold` will be set to `true`.
-    ///
-    /// # Example:
-    /// ```
-    /// use dora_primitives::U256;
-    /// use dora_runtime::db::StorageSlot;
-    /// let value = U256::from(123);
-    /// let slot: StorageSlot = value.into();
-    /// assert_eq!(slot.original_value, U256::from(123));
-    /// assert_eq!(slot.present_value, U256::from(123));
-    /// assert!(slot.is_cold);
-    /// ```
-    fn from(value: U256) -> Self {
-        Self {
-            present_value: value,
-            original_value: value,
-            is_cold: true,
-        }
-    }
 }
 
 /// An in-memory database for storing account information, contract bytecodes, and block hashes.
@@ -482,7 +378,7 @@ impl Database for MemoryDB {
     }
 
     fn insert_contract(&mut self, address: Address, bytecode: Bytecode, balance: U256) {
-        let hash = keccak256(bytecode.bytecode());
+        let hash = keccak256(bytecode.original_byte_slice());
         let account = DbAccount {
             bytecode_hash: hash,
             balance,
@@ -527,7 +423,7 @@ impl Database for MemoryDB {
                         storage: db_account
                             .storage
                             .into_iter()
-                            .map(|(k, v)| (k, StorageSlot::from(v)))
+                            .map(|(k, v)| (k, StorageSlot::new(v)))
                             .collect(),
                         status: db_account.status,
                     },

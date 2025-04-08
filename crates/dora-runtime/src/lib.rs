@@ -36,7 +36,7 @@ pub enum ExitStatusCode {
     /// Encountered a `STOP` opcode
     Stop = 2,
     /// Self-destruct the current contract.
-    Selfdestruct = 3,
+    SelfDestruct = 3,
     /// Suspend
     Suspend = 4,
 
@@ -70,7 +70,7 @@ pub enum ExitStatusCode {
     /// Invalid `CALL` with value transfer in static context.
     CallNotAllowedInsideStatic,
     /// Invalid state modification in static call.
-    StateChangeDuringStaticcall,
+    StateChangeDuringStaticCall,
     /// An undefined bytecode value encountered during execution.
     InvalidFEOpcode,
     /// Invalid jump destination. Dynamic jumps points to invalid not jumpdest opcode.
@@ -123,7 +123,7 @@ impl ExitStatusCode {
             x if x == Self::Continue.to_u8() => Self::Continue,
             x if x == Self::Return.to_u8() => Self::Return,
             x if x == Self::Stop.to_u8() => Self::Stop,
-            x if x == Self::Selfdestruct.to_u8() => Self::Selfdestruct,
+            x if x == Self::SelfDestruct.to_u8() => Self::SelfDestruct,
             x if x == Self::Revert.to_u8() => Self::Revert,
             x if x == Self::CallTooDeep.to_u8() => Self::CallTooDeep,
             x if x == Self::OutOfFunds.to_u8() => Self::OutOfFunds,
@@ -139,8 +139,8 @@ impl ExitStatusCode {
             x if x == Self::InvalidOperandOOG.to_u8() => Self::InvalidOperandOOG,
             x if x == Self::OpcodeNotFound.to_u8() => Self::OpcodeNotFound,
             x if x == Self::CallNotAllowedInsideStatic.to_u8() => Self::CallNotAllowedInsideStatic,
-            x if x == Self::StateChangeDuringStaticcall.to_u8() => {
-                Self::StateChangeDuringStaticcall
+            x if x == Self::StateChangeDuringStaticCall.to_u8() => {
+                Self::StateChangeDuringStaticCall
             }
             x if x == Self::InvalidFEOpcode.to_u8() => Self::InvalidFEOpcode,
             x if x == Self::InvalidJump.to_u8() => Self::InvalidJump,
@@ -171,7 +171,7 @@ impl ExitStatusCode {
     pub fn is_ok(&self) -> bool {
         matches!(
             self,
-            ExitStatusCode::Return | ExitStatusCode::Stop | ExitStatusCode::Selfdestruct
+            ExitStatusCode::Return | ExitStatusCode::Stop | ExitStatusCode::SelfDestruct
         )
     }
 
@@ -199,7 +199,7 @@ impl ExitStatusCode {
                 | ExitStatusCode::InvalidOperandOOG
                 | ExitStatusCode::OpcodeNotFound
                 | ExitStatusCode::CallNotAllowedInsideStatic
-                | ExitStatusCode::StateChangeDuringStaticcall
+                | ExitStatusCode::StateChangeDuringStaticCall
                 | ExitStatusCode::InvalidFEOpcode
                 | ExitStatusCode::InvalidJump
                 | ExitStatusCode::NotActivated

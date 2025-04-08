@@ -770,7 +770,7 @@ pub fn code_copy(
 ) -> MaybeEscape {
     let host = HostInfo::from_env(&mut env)?;
     let code = with_runtime_context(|runtime_context| runtime_context.contract.code.clone());
-    let code_slice = data_slice(code.bytecode(), offset, size);
+    let code_slice = data_slice(code.original_byte_slice(), offset, size);
     host.write_slice(dest, code_slice)?;
     Ok(())
 }

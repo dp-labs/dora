@@ -143,5 +143,6 @@ pub(crate) fn run_program_assert_halt(env: Env, db: MemoryDB, spec_id: SpecId) {
 /// Asserts program execution result as `revert`.
 pub(crate) fn run_program_assert_revert(env: Env, db: MemoryDB, spec_id: SpecId) {
     let result = run(env, db, spec_id).unwrap();
-    assert!(result.is_revert());
+    assert!(!result.is_halt());
+    assert!(!result.is_success());
 }

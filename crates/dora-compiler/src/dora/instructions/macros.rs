@@ -445,7 +445,7 @@ macro_rules! ensure_non_staticcall {
             $op,
             $rewriter,
             ctx_is_static,
-            ExitStatusCode::StateChangeDuringStaticcall
+            ExitStatusCode::StateChangeDuringStaticCall
         );
     };
 }
