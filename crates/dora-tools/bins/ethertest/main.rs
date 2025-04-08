@@ -512,7 +512,7 @@ fn execute_test(path: &Path) -> Result<(), TestError> {
         let mut cache_state = revm::database::CacheState::new(false);
         for (address, info) in suite.pre.iter() {
             let code_hash = keccak256(info.code.clone());
-            db = db.with_contract(address.to_owned(), Bytecode::new(info.code.clone()));
+            db = db.with_contract(address.to_owned(), Bytecode::new_raw(info.code.clone()));
             db.set_account(
                 address.to_owned(),
                 info.nonce,

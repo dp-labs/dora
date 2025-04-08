@@ -3,12 +3,12 @@ use std::{collections::hash_map::Entry, mem};
 
 use crate::{
     ExitStatusCode,
-    account::Account,
     db::{Database, StorageSlot},
     host::{AccountLoad, SStoreResult, SStoreSlot, SelfDestructResult},
 };
 use dora_primitives::{
-    Address, B256, Bytecode, Bytes32, EVMBytecode, KECCAK_EMPTY, Log, SpecId, StateLoad, U256,
+    Account, Address, B256, Bytecode, Bytes32, EVMBytecode, EmptyBytecode, KECCAK_EMPTY, Log,
+    SpecId, StateLoad, U256,
 };
 use rustc_hash::{FxHashMap, FxHashSet};
 
@@ -513,7 +513,7 @@ impl JournaledState {
         } else {
             // State is not changed:
             // * if we are after Cancun upgrade and
-            // * Selfdestruct account that is created in the same transaction and
+            // * SelfDestruct account that is created in the same transaction and
             // * Specify the target is same as selfdestructed account. The balance stays unchanged.
             None
         };
@@ -619,7 +619,7 @@ impl JournaledState {
             account.is_cold,
         );
         // load delegate code if account is EIP-7702
-        if let Some(Bytecode::EVM(EVMBytecode::Eip7702(code))) = &account.info.code {
+        if let Some(EVMBytecode::Eip7702(code)) = &account.info.code {
             let address = code.address();
             let delegate_account = self.load_account(address, db)?;
             account_load.data.is_delegate_account_cold = Some(delegate_account.is_cold);

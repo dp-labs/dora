@@ -4,13 +4,12 @@ use std::{
 };
 
 use dora_primitives::{
-    B256, Bytes, Cfg, Env, InvalidHeader, InvalidTransaction, SpecId, TransactionType, U256,
-    eip4844,
+    Account, B256, Bytes, Cfg, Env, InvalidHeader, InvalidTransaction, SpecId, TransactionType,
+    U256, eip4844,
 };
 
 use crate::{
     ExitStatusCode,
-    account::Account,
     call::{CallKind, CallMessage, CallResult},
     context::VMContext,
     db::{Database, DatabaseError},

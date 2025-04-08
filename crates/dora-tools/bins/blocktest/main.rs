@@ -179,7 +179,7 @@ fn execute_test(path: &Path) -> Result<(), TestError> {
 
             db = db.with_contract(
                 address.to_owned(),
-                dora_primitives::Bytecode::new(info.code.clone()),
+                dora_primitives::Bytecode::new_raw(info.code.clone()),
             );
             db.set_account(
                 address.to_owned(),

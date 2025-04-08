@@ -1,9 +1,9 @@
-use crate::{
-    account::{Account, AccountInfo, AccountStatus},
-    artifact::{Artifact, SymbolArtifact},
-};
+use crate::artifact::{Artifact, SymbolArtifact};
 pub use dora_primitives::StorageSlot;
-use dora_primitives::{Address, B256, Bytecode, DBErrorMarker, KECCAK_EMPTY, U256, keccak256};
+use dora_primitives::{
+    Account, AccountInfo, AccountStatus, Address, B256, Bytecode, DBErrorMarker, KECCAK_EMPTY,
+    U256, keccak256,
+};
 use rustc_hash::FxHashMap;
 use std::{convert::Infallible, fmt::Debug};
 use thiserror::Error;

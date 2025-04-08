@@ -1834,7 +1834,7 @@ fn returndatacopy() {
     env.block.beneficiary = Address::left_padding_from(&[80]);
     let contract = Contract::new_with_env(
         &env,
-        Bytecode::new(
+        Bytecode::new_raw(
             Program::from_operations(operations, false)
                 .to_opcode()
                 .into(),
@@ -1913,7 +1913,7 @@ fn returndatacopy_out_of_bounds() {
     env.block.beneficiary = Address::left_padding_from(&[80]);
     let contract = Contract::new_with_env(
         &env,
-        Bytecode::new(
+        Bytecode::new_raw(
             Program::from_operations(operations, false)
                 .to_opcode()
                 .into(),

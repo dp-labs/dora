@@ -1,7 +1,6 @@
 use std::cmp::min;
 use std::sync::Arc;
 
-use crate::account::Account;
 use crate::call::{CallKind, CallMessage, CallResult, CallType, ExtCallType};
 use crate::constants::gas_cost::MIN_CALLEE_GAS;
 use crate::constants::{CALL_STACK_LIMIT, MAX_FUNCTION_STACK_SIZE, MAX_STACK_SIZE, gas_cost};
@@ -16,10 +15,11 @@ use crate::wasm::host::gas_limit;
 use crate::wasm::trap::wasm_raise_trap;
 use crate::{ExitStatusCode, gas, symbols};
 use dora_primitives::{
-    Address, AuthorizationTr, B256, BLOCK_HASH_HISTORY, Bytecode, Bytes, Bytes32, Cfg, CfgEnv,
-    EOF_MAGIC_BYTES, EOF_MAGIC_HASH, EVMBytecode, Env, Eof, KECCAK_EMPTY, Log, LogData, OpCode,
-    PER_AUTH_BASE_COST, PER_EMPTY_ACCOUNT_COST, PrecompileError, PrecompileSpecId, Precompiles,
-    SpecId, TransactionType, U256, as_u64_saturated, as_usize_saturated, keccak256,
+    Account, Address, AuthorizationTr, B256, BLOCK_HASH_HISTORY, Bytecode, Bytes, Bytes32, Cfg,
+    CfgEnv, EOF_MAGIC_BYTES, EOF_MAGIC_HASH, EVMBytecode, EmptyBytecode, Env, Eof, KECCAK_EMPTY,
+    Log, LogData, OpCode, PER_AUTH_BASE_COST, PER_EMPTY_ACCOUNT_COST, PrecompileError,
+    PrecompileSpecId, Precompiles, SpecId, TransactionType, U256, as_u64_saturated,
+    as_usize_saturated, keccak256,
 };
 
 /// Function type for the EVM main entrypoint of the generated code.
@@ -568,7 +568,7 @@ impl<'a, DB: Database> VMContext<'a, DB> {
                         ExitStatusCode::Stop,
                     ));
                 }
-                if let Bytecode::EVM(EVMBytecode::Eip7702(eip7702_bytecode)) = bytecode {
+                if let EVMBytecode::Eip7702(eip7702_bytecode) = bytecode {
                     bytecode = self
                         .journaled_state
                         .load_code(&mut self.db, eip7702_bytecode.delegated_address)
@@ -646,9 +646,7 @@ impl<'a, DB: Database> VMContext<'a, DB> {
 
                 let contract = Contract {
                     input,
-                    code: Bytecode::EVM(EVMBytecode::Eof(Arc::new(
-                        Eof::decode(init_code).unwrap(),
-                    ))),
+                    code: EVMBytecode::Eof(Arc::new(Eof::decode(init_code).unwrap())),
                     hash: None,
                     target_address: created_address,
                     code_address: Address::default(),
@@ -671,7 +669,7 @@ impl<'a, DB: Database> VMContext<'a, DB> {
 
                 // Eof bytecode is going to be hashed.
                 self.journaled_state
-                    .set_code(msg.recipient, Bytecode::new(msg.input));
+                    .set_code(msg.recipient, Bytecode::new_raw(msg.input));
                 Ok(CallResult::new_with_gas_limit_and_status(
                     msg.gas_limit,
                     ExitStatusCode::Return,
@@ -737,7 +735,7 @@ impl<'a, DB: Database> VMContext<'a, DB> {
 
                 let contract = Contract {
                     input: Bytes::new(),
-                    code: Bytecode::new(msg.input.clone()),
+                    code: Bytecode::new_raw(msg.input.clone()),
                     hash: Some(init_code_hash),
                     target_address: created_address,
                     code_address: created_address,
@@ -825,7 +823,7 @@ impl<'a, DB: Database> VMContext<'a, DB> {
 
         // Set the code to the journaled state.
         self.journaled_state
-            .set_code(address, Bytecode::EVM(EVMBytecode::Eof(Arc::new(bytecode))));
+            .set_code(address, EVMBytecode::Eof(Arc::new(bytecode)));
 
         result.status = ExitStatusCode::Return;
     }
@@ -882,7 +880,7 @@ impl<'a, DB: Database> VMContext<'a, DB> {
 
         // Set the code to the journaled state.
         self.journaled_state
-            .set_code(address, Bytecode::new(result.output.clone()));
+            .set_code(address, Bytecode::new_raw(result.output.clone()));
 
         result.status = ExitStatusCode::Return;
     }
@@ -2446,7 +2444,7 @@ impl RuntimeContext<'_> {
             .get(container_index)
             .expect("valid container")
             .clone();
-        let bytecode_header = Bytecode::new(container.clone())
+        let bytecode_header = Bytecode::new_raw(container.clone())
             .eof()
             .expect("eof")
             .header
