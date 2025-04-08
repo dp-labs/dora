@@ -287,7 +287,7 @@ fn run_evm_uniswapv3_bench(c: &mut Criterion) {
         );
     }
 
-    let env = Env {
+    let mut env = Env {
         tx: TxEnv {
             caller: seller,
             gas_limit: 2_000_000,
@@ -304,11 +304,12 @@ fn run_evm_uniswapv3_bench(c: &mut Criterion) {
         },
         ..Default::default()
     };
+    env.cfg.spec = SpecId::CANCUN;
 
     let mut g = mk_group(c, "uniswapv3");
     g.bench_function("dora", |b| {
         b.iter(|| {
-            let result = run(env.clone(), db.clone(), SpecId::CANCUN).unwrap();
+            let result = run(env.clone(), db.clone()).unwrap();
             assert_eq!(result.gas_used(), UNISWAP_V3_ESTIMATE_GAS);
             assert!(result.is_success());
         })

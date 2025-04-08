@@ -37,28 +37,29 @@ pub type EVMEntryFunc = extern "C" fn(
 pub type WASMEntryFunc = extern "C" fn(*mut wasmer_vm::VMContext);
 
 /// The main context for smart contract execution environment.
-pub struct VMContext<'a, DB: Database> {
+pub struct VMContext<DB: Database> {
     /// Environment contains all the information about config, block and transaction.
-    pub env: Box<Env>,
+    pub env: Env,
     /// Database to load data from.
     pub db: DB,
     /// Handler is a component of the of VM that contains the execution logic.
-    pub handler: Handler<'a, DB>,
+    pub handler: Handler<DB>,
     /// State with journaling support.
     pub journaled_state: JournaledState,
     /// Precompiles that are available for evm.
-    pub precompiles: &'a Precompiles,
+    pub precompiles: &'static Precompiles,
     /// The compiled artifacts by the compiler.
     pub artifacts: FxHashMap<B256, SymbolArtifact>,
 }
 
-impl<'a, DB: Database> VMContext<'a, DB> {
+impl<DB: Database> VMContext<DB> {
     /// Creates a new context with the given database.
     #[inline]
-    pub fn new(db: DB, env: Env, spec_id: SpecId, handler: Handler<'a, DB>) -> Self {
+    pub fn new(db: DB, env: Env, handler: Handler<DB>) -> Self {
+        let spec_id = env.cfg.spec;
         Self {
             db,
-            env: Box::new(env),
+            env,
             handler,
             journaled_state: JournaledState::new(spec_id, Default::default()),
             precompiles: Precompiles::new(PrecompileSpecId::from_spec_id(spec_id)),
@@ -902,7 +903,7 @@ impl<'a, DB: Database> VMContext<'a, DB> {
     }
 }
 
-impl<DB: Database> Host for VMContext<'_, DB> {
+impl<DB: Database> Host for VMContext<DB> {
     #[inline]
     fn env(&self) -> &Env {
         &self.env

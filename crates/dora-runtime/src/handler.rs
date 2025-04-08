@@ -23,12 +23,12 @@ pub struct Frame {
     pub validate_eof: bool,
 }
 
-pub type CallFrameHandle<'a, DB> =
-    Arc<dyn Fn(Frame, &mut VMContext<'a, DB>) -> Result<CallResult, VMError> + 'a>;
+pub type CallFrameHandle<DB> =
+    Arc<dyn Fn(Frame, &mut VMContext<DB>) -> Result<CallResult, VMError>>;
 
 /// Handler acts as a proxy and allow to define different behavior for different
 /// sections of the code.
-pub struct Handler<'a, DB: Database> {
+pub struct Handler<DB: Database> {
     /// Call frame handler.
-    pub call_handler: CallFrameHandle<'a, DB>,
+    pub call_handler: CallFrameHandle<DB>,
 }

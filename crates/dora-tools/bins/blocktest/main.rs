@@ -198,7 +198,6 @@ fn execute_test(path: &Path) -> Result<(), TestError> {
         let mut vm = VM::new(VMContext::new(
             db.clone(),
             Env::default(),
-            SpecId::default(),
             compile_handler(),
         ));
 
@@ -262,7 +261,7 @@ fn execute_test(path: &Path) -> Result<(), TestError> {
             };
             env.tx.gas_priority_fee = gas_priority_fee;
             let _ = env.tx.derive_tx_type();
-            vm.env = Box::new(env);
+            vm.env = env;
             vm.set_spec_id(spec_id);
             info!("testing name: {} tx idx {}", name, idx);
             let mut evm = revm::Context::mainnet()

@@ -20,11 +20,11 @@ use crate::{
 };
 
 /// EVM/WASM instance containing internal VM context and run actions
-pub struct VM<'a, DB: Database> {
-    pub context: VMContext<'a, DB>,
+pub struct VM<DB: Database> {
+    pub context: VMContext<DB>,
 }
 
-impl<'a, DB: Database> VM<'a, DB> {
+impl<DB: Database> VM<DB> {
     /// Create a new VM.
     pub fn new(context: VMContext<DB>) -> VM<DB> {
         VM { context }
@@ -32,7 +32,7 @@ impl<'a, DB: Database> VM<'a, DB> {
 
     /// Returns internal database and external struct.
     #[inline]
-    pub fn into_context(self) -> VMContext<'a, DB> {
+    pub fn into_context(self) -> VMContext<DB> {
         self.context
     }
 
@@ -611,21 +611,21 @@ impl<'a, DB: Database> VM<'a, DB> {
     }
 }
 
-impl<'a, DB: Database> Deref for VM<'a, DB> {
-    type Target = VMContext<'a, DB>;
+impl<DB: Database> Deref for VM<DB> {
+    type Target = VMContext<DB>;
 
     fn deref(&self) -> &Self::Target {
         &self.context
     }
 }
 
-impl<DB: Database> DerefMut for VM<'_, DB> {
+impl<DB: Database> DerefMut for VM<DB> {
     fn deref_mut(&mut self) -> &mut Self::Target {
         &mut self.context
     }
 }
 
-impl<DB: Database + DatabaseCommit> VM<'_, DB> {
+impl<DB: Database + DatabaseCommit> VM<DB> {
     /// Commit the changes to the database.
     pub fn transact_commit(&mut self) -> Result<ExecutionResult, VMError> {
         let ResultAndState { result, state } = self.transact()?;
