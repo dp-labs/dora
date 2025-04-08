@@ -72,6 +72,7 @@ struct TestEnv {
     pub current_gas_limit: U256,
     pub current_timestamp: U256,
     pub previous_hash: B256,
+    pub current_base_fee: Option<U256>,
 }
 
 #[derive(Debug, Default, PartialEq, Eq, Deserialize)]
@@ -88,6 +89,7 @@ struct Transaction {
     pub value: U256,
     pub max_fee_per_gas: Option<U256>,
     pub max_priority_fee_per_gas: Option<U256>,
+    pub max_fee_per_blob_gas: Option<U256>,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Deserialize)]
@@ -221,6 +223,12 @@ fn execute_test(path: &Path) -> Result<(), TestError> {
             env.block.gas_limit = as_u64_saturated!(suite.env.current_gas_limit);
             env.block.timestamp = as_u64_saturated!(suite.env.current_timestamp);
             env.block.difficulty = suite.env.current_difficulty;
+            env.block.basefee = suite
+                .env
+                .current_base_fee
+                .unwrap_or_default()
+                .try_into()
+                .unwrap_or(u64::MAX);
             env.tx.data = tx.data.clone();
             env.tx.data = tx.data.clone();
             env.tx.gas_limit = as_u64_saturated!(tx.gas_limit);
@@ -264,6 +272,12 @@ fn execute_test(path: &Path) -> Result<(), TestError> {
                     block.gas_limit = as_u64_saturated!(suite.env.current_gas_limit);
                     block.timestamp = as_u64_saturated!(suite.env.current_timestamp);
                     block.difficulty = suite.env.current_difficulty;
+                    block.basefee = suite
+                        .env
+                        .current_base_fee
+                        .unwrap_or_default()
+                        .try_into()
+                        .unwrap_or(u64::MAX);
                 })
                 .modify_tx_chained(|etx| {
                     etx.data = tx.data.clone();
