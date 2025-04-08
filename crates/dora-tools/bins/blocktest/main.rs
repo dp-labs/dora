@@ -212,6 +212,11 @@ fn execute_test(path: &Path) -> Result<(), TestError> {
         }
 
         for (idx, tx) in transactions.iter().enumerate() {
+            if let Ok(max_count) = std::env::var("DORA_BLOCKTEST_MAX_COUNT") {
+                if max_count.parse::<usize>().unwrap() < idx {
+                    break;
+                }
+            }
             let spec_id = get_block_spec(
                 as_u64_saturated!(suite.env.current_timestamp),
                 as_u64_saturated!(suite.env.block_number),
