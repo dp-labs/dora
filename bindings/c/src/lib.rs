@@ -70,7 +70,7 @@ impl EvmcVm for DoraVM {
         );
         let mut artifacts = ARTIFACTS.lock().unwrap();
         let artifact = if let Some(artifact) =
-            artifacts.get(runtime_context.contract.code.bytecode().as_ref())
+            artifacts.get(runtime_context.contract.code.original_byte_slice().as_ref())
         {
             artifact.clone()
         } else {
@@ -80,7 +80,10 @@ impl EvmcVm for DoraVM {
             ) else {
                 return ExecutionResult::failure();
             };
-            artifacts.insert(runtime_context.contract.code.bytes(), artifact.clone());
+            artifacts.insert(
+                runtime_context.contract.code.original_bytes(),
+                artifact.clone(),
+            );
             artifact
         };
         drop(artifacts);
@@ -145,7 +148,7 @@ fn status_to_evmc_status(status: ExitStatusCode) -> StatusCode {
         ExitStatusCode::Continue
         | ExitStatusCode::Return
         | ExitStatusCode::Stop
-        | ExitStatusCode::Selfdestruct => StatusCode::EVMC_SUCCESS,
+        | ExitStatusCode::SelfDestruct => StatusCode::EVMC_SUCCESS,
         ExitStatusCode::Revert
         | ExitStatusCode::OutOfFunds
         | ExitStatusCode::CreateInitCodeStartingEF00
@@ -162,7 +165,7 @@ fn status_to_evmc_status(status: ExitStatusCode) -> StatusCode {
             StatusCode::EVMC_UNDEFINED_INSTRUCTION
         }
         ExitStatusCode::CallNotAllowedInsideStatic
-        | ExitStatusCode::StateChangeDuringStaticcall => StatusCode::EVMC_STATIC_MODE_VIOLATION,
+        | ExitStatusCode::StateChangeDuringStaticCall => StatusCode::EVMC_STATIC_MODE_VIOLATION,
         ExitStatusCode::InvalidFEOpcode => StatusCode::EVMC_INVALID_INSTRUCTION,
         ExitStatusCode::InvalidJump => StatusCode::EVMC_BAD_JUMP_DESTINATION,
         ExitStatusCode::StackOverflow => StatusCode::EVMC_STACK_OVERFLOW,
@@ -196,7 +199,7 @@ fn evmc_status_to_status(status: StatusCode) -> ExitStatusCode {
         StatusCode::EVMC_OUT_OF_MEMORY => ExitStatusCode::MemoryLimitOOG,
         StatusCode::EVMC_INVALID_MEMORY_ACCESS => ExitStatusCode::OutOfOffset,
         StatusCode::EVMC_UNDEFINED_INSTRUCTION => ExitStatusCode::OpcodeNotFound,
-        StatusCode::EVMC_STATIC_MODE_VIOLATION => ExitStatusCode::StateChangeDuringStaticcall,
+        StatusCode::EVMC_STATIC_MODE_VIOLATION => ExitStatusCode::StateChangeDuringStaticCall,
         StatusCode::EVMC_INVALID_INSTRUCTION => ExitStatusCode::InvalidFEOpcode,
         StatusCode::EVMC_BAD_JUMP_DESTINATION => ExitStatusCode::InvalidJump,
         StatusCode::EVMC_STACK_OVERFLOW => ExitStatusCode::StackOverflow,

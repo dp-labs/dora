@@ -166,7 +166,7 @@ impl<'c> EVMCompiler<'c> {
         let mut builder = Self::make_builder(ctx, start_block);
         let recipient = builder.stack_pop()?;
         builder.selfdestruct(recipient);
-        EVMCompiler::return_empty_result(ctx, start_block, ExitStatusCode::Selfdestruct)?;
+        EVMCompiler::return_empty_result(ctx, start_block, ExitStatusCode::SelfDestruct)?;
         let empty_block = region.append_block(Block::new(&[]));
         Ok(empty_block)
     }

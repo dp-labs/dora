@@ -681,7 +681,7 @@ impl JournaledState {
             let info = &mut load.data.info;
             if info.code.is_none() {
                 let code = if info.code_hash == KECCAK_EMPTY {
-                    Bytecode::default()
+                    Bytecode::empty()
                 } else {
                     db.code_by_hash(info.code_hash)?
                 };

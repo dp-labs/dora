@@ -12,9 +12,9 @@ use anyhow::Result;
 use clap::{Args, Parser, Subcommand};
 use dora::compile_handler;
 use dora_primitives::{
-    AccessList, Address, B256, Bytecode, Bytes, Env, EvmStorageSlot, Log, PrimitiveSignature,
-    SignedAuthorization, SpecId, SpecName, TxKind, U256, as_u64_saturated, calc_excess_blob_gas,
-    keccak256,
+    AccessList, Address, B256, Bytecode, Bytes, Env, GAS_PER_BLOB, Log, PrimitiveSignature,
+    SignedAuthorization, SpecId, SpecName, StorageSlot as EvmStorageSlot, TxKind, U256,
+    as_u64_saturated, calc_excess_blob_gas, keccak256,
 };
 use dora_runtime::{Account, Database, MemoryDB, RUNTIME_STACK_SIZE, VM, VMContext};
 use dora_tools::find_all_json_tests;
@@ -33,7 +33,6 @@ use tracing::{error, info};
 use triehash::sec_trie_root;
 
 /// Gas consumption of a single data blob (== blob byte size)
-pub const GAS_PER_BLOB: u64 = 1 << 17;
 pub const TARGET_BLOB_NUMBER_PER_BLOCK_CANCUN: u64 = 3;
 
 /// Target consumable blob gas for data blobs per block (for 1559-like pricing)

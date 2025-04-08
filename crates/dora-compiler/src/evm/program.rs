@@ -957,7 +957,7 @@ pub struct Program {
 
 impl From<Bytecode> for Program {
     fn from(bytecode: Bytecode) -> Self {
-        Self::from_opcodes(bytecode.bytecode(), bytecode.eof().cloned())
+        Self::from_opcodes(bytecode.original_byte_slice(), bytecode.eof().cloned())
     }
 }
 

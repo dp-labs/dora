@@ -1,7 +1,7 @@
 //! Reference: [revm](https://github.com/bluealloy/revm)
 
 use crate::db::{DbAccount, StorageSlot};
-use bitflags::bitflags;
+pub use dora_primitives::AccountStatus;
 use dora_primitives::{B256, Bytecode, KECCAK_EMPTY, SpecId, U256};
 use rustc_hash::FxHashMap;
 
@@ -42,7 +42,7 @@ impl Default for AccountInfo {
         Self {
             balance: U256::ZERO,
             code_hash: KECCAK_EMPTY,
-            code: Some(Bytecode::default()),
+            code: Some(Bytecode::empty()),
             nonce: 0,
         }
     }
@@ -147,7 +147,7 @@ impl Account {
     /// ```
     #[inline]
     pub fn is_selfdestructed(&self) -> bool {
-        self.status.contains(AccountStatus::Selfdestructed)
+        self.status.contains(AccountStatus::SelfDestructed)
     }
 
     /// Checks if the account was newly created.
@@ -200,13 +200,13 @@ impl Account {
     /// Mark account as self destructed.
     #[inline]
     pub fn mark_selfdestruct(&mut self) {
-        self.status |= AccountStatus::Selfdestructed;
+        self.status |= AccountStatus::SelfDestructed;
     }
 
     /// Unmark account as self destructed.
     #[inline]
     pub fn unmark_selfdestruct(&mut self) {
-        self.status -= AccountStatus::Selfdestructed;
+        self.status -= AccountStatus::SelfDestructed;
     }
 
     /// Mark account as newly created.
@@ -256,25 +256,6 @@ impl Account {
     #[inline]
     pub fn changed_storage_slots(&self) -> impl Iterator<Item = (&U256, &StorageSlot)> {
         self.storage.iter().filter(|(_, slot)| slot.is_changed())
-    }
-}
-
-bitflags! {
-    /// Status flags for an account.
-    #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
-    pub struct AccountStatus: u8 {
-        const Loaded               = 0b00000000;
-        const Created              = 0b00000001;
-        const Selfdestructed       = 0b00000010;
-        const Touched              = 0b00000100;
-        const LoadedAsNotExisting  = 0b00001000;  // Pre-EIP-161 state.
-        const Cold                 = 0b00100000;
-    }
-}
-
-impl Default for AccountStatus {
-    fn default() -> Self {
-        Self::Loaded
     }
 }
 
