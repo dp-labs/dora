@@ -72,6 +72,7 @@ struct TestEnv {
     pub current_gas_limit: U256,
     pub current_timestamp: U256,
     pub previous_hash: B256,
+    pub current_base_fee: Option<U256>,
 }
 
 #[derive(Debug, Default, PartialEq, Eq, Deserialize)]
@@ -88,6 +89,7 @@ struct Transaction {
     pub value: U256,
     pub max_fee_per_gas: Option<U256>,
     pub max_priority_fee_per_gas: Option<U256>,
+    pub max_fee_per_blob_gas: Option<U256>,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Deserialize)]
@@ -210,6 +212,11 @@ fn execute_test(path: &Path) -> Result<(), TestError> {
         }
 
         for (idx, tx) in transactions.iter().enumerate() {
+            if let Ok(max_count) = std::env::var("DORA_BLOCKTEST_MAX_COUNT") {
+                if max_count.parse::<usize>().unwrap() < idx {
+                    break;
+                }
+            }
             let spec_id = get_block_spec(
                 as_u64_saturated!(suite.env.current_timestamp),
                 as_u64_saturated!(suite.env.block_number),
@@ -221,6 +228,12 @@ fn execute_test(path: &Path) -> Result<(), TestError> {
             env.block.gas_limit = as_u64_saturated!(suite.env.current_gas_limit);
             env.block.timestamp = as_u64_saturated!(suite.env.current_timestamp);
             env.block.difficulty = suite.env.current_difficulty;
+            env.block.basefee = suite
+                .env
+                .current_base_fee
+                .unwrap_or_default()
+                .try_into()
+                .unwrap_or(u64::MAX);
             env.tx.data = tx.data.clone();
             env.tx.data = tx.data.clone();
             env.tx.gas_limit = as_u64_saturated!(tx.gas_limit);
@@ -237,6 +250,18 @@ fn execute_test(path: &Path) -> Result<(), TestError> {
                 Some(to) => TxKind::Call(to),
                 None => TxKind::Create,
             };
+            let gas_priority_fee = if spec_id.is_enabled_in(SpecId::LONDON) {
+                Some(
+                    tx.max_priority_fee_per_gas
+                        .unwrap_or_default()
+                        .try_into()
+                        .unwrap_or(u128::MAX),
+                )
+            } else {
+                None
+            };
+            env.tx.gas_priority_fee = gas_priority_fee;
+            let _ = env.tx.derive_tx_type();
             vm.env = Box::new(env);
             vm.set_spec_id(spec_id);
             info!("testing name: {} tx idx {}", name, idx);
@@ -252,12 +277,19 @@ fn execute_test(path: &Path) -> Result<(), TestError> {
                     block.gas_limit = as_u64_saturated!(suite.env.current_gas_limit);
                     block.timestamp = as_u64_saturated!(suite.env.current_timestamp);
                     block.difficulty = suite.env.current_difficulty;
+                    block.basefee = suite
+                        .env
+                        .current_base_fee
+                        .unwrap_or_default()
+                        .try_into()
+                        .unwrap_or(u64::MAX);
                 })
                 .modify_tx_chained(|etx| {
                     etx.data = tx.data.clone();
                     etx.gas_limit = as_u64_saturated!(tx.gas_limit);
                     etx.gas_price = tx
                         .gas_price
+                        .or(tx.max_fee_per_gas)
                         .unwrap_or_default()
                         .try_into()
                         .unwrap_or(u128::MAX);
@@ -268,6 +300,8 @@ fn execute_test(path: &Path) -> Result<(), TestError> {
                         Some(to) => TxKind::Call(to),
                         None => TxKind::Create,
                     };
+                    etx.gas_priority_fee = gas_priority_fee;
+                    let _ = etx.derive_tx_type();
                 })
                 .build_mainnet();
             // Run the revm and get the state result.
@@ -275,10 +309,15 @@ fn execute_test(path: &Path) -> Result<(), TestError> {
             // Run the dora VM and get the state result.
             let dora_res = vm.transact_commit().unwrap();
             info!(
-                "testing name: {} tx idx {} gas used {}",
+                "testing name: {} tx idx {} result {:?}",
+                name, idx, dora_res
+            );
+            assert_eq!(
+                revm_res.logs(),
+                dora_res.logs(),
+                "name: {} tx idx {}",
                 name,
-                idx,
-                dora_res.gas_used()
+                idx
             );
             assert_eq!(
                 revm_res.gas_used(),
