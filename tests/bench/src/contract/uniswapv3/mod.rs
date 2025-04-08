@@ -4,6 +4,7 @@ use dora_primitives::{
 };
 use dora_runtime::db::DbAccount;
 use rustc_hash::FxHashMap;
+use std::collections::HashMap;
 
 use super::{address_to_u256, indices_to_u256, keccak256_slice_list, str_to_u256, tick_to_u256};
 
@@ -51,7 +52,7 @@ impl WethContract {
         let bytecode = hex::decode(WETH_BYTECODE_HEX).unwrap();
         let hash = keccak256(&bytecode);
 
-        let mut storage = FxHashMap::default();
+        let mut storage = HashMap::default();
         storage.insert(U256::from(0), str_to_u256(&self.name));
         storage.insert(U256::from(1), str_to_u256(&self.symbol));
         storage.insert(U256::from(2), self.decimals);
@@ -122,7 +123,7 @@ impl FactoryContract {
         let bytecode = hex::decode(hex).unwrap();
         let hash = keccak256(&bytecode);
 
-        let mut storage = FxHashMap::default();
+        let mut storage = HashMap::default();
         storage.insert(U256::from(0), U256::from(0));
         storage.insert(U256::from(1), U256::from(1));
         storage.insert(U256::from(2), U256::from(0));
@@ -257,7 +258,7 @@ impl PoolContract {
         let bytecode = hex::decode(hex).unwrap();
         let hash = keccak256(&bytecode);
 
-        let mut storage = FxHashMap::default();
+        let mut storage = HashMap::default();
         storage.insert(
             U256::from(0),
             uint!(0x0001000001000100000000000000000000000001000000000000000000000000_U256),
@@ -358,7 +359,7 @@ impl RouterContract {
         let bytecode = hex::decode(hex).unwrap();
         let hash = keccak256(&bytecode);
 
-        let mut storage = FxHashMap::default();
+        let mut storage = HashMap::default();
         storage.insert(
             U256::from(0),
             uint!(0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff_U256),
@@ -402,7 +403,7 @@ impl SwapContract {
         let bytecode = hex::decode(hex).unwrap();
         let hash = keccak256(&bytecode);
 
-        let mut storage = FxHashMap::default();
+        let mut storage = HashMap::default();
         storage.insert(U256::from(0), address_to_u256(self.token_0));
         storage.insert(U256::from(1), address_to_u256(self.token_1));
         // fee: slot 1 offset 20 bytes 3

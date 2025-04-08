@@ -1,114 +1,12 @@
-use crate::artifact::{Artifact, SymbolArtifact};
 pub use dora_primitives::StorageSlot;
 use dora_primitives::{
-    Account, AccountInfo, AccountStatus, Address, B256, Bytecode, DBErrorMarker, KECCAK_EMPTY,
-    U256, keccak256,
+    Account, AccountInfo, AccountStatus, Address, B256, Bytecode, KECCAK_EMPTY, U256, keccak256,
 };
+pub use dora_primitives::{DBErrorMarker, Database, DatabaseCommit, DatabaseRef};
 use rustc_hash::FxHashMap;
+use std::collections::HashMap;
 use std::{convert::Infallible, fmt::Debug};
 use thiserror::Error;
-
-/// The `Database` trait provides an interface for interacting with various on-chain data sources
-/// related to accounts, storage, and blocks. It defines methods to retrieve basic account information,
-/// contract code, storage values, and block hashes.
-pub trait Database: Clone + Debug + DatabaseCommit {
-    /// The type representing an error that may occur when interacting with the database.
-    type Error: Debug + Sync + Send;
-    type Artifact: Artifact;
-
-    /// Retrieves basic account information for a given address.
-    ///
-    /// # Parameters:
-    /// - `address`: The account address whose information is being queried.
-    ///
-    /// # Returns:
-    /// - `Result<Option<AccountInfo>, Self::Error>`: A `Result` containing either an `Option` with the `AccountInfo`
-    ///   or an error if the query fails. The `Option` will be `None` if the account does not exist.
-    fn basic(&self, address: Address) -> Result<Option<AccountInfo>, Self::Error>;
-
-    /// Retrieves the contract bytecode for a given code hash.
-    ///
-    /// # Parameters:
-    /// - `code_hash`: The hash of the contract code to be retrieved.
-    ///
-    /// # Returns:
-    /// - `Result<Bytecode, Self::Error>`: A `Result` containing either the `Bytecode` associated with the hash
-    ///   or an error if the query fails.
-    fn code_by_hash(&self, code_hash: B256) -> Result<Bytecode, Self::Error>;
-
-    /// Retrieves a storage value for a given account address and storage index.
-    ///
-    /// # Parameters:
-    /// - `address`: The address of the account whose storage is being queried.
-    /// - `index`: The storage index to retrieve.
-    ///
-    /// # Returns:
-    /// - `Result<U256, Self::Error>`: A `Result` containing either the `U256` value stored at the given index
-    ///   or an error if the query fails.
-    fn storage(&self, address: Address, index: U256) -> Result<U256, Self::Error>;
-
-    /// Retrieves the block hash for a given block number.
-    ///
-    /// # Parameters:
-    /// - `number`: The block number whose hash is being queried.
-    ///
-    /// # Returns:
-    /// - `Result<B256, Self::Error>`: A `Result` containing either the `B256` hash of the block
-    ///   or an error if the query fails.
-    fn block_hash(&self, number: U256) -> Result<B256, Self::Error>;
-
-    /// Retrieves the contract bytecode for a given address by first fetching the account information
-    /// and then querying the code hash or fetching the code directly.
-    ///
-    /// # Parameters:
-    /// - `address`: The account address whose contract bytecode is being queried.
-    ///
-    /// # Returns:
-    /// - `Result<Bytecode, Self::Error>`: A `Result` containing either the `Bytecode` of the contract at the given
-    ///   address or an error if the query fails. If the account does not exist or there is no code, an empty `Bytecode` is returned.
-    ///
-    /// # Default Implementation:
-    /// - The method fetches the account information, retrieves the code either from the account or by querying the code hash,
-    ///   and returns it. If no code is found, an empty bytecode is returned.
-    fn code_by_address(&self, address: Address) -> Result<Bytecode, Self::Error> {
-        let code = self
-            .basic(address)?
-            .and_then(|acc| acc.code.or_else(|| self.code_by_hash(acc.code_hash).ok()))
-            .unwrap_or_default();
-        Ok(code)
-    }
-
-    /// Inserts a contract into the specified address with the provided bytecode and balance.
-    fn insert_contract(&mut self, address: Address, bytecode: Bytecode, balance: U256);
-
-    /// Sets or updates an account in the database with the specified address, nonce, balance, and storage.
-    ///
-    /// If the account already exists, its nonce, balance, and storage are updated. If the account
-    /// does not exist, it is created and initialized with the given values.
-    fn set_account(
-        &mut self,
-        address: Address,
-        nonce: u64,
-        balance: U256,
-        storage: FxHashMap<U256, U256>,
-    );
-
-    /// Retrieves the contract bytecode artifact for a given code hash.
-    ///
-    /// # Parameters:
-    /// - `code_hash`: The hash of the contract code to be retrieved.
-    ///
-    /// # Returns:
-    /// - `Result<Option<Self::Artifact>, Self::Error>`: A `Result` containing either
-    ///   the `Self::Artifact` associated with the hash or an error if the query fails.
-    fn get_artifact(&self, code_hash: B256) -> Result<Option<Self::Artifact>, Self::Error>;
-
-    /// Sets or updates an account in the database with the specified address and the contract artifact.
-    fn set_artifact(&mut self, code_hash: B256, artifact: Self::Artifact);
-
-    /// Converts the current state of the database into a collection of `Account` objects.
-    fn into_state(self) -> FxHashMap<Address, Account>;
-}
 
 /// An error that occurs during database access operations.
 ///
@@ -129,12 +27,6 @@ pub struct DatabaseError;
 
 impl DBErrorMarker for DatabaseError {}
 
-/// Database commit interface.
-pub trait DatabaseCommit {
-    /// Commit changes to the database.
-    fn commit(&mut self, changes: FxHashMap<Address, Account>);
-}
-
 /// An in-memory database for storing account information, contract bytecodes, and block hashes.
 ///
 /// The [`MemoryDB`] struct is a simple, non-persistent database that holds blockchain data in memory,
@@ -152,14 +44,13 @@ pub trait DatabaseCommit {
 /// use dora_primitives::{B256, U256};
 /// use dora_runtime::db::MemoryDB;
 /// let mut db = MemoryDB::new();
-/// db.insert_block_hash(U256::from(1), B256::from_slice(&[0; 32]));
+/// db.insert_block_hash(1, B256::from_slice(&[0; 32]));
 /// ```
 #[derive(Clone, Debug, Default)]
 pub struct MemoryDB {
     accounts: FxHashMap<Address, DbAccount>,
     contracts: FxHashMap<B256, Bytecode>,
-    artifacts: FxHashMap<B256, SymbolArtifact>,
-    block_hashes: FxHashMap<U256, B256>,
+    block_hashes: FxHashMap<u64, B256>,
 }
 
 unsafe impl Send for MemoryDB {}
@@ -188,10 +79,10 @@ impl MemoryDB {
     /// # Example:
     /// ```no_check
     /// let mut db = MemoryDB::new();
-    /// db.insert_block_hash(U256::from(1), B256::from_slice(&[0x12; 32]));
+    /// db.insert_block_hash(1, B256::from_slice(&[0x12; 32]));
     /// ```
     #[inline]
-    pub fn insert_block_hash(&mut self, number: U256, hash: B256) {
+    pub fn insert_block_hash(&mut self, number: u64, hash: B256) {
         self.block_hashes.insert(number, hash);
     }
 
@@ -355,29 +246,8 @@ impl MemoryDB {
                 .or_insert_with(|| code.clone());
         }
     }
-}
 
-impl Database for MemoryDB {
-    type Error = Infallible;
-    type Artifact = SymbolArtifact;
-
-    fn basic(&self, address: Address) -> Result<Option<AccountInfo>, Self::Error> {
-        Ok(self.accounts.get(&address).cloned().map(AccountInfo::from))
-    }
-
-    fn code_by_hash(&self, code_hash: B256) -> Result<Bytecode, Self::Error> {
-        Ok(self.contracts.get(&code_hash).cloned().unwrap_or_default())
-    }
-
-    fn storage(&self, address: Address, index: U256) -> Result<U256, Self::Error> {
-        Ok(self.sload(address, index))
-    }
-
-    fn block_hash(&self, number: U256) -> Result<B256, Self::Error> {
-        Ok(self.block_hashes.get(&number).cloned().unwrap_or_default())
-    }
-
-    fn insert_contract(&mut self, address: Address, bytecode: Bytecode, balance: U256) {
+    pub fn insert_contract(&mut self, address: Address, bytecode: Bytecode, balance: U256) {
         let hash = keccak256(bytecode.original_byte_slice());
         let account = DbAccount {
             bytecode_hash: hash,
@@ -391,12 +261,12 @@ impl Database for MemoryDB {
         self.contracts.insert(hash, bytecode);
     }
 
-    fn set_account(
+    pub fn set_account(
         &mut self,
         address: Address,
         nonce: u64,
         balance: U256,
-        storage: FxHashMap<U256, U256>,
+        storage: HashMap<U256, U256>,
     ) {
         let account = self.accounts.entry(address).or_insert(DbAccount::empty());
         account.nonce = nonce;
@@ -404,15 +274,8 @@ impl Database for MemoryDB {
         account.storage = storage;
     }
 
-    fn get_artifact(&self, code_hash: B256) -> Result<Option<Self::Artifact>, Self::Error> {
-        Ok(self.artifacts.get(&code_hash).cloned())
-    }
-
-    fn set_artifact(&mut self, code_hash: B256, artifact: Self::Artifact) {
-        self.artifacts.insert(code_hash, artifact);
-    }
-
-    fn into_state(self) -> FxHashMap<Address, Account> {
+    #[inline]
+    pub fn into_state(self) -> HashMap<Address, Account> {
         self.accounts
             .into_iter()
             .map(|(address, db_account)| {
@@ -433,6 +296,26 @@ impl Database for MemoryDB {
     }
 }
 
+impl Database for MemoryDB {
+    type Error = Infallible;
+
+    fn basic(&mut self, address: Address) -> Result<Option<AccountInfo>, Self::Error> {
+        Ok(self.accounts.get(&address).cloned().map(AccountInfo::from))
+    }
+
+    fn code_by_hash(&mut self, code_hash: B256) -> Result<Bytecode, Self::Error> {
+        Ok(self.contracts.get(&code_hash).cloned().unwrap_or_default())
+    }
+
+    fn storage(&mut self, address: Address, index: U256) -> Result<U256, Self::Error> {
+        Ok(self.sload(address, index))
+    }
+
+    fn block_hash(&mut self, number: u64) -> Result<B256, Self::Error> {
+        Ok(self.block_hashes.get(&number).cloned().unwrap_or_default())
+    }
+}
+
 impl DatabaseCommit for MemoryDB {
     /// Commits a set of changes to the in-memory database.
     ///
@@ -449,7 +332,7 @@ impl DatabaseCommit for MemoryDB {
     /// ```no_check
     /// db.commit(changes);
     /// ```
-    fn commit(&mut self, changes: FxHashMap<Address, Account>) {
+    fn commit(&mut self, changes: HashMap<Address, Account>) {
         for (address, account) in changes {
             if !account.is_touched() {
                 continue;
@@ -519,7 +402,7 @@ impl DatabaseCommit for MemoryDB {
 pub struct DbAccount {
     pub nonce: u64,
     pub balance: U256,
-    pub storage: FxHashMap<U256, U256>,
+    pub storage: HashMap<U256, U256>,
     pub bytecode_hash: B256,
     pub status: AccountStatus,
     /// If account is selfdestructed or newly created, storage will be cleared.
@@ -539,7 +422,7 @@ impl DbAccount {
         DbAccount {
             nonce: 0,
             balance: U256::ZERO,
-            storage: FxHashMap::default(),
+            storage: Default::default(),
             bytecode_hash: KECCAK_EMPTY,
             status: AccountStatus::Created,
             account_state: AccountState::None,

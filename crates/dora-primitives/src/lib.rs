@@ -13,9 +13,11 @@ pub use revm::context_interface::{
     block::{BlobExcessGasAndPrice, calc_blob_gasprice, calc_excess_blob_gas},
     cfg::Cfg,
     context::{SStoreResult, SelfDestructResult},
-    journaled_state::{AccountLoad, StateLoad},
-    result::{ExecutionResult, HaltReason, OutOfGasError, Output, ResultAndState, SuccessReason},
-    result::{InvalidHeader, InvalidTransaction},
+    journaled_state::{AccountLoad, JournalTr, StateLoad},
+    result::{
+        ExecutionResult, HaltReason, InvalidHeader, InvalidTransaction, OutOfGasError, Output,
+        ResultAndState, SuccessReason,
+    },
     transaction::{
         AccessList, AccessListItem, Authorization, AuthorizationTr, RecoveredAuthority,
         RecoveredAuthorization, SignedAuthorization, TransactionType,
