@@ -1412,23 +1412,26 @@ impl RuntimeContext<'_> {
             unsafe { Vec::<Bytes32>::from_raw_parts(stack_ptr, stack_size, MAX_STACK_SIZE) };
         let op_name = OpCode::new(op).map(|i| i.as_str()).unwrap();
         println!(
-            "{{\"pc\":{},\"op\":{},\"gas\":\"0x{:x}\",\"gasCost\":\"0x{:x}\",\"memSize\":{},\"stack:{:?},\"depth\":{},\"refund\":{},\"opName\":{:?}}}",
+            "{{\"pc\":{},\"op\":{},\"gas\":\"0x{:x}\",\"gasCost\":\"0x{:x}\",\"memSize\":{},\"stack\":{},\"depth\":{},\"refund\":{},\"opName\":{:?}}}",
             pc,
             op,
             gas,
             gas_cost,
             self.memory().len(),
-            stack
-                .iter()
-                .map(|v| hex::encode(v.to_be_bytes())
-                    .trim_start_matches('0')
-                    .to_string())
-                .map(|v| if v.is_empty() {
-                    "0x0".to_string()
-                } else {
-                    format!("0x{v}")
-                })
-                .collect::<Vec<_>>(),
+            serde_json::to_string(
+                &stack
+                    .iter()
+                    .map(|v| hex::encode(v.to_be_bytes())
+                        .trim_start_matches('0')
+                        .to_string())
+                    .map(|v| if v.is_empty() {
+                        "0x0".to_string()
+                    } else {
+                        format!("0x{v}")
+                    })
+                    .collect::<Vec<String>>()
+            )
+            .unwrap(),
             self.inner.depth,
             self.inner.gas_refunded,
             op_name,
