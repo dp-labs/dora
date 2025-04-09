@@ -72,7 +72,7 @@ struct TestEnv {
     pub current_gas_limit: U256,
     pub current_timestamp: U256,
     pub previous_hash: B256,
-    pub current_base_fee: Option<U256>,
+    pub base_fee_per_gas: Option<U256>,
 }
 
 #[derive(Debug, Default, PartialEq, Eq, Deserialize)]
@@ -229,7 +229,7 @@ fn execute_test(path: &Path) -> Result<(), TestError> {
             env.block.difficulty = suite.env.current_difficulty;
             env.block.basefee = suite
                 .env
-                .current_base_fee
+                .base_fee_per_gas
                 .unwrap_or_default()
                 .try_into()
                 .unwrap_or(u64::MAX);
@@ -278,7 +278,7 @@ fn execute_test(path: &Path) -> Result<(), TestError> {
                     block.difficulty = suite.env.current_difficulty;
                     block.basefee = suite
                         .env
-                        .current_base_fee
+                        .base_fee_per_gas
                         .unwrap_or_default()
                         .try_into()
                         .unwrap_or(u64::MAX);
