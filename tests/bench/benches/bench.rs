@@ -11,7 +11,8 @@ use dora_compiler::evm::{EVMCompileOptions, Program};
 use dora_compiler::wasm::WASMCompileOptions;
 use dora_compiler::{Compiler, Context, EVMCompiler, dora, evm, pass, wasm};
 use dora_primitives::{
-    Address, B256, Bytecode, Env, TxEnv, TxKind, U256, WASM_MAGIC_BYTES, address, fixed_bytes, uint,
+    Address, B256, Bytecode, Env, HashMap, TxEnv, TxKind, U256, WASM_MAGIC_BYTES, address,
+    fixed_bytes, uint,
 };
 use dora_primitives::{Bytes, spec::SpecId};
 use dora_runtime::artifact::SymbolArtifact;
@@ -21,7 +22,6 @@ use dora_runtime::db::MemoryDB;
 use dora_runtime::executor::{ExecuteKind, Executor};
 use dora_runtime::host::DummyHost;
 use dora_runtime::stack::Stack;
-use std::collections::HashMap;
 use std::hint::black_box;
 use std::time::Duration;
 

@@ -1,5 +1,4 @@
-use std::collections::HashMap;
-use std::collections::hash_map::Entry;
+use dora_primitives::{Entry, HashMap};
 use std::ops::Deref;
 
 use crate::context::Context;
@@ -240,11 +239,11 @@ impl<'c, 'a> CtxType<'c, 'a> {
             vm_ctx,
             cache_builder,
             wasm_module,
-            cached_memories: HashMap::new(),
-            cached_tables: HashMap::new(),
-            cached_sigindices: HashMap::new(),
-            cached_globals: HashMap::new(),
-            cached_functions: HashMap::new(),
+            cached_memories: Default::default(),
+            cached_tables: Default::default(),
+            cached_sigindices: Default::default(),
+            cached_globals: Default::default(),
+            cached_functions: Default::default(),
             offsets: VMOffsets::new(8, wasm_module),
         }
     }

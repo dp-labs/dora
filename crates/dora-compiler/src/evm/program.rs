@@ -1,7 +1,6 @@
-use dora_primitives::{Bytecode, EVMBytecode, Eof};
+use dora_primitives::{Bytecode, EVMBytecode, Eof, HashMap};
 use num_bigint::BigUint;
 pub use revmc::{OpcodeInfo, op_info_map};
-use rustc_hash::FxHashMap;
 use std::fmt;
 use std::sync::Arc;
 use thiserror::Error;
@@ -903,8 +902,8 @@ operations!(
 
 pub type ParseOperationResult = (
     Vec<Operation>,
-    FxHashMap<usize, usize>,
-    FxHashMap<usize, usize>,
+    HashMap<usize, usize>,
+    HashMap<usize, usize>,
     Vec<OpcodeParseError>,
 );
 
@@ -946,11 +945,11 @@ pub struct Program {
     /// Optional field for eof bytecode.
     eof: Option<Arc<Eof>>,
     /// Mapping from program counter to instruction.
-    pc_to_index_mapping: FxHashMap<usize, usize>,
+    pc_to_index_mapping: HashMap<usize, usize>,
     /// Mapping from to instruction to program counter.
-    index_to_pc_mapping: FxHashMap<usize, usize>,
+    index_to_pc_mapping: HashMap<usize, usize>,
     /// Mapping from the jump index to the destination index.
-    jump_to_pc_mapping: FxHashMap<usize, usize>,
+    jump_to_pc_mapping: HashMap<usize, usize>,
     /// Has dynamic or invalid jump operations.
     has_dynamic_or_invalid_jumps: bool,
 }
@@ -982,7 +981,7 @@ impl Program {
             eof,
             pc_to_index_mapping,
             index_to_pc_mapping,
-            jump_to_pc_mapping: FxHashMap::default(),
+            jump_to_pc_mapping: HashMap::default(),
             has_dynamic_or_invalid_jumps: false,
         };
         program.dynamic_jump_analysis();
@@ -1131,9 +1130,9 @@ impl Program {
     fn parse_operations(opcodes: &[u8], is_eof: bool) -> ParseOperationResult {
         let mut operations = vec![];
         let mut pc_to_index_mapping =
-            FxHashMap::with_capacity_and_hasher(opcodes.len(), Default::default());
+            HashMap::with_capacity_and_hasher(opcodes.len(), Default::default());
         let mut index_to_pc_mapping =
-            FxHashMap::with_capacity_and_hasher(opcodes.len(), Default::default());
+            HashMap::with_capacity_and_hasher(opcodes.len(), Default::default());
         let mut failed_opcodes = vec![];
         let mut pc = 0;
         let mut index = 0;

@@ -1,4 +1,3 @@
-use rustc_hash::FxHashMap;
 use std::cmp::min;
 use std::convert::Infallible;
 use std::sync::Arc;
@@ -18,10 +17,10 @@ use crate::wasm::trap::wasm_raise_trap;
 use crate::{ExitStatusCode, gas, symbols};
 use dora_primitives::{
     Account, Address, AuthorizationTr, B256, BLOCK_HASH_HISTORY, Bytecode, Bytes, Bytes32, Cfg,
-    CfgEnv, EOF_MAGIC_BYTES, EVMBytecode, EmptyBytecode, Env, Eof, Journal, JournalCheckpoint,
-    JournalEntry, JournalTr, KECCAK_EMPTY, Log, LogData, OpCode, PER_AUTH_BASE_COST,
-    PER_EMPTY_ACCOUNT_COST, PrecompileError, PrecompileSpecId, Precompiles, SpecId,
-    TransactionType, U256, as_u64_saturated, as_usize_saturated, keccak256,
+    CfgEnv, EOF_MAGIC_BYTES, EVMBytecode, EmptyBytecode, Env, Eof, HashMap, Journal,
+    JournalCheckpoint, JournalEntry, JournalTr, KECCAK_EMPTY, Log, LogData, OpCode,
+    PER_AUTH_BASE_COST, PER_EMPTY_ACCOUNT_COST, PrecompileError, PrecompileSpecId, Precompiles,
+    SpecId, TransactionType, U256, as_u64_saturated, as_usize_saturated, keccak256,
 };
 
 /// Function type for the EVM main entrypoint of the generated code.
@@ -46,7 +45,7 @@ pub struct VMContext<DB: Database> {
     /// Precompiles that are available for evm.
     pub precompiles: &'static Precompiles,
     /// The compiled artifacts by the compiler.
-    pub artifacts: FxHashMap<B256, SymbolArtifact>,
+    pub artifacts: HashMap<B256, SymbolArtifact>,
 }
 
 impl<DB: Database> VMContext<DB> {

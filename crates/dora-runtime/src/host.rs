@@ -1,5 +1,4 @@
-use dora_primitives::{Address, B256, Bytes, Env, Log, U256};
-use rustc_hash::FxHashMap;
+use dora_primitives::{Address, B256, Bytes, Env, HashMap, Log, U256};
 use std::{collections::hash_map::Entry, fmt::Debug};
 
 use crate::call::{CallKind, CallMessage, CallResult};
@@ -120,8 +119,8 @@ pub enum SStoreStatus {
 #[derive(Debug, Clone, Default)]
 pub struct DummyHost {
     pub env: Env,
-    pub storage: FxHashMap<U256, U256>,
-    pub transient_storage: FxHashMap<U256, U256>,
+    pub storage: HashMap<U256, U256>,
+    pub transient_storage: HashMap<U256, U256>,
     pub logs: Vec<Log>,
 }
 

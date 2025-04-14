@@ -11,7 +11,7 @@ use dora::compile_handler;
 use dora_primitives::Bytes;
 use dora_primitives::keccak256;
 use dora_primitives::spec::SpecId;
-use dora_primitives::{Address, B256, U256, as_u64_saturated};
+use dora_primitives::{Address, B256, HashMap, U256, as_u64_saturated};
 use dora_runtime::context::VMContext;
 use dora_runtime::db::MemoryDB;
 use dora_runtime::executor::RUNTIME_STACK_SIZE;
@@ -22,10 +22,7 @@ use revm::ExecuteCommitEvm;
 use revm::primitives::TxKind;
 use revm::{MainBuilder, MainContext};
 use serde::Deserialize;
-use std::{
-    collections::HashMap,
-    path::{Path, PathBuf},
-};
+use std::path::{Path, PathBuf};
 use thiserror::Error;
 use tracing::{error, info};
 
