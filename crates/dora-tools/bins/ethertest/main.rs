@@ -578,7 +578,7 @@ fn execute_test(path: &Path) -> Result<(), TestError> {
                             }
                         }
                         // Read all account state from the database.
-                        let db_state = vm.db.clone().into_state();
+                        let db_state = vm.journal.database.clone().into_state();
                         // Check the account state diff.
                         if !test_case.state.is_empty() {
                             for (address, expect_account) in &test_case.state {

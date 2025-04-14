@@ -8,12 +8,14 @@ pub use revm::bytecode::{
     opcode::{OpCode, OpCodeInfo},
 };
 use revm::context::Block;
-pub use revm::context::{BlockEnv, CfgEnv, TxEnv};
+pub use revm::context::{
+    BlockEnv, CfgEnv, Journal, JournalEntry, JournalEntryTr, JournalOutput, JournalTr, TxEnv,
+};
 pub use revm::context_interface::{
     block::{BlobExcessGasAndPrice, calc_blob_gasprice, calc_excess_blob_gas},
     cfg::Cfg,
     context::{SStoreResult, SelfDestructResult},
-    journaled_state::{AccountLoad, JournalTr, StateLoad},
+    journaled_state::{AccountLoad, JournalCheckpoint, StateLoad, TransferError},
     result::{
         ExecutionResult, HaltReason, InvalidHeader, InvalidTransaction, OutOfGasError, Output,
         ResultAndState, SuccessReason,

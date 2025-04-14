@@ -1,4 +1,4 @@
-use dora_primitives::{Address, Bytes, Bytes32, Env, Log};
+use dora_primitives::{Address, B256, Bytes, Env, Log, U256};
 use rustc_hash::FxHashMap;
 use std::{collections::hash_map::Entry, fmt::Debug};
 
@@ -21,33 +21,28 @@ pub trait Host {
     fn env_mut(&mut self) -> &mut Env;
 
     /// Retrieves the storage value for a given account and storage key.
-    fn sload(&mut self, addr: Address, key: Bytes32) -> Option<StateLoad<Bytes32>>;
+    fn sload(&mut self, addr: Address, key: U256) -> Option<StateLoad<U256>>;
 
     /// Sets the storage value for a given account and storage key.
-    fn sstore(
-        &mut self,
-        addr: Address,
-        key: Bytes32,
-        value: Bytes32,
-    ) -> Option<StateLoad<SStoreResult>>;
+    fn sstore(&mut self, addr: Address, key: U256, value: U256) -> Option<StateLoad<SStoreResult>>;
 
     /// Get the transient storage value of `address` at `key`.
-    fn tload(&mut self, addr: Address, key: Bytes32) -> Bytes32;
+    fn tload(&mut self, addr: Address, key: U256) -> U256;
 
     /// Set the transient storage value of `address` at `key`.
-    fn tstore(&mut self, addr: Address, key: Bytes32, value: Bytes32);
+    fn tstore(&mut self, addr: Address, key: U256, value: U256);
 
     /// Load account from database to JournaledState.
     fn load_account_delegated(&mut self, addr: Address) -> Option<StateLoad<AccountLoad>>;
 
     /// Retrieves the balance of a specified account.
-    fn balance(&mut self, addr: Address) -> Option<StateLoad<Bytes32>>;
+    fn balance(&mut self, addr: Address) -> Option<StateLoad<U256>>;
 
     /// Retrieves the code deployed at a specified account.
     fn code(&mut self, addr: Address) -> Option<StateLoad<Bytes>>;
 
     /// Retrieves the hash of the code deployed at a specified account.
-    fn code_hash(&mut self, addr: Address) -> Option<StateLoad<Bytes32>>;
+    fn code_hash(&mut self, addr: Address) -> Option<StateLoad<B256>>;
 
     /// Mark `address` to be deleted, with funds transferred to `target`.
     fn selfdestruct(
@@ -57,7 +52,7 @@ pub trait Host {
     ) -> Option<StateLoad<SelfDestructResult>>;
 
     /// Get the block hash of the given block `number`.
-    fn block_hash(&mut self, number: u64) -> Option<Bytes32>;
+    fn block_hash(&mut self, number: u64) -> Option<B256>;
 
     /// Emit a log owned by `address` with given `LogData`.
     fn log(&mut self, log: Log);
@@ -67,27 +62,16 @@ pub trait Host {
 }
 
 /// Result of a `set_storage` action.
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub enum SStoreResult {
-    Slot(SStoreSlot),
+    Slot(dora_primitives::SStoreResult),
     Status(SStoreStatus),
 }
 
 impl Default for SStoreResult {
     fn default() -> Self {
-        Self::Slot(SStoreSlot::default())
+        Self::Slot(dora_primitives::SStoreResult::default())
     }
-}
-
-/// Result of a `set_storage` action.
-#[derive(Debug, Clone, Default, PartialEq, Eq, Hash)]
-pub struct SStoreSlot {
-    /// Value of the storage when it is first read
-    pub original_value: Bytes32,
-    /// Current value of the storage
-    pub present_value: Bytes32,
-    /// New value that is set
-    pub new_value: Bytes32,
 }
 
 /// The effect of an attempt to modify a contract storage item.
@@ -136,8 +120,8 @@ pub enum SStoreStatus {
 #[derive(Debug, Clone, Default)]
 pub struct DummyHost {
     pub env: Env,
-    pub storage: FxHashMap<Bytes32, Bytes32>,
-    pub transient_storage: FxHashMap<Bytes32, Bytes32>,
+    pub storage: FxHashMap<U256, U256>,
+    pub transient_storage: FxHashMap<U256, U256>,
     pub logs: Vec<Log>,
 }
 
@@ -163,12 +147,12 @@ impl Host for DummyHost {
     }
 
     #[inline]
-    fn sload(&mut self, _addr: Address, key: Bytes32) -> Option<StateLoad<Bytes32>> {
+    fn sload(&mut self, _addr: Address, key: U256) -> Option<StateLoad<U256>> {
         Some(match self.storage.entry(key) {
             Entry::Occupied(entry) => StateLoad::new(*entry.get(), false),
             Entry::Vacant(entry) => {
-                entry.insert(Bytes32::ZERO);
-                StateLoad::new(Bytes32::ZERO, true)
+                entry.insert(U256::ZERO);
+                StateLoad::new(U256::ZERO, true)
             }
         })
     }
@@ -177,15 +161,15 @@ impl Host for DummyHost {
     fn sstore(
         &mut self,
         _addr: Address,
-        key: Bytes32,
-        value: Bytes32,
+        key: U256,
+        value: U256,
     ) -> Option<StateLoad<SStoreResult>> {
         let present = self.storage.insert(key, value);
 
         Some(StateLoad::new(
-            SStoreResult::Slot(SStoreSlot {
-                original_value: Bytes32::ZERO,
-                present_value: present.unwrap_or(Bytes32::ZERO),
+            SStoreResult::Slot(dora_primitives::SStoreResult {
+                original_value: U256::ZERO,
+                present_value: present.unwrap_or(U256::ZERO),
                 new_value: value,
             }),
             present.is_none(),
@@ -193,12 +177,12 @@ impl Host for DummyHost {
     }
 
     #[inline]
-    fn balance(&mut self, _addr: Address) -> Option<StateLoad<Bytes32>> {
+    fn balance(&mut self, _addr: Address) -> Option<StateLoad<U256>> {
         Some(Default::default())
     }
 
     #[inline]
-    fn tload(&mut self, _addr: Address, key: Bytes32) -> Bytes32 {
+    fn tload(&mut self, _addr: Address, key: U256) -> U256 {
         self.transient_storage
             .get(&key)
             .copied()
@@ -206,7 +190,7 @@ impl Host for DummyHost {
     }
 
     #[inline]
-    fn tstore(&mut self, _addr: Address, key: Bytes32, value: Bytes32) {
+    fn tstore(&mut self, _addr: Address, key: U256, value: U256) {
         self.transient_storage.insert(key, value);
     }
 
@@ -216,7 +200,7 @@ impl Host for DummyHost {
     }
 
     #[inline]
-    fn code_hash(&mut self, _addr: Address) -> Option<StateLoad<Bytes32>> {
+    fn code_hash(&mut self, _addr: Address) -> Option<StateLoad<B256>> {
         Some(Default::default())
     }
 
@@ -230,7 +214,7 @@ impl Host for DummyHost {
     }
 
     #[inline]
-    fn block_hash(&mut self, _number: u64) -> Option<Bytes32> {
+    fn block_hash(&mut self, _number: u64) -> Option<B256> {
         Some(Default::default())
     }
 

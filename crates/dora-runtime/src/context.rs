@@ -11,7 +11,6 @@ use crate::db::{Database, DatabaseError};
 use crate::executor::ExecutionEngine;
 use crate::handler::{Frame, Handler};
 use crate::host::{AccountLoad, Host, SStoreResult, SelfDestructResult, StateLoad};
-use crate::journaled_state::{JournalCheckpoint, JournalEntry, JournaledState};
 use crate::result::VMError;
 use crate::stack::Stack;
 use crate::wasm::host::gas_limit;
@@ -19,10 +18,10 @@ use crate::wasm::trap::wasm_raise_trap;
 use crate::{ExitStatusCode, gas, symbols};
 use dora_primitives::{
     Account, Address, AuthorizationTr, B256, BLOCK_HASH_HISTORY, Bytecode, Bytes, Bytes32, Cfg,
-    CfgEnv, EOF_MAGIC_BYTES, EOF_MAGIC_HASH, EVMBytecode, EmptyBytecode, Env, Eof, KECCAK_EMPTY,
-    Log, LogData, OpCode, PER_AUTH_BASE_COST, PER_EMPTY_ACCOUNT_COST, PrecompileError,
-    PrecompileSpecId, Precompiles, SpecId, TransactionType, U256, as_u64_saturated,
-    as_usize_saturated, keccak256,
+    CfgEnv, EOF_MAGIC_BYTES, EVMBytecode, EmptyBytecode, Env, Eof, Journal, JournalCheckpoint,
+    JournalEntry, JournalTr, KECCAK_EMPTY, Log, LogData, OpCode, PER_AUTH_BASE_COST,
+    PER_EMPTY_ACCOUNT_COST, PrecompileError, PrecompileSpecId, Precompiles, SpecId,
+    TransactionType, U256, as_u64_saturated, as_usize_saturated, keccak256,
 };
 
 /// Function type for the EVM main entrypoint of the generated code.
@@ -40,12 +39,10 @@ pub type WASMEntryFunc = extern "C" fn(*mut wasmer_vm::VMContext);
 pub struct VMContext<DB: Database> {
     /// Environment contains all the information about config, block and transaction.
     pub env: Env,
-    /// Database to load data from.
-    pub db: DB,
     /// Handler is a component of the of VM that contains the execution logic.
     pub handler: Handler<DB>,
     /// State with journaling support.
-    pub journaled_state: JournaledState,
+    pub journal: Journal<DB>,
     /// Precompiles that are available for evm.
     pub precompiles: &'static Precompiles,
     /// The compiled artifacts by the compiler.
@@ -57,11 +54,12 @@ impl<DB: Database> VMContext<DB> {
     #[inline]
     pub fn new(db: DB, env: Env, handler: Handler<DB>) -> Self {
         let spec_id = env.cfg.spec;
+        let mut journal = Journal::new(db);
+        journal.spec = spec_id;
         Self {
-            db,
             env,
             handler,
-            journaled_state: JournaledState::new(spec_id, Default::default()),
+            journal,
             precompiles: Precompiles::new(PrecompileSpecId::from_spec_id(spec_id)),
             artifacts: Default::default(),
         }
@@ -69,14 +67,14 @@ impl<DB: Database> VMContext<DB> {
 
     /// Returns the configured EVM spec ID.
     #[inline]
-    pub const fn spec_id(&self) -> SpecId {
-        self.journaled_state.spec_id
+    pub fn spec_id(&self) -> SpecId {
+        self.journal.spec
     }
 
     /// Set the configured EVM spec ID.
     #[inline]
-    pub const fn set_spec_id(&mut self, spec_id: SpecId) {
-        self.journaled_state.spec_id = spec_id
+    pub fn set_spec_id(&mut self, spec_id: SpecId) {
+        self.journal.set_spec_id(spec_id);
     }
 
     /// Load access list for berlin hard fork.
@@ -85,13 +83,12 @@ impl<DB: Database> VMContext<DB> {
     #[inline]
     pub fn load_access_list(&mut self) -> Result<(), DB::Error> {
         for access_list in &self.env.tx.access_list.0 {
-            self.journaled_state.initial_account_load(
+            self.journal.warm_account_and_storage(
                 access_list.address,
                 access_list
                     .storage_keys
                     .iter()
-                    .map(|i| Bytes32::from_be_bytes(i.0)),
-                &mut self.db,
+                    .map(|i| U256::from_be_bytes(i.0)),
             )?;
         }
         Ok(())
@@ -104,9 +101,7 @@ impl<DB: Database> VMContext<DB> {
         // EIP-3651: Warm COINBASE. Starts the `COINBASE` address warm
         if self.spec_id().is_enabled_in(SpecId::SHANGHAI) {
             let coinbase = self.env.block.beneficiary;
-            self.journaled_state
-                .warm_preloaded_addresses
-                .insert(coinbase);
+            self.journal.warm_preloaded_addresses.insert(coinbase);
         }
 
         // Load access list
@@ -119,7 +114,7 @@ impl<DB: Database> VMContext<DB> {
     #[inline]
     pub fn set_precompiles(&mut self) {
         // Set warm loaded addresses.
-        self.journaled_state
+        self.journal
             .warm_preloaded_addresses
             .extend(self.precompiles.addresses());
     }
@@ -129,8 +124,8 @@ impl<DB: Database> VMContext<DB> {
         let caller = self.env.tx.caller;
         // load caller's account.
         let mut caller_account = self
-            .journaled_state
-            .load_account(caller, &mut self.db)
+            .journal
+            .load_account(caller)
             .map_err(|_| VMError::Database(DatabaseError))?;
 
         let is_call = self.env.tx.kind.is_call();
@@ -159,7 +154,8 @@ impl<DB: Database> VMContext<DB> {
         // Ensure tx kind is call
         if is_call {
             // Push NonceChange entry
-            self.journaled_state
+            self.journal
+                .inner
                 .journal
                 .last_mut()
                 .unwrap()
@@ -202,8 +198,8 @@ impl<DB: Database> VMContext<DB> {
             // warm authority account and check nonce.
             // 4. Add `authority` to `accessed_addresses` (as defined in [EIP-2929](./eip-2929.md).)
             let mut authority_acc = self
-                .journaled_state
-                .load_code(&mut self.db, authority)
+                .journal
+                .load_account_code(authority)
                 .map_err(|_| VMError::Database(DatabaseError))?;
 
             // 5. Verify the code of `authority` is either empty or already delegated.
@@ -257,8 +253,8 @@ impl<DB: Database> VMContext<DB> {
 
         // Return balance of not used gas.
         let caller_account = self
-            .journaled_state
-            .load_account(caller, &mut self.db)
+            .journal
+            .load_account(caller)
             .map_err(|_| VMError::Database(DatabaseError))?;
 
         let reimbursed =
@@ -287,8 +283,8 @@ impl<DB: Database> VMContext<DB> {
         };
 
         let coinbase_account = self
-            .journaled_state
-            .load_account(beneficiary, &mut self.db)
+            .journal
+            .load_account(beneficiary)
             .map_err(|_| VMError::Database(DatabaseError))?;
 
         coinbase_account.data.mark_touch();
@@ -334,19 +330,19 @@ impl<DB: Database> VMContext<DB> {
     /// Fetch block hash from database.
     #[inline]
     pub fn block_hash(&mut self, number: u64) -> Result<B256, DB::Error> {
-        self.db.block_hash(number)
+        self.journal.database.block_hash(number)
     }
 
     /// Mark account as touched as only touched accounts will be added to state.
     #[inline]
-    pub fn touch(&mut self, address: &Address) {
-        self.journaled_state.touch(address);
+    pub fn touch(&mut self, address: Address) {
+        self.journal.touch(address);
     }
 
     /// Loads an account into memory. Returns `true` if it is cold accessed.
     #[inline]
     pub fn load_account(&mut self, address: Address) -> Result<StateLoad<&mut Account>, DB::Error> {
-        self.journaled_state.load_account(address, &mut self.db)
+        self.journal.load_account(address)
     }
 
     /// Load account from database to JournaledState.
@@ -357,22 +353,21 @@ impl<DB: Database> VMContext<DB> {
         &mut self,
         address: Address,
     ) -> Result<StateLoad<AccountLoad>, DB::Error> {
-        self.journaled_state
-            .load_account_delegated(address, &mut self.db)
+        self.journal.load_account_delegated(address)
     }
 
     /// Return account balance and is_cold flag.
     #[inline]
     pub fn balance(&mut self, address: Address) -> Result<StateLoad<U256>, DB::Error> {
-        self.journaled_state
-            .load_account(address, &mut self.db)
+        self.journal
+            .load_account(address)
             .map(|acc| acc.map(|a| a.info.balance))
     }
 
     /// Return account code bytes and if address is cold loaded.
     #[inline]
     pub fn code(&mut self, address: Address) -> Result<StateLoad<Bytes>, DB::Error> {
-        let acc = self.journaled_state.load_code(&mut self.db, address)?;
+        let acc = self.journal.load_account_code(address)?;
         // SAFETY: safe to unwrap as load_code will insert code if it is empty.
         let code = acc.info.code.as_ref().unwrap();
 
@@ -387,32 +382,15 @@ impl<DB: Database> VMContext<DB> {
 
     /// Get code hash of address.
     #[inline]
-    pub fn code_hash(&mut self, address: Address) -> Result<StateLoad<Bytes32>, DB::Error> {
-        let acc = self.journaled_state.load_code(&mut self.db, address)?;
-        if acc.is_empty() {
-            return Ok(StateLoad::new(Bytes32::ZERO, acc.is_cold));
-        }
-        // SAFETY: safe to unwrap as load_code will insert code if it is empty.
-        let code = acc.info.code.as_ref().unwrap();
-
-        let hash = if code.is_eof() {
-            EOF_MAGIC_HASH
-        } else {
-            acc.info.code_hash
-        };
-
-        Ok(StateLoad::new(hash.into(), acc.is_cold))
+    pub fn code_hash(&mut self, address: Address) -> Result<StateLoad<B256>, DB::Error> {
+        self.journal.code_hash(address)
     }
 
     /// Load storage slot, if storage is not present inside the account then it will be loaded from database.
     #[inline]
-    pub fn sload(
-        &mut self,
-        address: Address,
-        index: Bytes32,
-    ) -> Result<StateLoad<Bytes32>, DB::Error> {
+    pub fn sload(&mut self, address: Address, index: U256) -> Result<StateLoad<U256>, DB::Error> {
         // account is always warm. reference on that statement https://eips.ethereum.org/EIPS/eip-2929 see `Note 2:`
-        self.journaled_state.sload(address, index, &mut self.db)
+        self.journal.sload(address, index)
     }
 
     /// Storage change of storage slot, before storing `sload` will be called for that slot.
@@ -420,23 +398,23 @@ impl<DB: Database> VMContext<DB> {
     pub fn sstore(
         &mut self,
         address: Address,
-        index: Bytes32,
-        value: Bytes32,
+        index: U256,
+        value: U256,
     ) -> Result<StateLoad<SStoreResult>, DB::Error> {
-        self.journaled_state
-            .sstore(address, index, value, &mut self.db)
+        let StateLoad { data, is_cold } = self.journal.sstore(address, index, value)?;
+        Ok(StateLoad::new(SStoreResult::Slot(data), is_cold))
     }
 
     /// Returns the transient storage value.
     #[inline]
-    pub fn tload(&mut self, address: Address, index: Bytes32) -> Bytes32 {
-        self.journaled_state.tload(address, index)
+    pub fn tload(&mut self, address: Address, index: U256) -> U256 {
+        self.journal.tload(address, index)
     }
 
     /// Stores the transient storage value.
     #[inline]
-    pub fn tstore(&mut self, address: Address, index: Bytes32, value: Bytes32) {
-        self.journaled_state.tstore(address, index, value)
+    pub fn tstore(&mut self, address: Address, index: U256, value: U256) {
+        self.journal.tstore(address, index, value)
     }
 
     /// Selfdestructs the account.
@@ -446,8 +424,7 @@ impl<DB: Database> VMContext<DB> {
         address: Address,
         target: Address,
     ) -> Result<StateLoad<SelfDestructResult>, DB::Error> {
-        self.journaled_state
-            .selfdestruct(address, target, &mut self.db)
+        self.journal.selfdestruct(address, target)
     }
 
     fn invoke_call_handler(&mut self, frame: Frame) -> Result<CallResult, VMError> {
@@ -497,7 +474,7 @@ impl<DB: Database> VMContext<DB> {
     /// Handle frame sub call.
     pub fn call(&mut self, msg: CallMessage) -> Result<CallResult, VMError> {
         // Check depth
-        if self.journaled_state.depth() > CALL_STACK_LIMIT {
+        if self.journal.depth() > CALL_STACK_LIMIT {
             return Ok(CallResult::new_with_gas_limit_and_status(
                 msg.gas_limit,
                 ExitStatusCode::CallTooDeep,
@@ -512,30 +489,28 @@ impl<DB: Database> VMContext<DB> {
             | CallKind::ExtStaticcall
             | CallKind::ExtDelegatecall => {
                 // Make account warm and loaded
-                let _ = self
-                    .journaled_state
-                    .load_account_delegated(msg.code_address, &mut self.db);
+                let _ = self.journal.load_account_delegated(msg.code_address);
                 // Create subroutine checkpoint
-                let checkpoint = self.journaled_state.checkpoint();
+                let checkpoint = self.journal.checkpoint();
                 // Touch address. For "EIP-158 State Clear", this will erase empty accounts.
                 if !matches!(msg.kind, CallKind::Delegatecall) {
                     // If transfer value is zero, load account and force the touch.
                     if msg.value.is_zero() {
                         self.load_account(msg.recipient)
                             .map_err(|_| VMError::Database(DatabaseError))?;
-                        self.journaled_state.touch(&msg.recipient);
+                        self.journal.touch(msg.recipient);
                     } else {
                         // Transfer value from caller to called account. As value get transferred
                         // target gets touched.
-                        if let Some(status) = self
-                            .journaled_state
-                            .transfer(&msg.caller, &msg.recipient, msg.value, &mut self.db)
+                        if let Some(err) = self
+                            .journal
+                            .transfer(msg.caller, msg.recipient, msg.value)
                             .map_err(|_| VMError::Database(DatabaseError))?
                         {
-                            self.journaled_state.checkpoint_revert(checkpoint);
+                            self.journal.checkpoint_revert(checkpoint);
                             return Ok(CallResult::new_with_gas_limit_and_status(
                                 msg.gas_limit,
-                                status,
+                                err.into(),
                             ));
                         }
                     }
@@ -546,17 +521,17 @@ impl<DB: Database> VMContext<DB> {
                         self.call_precompile(msg.code_address, &msg.input.clone(), msg.gas_limit)?
                     {
                         if call_result.status.is_ok() {
-                            self.journaled_state.checkpoint_commit();
+                            self.journal.checkpoint_commit();
                         } else {
-                            self.journaled_state.checkpoint_revert(checkpoint);
+                            self.journal.checkpoint_revert(checkpoint);
                         }
                         return Ok(call_result);
                     }
                 }
                 // Load account and bytecode
                 let account = self
-                    .journaled_state
-                    .load_code(&mut self.db, msg.code_address)
+                    .journal
+                    .load_account_code(msg.code_address)
                     .map_err(|_| VMError::Database(DatabaseError))?;
                 let code_hash = account.info.code_hash;
                 let mut bytecode = account.info.code.clone().unwrap_or_default();
@@ -569,7 +544,7 @@ impl<DB: Database> VMContext<DB> {
                     ));
                 }
                 if bytecode.is_empty() {
-                    self.journaled_state.checkpoint_commit();
+                    self.journal.checkpoint_commit();
                     return Ok(CallResult::new_with_gas_limit_and_status(
                         msg.gas_limit,
                         ExitStatusCode::Stop,
@@ -577,8 +552,8 @@ impl<DB: Database> VMContext<DB> {
                 }
                 if let EVMBytecode::Eip7702(eip7702_bytecode) = bytecode {
                     bytecode = self
-                        .journaled_state
-                        .load_code(&mut self.db, eip7702_bytecode.delegated_address)
+                        .journal
+                        .load_account_code(eip7702_bytecode.delegated_address)
                         .map_err(|_| VMError::Database(DatabaseError))?
                         .info
                         .code
@@ -598,7 +573,7 @@ impl<DB: Database> VMContext<DB> {
                     is_static: msg.is_static,
                     is_eof_init: msg.is_eof_init,
                     validate_eof: msg.validate_eof,
-                    depth: self.journaled_state.depth(),
+                    depth: self.journal.depth(),
                 })?;
                 self.call_return(&call_result.status, checkpoint);
                 Ok(call_result)
@@ -618,7 +593,7 @@ impl<DB: Database> VMContext<DB> {
                     ));
                 }
                 // Increase nonce of caller and check if it overflows
-                if self.journaled_state.inc_nonce(msg.caller).is_none() {
+                if self.journal.inc_nonce(msg.caller).is_none() {
                     // Note returns a normal result instead of a nonce overflow error here.
                     return Ok(CallResult::new_with_gas_limit_and_status(
                         msg.gas_limit,
@@ -636,17 +611,17 @@ impl<DB: Database> VMContext<DB> {
                 self.load_account(created_address)
                     .map_err(|_| VMError::Database(DatabaseError))?;
                 // Create account, transfer funds and make the journal checkpoint.
-                let checkpoint = match self.journaled_state.create_account_checkpoint(
+                let checkpoint = match self.journal.create_account_checkpoint(
                     msg.caller,
                     created_address,
                     msg.value,
                     self.spec_id(),
                 ) {
                     Ok(checkpoint) => checkpoint,
-                    Err(status) => {
+                    Err(err) => {
                         return Ok(CallResult::new_with_gas_limit_and_status(
                             msg.gas_limit,
-                            status,
+                            err.into(),
                         ));
                     }
                 };
@@ -666,16 +641,16 @@ impl<DB: Database> VMContext<DB> {
                     is_static: msg.is_static,
                     is_eof_init: msg.is_eof_init,
                     validate_eof: msg.validate_eof,
-                    depth: self.journaled_state.depth(),
+                    depth: self.journal.depth(),
                 })?;
                 self.eofcreate_return(&mut call_result, created_address, checkpoint);
                 Ok(call_result)
             }
             CallKind::ReturnContract => {
-                self.journaled_state.checkpoint_commit();
+                self.journal.checkpoint_commit();
 
                 // Eof bytecode is going to be hashed.
-                self.journaled_state
+                self.journal
                     .set_code(msg.recipient, Bytecode::new_raw(msg.input));
                 Ok(CallResult::new_with_gas_limit_and_status(
                     msg.gas_limit,
@@ -696,7 +671,7 @@ impl<DB: Database> VMContext<DB> {
                 }
                 // Increase nonce of caller and check if it overflows
                 let old_nonce;
-                if let Some(nonce) = self.journaled_state.inc_nonce(msg.caller) {
+                if let Some(nonce) = self.journal.inc_nonce(msg.caller) {
                     old_nonce = nonce - 1;
                 } else {
                     // Note returns a normal result instead of a nonce overflow error here.
@@ -725,17 +700,17 @@ impl<DB: Database> VMContext<DB> {
                 self.load_account(created_address)
                     .map_err(|_| VMError::Database(DatabaseError))?;
                 // Create account, transfer funds and make the journal checkpoint.
-                let checkpoint = match self.journaled_state.create_account_checkpoint(
+                let checkpoint = match self.journal.create_account_checkpoint(
                     msg.caller,
                     created_address,
                     msg.value,
                     self.spec_id(),
                 ) {
                     Ok(checkpoint) => checkpoint,
-                    Err(status) => {
+                    Err(err) => {
                         return Ok(CallResult::new_with_gas_limit_and_status(
                             msg.gas_limit,
-                            status,
+                            err.into(),
                         ));
                     }
                 };
@@ -755,7 +730,7 @@ impl<DB: Database> VMContext<DB> {
                     is_static: msg.is_static,
                     is_eof_init: msg.is_eof_init,
                     validate_eof: msg.validate_eof,
-                    depth: self.journaled_state.depth(),
+                    depth: self.journal.depth(),
                 })?;
                 self.create_return(&mut call_result, created_address, checkpoint);
                 Ok(call_result)
@@ -771,9 +746,9 @@ impl<DB: Database> VMContext<DB> {
     ) {
         // revert changes or not.
         if status_code.is_ok() {
-            self.journaled_state.checkpoint_commit();
+            self.journal.checkpoint_commit();
         } else {
-            self.journaled_state.checkpoint_revert(journal_checkpoint);
+            self.journal.checkpoint_revert(journal_checkpoint);
         }
     }
 
@@ -787,7 +762,7 @@ impl<DB: Database> VMContext<DB> {
         result.create_address = Some(address);
         // if return is not ok revert and return.
         if !result.status.is_ok() {
-            self.journaled_state.checkpoint_revert(journal_checkpoint);
+            self.journal.checkpoint_revert(journal_checkpoint);
             return;
         }
         let spec_id = self.spec_id();
@@ -796,7 +771,7 @@ impl<DB: Database> VMContext<DB> {
         //
         // EIP-3541: Reject new contract code starting with the 0xEF byte
         if spec_id.is_enabled_in(SpecId::LONDON) && result.output.first() == Some(&0xEF) {
-            self.journaled_state.checkpoint_revert(journal_checkpoint);
+            self.journal.checkpoint_revert(journal_checkpoint);
             result.status = ExitStatusCode::CreateContractStartingWithEF;
             return;
         }
@@ -804,7 +779,7 @@ impl<DB: Database> VMContext<DB> {
         // EIP-170: Contract code size limit
         // By default limit is 0x6000 (~25kb)
         if result.output.len() > self.cfg().max_code_size() {
-            self.journaled_state.checkpoint_revert(journal_checkpoint);
+            self.journal.checkpoint_revert(journal_checkpoint);
             result.status = ExitStatusCode::CreateContractSizeLimit;
             return;
         }
@@ -815,7 +790,7 @@ impl<DB: Database> VMContext<DB> {
             // final gas fee for adding the contract code to the state, the contract
             // creation fails (i.e. goes out-of-gas) rather than leaving an empty contract.
             if spec_id.is_enabled_in(SpecId::HOMESTEAD) {
-                self.journaled_state.checkpoint_revert(journal_checkpoint);
+                self.journal.checkpoint_revert(journal_checkpoint);
                 result.status = ExitStatusCode::OutOfGas;
                 return;
             } else {
@@ -823,13 +798,13 @@ impl<DB: Database> VMContext<DB> {
             }
         }
         // If we have enough gas we can commit changes.
-        self.journaled_state.checkpoint_commit();
+        self.journal.checkpoint_commit();
 
         // Decode bytecode has a performance hit, but it has reasonable restrains.
         let bytecode = Eof::decode(result.output.clone()).expect("Eof is already verified");
 
         // Set the code to the journaled state.
-        self.journaled_state
+        self.journal
             .set_code(address, EVMBytecode::Eof(Arc::new(bytecode)));
 
         result.status = ExitStatusCode::Return;
@@ -845,7 +820,7 @@ impl<DB: Database> VMContext<DB> {
         result.create_address = Some(address);
         // if return is not ok revert and return.
         if !result.status.is_ok() {
-            self.journaled_state.checkpoint_revert(journal_checkpoint);
+            self.journal.checkpoint_revert(journal_checkpoint);
             return;
         }
         let spec_id = self.spec_id();
@@ -854,7 +829,7 @@ impl<DB: Database> VMContext<DB> {
         //
         // EIP-3541: Reject new contract code starting with the 0xEF byte
         if spec_id.is_enabled_in(SpecId::LONDON) && result.output.first() == Some(&0xEF) {
-            self.journaled_state.checkpoint_revert(journal_checkpoint);
+            self.journal.checkpoint_revert(journal_checkpoint);
             result.status = ExitStatusCode::CreateContractStartingWithEF;
             return;
         }
@@ -864,7 +839,7 @@ impl<DB: Database> VMContext<DB> {
         if spec_id.is_enabled_in(SpecId::SPURIOUS_DRAGON)
             && result.output.len() > self.cfg().max_code_size()
         {
-            self.journaled_state.checkpoint_revert(journal_checkpoint);
+            self.journal.checkpoint_revert(journal_checkpoint);
             result.status = ExitStatusCode::CreateContractSizeLimit;
             return;
         }
@@ -875,7 +850,7 @@ impl<DB: Database> VMContext<DB> {
             // final gas fee for adding the contract code to the state, the contract
             // creation fails (i.e. goes out-of-gas) rather than leaving an empty contract.
             if spec_id.is_enabled_in(SpecId::HOMESTEAD) {
-                self.journaled_state.checkpoint_revert(journal_checkpoint);
+                self.journal.checkpoint_revert(journal_checkpoint);
                 result.status = ExitStatusCode::OutOfGas;
                 return;
             } else {
@@ -883,10 +858,10 @@ impl<DB: Database> VMContext<DB> {
             }
         }
         // If we have enough gas we can commit changes.
-        self.journaled_state.checkpoint_commit();
+        self.journal.checkpoint_commit();
 
         // Set the code to the journaled state.
-        self.journaled_state
+        self.journal
             .set_code(address, Bytecode::new_raw(result.output.clone()));
 
         result.status = ExitStatusCode::Return;
@@ -915,27 +890,22 @@ impl<DB: Database> Host for VMContext<DB> {
     }
 
     #[inline]
-    fn sload(&mut self, addr: Address, key: Bytes32) -> Option<StateLoad<Bytes32>> {
+    fn sload(&mut self, addr: Address, key: U256) -> Option<StateLoad<U256>> {
         self.sload(addr, key).ok()
     }
 
     #[inline]
-    fn sstore(
-        &mut self,
-        addr: Address,
-        key: Bytes32,
-        value: Bytes32,
-    ) -> Option<StateLoad<SStoreResult>> {
+    fn sstore(&mut self, addr: Address, key: U256, value: U256) -> Option<StateLoad<SStoreResult>> {
         self.sstore(addr, key, value).ok()
     }
 
     #[inline]
-    fn tload(&mut self, addr: Address, key: Bytes32) -> Bytes32 {
+    fn tload(&mut self, addr: Address, key: U256) -> U256 {
         self.tload(addr, key)
     }
 
     #[inline]
-    fn tstore(&mut self, addr: Address, key: Bytes32, value: Bytes32) {
+    fn tstore(&mut self, addr: Address, key: U256, value: U256) {
         self.tstore(addr, key, value)
     }
 
@@ -945,10 +915,10 @@ impl<DB: Database> Host for VMContext<DB> {
     }
 
     #[inline]
-    fn balance(&mut self, addr: Address) -> Option<StateLoad<Bytes32>> {
-        self.journaled_state
-            .load_account(addr, &mut self.db)
-            .map(|acc| acc.map(|a| a.info.balance.into()))
+    fn balance(&mut self, addr: Address) -> Option<StateLoad<U256>> {
+        self.journal
+            .load_account(addr)
+            .map(|acc| acc.map(|a| a.info.balance))
             .ok()
     }
 
@@ -958,7 +928,7 @@ impl<DB: Database> Host for VMContext<DB> {
     }
 
     #[inline]
-    fn code_hash(&mut self, addr: Address) -> Option<StateLoad<Bytes32>> {
+    fn code_hash(&mut self, addr: Address) -> Option<StateLoad<B256>> {
         self.code_hash(addr).ok()
     }
 
@@ -968,28 +938,26 @@ impl<DB: Database> Host for VMContext<DB> {
         addr: Address,
         target: Address,
     ) -> Option<StateLoad<SelfDestructResult>> {
-        self.journaled_state
-            .selfdestruct(addr, target, &mut self.db)
-            .ok()
+        self.journal.selfdestruct(addr, target).ok()
     }
 
-    fn block_hash(&mut self, number: u64) -> Option<Bytes32> {
+    fn block_hash(&mut self, number: u64) -> Option<B256> {
         let block_number = self.env.block.number;
         let Some(diff) = block_number.checked_sub(number) else {
-            return Some(Bytes32::ZERO);
+            return Some(B256::ZERO);
         };
         if diff == 0 {
-            return Some(Bytes32::ZERO);
+            return Some(B256::ZERO);
         }
         if diff <= BLOCK_HASH_HISTORY {
-            return self.block_hash(number).map(Bytes32::from).ok();
+            return self.block_hash(number).ok();
         }
-        Some(Bytes32::ZERO)
+        Some(B256::ZERO)
     }
 
     #[inline]
     fn log(&mut self, log: Log) {
-        self.journaled_state.log(log);
+        self.journal.log(log);
     }
 
     #[inline]
@@ -1774,7 +1742,7 @@ impl RuntimeContext<'_> {
     ) -> *const RuntimeResult<()> {
         match self.host.balance(self.contract.target_address) {
             Some(state) => {
-                *balance = state.data;
+                *balance = state.data.into();
                 unsafe {
                     &*(&self.inner.result as *const RuntimeResult<u64> as *const RuntimeResult<()>)
                 }
@@ -1958,7 +1926,10 @@ impl RuntimeContext<'_> {
         stg_key: &Bytes32,
         stg_value: &mut Bytes32,
     ) -> *const RuntimeResult<()> {
-        let result = match self.host.sload(self.contract.target_address, *stg_key) {
+        let result = match self
+            .host
+            .sload(self.contract.target_address, stg_key.to_u256())
+        {
             Some(result) => result,
             None => {
                 self.inner.result.error = ExitStatusCode::FatalExternalError.to_u8();
@@ -1967,7 +1938,7 @@ impl RuntimeContext<'_> {
                 };
             }
         };
-        *stg_value = result.data;
+        *stg_value = result.data.into();
 
         let gas_cost = gas::sload_cost(self.inner.spec_id, result.is_cold);
 
@@ -1987,10 +1958,11 @@ impl RuntimeContext<'_> {
                 &*(&self.inner.result as *const RuntimeResult<u64> as *const RuntimeResult<()>)
             };
         }
-        let mut result = match self
-            .host
-            .sstore(self.contract.target_address, *stg_key, *stg_value)
-        {
+        let mut result = match self.host.sstore(
+            self.contract.target_address,
+            stg_key.to_u256(),
+            stg_value.to_u256(),
+        ) {
             Some(result) => result,
             None => {
                 self.inner.result.error = ExitStatusCode::FatalExternalError.to_u8();
@@ -2000,7 +1972,7 @@ impl RuntimeContext<'_> {
             }
         };
         if let SStoreResult::Slot(slot) = &mut result.data {
-            slot.new_value = *stg_value;
+            slot.new_value = stg_value.to_u256();
         }
 
         match gas::sstore_cost(
@@ -2081,7 +2053,7 @@ impl RuntimeContext<'_> {
     extern "C" fn block_hash(&mut self, number: &mut Bytes32) -> *const RuntimeResult<()> {
         match self.host.block_hash(as_u64_saturated!(number.as_u256())) {
             Some(hash) => {
-                *number = hash;
+                *number = hash.into();
             }
             None => {
                 self.inner.result.error = ExitStatusCode::FatalExternalError.to_u8();
@@ -2155,7 +2127,7 @@ impl RuntimeContext<'_> {
                 };
             }
         };
-        *address = result.data;
+        *address = result.data.into();
         let gas_cost = gas::balance_gas_cost(self.inner.spec_id, result.is_cold);
 
         self.inner.result.gas_used = gas_cost;
@@ -2210,7 +2182,7 @@ impl RuntimeContext<'_> {
                 };
             }
         };
-        *address = code_hash.data;
+        *address = code_hash.data.into();
         let gas_cost = gas::extcodehash_gas_cost(self.inner.spec_id, code_hash.is_cold);
 
         self.inner.result.gas_used = gas_cost;
@@ -2572,13 +2544,18 @@ impl RuntimeContext<'_> {
     }
 
     extern "C" fn tload(&mut self, stg_key: &Bytes32, stg_value: &mut Bytes32) {
-        let result = self.host.tload(self.contract.target_address, *stg_key);
-        *stg_value = result;
+        let result = self
+            .host
+            .tload(self.contract.target_address, stg_key.to_u256());
+        *stg_value = result.into();
     }
 
     extern "C" fn tstore(&mut self, stg_key: &Bytes32, stg_value: &mut Bytes32) {
-        self.host
-            .tstore(self.contract.target_address, *stg_key, *stg_value);
+        self.host.tstore(
+            self.contract.target_address,
+            stg_key.to_u256(),
+            stg_value.to_u256(),
+        );
     }
 
     extern "C" fn func_stack_push(&mut self, pc: usize, new_idx: usize) -> ExitStatusCode {

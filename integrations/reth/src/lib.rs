@@ -3,7 +3,8 @@ pub use alloy_evm::{Database, Evm, EvmEnv, EvmFactory};
 use dora::{
     Env, VM, VMContext, compile_handler,
     primitives::{
-        Address, BlockEnv, Bytes, CfgEnv, HaltReason, ResultAndState, SpecId, TxEnv, TxKind, U256,
+        Address, BlockEnv, Bytes, CfgEnv, HaltReason, Journal, ResultAndState, SpecId, TxEnv,
+        TxKind, U256,
     },
     runtime::constants::env::DORA_TRACING,
 };
@@ -106,17 +107,17 @@ where
     }
 
     fn db_mut(&mut self) -> &mut Self::DB {
-        &mut self.vm.db
+        &mut self.vm.journal.database
     }
 
     fn finish(self) -> (Self::DB, EvmEnv<Self::Spec>) {
         let VMContext {
             env: Env { block, cfg, .. },
-            db,
+            journal: Journal { database, .. },
             ..
         } = self.vm.context;
         (
-            db,
+            database,
             EvmEnv {
                 block_env: block,
                 cfg_env: cfg,
