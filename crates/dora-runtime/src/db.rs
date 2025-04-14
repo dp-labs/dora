@@ -2,9 +2,7 @@ pub use dora_primitives::StorageSlot;
 use dora_primitives::{
     Account, AccountInfo, AccountStatus, Address, B256, Bytecode, KECCAK_EMPTY, U256, keccak256,
 };
-pub use dora_primitives::{DBErrorMarker, Database, DatabaseCommit, DatabaseRef};
-use rustc_hash::FxHashMap;
-use std::collections::HashMap;
+pub use dora_primitives::{DBErrorMarker, Database, DatabaseCommit, DatabaseRef, HashMap};
 use std::{convert::Infallible, fmt::Debug};
 use thiserror::Error;
 
@@ -48,9 +46,9 @@ impl DBErrorMarker for DatabaseError {}
 /// ```
 #[derive(Clone, Debug, Default)]
 pub struct MemoryDB {
-    accounts: FxHashMap<Address, DbAccount>,
-    contracts: FxHashMap<B256, Bytecode>,
-    block_hashes: FxHashMap<u64, B256>,
+    accounts: HashMap<Address, DbAccount>,
+    contracts: HashMap<B256, Bytecode>,
+    block_hashes: HashMap<u64, B256>,
 }
 
 unsafe impl Send for MemoryDB {}
@@ -393,7 +391,7 @@ impl DatabaseCommit for MemoryDB {
 /// let account = DbAccount {
 ///     nonce: 1,
 ///     balance: U256::from(1000),
-///     storage: FxHashMap::new(),
+///     storage: HashMap::new(),
 ///     bytecode_hash: B256::zero(),
 ///     status: AccountStatus::default(),
 /// };

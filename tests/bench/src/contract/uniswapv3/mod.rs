@@ -1,10 +1,9 @@
 use alloy_sol_types::{SolCall, sol};
 use dora_primitives::{
-    AccountStatus, Address, B256, FixedBytes, ToHexExt, U256, Uint, fixed_bytes, keccak256, uint,
+    AccountStatus, Address, B256, FixedBytes, HashMap, ToHexExt, U256, Uint, fixed_bytes,
+    keccak256, uint,
 };
 use dora_runtime::db::DbAccount;
-use rustc_hash::FxHashMap;
-use std::collections::HashMap;
 
 use super::{address_to_u256, indices_to_u256, keccak256_slice_list, str_to_u256, tick_to_u256};
 
@@ -26,9 +25,9 @@ pub struct WethContract {
     /// Storage 2
     pub decimals: U256,
     /// Storage Slot 3
-    pub deposit: FxHashMap<Address, U256>,
+    pub deposit: HashMap<Address, U256>,
     /// Storage Slot 4
-    pub allowances: FxHashMap<(Address, Address), U256>,
+    pub allowances: HashMap<(Address, Address), U256>,
 }
 
 impl Default for WethContract {
@@ -93,14 +92,14 @@ impl WethContract {
 #[derive(Debug, Default)]
 pub struct FactoryContract {
     pub owner: Address,
-    pub pools: FxHashMap<(Address, Address, U256), Address>,
+    pub pools: HashMap<(Address, Address, U256), Address>,
 }
 
 impl FactoryContract {
     pub fn new(owner: Address) -> Self {
         Self {
             owner,
-            pools: FxHashMap::default(),
+            pools: HashMap::default(),
         }
     }
 
@@ -193,9 +192,9 @@ pub struct PoolContract {
     pub token_0: Address,
     pub token_1: Address,
     pub factory: Address,
-    pub positions: FxHashMap<U256, [U256; 4]>,
-    pub ticks: FxHashMap<U256, [U256; 4]>,
-    pub tick_bitmap: FxHashMap<U256, U256>,
+    pub positions: HashMap<U256, [U256; 4]>,
+    pub ticks: HashMap<U256, [U256; 4]>,
+    pub tick_bitmap: HashMap<U256, U256>,
 }
 
 impl PoolContract {
@@ -204,9 +203,9 @@ impl PoolContract {
             token_0,
             token_1,
             factory,
-            positions: FxHashMap::default(),
-            ticks: FxHashMap::default(),
-            tick_bitmap: FxHashMap::default(),
+            positions: HashMap::default(),
+            ticks: HashMap::default(),
+            tick_bitmap: HashMap::default(),
         }
     }
 

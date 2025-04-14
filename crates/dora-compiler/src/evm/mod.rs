@@ -1,4 +1,4 @@
-use dora_primitives::SpecId;
+use dora_primitives::{IndexMap, IndexMapEntry, SpecId};
 use dora_runtime::ExitStatusCode;
 use dora_runtime::constants::env::DORA_TRACING;
 use dora_runtime::{
@@ -21,9 +21,7 @@ use melior::{
 };
 use num_bigint::BigUint;
 use revmc::{OpcodeInfo, op_info_map};
-use rustc_hash::FxHashMap;
 use std::collections::BTreeMap;
-use std::collections::hash_map::Entry;
 
 use crate::Compiler;
 use crate::backend::IntCC;
@@ -146,16 +144,16 @@ impl<'c> EVMCompiler<'c> {
         context: &'c Context,
         program: &Program,
         opts: &EVMCompileOptions,
-    ) -> Result<FxHashMap<usize, melior::ir::Operation<'c>>> {
+    ) -> Result<IndexMap<usize, melior::ir::Operation<'c>>> {
         let intrinsics = Intrinsics::declare(context);
         let location = intrinsics.unknown_loc;
-        let mut op_funcs: FxHashMap<usize, melior::ir::Operation> = FxHashMap::default();
+        let mut op_funcs: IndexMap<usize, melior::ir::Operation> = IndexMap::default();
         for (i, op) in program.operations().iter().enumerate() {
             if Self::is_always_inline(op) {
                 continue;
             }
             let opcode = op.opcode();
-            if let Entry::Vacant(e) = op_funcs.entry(opcode) {
+            if let IndexMapEntry::Vacant(e) = op_funcs.entry(opcode) {
                 let op_symbol = format!("op{}", opcode);
                 let op_func = func::func(
                     &context.mlir_context,

@@ -1,10 +1,7 @@
-use std::collections::HashMap;
-
 use alloy_sol_types::{SolCall, sol};
-use dora_primitives::{AccountStatus, Address, U256, keccak256};
+use dora_primitives::{AccountStatus, Address, HashMap, U256, keccak256};
 use dora_runtime::db::DbAccount;
 use ruint::UintTryFrom;
-use rustc_hash::FxHashMap;
 
 use super::{address_to_u256, indices_to_u256, str_to_u256};
 
@@ -14,9 +11,9 @@ pub const ERC20_BYTECODE_HEX: &str = include_str!("./contract.hex");
 #[derive(Debug, Default)]
 pub struct ERC20Contract {
     /// Storage Slot 0
-    pub balances: FxHashMap<Address, U256>,
+    pub balances: HashMap<Address, U256>,
     /// Storage Slot 1
-    pub allowances: FxHashMap<(Address, Address), U256>,
+    pub allowances: HashMap<(Address, Address), U256>,
     /// Storage Slot 2
     pub total_supply: U256,
     /// Token name, Storage Slot 3
@@ -41,8 +38,8 @@ impl ERC20Contract {
             symbol: String::from(symbol),
             decimals: U256::from(decimals),
             total_supply: U256::from(initial_supply),
-            balances: FxHashMap::default(),
-            allowances: FxHashMap::default(),
+            balances: HashMap::default(),
+            allowances: HashMap::default(),
         }
     }
 

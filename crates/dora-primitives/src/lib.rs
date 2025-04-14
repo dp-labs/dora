@@ -1,6 +1,10 @@
 use std::cmp::min;
 
-pub use alloy_primitives::{PrimitiveSignature, SignatureError, Signed, Uint};
+pub use alloy_primitives::{
+    Signature, SignatureError, Signed, Uint,
+    map::{Entry, HashMap, HashSet},
+};
+pub use indexmap::{IndexMap, IndexSet, map::Entry as IndexMapEntry};
 pub use revm::bytecode::{
     Bytecode as EVMBytecode,
     eip7702::Eip7702Bytecode,

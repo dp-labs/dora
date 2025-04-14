@@ -3,7 +3,7 @@
 
 use dora::{
     build_artifact,
-    primitives::{Address, Bytecode, Bytes, Bytes32, SpecId},
+    primitives::{Address, Bytecode, Bytes, Bytes32, HashMap, SpecId},
     runtime::{
         ExitStatusCode,
         artifact::{Artifact, SymbolArtifact},
@@ -17,7 +17,6 @@ use evmc_sys::{evmc_address, evmc_call_kind};
 use evmc_vm::*;
 use host::EvmcDelegateHost;
 use lazy_static::lazy_static;
-use rustc_hash::FxHashMap;
 use std::sync::Mutex;
 
 mod host;
@@ -26,8 +25,7 @@ mod host;
 mod tests;
 
 lazy_static! {
-    static ref ARTIFACTS: Mutex<FxHashMap<Bytes, SymbolArtifact>> =
-        Mutex::new(FxHashMap::default());
+    static ref ARTIFACTS: Mutex<HashMap<Bytes, SymbolArtifact>> = Mutex::new(HashMap::default());
 }
 
 #[evmc_declare_vm("dora", "evm, ewasm, precompiles", "12.0.0")]
