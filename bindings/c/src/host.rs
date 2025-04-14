@@ -3,7 +3,7 @@
 
 use dora::SpecId;
 use dora::primitives::{
-    Address, B256, BlobExcessGasAndPrice, BlockEnv, Bytes, Bytes32, CfgEnv, Env, Log, TxEnv, U256,
+    Address, B256, BlobExcessGasAndPrice, BlockEnv, Bytes, CfgEnv, Env, Log, TxEnv, U256,
     as_u64_saturated,
 };
 use dora::runtime::call::{CallMessage, CallResult};
@@ -86,32 +86,24 @@ impl Host for EvmcDelegateHost<'_> {
         &mut self.env
     }
 
-    fn sload(&mut self, addr: Address, key: Bytes32) -> Option<StateLoad<Bytes32>> {
+    fn sload(&mut self, addr: Address, key: U256) -> Option<StateLoad<U256>> {
         unsafe {
             let addr = transmute::<Address, evmc_address>(addr);
-            let key = transmute::<Bytes32, evmc_bytes32>(key.to_be());
+            let key = transmute::<[u8; 32], evmc_bytes32>(key.to_be_bytes());
             let is_cold = matches!(
                 self.context.access_storage(&addr, &key),
                 evmc_access_status::EVMC_ACCESS_COLD
             );
             let result = self.context.get_storage(&addr, &key);
-            Some(StateLoad::new(
-                Bytes32::from_be_bytes(result.bytes),
-                is_cold,
-            ))
+            Some(StateLoad::new(U256::from_be_bytes(result.bytes), is_cold))
         }
     }
 
-    fn sstore(
-        &mut self,
-        addr: Address,
-        key: Bytes32,
-        value: Bytes32,
-    ) -> Option<StateLoad<SStoreResult>> {
+    fn sstore(&mut self, addr: Address, key: U256, value: U256) -> Option<StateLoad<SStoreResult>> {
         unsafe {
             let addr = transmute::<Address, evmc_address>(addr);
-            let key = transmute::<Bytes32, evmc_bytes32>(key.to_be());
-            let value = transmute::<Bytes32, evmc_bytes32>(value.to_be());
+            let key = transmute::<[u8; 32], evmc_bytes32>(key.to_be_bytes());
+            let value = transmute::<[u8; 32], evmc_bytes32>(value.to_be_bytes());
             let is_cold = matches!(
                 self.context.access_storage(&addr, &key),
                 evmc_access_status::EVMC_ACCESS_COLD
@@ -124,20 +116,20 @@ impl Host for EvmcDelegateHost<'_> {
         }
     }
 
-    fn tload(&mut self, addr: Address, key: Bytes32) -> Bytes32 {
+    fn tload(&mut self, addr: Address, key: U256) -> U256 {
         unsafe {
             let addr = transmute::<Address, evmc_address>(addr);
-            let key = transmute::<Bytes32, evmc_bytes32>(key.to_be());
+            let key = transmute::<[u8; 32], evmc_bytes32>(key.to_be_bytes());
             let result = self.context.get_transient_storage(&addr, &key);
-            Bytes32::from_be_bytes(result.bytes)
+            U256::from_be_bytes(result.bytes)
         }
     }
 
-    fn tstore(&mut self, addr: Address, key: Bytes32, value: Bytes32) {
+    fn tstore(&mut self, addr: Address, key: U256, value: U256) {
         unsafe {
             let addr = transmute::<Address, evmc_address>(addr);
-            let key = transmute::<Bytes32, evmc_bytes32>(key.to_be());
-            let value = transmute::<Bytes32, evmc_bytes32>(value.to_be());
+            let key = transmute::<[u8; 32], evmc_bytes32>(key.to_be_bytes());
+            let value = transmute::<[u8; 32], evmc_bytes32>(value.to_be_bytes());
             self.context.set_transient_storage(&addr, &key, &value);
         }
     }
@@ -147,7 +139,7 @@ impl Host for EvmcDelegateHost<'_> {
         None
     }
 
-    fn balance(&mut self, addr: Address) -> Option<StateLoad<Bytes32>> {
+    fn balance(&mut self, addr: Address) -> Option<StateLoad<U256>> {
         unsafe {
             let addr = transmute::<Address, evmc_address>(addr);
             let is_cold = matches!(
@@ -155,7 +147,7 @@ impl Host for EvmcDelegateHost<'_> {
                 evmc_access_status::EVMC_ACCESS_COLD
             );
             let value = self.context.get_balance(&addr);
-            Some(StateLoad::new(Bytes32::from_be_bytes(value.bytes), is_cold))
+            Some(StateLoad::new(U256::from_be_bytes(value.bytes), is_cold))
         }
     }
 
@@ -173,7 +165,7 @@ impl Host for EvmcDelegateHost<'_> {
         }
     }
 
-    fn code_hash(&mut self, addr: Address) -> Option<StateLoad<Bytes32>> {
+    fn code_hash(&mut self, addr: Address) -> Option<StateLoad<B256>> {
         unsafe {
             let addr = transmute::<Address, evmc_address>(addr);
             let hash = self.context.get_code_hash(&addr);
@@ -181,7 +173,7 @@ impl Host for EvmcDelegateHost<'_> {
                 self.context.access_account(&addr),
                 evmc_access_status::EVMC_ACCESS_COLD
             );
-            Some(StateLoad::new(Bytes32::from_be_bytes(hash.bytes), is_cold))
+            Some(StateLoad::new(B256::from(hash.bytes), is_cold))
         }
     }
 
@@ -198,7 +190,7 @@ impl Host for EvmcDelegateHost<'_> {
                 evmc_access_status::EVMC_ACCESS_COLD
             );
             let balance = self.context.get_balance(&addr);
-            let had_value = !Bytes32::from_be_bytes(balance.bytes).as_u256().is_zero();
+            let had_value = !U256::from_be_bytes(balance.bytes).is_zero();
             let target_exists = self.context.account_exists(&target);
             let first_registerd = self.context.selfdestruct(&addr, &target);
             Some(StateLoad::new(
@@ -213,10 +205,8 @@ impl Host for EvmcDelegateHost<'_> {
     }
 
     #[inline]
-    fn block_hash(&mut self, number: u64) -> Option<Bytes32> {
-        Some(Bytes32::from_be_bytes(
-            self.context.get_block_hash(number as i64).bytes,
-        ))
+    fn block_hash(&mut self, number: u64) -> Option<B256> {
+        Some(B256::from(self.context.get_block_hash(number as i64).bytes))
     }
 
     fn log(&mut self, log: Log) {
@@ -244,7 +234,7 @@ impl Host for EvmcDelegateHost<'_> {
                 transmute::<Address, evmc_address>(msg.recipient),
                 transmute::<Address, evmc_address>(msg.caller),
                 Some(&msg.input.0),
-                transmute::<[u8; 32], evmc_bytes32>(Bytes32::from(msg.value).to_be_bytes()),
+                transmute::<[u8; 32], evmc_bytes32>(msg.value.to_be_bytes()),
                 transmute::<B256, evmc_bytes32>(msg.salt.unwrap_or_default()),
                 transmute::<Address, evmc_address>(msg.code_address),
                 if msg.init_code.len() > 0 {

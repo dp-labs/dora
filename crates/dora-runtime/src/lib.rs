@@ -7,7 +7,6 @@ pub mod executor;
 pub mod gas;
 pub mod handler;
 pub mod host;
-pub mod journaled_state;
 pub mod result;
 pub mod stack;
 pub mod symbols;
@@ -18,7 +17,7 @@ pub use artifact::{Artifact, SymbolArtifact};
 pub use call::{CallKind, CallMessage, CallResult, CallType, CallTypeParseError, ExtCallType};
 pub use context::{Contract, RuntimeContext, VMContext};
 pub use db::{Database, DatabaseCommit, MemoryDB};
-pub use dora_primitives::{Account, AccountInfo, AccountStatus};
+pub use dora_primitives::{Account, AccountInfo, AccountStatus, TransferError};
 pub use executor::{ExecuteKind, ExecutionEngine, Executor, RUNTIME_STACK_SIZE};
 pub use host::{DummyHost, Host};
 pub use result::{ExecutionResult, HaltReason, ResultAndState, VMError};
@@ -251,5 +250,15 @@ impl ExitStatusCode {
     #[inline]
     pub fn is_invalid_jump(&self) -> bool {
         matches!(self, ExitStatusCode::InvalidJump)
+    }
+}
+
+impl From<TransferError> for ExitStatusCode {
+    fn from(err: TransferError) -> Self {
+        match err {
+            TransferError::OutOfFunds => ExitStatusCode::OutOfFunds,
+            TransferError::OverflowPayment => ExitStatusCode::OverflowPayment,
+            TransferError::CreateCollision => ExitStatusCode::CreateCollision,
+        }
     }
 }

@@ -1,5 +1,5 @@
 use dora_compiler::evm::{Program, program::Operation};
-use dora_primitives::{Address, Bytecode, Bytes, Bytes32, Env, Log, TxKind, U256, spec::SpecId};
+use dora_primitives::{Address, Bytecode, Bytes, Env, Log, TxKind, U256, spec::SpecId};
 use dora_runtime::{
     ExitStatusCode,
     context::{Contract, RuntimeContext},
@@ -22,16 +22,12 @@ pub(crate) struct TestResult {
 
 impl TestResult {
     pub fn sload(&mut self, key: U256) -> U256 {
-        let result = self
-            .host
-            .sload(Address::default(), Bytes32::from_u256(key))
-            .unwrap_or_default();
-        result.data.to_u256()
+        let result = self.host.sload(Address::default(), key).unwrap_or_default();
+        result.data
     }
 
     pub fn tload(&mut self, key: U256) -> U256 {
-        let result = self.host.tload(Address::default(), Bytes32::from_u256(key));
-        result.to_u256()
+        self.host.tload(Address::default(), key)
     }
 
     pub fn logs(&self) -> &[Log] {

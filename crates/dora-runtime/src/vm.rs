@@ -4,8 +4,8 @@ use std::{
 };
 
 use dora_primitives::{
-    Account, B256, Bytes, Cfg, DatabaseCommit, Env, InvalidHeader, InvalidTransaction, SpecId,
-    TransactionType, U256, eip4844,
+    Account, B256, Bytes, Cfg, DatabaseCommit, Env, InvalidHeader, InvalidTransaction,
+    JournalOutput, JournalTr, SpecId, TransactionType, U256, eip4844,
 };
 
 use crate::{
@@ -280,8 +280,8 @@ impl<DB: Database> VM<DB> {
         let tx_caller = self.context.env.tx.caller;
         let caller_account = self
             .context
-            .journaled_state
-            .load_code(&mut self.context.db, tx_caller)
+            .journal
+            .load_account_code(tx_caller)
             .map_err(|_| VMError::Database(DatabaseError))?;
         Self::validate_tx_against_account(caller_account.data, &self.context.env, spec_id)
             .map_err(VMError::Transaction)?;
@@ -451,7 +451,7 @@ impl<DB: Database> VM<DB> {
         let return_values = result.output.to_vec();
         let exit_status = result.status;
         // Reset journal and return present state.
-        let (state, logs) = self.journaled_state.finalize();
+        let JournalOutput { state, logs } = self.journal.finalize();
 
         let result = match exit_status {
             ExitStatusCode::Continue | ExitStatusCode::Return => ExecutionResult::Success {
@@ -607,7 +607,7 @@ impl<DB: Database> VM<DB> {
 
     #[inline]
     fn clear(&mut self) {
-        self.context.journaled_state.clear();
+        self.context.journal.clear();
     }
 }
 
@@ -629,7 +629,7 @@ impl<DB: Database + DatabaseCommit> VM<DB> {
     /// Commit the changes to the database.
     pub fn transact_commit(&mut self) -> Result<ExecutionResult, VMError> {
         let ResultAndState { result, state } = self.transact()?;
-        self.db.commit(state);
+        self.journal.database.commit(state);
         Ok(result)
     }
 }

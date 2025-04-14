@@ -75,9 +75,16 @@ impl<'a> HostInfo<'a> {
         Ok(address_bytes.into())
     }
 
-    /// Reads an address with the fixed size 20 from the WASM memory at the given guest pointer.
+    /// Reads an address with the fixed size 32 from the WASM memory at the given guest pointer.
+    #[inline]
     pub fn read_bytes32(&self, ptr: GuestPtr) -> Result<Bytes32, MemoryAccessError> {
         Ok(Bytes32::from_be_bytes(self.read_fixed(ptr)?))
+    }
+
+    /// Reads an address with the fixed size 32 from the WASM memory at the given guest pointer.
+    #[inline]
+    pub fn read_u256(&self, ptr: GuestPtr) -> Result<U256, MemoryAccessError> {
+        Ok(U256::from_be_bytes(self.read_fixed::<32>(ptr)?))
     }
 
     /// Writes a 32-bit unsigned integer to the WASM memory at the given guest pointer.
@@ -109,7 +116,8 @@ pub fn account_balance(
             .unwrap_or_default()
             .data
     });
-    host.write_slice(dest, &data.to_be_bytes())?;
+    let data: [u8; 32] = data.to_be_bytes();
+    host.write_slice(dest, &data)?;
     Ok(())
 }
 
@@ -168,7 +176,7 @@ pub fn account_codehash(
             .code_hash(address)
             .unwrap_or_default()
             .data
-            .to_be_bytes()
+            .0
     });
     host.write_slice(dest, &hash)?;
     Ok(())
@@ -181,7 +189,7 @@ pub fn sload(
     dest: GuestPtr, // *mut u8
 ) -> MaybeEscape {
     let host = HostInfo::from_env(&mut env)?;
-    let key = host.read_bytes32(key)?;
+    let key = host.read_u256(key)?;
     let value = with_runtime_context(|runtime_context| {
         let target_address = runtime_context.contract.target_address;
         runtime_context
@@ -190,7 +198,8 @@ pub fn sload(
             .unwrap_or_default()
             .data
     });
-    host.write_slice(dest, &value.to_be_bytes())?;
+    let value: [u8; 32] = value.to_be_bytes();
+    host.write_slice(dest, &value)?;
     Ok(())
 }
 
@@ -201,8 +210,8 @@ pub fn sstore(
     value: GuestPtr, // *const u8
 ) -> MaybeEscape {
     let host = HostInfo::from_env(&mut env)?;
-    let key = host.read_bytes32(key)?;
-    let value = host.read_bytes32(value)?;
+    let key = host.read_u256(key)?;
+    let value = host.read_u256(value)?;
     with_runtime_context(|runtime_context| {
         let target_address = runtime_context.contract.target_address;
         runtime_context
@@ -220,12 +229,13 @@ pub fn tload(
     dest: GuestPtr, // *mut u8
 ) -> MaybeEscape {
     let host = HostInfo::from_env(&mut env)?;
-    let key = host.read_bytes32(key)?;
+    let key = host.read_u256(key)?;
     let value = with_runtime_context(|runtime_context| {
         let target_address = runtime_context.contract.target_address;
         runtime_context.host.tload(target_address, key)
     });
-    host.write_slice(dest, &value.to_be_bytes())?;
+    let value: [u8; 32] = value.to_be_bytes();
+    host.write_slice(dest, &value)?;
     Ok(())
 }
 
@@ -236,8 +246,8 @@ pub fn tstore(
     value: GuestPtr, // *const u8
 ) -> MaybeEscape {
     let host = HostInfo::from_env(&mut env)?;
-    let key = host.read_bytes32(key)?;
-    let value = host.read_bytes32(value)?;
+    let key = host.read_u256(key)?;
+    let value = host.read_u256(value)?;
     with_runtime_context(|runtime_context| {
         let target_address = runtime_context.contract.target_address;
         runtime_context.host.tstore(target_address, key, value);
@@ -254,7 +264,7 @@ pub fn block_hash(
     let host = HostInfo::from_env(&mut env)?;
     let hash = with_runtime_context(|runtime_context| runtime_context.host.block_hash(number))
         .unwrap_or_default();
-    host.write_slice(dest, &hash.to_be_bytes())?;
+    host.write_slice(dest, &hash.0)?;
     Ok(())
 }
 
@@ -362,7 +372,7 @@ pub fn call(
 ) -> EscapeResult<u8> {
     let host = HostInfo::from_env(&mut env)?;
     let to = host.read_address(contract)?;
-    let value = host.read_bytes32(value)?.to_u256();
+    let value = host.read_u256(value)?;
     let call_data = host.read_slice(calldata, calldata_len)?;
     let result = with_runtime_context(|runtime_context| {
         intern_call(
@@ -465,7 +475,7 @@ pub fn call_contract(
 ) -> EscapeResult<u8> {
     let host = HostInfo::from_env(&mut env)?;
     let to = host.read_address(contract)?;
-    let value = host.read_bytes32(value)?.to_u256();
+    let value = host.read_u256(value)?;
     let call_data = host.read_slice(calldata, calldata_len)?;
     let result = with_runtime_context(|runtime_context| {
         intern_call(
@@ -572,7 +582,7 @@ pub fn create(
 ) -> MaybeEscape {
     let host = HostInfo::from_env(&mut env)?;
     let code = host.read_slice(code, code_len)?;
-    let value = host.read_bytes32(endowment)?.to_u256();
+    let value = host.read_u256(endowment)?;
     let result = with_runtime_context(|runtime_context| {
         intern_create(runtime_context, code, value, None, u64::MAX)
     })?;
@@ -596,7 +606,7 @@ pub fn create_contract(
 ) -> EscapeResult<u32> {
     let host = HostInfo::from_env(&mut env)?;
     let code = host.read_slice(code, code_len)?;
-    let value = host.read_bytes32(endowment)?.to_u256();
+    let value = host.read_u256(endowment)?;
     let salt = host.read_bytes32(salt)?.to_b256();
     let result = with_runtime_context(|runtime_context| {
         intern_create(
@@ -623,7 +633,7 @@ pub fn create2(
 ) -> MaybeEscape {
     let host = HostInfo::from_env(&mut env)?;
     let code = host.read_slice(code, code_len)?;
-    let value = host.read_bytes32(endowment)?.to_u256();
+    let value = host.read_u256(endowment)?;
     let salt = host.read_bytes32(salt)?.to_b256();
     let result = with_runtime_context(|runtime_context| {
         intern_create(runtime_context, code, value, Some(salt), u64::MAX)
@@ -725,7 +735,8 @@ pub fn msg_value(
 ) -> MaybeEscape {
     let host = HostInfo::from_env(&mut env)?;
     let msg_value = with_runtime_context(|runtime_context| runtime_context.contract.call_value);
-    host.write_slice(value, &msg_value.to_be_bytes_vec())?;
+    let msg_value: [u8; 32] = msg_value.to_be_bytes();
+    host.write_slice(value, &msg_value)?;
     Ok(())
 }
 

@@ -21,13 +21,12 @@ pub fn sstore_cost(spec_id: SpecId, result: &SStoreResult, gas: u64, is_cold: bo
     if spec_id.is_enabled_in(SpecId::BERLIN) {
         // Berlin specification logic
         let base_cost = match result {
-            SStoreResult::Slot(slot) => {
-                calculate_sstore_slot_cost::<WARM_SLOAD_COST, WARM_SSTORE_RESET>(
-                    slot.original_value.to_u256(),
-                    slot.present_value.to_u256(),
-                    slot.new_value.to_u256(),
-                )
-            }
+            SStoreResult::Slot(slot) => calculate_sstore_slot_cost::<
+                WARM_SLOAD_COST,
+                WARM_SSTORE_RESET,
+            >(
+                slot.original_value, slot.present_value, slot.new_value
+            ),
             SStoreResult::Status(status) => {
                 calculate_sstore_status_cost::<WARM_SLOAD_COST, WARM_SSTORE_RESET>(status)
             }
@@ -37,13 +36,12 @@ pub fn sstore_cost(spec_id: SpecId, result: &SStoreResult, gas: u64, is_cold: bo
     } else if spec_id.is_enabled_in(SpecId::ISTANBUL) {
         // Istanbul specification logic
         Some(match result {
-            SStoreResult::Slot(slot) => {
-                calculate_sstore_slot_cost::<INSTANBUL_SLOAD_GAS, SSTORE_RESET>(
-                    slot.original_value.to_u256(),
-                    slot.present_value.to_u256(),
-                    slot.new_value.to_u256(),
-                )
-            }
+            SStoreResult::Slot(slot) => calculate_sstore_slot_cost::<
+                INSTANBUL_SLOAD_GAS,
+                SSTORE_RESET,
+            >(
+                slot.original_value, slot.present_value, slot.new_value
+            ),
             SStoreResult::Status(status) => {
                 calculate_sstore_status_cost::<INSTANBUL_SLOAD_GAS, SSTORE_RESET>(status)
             }
@@ -52,7 +50,7 @@ pub fn sstore_cost(spec_id: SpecId, result: &SStoreResult, gas: u64, is_cold: bo
         // Frontier specification logic
         Some(match result {
             SStoreResult::Slot(slot) => {
-                frontier_sstore_slot_cost(slot.present_value.to_u256(), slot.new_value.to_u256())
+                frontier_sstore_slot_cost(slot.present_value, slot.new_value)
             }
             SStoreResult::Status(status) => frontier_sstore_status_cost(status),
         })
@@ -153,9 +151,9 @@ pub fn sstore_refund(spec_id: SpecId, result: &SStoreResult) -> i64 {
     match result {
         SStoreResult::Slot(slot) => sstore_slot_refund(
             spec_id,
-            slot.original_value.to_u256(),
-            slot.present_value.to_u256(),
-            slot.new_value.to_u256(),
+            slot.original_value,
+            slot.present_value,
+            slot.new_value,
         ),
         SStoreResult::Status(status) => sstore_status_refund(spec_id, status),
     }
