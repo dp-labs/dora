@@ -877,7 +877,7 @@ fn mload_overflow_1() {
     let result = run_result(operations);
     assert!(result.status.is_out_of_gas());
     assert_eq!(result.gas_used(), 3 + 3);
-    // Check the memory extened by the MLOAD opcode.
+    // Check the memory extended by the MLOAD opcode.
 }
 
 #[test]
@@ -886,7 +886,7 @@ fn mload_overflow_2() {
     let result = run_result(operations);
     assert!(result.status.is_out_of_gas());
     assert_eq!(result.gas_used(), 3 + 3);
-    // Check the memory extened by the MLOAD opcode.
+    // Check the memory extended by the MLOAD opcode.
 }
 
 #[test]
@@ -895,7 +895,7 @@ fn mload_overflow_3() {
     let result = run_result(operations);
     assert!(result.status.is_out_of_gas());
     assert_eq!(result.gas_used(), 3 + 3);
-    // Check the memory extened by the MLOAD opcode.
+    // Check the memory extended by the MLOAD opcode.
 }
 
 #[test]

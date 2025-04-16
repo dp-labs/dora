@@ -3907,7 +3907,7 @@ fn log3() {
         Operation::Push((1_u8, 0x02_u8.into())),
         Operation::Push((1_u8, 0x03_u8.into())),
         Operation::Log(3_u8),
-        // Return resul
+        // Return result
         Operation::Push((1_u8, 32_u8.into())),
         Operation::Push0,
         Operation::Return,

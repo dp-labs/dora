@@ -163,11 +163,11 @@ pub struct TestIndexes {
 }
 
 #[derive(Debug, Error)]
-#[error("Test {name} suite {suite_name:?} index {indexs:?} failed: {kind}")]
+#[error("Test {name} suite {suite_name:?} index {indexes:?} failed: {kind}")]
 pub struct TestError {
     pub name: String,
     pub suite_name: Option<String>,
-    pub indexs: Option<TestIndexes>,
+    pub indexes: Option<TestIndexes>,
     pub kind: TestErrorKind,
 }
 
@@ -393,7 +393,7 @@ fn execute_test(path: &Path) -> Result<(), TestError> {
     let suite: TestSuite = serde_json::from_str(&s).map_err(|e| TestError {
         name: name.clone(),
         suite_name: None,
-        indexs: None,
+        indexes: None,
         kind: e.into(),
     })?;
 
@@ -554,7 +554,7 @@ fn execute_test(path: &Path) -> Result<(), TestError> {
                             return Err(TestError {
                                 name: name.to_string(),
                                 suite_name: Some(suite_name.to_string()),
-                                indexs: Some(test_case.indexes.clone()),
+                                indexes: Some(test_case.indexes.clone()),
                                 kind: TestErrorKind::UnexpectedException {
                                     expected_exception: test_case.expect_exception.clone(),
                                     got_exception: None,
@@ -569,7 +569,7 @@ fn execute_test(path: &Path) -> Result<(), TestError> {
                                 return Err(TestError {
                                     name: name.to_string(),
                                     suite_name: Some(suite_name.to_string()),
-                                    indexs: Some(test_case.indexes.clone()),
+                                    indexes: Some(test_case.indexes.clone()),
                                     kind: TestErrorKind::UnexpectedOutput {
                                         expected_output: Some(expected_output.clone()),
                                         got_output: res.output().cloned(),
@@ -611,7 +611,7 @@ fn execute_test(path: &Path) -> Result<(), TestError> {
                                     return Err(TestError {
                                         name: name.to_string(),
                                         suite_name: Some(suite_name.to_string()),
-                                        indexs: Some(test_case.indexes.clone()),
+                                        indexes: Some(test_case.indexes.clone()),
                                         kind,
                                     });
                                 }
@@ -630,7 +630,7 @@ fn execute_test(path: &Path) -> Result<(), TestError> {
                             return Err(TestError {
                                 name: name.to_string(),
                                 suite_name: Some(suite_name.to_string()),
-                                indexs: Some(test_case.indexes.clone()),
+                                indexes: Some(test_case.indexes.clone()),
                                 kind,
                             });
                         }
@@ -640,7 +640,7 @@ fn execute_test(path: &Path) -> Result<(), TestError> {
                             return Err(TestError {
                                 name: name.to_string(),
                                 suite_name: Some(suite_name.to_string()),
-                                indexs: Some(test_case.indexes.clone()),
+                                indexes: Some(test_case.indexes.clone()),
                                 kind: TestErrorKind::UnexpectedException {
                                     expected_exception: test_case.expect_exception.clone(),
                                     got_exception: Some(error.to_string()),
@@ -658,7 +658,7 @@ fn execute_test(path: &Path) -> Result<(), TestError> {
                     return Err(TestError {
                         name: name.to_string(),
                         suite_name: Some(suite_name.to_string()),
-                        indexs: Some(test_case.indexes.clone()),
+                        indexes: Some(test_case.indexes.clone()),
                         kind,
                     });
                 }
@@ -719,7 +719,7 @@ fn setup_env(name: &str, test: &Test, spec_id: SpecId) -> Result<Env, TestError>
         let addr = recover_address(&test.transaction.secret_key.0).ok_or_else(|| TestError {
             name: name.to_string(),
             suite_name: None,
-            indexs: None,
+            indexes: None,
             kind: TestErrorKind::UnknownPrivateKey(test.transaction.secret_key),
         })?;
         Address::from_slice(addr.as_slice())

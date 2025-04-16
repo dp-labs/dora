@@ -1,0 +1,25 @@
+name: Check Typos
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: ["**"]
+    types: [synchronize, opened, reopened, converted_to_draft, ready_for_review]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  bench:
+    name: Check typos
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout sources
+        uses: actions/checkout@v4
+
+      - name: Install typos
+        uses: taiki-e/install-action@typos
+      - name: Check typos
+        run: typos

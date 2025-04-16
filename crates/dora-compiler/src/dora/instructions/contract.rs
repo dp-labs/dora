@@ -396,7 +396,7 @@ impl ConversionPass<'_> {
         u256_as_usize_or_fail!(op, rewriter, ret_size);
         let size_is_not_zero = rewriter.make(rewriter.icmp_imm(IntCC::NotEqual, ret_size, 0)?)?;
         if_here!(op, rewriter, size_is_not_zero, {
-            // Output memery resize
+            // Output memory resize
             u256_as_usize_or_fail!(op, rewriter, ret_offset);
             memory::resize_memory(
                 context,

@@ -56,7 +56,7 @@ pub trait Host {
     /// Emit a log owned by `address` with given `LogData`.
     fn log(&mut self, log: Log);
 
-    /// Host for the call-like insturctions e.g., `CALL`, `CREATE`, etc.
+    /// Host for the call-like instructions e.g., `CALL`, `CREATE`, etc.
     fn call(&mut self, msg: CallMessage) -> Result<CallResult, VMError>;
 }
 

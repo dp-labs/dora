@@ -1228,8 +1228,7 @@ impl FunctionCodeGenerator {
             Operator::TypedSelect { .. } | Operator::Select => {
                 let ((v1, i1), (v2, i2), (cond, _)) = state.pop3_extra()?;
                 // If the pending bits of v1 and v2 are the same, we can pass
-                // them along to the result. Otherwise, apply pending
-                // canonicalizations now.
+                // them along to the result.
                 let (v1, i1, v2, i2) = if i1.has_pending_f32_nan() != i2.has_pending_f32_nan()
                     || i1.has_pending_f64_nan() != i2.has_pending_f64_nan()
                 {

@@ -24,7 +24,7 @@ You'll need LLVM installed and `llvm-config` in your `PATH`. Just download `llvm
 
 ```shell
 brew install llvm@19 # homebrew installation will automatically install the latest version of llvm
-echo 'export PATH="/opt/homebrew/opt/llvm/bin:$PATH"' >> ~/.zshrc # default llvm installtion path using homebrew
+echo 'export PATH="/opt/homebrew/opt/llvm/bin:$PATH"' >> ~/.zshrc # default llvm installation path using homebrew
 source ~/.zshrc
 ```
 
