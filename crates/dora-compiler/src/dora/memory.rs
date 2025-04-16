@@ -52,9 +52,9 @@ pub(crate) fn resize_memory<'c>(
     check_op_oog!(op, rewriter, required_size);
     let ptr_type = rewriter.ptr_ty();
     let required_size_words = num_words(&rewriter, required_size, location)?;
-    let contant_32 = rewriter.make(rewriter.iconst_64(32))?;
+    let constant_32 = rewriter.make(rewriter.iconst_64(32))?;
     let rounded_required_size =
-        rewriter.make(arith::muli(required_size_words, contant_32, location))?;
+        rewriter.make(arith::muli(required_size_words, constant_32, location))?;
     // Load memory size
     let memory_size = rewriter.make(func::call(
         context,
@@ -65,7 +65,7 @@ pub(crate) fn resize_memory<'c>(
     ))?;
     let memory_size_words = num_words(&rewriter, memory_size, location)?;
     let rounded_memory_size =
-        rewriter.make(arith::muli(memory_size_words, contant_32, location))?;
+        rewriter.make(arith::muli(memory_size_words, constant_32, location))?;
     let extension_flag = rewriter.make(arith::cmpi(
         context,
         CmpiPredicate::Ult,

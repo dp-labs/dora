@@ -21,6 +21,6 @@
     (i32.sub (local.get 0) (i32.const 2))
   )
 
-  ;; N ot implemented: wasm imported functions
+  ;; Not implemented: wasm imported functions
   ;; (func (export "four") (type $U) (call $print (local.get 0)))
 )

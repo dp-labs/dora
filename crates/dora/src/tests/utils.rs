@@ -102,7 +102,7 @@ pub(crate) fn default_env_and_db_setup(operations: Vec<Operation>) -> (Env, Memo
     (env, db)
 }
 
-/// Asserts program execution result as `succcess`.
+/// Asserts program execution result as `success`.
 ///
 /// Asserts returned [`BigUint`] number result.
 pub(crate) fn run_program_assert_num_result(env: Env, db: MemoryDB, expected_result: BigUint) {
@@ -112,7 +112,7 @@ pub(crate) fn run_program_assert_num_result(env: Env, db: MemoryDB, expected_res
     assert_eq!(result_data, expected_result);
 }
 
-/// Asserts program execution result as `succcess`.
+/// Asserts program execution result as `success`.
 ///
 /// Asserts returned [`Bytes`] result.
 pub(crate) fn run_program_assert_bytes_result(env: Env, db: MemoryDB, expected_result: Bytes) {

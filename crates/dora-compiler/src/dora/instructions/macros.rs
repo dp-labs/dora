@@ -44,19 +44,19 @@ macro_rules! operands {
 
 /// Creates a rewriter context for operations, depending on deferred option.
 ///
-/// [`rewrite_ctx!`] creates deffered or non-deffered rewirter depending on `NoDefer` option.
+/// [`rewrite_ctx!`] creates deferred or non-deferred rewirter depending on `NoDefer` option.
 /// There are two forms of this macro:
 ///
 /// - Creates a [DeferredRewriter](crate::conversion::rewriter::DeferredRewriter) context. (`location` can be optional)
 /// ```ignore
-/// rewrite_ctx!(conext, op, rewriter);
-/// rewrite_ctx!(conext, op, rewriter, location);
+/// rewrite_ctx!(context, op, rewriter);
+/// rewrite_ctx!(context, op, rewriter, location);
 /// ```
 ///
 /// - Crates a [Rewriter](crate::conversion::rewriter::Rewriter) context. (`location` can be optional)
 /// ```ignore
-/// rewrite_ctx!(conext, op, rewriter, NoDefer);
-/// rewrite_ctx!(conext, op, rewriter, location, NoDefer);
+/// rewrite_ctx!(context, op, rewriter, NoDefer);
+/// rewrite_ctx!(context, op, rewriter, location, NoDefer);
 /// ```
 #[macro_export]
 macro_rules! rewrite_ctx {
@@ -363,7 +363,7 @@ macro_rules! maybe_revert_here {
 /// Macro to check for memory offset errors during operations and triggers a revert if an out-of-gas condition is detected.
 ///
 /// ```ignore
-/// use dora_runtime::ExitSatusCode;
+/// use dora_runtime::ExitStatusCode;
 /// check_op_oog!(op, rewriter, size);
 /// ```
 #[macro_export(local_inner_macros)]

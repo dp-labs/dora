@@ -820,7 +820,7 @@ impl<'c, 'a> OpBuilder<'c, 'a> {
         load_op
     }
 
-    /// Loads a value from the specified pointer with the load operaion options.
+    /// Loads a value from the specified pointer with the load operation options.
     ///
     /// # Parameters
     /// - `ptr`: The pointer from which to load the value.

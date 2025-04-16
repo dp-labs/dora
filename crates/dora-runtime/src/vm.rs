@@ -421,7 +421,7 @@ impl<DB: Database> VM<DB> {
             result
         };
 
-        // Post excution
+        // Post execution
         {
             // Record the pre execution refunded gas including EIP-7702, etc.
             result.record_refund(pre_exec_gas_refund as i64);

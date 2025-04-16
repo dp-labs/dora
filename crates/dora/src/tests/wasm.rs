@@ -2342,7 +2342,7 @@ fn test_wasm_conversions() -> Result<()> {
 }
 
 #[test]
-fn test_wasm_endiannes() -> Result<()> {
+fn test_wasm_endianness() -> Result<()> {
     let code = include_bytes!("../../../dora-compiler/src/wasm/tests/suites/endianness.wat");
     build_wasm_code!(code, artifact);
     generate_test_cases!(

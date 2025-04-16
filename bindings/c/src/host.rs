@@ -192,12 +192,12 @@ impl Host for EvmcDelegateHost<'_> {
             let balance = self.context.get_balance(&addr);
             let had_value = !U256::from_be_bytes(balance.bytes).is_zero();
             let target_exists = self.context.account_exists(&target);
-            let first_registerd = self.context.selfdestruct(&addr, &target);
+            let first_register = self.context.selfdestruct(&addr, &target);
             Some(StateLoad::new(
                 SelfDestructResult {
                     had_value,
                     target_exists,
-                    previously_destroyed: !first_registerd,
+                    previously_destroyed: !first_register,
                 },
                 is_cold,
             ))
