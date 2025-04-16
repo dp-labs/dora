@@ -132,6 +132,10 @@ where
             unsafe { std::env::remove_var(DORA_TRACING) };
         }
     }
+
+    fn chain_id(&self) -> u64 {
+        self.vm.context.env.cfg.chain_id
+    }
 }
 
 #[derive(Debug, Default, Clone, Copy)]
