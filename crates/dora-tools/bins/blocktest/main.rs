@@ -8,6 +8,7 @@ use anyhow::Result;
 use clap::{Args, Parser, Subcommand};
 use dora::Env;
 use dora::compile_handler;
+use dora_primitives::AccessListItem;
 use dora_primitives::Bytes;
 use dora_primitives::keccak256;
 use dora_primitives::spec::SpecId;
@@ -87,6 +88,7 @@ struct Transaction {
     pub max_fee_per_gas: Option<U256>,
     pub max_priority_fee_per_gas: Option<U256>,
     pub max_fee_per_blob_gas: Option<U256>,
+    pub access_list: Option<Vec<AccessListItem>>,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Deserialize)]
@@ -246,6 +248,7 @@ fn execute_test(path: &Path) -> Result<(), TestError> {
                 Some(to) => TxKind::Call(to),
                 None => TxKind::Create,
             };
+            env.tx.access_list = tx.access_list.clone().unwrap_or_default().into();
             let gas_priority_fee = if spec_id.is_enabled_in(SpecId::LONDON) {
                 Some(
                     tx.max_priority_fee_per_gas
@@ -297,6 +300,7 @@ fn execute_test(path: &Path) -> Result<(), TestError> {
                         None => TxKind::Create,
                     };
                     etx.gas_priority_fee = gas_priority_fee;
+                    etx.access_list = tx.access_list.clone().unwrap_or_default().into();
                     let _ = etx.derive_tx_type();
                 })
                 .build_mainnet();
