@@ -3,7 +3,6 @@ use melior::{
     dialect::DialectRegistry,
     utility::{register_all_dialects, register_all_llvm_translations, register_all_passes},
 };
-use std::path::PathBuf;
 
 /// The `Context` struct represents the MLIR (Multi-Level Intermediate Representation)
 /// context in which various operations, types, and other IR constructs exist.
@@ -41,37 +40,6 @@ impl Context {
         let mlir_context = initialize_mlir();
         Self { mlir_context }
     }
-}
-
-/// The `Session` struct represents a session in which an MLIR file is processed.
-/// It contains paths to the raw and after-pass MLIR files, allowing the user to track
-/// different stages of the MLIR transformation process.
-///
-/// # Fields:
-/// - `raw_mlir_path`: This field holds an optional `PathBuf` pointing to the path
-///   of the raw MLIR file before any transformations or passes have been applied.
-///   It is `None` if the raw MLIR file path is not provided.
-/// - `after_pass_mlir_path`: This field holds an optional `PathBuf` pointing to the path
-///   of the MLIR file after various passes and transformations have been applied.
-///   It is `None` if the after-pass MLIR file path is not provided.
-///
-/// # Example Usage:
-/// ```no_check
-/// let session = Session {
-///     raw_mlir_path: Some(PathBuf::from("input.mlir")),
-///     after_pass_mlir_path: Some(PathBuf::from("output.mlir")),
-/// };
-/// ```
-///
-/// The `Session` struct helps to keep track of MLIR files at different stages
-/// during compilation, especially in workflows where passes are applied to modify
-/// the IR in successive steps.
-#[derive(Debug, Clone, Default)]
-pub struct Session {
-    /// The path for the raw mlir file before any transformation passes.
-    pub raw_mlir_path: Option<PathBuf>,
-    /// The path for the MLIR file after transformation passes have been applied.
-    pub after_pass_mlir_path: Option<PathBuf>,
 }
 
 /// Initializes and configures a new `MLIRContext` with all available dialects and passes.
