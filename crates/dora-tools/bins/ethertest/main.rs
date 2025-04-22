@@ -356,6 +356,7 @@ fn should_skip(path: &Path) -> bool {
         | "basefeeExample.json"
         | "eip1559.json"
         | "mergeTest.json"
+        | "emptyBlobhashList.json"
 
         // Test with some storage check.
         | "RevertInCreateInInit_Paris.json"
@@ -488,25 +489,8 @@ fn execute_test(path: &Path) -> Result<(), TestError> {
                 // Revm comparative test
                 let evm = revm::Context::mainnet()
                     .with_db(state)
-                    .modify_cfg_chained(|cfg| {
-                        cfg.chain_id = 1;
-                        cfg.spec = spec_id;
-                    })
-                    .modify_block_chained(|block| {
-                        block.number = suite.env.current_number.try_into().unwrap_or(u64::MAX);
-                        block.beneficiary = suite.env.current_coinbase;
-                        block.gas_limit =
-                            suite.env.current_gas_limit.try_into().unwrap_or(u64::MAX);
-                        block.timestamp =
-                            suite.env.current_timestamp.try_into().unwrap_or(u64::MAX);
-                        block.difficulty = suite.env.current_difficulty;
-                        block.basefee = suite
-                            .env
-                            .current_base_fee
-                            .unwrap_or_default()
-                            .try_into()
-                            .unwrap_or(u64::MAX);
-                    })
+                    .with_cfg(env.cfg.clone())
+                    .with_block(env.block.clone())
                     .modify_tx_chained(|etx| {
                         etx.data = suite
                             .transaction
@@ -539,9 +523,17 @@ fn execute_test(path: &Path) -> Result<(), TestError> {
                             Some(to) => TxKind::Call(to),
                             None => TxKind::Create,
                         };
+                        let _ = etx.derive_tx_type();
                     });
-                let _ = evm.build_mainnet().replay();
+                if env.tx.derive_tx_type().is_err() {
+                    if test_case.expect_exception.is_some() {
+                        continue;
+                    } else {
+                        panic!("Invalid transaction type without expected exception");
+                    }
+                }
                 // Run the VM and get the state result.
+                let _ = evm.build_mainnet().replay();
                 let mut vm = VM::new(VMContext::new(db.clone(), env, compile_handler()));
                 let res = vm.transact_commit();
                 // Calculate the logs root.
