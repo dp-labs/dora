@@ -52,7 +52,9 @@ impl<'a> EvmcDelegateHost<'a> {
         let _ = tx.derive_tx_type();
         Self {
             env: Env {
-                cfg: CfgEnv::default().with_chain_id(chain_id),
+                cfg: CfgEnv::<SpecId>::default()
+                    .with_chain_id(chain_id)
+                    .with_spec(spec_id),
                 block: BlockEnv {
                     number: tx_context.block_number as u64,
                     beneficiary: evmc_address_to_address(&tx_context.block_coinbase),
