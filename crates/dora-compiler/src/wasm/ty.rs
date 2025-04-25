@@ -79,6 +79,7 @@ pub fn type_to_mlir<'c>(
         Type::V128 => intrinsics.i128_ty,
         Type::FuncRef => intrinsics.func_ref_ty,
         Type::ExternRef => intrinsics.extern_ref_ty,
+        Type::ExceptionRef => intrinsics.exception_ref_ty,
     }
 }
 
@@ -115,5 +116,6 @@ pub fn type_to_mlir_zero_attribute<'c>(
         Type::V128 => IntegerAttribute::new(intrinsics.i128_ty, 0).into(),
         Type::FuncRef => TypeAttribute::new(intrinsics.func_ref_ty).into(),
         Type::ExternRef => TypeAttribute::new(intrinsics.extern_ref_ty).into(),
+        Type::ExceptionRef => TypeAttribute::new(intrinsics.extern_ref_ty).into(),
     }
 }

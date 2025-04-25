@@ -75,6 +75,8 @@ pub struct WASMIntrinsics<'c> {
     pub func_ref_ty: Type<'c>,
     /// The type for representing a reference to an external object.
     pub extern_ref_ty: Type<'c>,
+    /// The type for representing a reference to an exception.
+    pub exception_ref_ty: Type<'c>,
     /// Intrinsics inherited from the base `Intrinsics` structure.
     pub(crate) intrinsics: Intrinsics<'c>,
 }
@@ -93,12 +95,14 @@ impl<'c> WASMIntrinsics<'c> {
         );
         let func_ref_ty = intrinsics.ptr_ty;
         let extern_ref_ty = intrinsics.ptr_ty;
+        let exception_ref_ty = intrinsics.ptr_ty;
         Self {
             ctx_ty,
             ctx_ptr_ty,
             any_func_ty,
             func_ref_ty,
             extern_ref_ty,
+            exception_ref_ty,
             intrinsics,
         }
     }

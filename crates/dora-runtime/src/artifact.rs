@@ -246,7 +246,7 @@ impl SymbolArtifact {
                         // Catch WASM runtime errors
                         wasmer_vm::catch_traps(
                             None,
-                            &wasmer::VMConfig {
+                            &wasmer_vm::VMConfig {
                                 wasm_stack_size: None,
                             },
                             move || func(ptr, args),

@@ -26,8 +26,8 @@ use melior::ir::{Location, Module as MLIRModule};
 use std::sync::Arc;
 use symbols::declare_symbols;
 use wasmer::{
-    AsStoreMut, AsStoreRef, Exports, Extern, Function, FunctionEnv, Imports, Module as WasmModule,
-    Store, Target, VMConfig, imports,
+    AsStoreMut, AsStoreRef, Exports, Function, FunctionEnv, Imports, Module as WasmModule, Store,
+    VMExternToExtern, imports,
 };
 use wasmer_compiler::Engine;
 use wasmer_compiler::types::module::CompileModuleInfo;
@@ -40,9 +40,9 @@ use wasmer_compiler_cli::store::SubsetTunables;
 use wasmer_types::entity::{EntityRef, PrimaryMap};
 use wasmer_types::{
     Features, FunctionIndex, LocalFunctionIndex, MemoryIndex, MemoryStyle, SignatureIndex,
-    TableIndex, TableStyle,
+    TableIndex, TableStyle, target::Target,
 };
-use wasmer_vm::VMInstance;
+use wasmer_vm::{VMConfig, VMInstance};
 
 use crate::errors::CompileError;
 use crate::{Compiler, Context, Module};
@@ -230,12 +230,18 @@ impl<'c> WASMCompiler<'c> {
             .map_err(|err| CompileError::Codegen(err.to_string()))?;
         let signal_handler = store.as_store_ref().signal_handler();
         let tunables = engine.tunables();
+        let externs = externs
+            .iter()
+            .map(|e| e.to_vm_extern().into_sys())
+            .collect::<Vec<_>>();
         unsafe {
             let mut instance_handle = artifact
                 .instantiate(
                     tunables,
-                    &externs.iter().map(Extern::to_vm_extern).collect::<Vec<_>>(),
-                    store.objects_mut(),
+                    &externs,
+                    std::mem::transmute::<&mut wasmer::StoreObjects, &mut wasmer_vm::StoreObjects>(
+                        store.objects_mut(),
+                    ),
                 )
                 .map_err(|err| CompileError::Codegen(err.to_string()))?;
 
@@ -382,9 +388,9 @@ impl<'c> WASMCompiler<'c> {
             .exports()
             .map(|export| {
                 let name = export.name().to_string();
-                let export = instance.lookup(&name).expect("export");
-                let extern_ = Extern::from_vm_extern(&mut store, export);
-                (name, extern_)
+                let vm_extern = instance.lookup(&name).expect("export");
+                let r#extern = vm_extern.to_extern(&mut store);
+                (name, r#extern)
             })
             .collect::<Exports>();
         let memory = exports.get_memory("memory").ok().cloned();
