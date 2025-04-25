@@ -633,3 +633,40 @@ impl<DB: Database + DatabaseCommit> VM<DB> {
         Ok(result)
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use crate::{MemoryDB, VMContext, handler::Handler};
+
+    use super::{CallKind, CallMessage};
+    use dora_primitives::{Address, Bytes, Env, SpecId, U256, address};
+    use hex_literal::hex;
+
+    #[test]
+    fn test_mod_exp_static_call() {
+        let msg = CallMessage {
+            kind: CallKind::Staticcall,
+            input: hex!("00000000000000000000000000000000000000000000000000000000000000200000000000000000000000000000000000000000000000000000000000000020000000000000000000000000000000000000000000000000000000000000002010e17c61294e6ac071f24213fa8b995f510a3abfeac51bdabc735009d15d466530644e72e131a029b85045b68181585d2833e84879b9709143e1f593efffffff30644e72e131a029b85045b68181585d2833e84879b9709143e1f593f0000001").to_vec().into(),
+            init_code: Bytes::default(),
+            value: U256::from(0),
+            depth: 5,
+            gas_limit: 386780,
+            caller: Address::default(),
+            recipient: address!("0x0000000000000000000000000000000000000005"),
+            code_address: address!("0x0000000000000000000000000000000000000005"),
+            salt: None,
+            is_static: true,
+            is_eof_init: false,
+            validate_eof: true,
+        };
+        let mut ctx = VMContext::new(MemoryDB::new(), Env::default(), Handler::dummy());
+        ctx.journal.spec = SpecId::CANCUN;
+        let result = ctx.call(msg.clone()).unwrap();
+        assert_eq!(result.gas_used(), 1349);
+        let result = ctx
+            .call_precompile(msg.code_address, &msg.input, msg.gas_limit)
+            .unwrap()
+            .unwrap_or_default();
+        assert_eq!(result.gas_used(), 1349);
+    }
+}
