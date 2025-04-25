@@ -437,8 +437,7 @@ impl<DB: Database> VMContext<DB> {
     }
 
     /// Call precompile contract
-    #[inline]
-    fn call_precompile(
+    pub fn call_precompile(
         &mut self,
         address: Address,
         calldata: &Bytes,

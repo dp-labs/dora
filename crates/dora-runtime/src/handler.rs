@@ -32,3 +32,13 @@ pub struct Handler<DB: Database> {
     /// Call frame handler.
     pub call_handler: CallFrameHandle<DB>,
 }
+
+impl<DB: Database> Handler<DB> {
+    pub fn dummy() -> Self {
+        Handler {
+            call_handler: Arc::new(|frame, _ctx| {
+                Ok(CallResult::new_with_gas_limit(frame.gas_limit))
+            }),
+        }
+    }
+}
