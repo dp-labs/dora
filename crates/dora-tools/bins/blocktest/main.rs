@@ -58,6 +58,7 @@ pub struct Suite {
     pre: HashMap<Address, Account>,
     // The key denotes the tx index
     logs: HashMap<String, HashMap<String, ExpectLog>>,
+    block_hashes: Option<HashMap<String, B256>>,
     // The key denotes the tx index
     wset: Option<HashMap<String, WSet>>,
 }
@@ -71,6 +72,7 @@ struct TestEnv {
     pub current_timestamp: U256,
     pub previous_hash: B256,
     pub base_fee_per_gas: Option<U256>,
+    pub mix_hash: Option<B256>,
 }
 
 #[derive(Debug, Default, PartialEq, Eq, Deserialize)]
@@ -186,12 +188,23 @@ fn execute_test(path: &Path) -> Result<(), TestError> {
                 info.balance,
                 info.storage.iter().map(|(k, v)| (*k, *v)).collect(),
             );
+            for (k, v) in suite.block_hashes.clone().unwrap_or_default() {
+                db.insert_block_hash(k.parse().unwrap(), v);
+            }
         }
         let mut cache = cache_state.clone();
         cache.set_state_clear_flag(true);
         let mut state = revm::database::State::builder()
             .with_cached_prestate(cache)
             .with_bundle_update()
+            .with_block_hashes(
+                suite
+                    .block_hashes
+                    .unwrap_or_default()
+                    .iter()
+                    .map(|(k, v)| (k.parse().unwrap(), *v))
+                    .collect(),
+            )
             .build();
 
         let mut vm = VM::new(VMContext::new(
@@ -226,6 +239,7 @@ fn execute_test(path: &Path) -> Result<(), TestError> {
             env.block.gas_limit = as_u64_saturated!(suite.env.current_gas_limit);
             env.block.timestamp = as_u64_saturated!(suite.env.current_timestamp);
             env.block.difficulty = suite.env.current_difficulty;
+            env.block.prevrandao = suite.env.mix_hash;
             env.block.basefee = suite
                 .env
                 .base_fee_per_gas
@@ -276,6 +290,7 @@ fn execute_test(path: &Path) -> Result<(), TestError> {
                     block.gas_limit = as_u64_saturated!(suite.env.current_gas_limit);
                     block.timestamp = as_u64_saturated!(suite.env.current_timestamp);
                     block.difficulty = suite.env.current_difficulty;
+                    block.prevrandao = suite.env.mix_hash;
                     block.basefee = suite
                         .env
                         .base_fee_per_gas
@@ -303,7 +318,9 @@ fn execute_test(path: &Path) -> Result<(), TestError> {
                     etx.access_list = tx.access_list.clone().unwrap_or_default().into();
                     let _ = etx.derive_tx_type();
                 })
-                .build_mainnet();
+                .build_mainnet_with_inspector(revm::inspector::inspectors::TracerEip3155::new(
+                    Box::new(std::io::stdout()),
+                ));
             // Run the revm and get the state result.
             let revm_res = evm.replay_commit().unwrap();
             // Run the dora VM and get the state result.
