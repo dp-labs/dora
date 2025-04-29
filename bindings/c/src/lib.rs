@@ -1,9 +1,10 @@
 // Copyright 2024 The Dora Authors.
 // Licensed under the Apache License, Version 2.0.
 
+use dashmap::DashMap;
 use dora::{
     build_artifact,
-    primitives::{Address, Bytecode, Bytes, Bytes32, HashMap, SpecId},
+    primitives::{Address, Bytecode, Bytes, Bytes32, SpecId},
     runtime::{
         ExitStatusCode,
         artifact::{Artifact, SymbolArtifact},
@@ -17,7 +18,6 @@ use evmc_sys::{evmc_address, evmc_call_kind};
 use evmc_vm::*;
 use host::EvmcDelegateHost;
 use lazy_static::lazy_static;
-use std::sync::Mutex;
 
 mod host;
 
@@ -25,7 +25,7 @@ mod host;
 mod tests;
 
 lazy_static! {
-    static ref ARTIFACTS: Mutex<HashMap<Bytes, SymbolArtifact>> = Mutex::new(HashMap::default());
+    static ref ARTIFACTS: DashMap<Bytes, SymbolArtifact> = DashMap::default();
 }
 
 #[evmc_declare_vm("dora", "evm, ewasm, precompiles", "12.0.0")]
@@ -66,9 +66,8 @@ impl EvmcVm for DoraVM {
             spec_id,
             message.gas() as u64,
         );
-        let mut artifacts = ARTIFACTS.lock().unwrap();
         let artifact = if let Some(artifact) =
-            artifacts.get(runtime_context.contract.code.original_byte_slice().as_ref())
+            ARTIFACTS.get(runtime_context.contract.code.original_byte_slice().as_ref())
         {
             artifact.clone()
         } else {
@@ -78,13 +77,12 @@ impl EvmcVm for DoraVM {
             ) else {
                 return ExecutionResult::failure();
             };
-            artifacts.insert(
+            ARTIFACTS.insert(
                 runtime_context.contract.code.original_bytes(),
                 artifact.clone(),
             );
             artifact
         };
-        drop(artifacts);
         let Ok(result) = artifact.execute(runtime_context) else {
             return ExecutionResult::failure();
         };
