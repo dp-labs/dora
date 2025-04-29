@@ -200,12 +200,14 @@ pub enum TestErrorKind {
     },
 }
 
+#[inline]
 fn log_rlp_hash(logs: &[Log]) -> B256 {
     let mut out = Vec::with_capacity(alloy_rlp::list_length(logs));
     alloy_rlp::encode_list(logs, &mut out);
     B256::from_slice(keccak256(&out).as_slice())
 }
 
+#[inline]
 pub fn state_merkle_trie_root<'a>(
     accounts: impl IntoIterator<Item = (&'a Address, &'a Account)>,
 ) -> B256 {
@@ -435,17 +437,9 @@ fn execute_test(path: &Path) -> Result<(), TestError> {
             if spec_name == &SpecName::Constantinople {
                 continue;
             }
-            // Dora has not fully supported Prague Spec yet, therefore this test is skipped.
-            if spec_name == &SpecName::Prague {
-                continue;
-            }
             let spec_id = spec_name.to_spec_id();
             for test_case in tests {
                 let mut env = setup_env(&name, &suite, spec_id)?;
-                if spec_id.is_enabled_in(SpecId::MERGE) && env.block.prevrandao.is_none() {
-                    // if spec is merge and prevrandao is not set, set it to default
-                    env.block.prevrandao = Some(B256::default());
-                }
                 // Mapping transaction data and value
                 env.tx.gas_limit =
                     suite.transaction.gas_limit[test_case.indexes.gas].saturating_to();
@@ -462,11 +456,6 @@ fn execute_test(path: &Path) -> Result<(), TestError> {
                     .unwrap()
                     .clone();
                 env.tx.nonce = u64::try_from(suite.transaction.nonce).unwrap();
-                info!(
-                    "testing {:?} suite {:?} index {:?}",
-                    name, suite_name, test_case.indexes
-                );
-
                 env.tx.access_list = suite
                     .transaction
                     .access_lists
@@ -481,6 +470,11 @@ fn execute_test(path: &Path) -> Result<(), TestError> {
                     .clone()
                     .map(|auth_list| auth_list.into_iter().map(Into::into).collect::<Vec<_>>())
                     .unwrap_or_default();
+
+                info!(
+                    "testing {:?} spec {:?} suite {:?} index {:?}",
+                    name, spec_name, suite_name, test_case.indexes
+                );
 
                 let state = revm::database::State::builder()
                     .with_cached_prestate(cache_state.clone())
@@ -533,7 +527,11 @@ fn execute_test(path: &Path) -> Result<(), TestError> {
                     }
                 }
                 // Run the VM and get the state result.
-                let _ = evm.build_mainnet().replay();
+                let _ = evm
+                    .build_mainnet_with_inspector(revm::inspector::inspectors::TracerEip3155::new(
+                        Box::new(std::io::stdout()),
+                    ))
+                    .replay();
                 let mut vm = VM::new(VMContext::new(db.clone(), env, compile_handler()));
                 let res = vm.transact_commit();
                 // Calculate the logs root.
@@ -735,6 +733,10 @@ fn setup_env(name: &str, test: &Test, spec_id: SpecId) -> Result<Env, TestError>
         .max_fee_per_blob_gas
         .map(|b| u128::try_from(b).expect("max fee less than u128::MAX"))
         .unwrap_or(u128::MAX);
+    if spec_id.is_enabled_in(SpecId::MERGE) && env.block.prevrandao.is_none() {
+        // if spec is merge and prevrandao is not set, set it to default
+        env.block.prevrandao = Some(B256::default());
+    }
     Ok(env)
 }
 
