@@ -17,8 +17,8 @@ use crate::wasm::trap::wasm_raise_trap;
 use crate::{ExitStatusCode, gas, symbols};
 use dora_primitives::{
     Account, Address, AuthorizationTr, B256, BLOCK_HASH_HISTORY, Bytecode, Bytes, Bytes32, Cfg,
-    CfgEnv, EOF_MAGIC_BYTES, EVMBytecode, EmptyBytecode, Env, Eof, HashMap, Journal,
-    JournalCheckpoint, JournalEntry, JournalTr, KECCAK_EMPTY, Log, LogData, OpCode,
+    CfgEnv, EOF_MAGIC_BYTES, EVMBytecode, EmptyBytecode, Env, Eof, HashMap, InvalidTransaction,
+    Journal, JournalCheckpoint, JournalEntry, JournalTr, KECCAK_EMPTY, Log, LogData, OpCode,
     PER_AUTH_BASE_COST, PER_EMPTY_ACCOUNT_COST, PrecompileError, PrecompileSpecId, Precompiles,
     SpecId, TransactionType, U256, as_u64_saturated, as_usize_saturated, keccak256,
 };
@@ -130,14 +130,27 @@ impl<DB: Database> VMContext<DB> {
         let is_call = self.env.tx.kind.is_call();
 
         // Subtract gas costs from the caller's account.
-        // We need to saturate the gas cost to prevent underflow in case that `disable_balance_check` is enabled.
+        // gas_cost = gas_limit * max_fee + value + additional_gas_cost
         let mut gas_cost = U256::from(self.env.tx.gas_limit)
-            .saturating_mul(U256::from(self.env.effective_gas_price()));
+            .checked_mul(U256::from(self.env.effective_gas_price()))
+            .and_then(|gas_cost| gas_cost.checked_add(self.env.tx.value))
+            .ok_or(VMError::Transaction(
+                InvalidTransaction::OverflowPaymentInTransaction,
+            ))?;
 
-        // EIP-4844
+        // EIP-4844: Add blob fee
         if self.env.tx.tx_type == TransactionType::Eip4844 {
-            gas_cost = gas_cost.saturating_add(self.env.calc_max_data_fee());
+            let blob_gas = self.env.total_blob_gas() as u128;
+            let blob_price = self.env.blob_gasprice().unwrap_or_default();
+            gas_cost = gas_cost
+                .checked_add(U256::from(blob_price).saturating_mul(U256::from(blob_gas)))
+                .ok_or(VMError::Transaction(
+                    InvalidTransaction::OverflowPaymentInTransaction,
+                ))?;
         }
+
+        // Subtracting max balance spending with value that is going to be deducted later in the call.
+        gas_cost -= self.env.tx.value;
 
         // Set new caller account balance.
         caller_account.info.balance = caller_account.info.balance.saturating_sub(gas_cost);
