@@ -173,6 +173,11 @@ impl Env {
     ///
     /// While for transactions after Eip1559 it is minimum of max_fee and `base + max_priority_fee`.
     pub fn effective_gas_price(&self) -> u128 {
+        if self.tx.tx_type == TransactionType::Legacy as u8
+            || self.tx.tx_type == TransactionType::Eip2930 as u8
+        {
+            return self.gas_price();
+        }
         let base_fee = self.block.basefee() as u128;
         let max_fee = self.gas_price();
         let Some(max_priority_fee) = self.max_priority_fee_per_gas() else {
