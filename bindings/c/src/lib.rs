@@ -146,13 +146,13 @@ fn status_to_evmc_status(status: ExitStatusCode) -> StatusCode {
         | ExitStatusCode::Stop
         | ExitStatusCode::SelfDestruct => StatusCode::EVMC_SUCCESS,
         ExitStatusCode::Revert
-        | ExitStatusCode::OutOfFunds
         | ExitStatusCode::CreateInitCodeStartingEF00
         | ExitStatusCode::InvalidEOFInitCode
         | ExitStatusCode::InvalidExtDelegatecallTarget => StatusCode::EVMC_REVERT,
         ExitStatusCode::OutOfGas | ExitStatusCode::MemoryOOG | ExitStatusCode::PrecompileOOG => {
             StatusCode::EVMC_OUT_OF_GAS
         }
+        ExitStatusCode::OutOfFunds => StatusCode::EVMC_INSUFFICIENT_BALANCE,
         ExitStatusCode::CallTooDeep => StatusCode::EVMC_CALL_DEPTH_EXCEEDED,
         ExitStatusCode::InvalidOperandOOG => StatusCode::EVMC_ARGUMENT_OUT_OF_RANGE,
         ExitStatusCode::MemoryLimitOOG => StatusCode::EVMC_OUT_OF_MEMORY,
@@ -201,10 +201,10 @@ fn evmc_status_to_status(status: StatusCode) -> ExitStatusCode {
         StatusCode::EVMC_STACK_OVERFLOW => ExitStatusCode::StackOverflow,
         StatusCode::EVMC_STACK_UNDERFLOW => ExitStatusCode::StackUnderflow,
         StatusCode::EVMC_PRECOMPILE_FAILURE => ExitStatusCode::PrecompileError,
+        StatusCode::EVMC_INSUFFICIENT_BALANCE => ExitStatusCode::OutOfFunds,
         StatusCode::EVMC_CONTRACT_VALIDATION_FAILURE
         | StatusCode::EVMC_WASM_UNREACHABLE_INSTRUCTION
         | StatusCode::EVMC_WASM_TRAP
-        | StatusCode::EVMC_INSUFFICIENT_BALANCE
         | StatusCode::EVMC_INTERNAL_ERROR
         | StatusCode::EVMC_REJECTED
         | StatusCode::EVMC_FAILURE => ExitStatusCode::FatalExternalError,

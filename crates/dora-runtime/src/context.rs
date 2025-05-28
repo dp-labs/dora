@@ -121,7 +121,7 @@ impl<DB: Database> VMContext<DB> {
     /// Deducts the caller balance to the transaction limit.
     pub fn deduct_caller(&mut self) -> Result<(), VMError> {
         let caller = self.env.tx.caller;
-        // load caller's account.
+        // Load caller's account.
         let mut caller_account = self
             .journal
             .load_account(caller)
@@ -155,12 +155,12 @@ impl<DB: Database> VMContext<DB> {
         // Set new caller account balance.
         caller_account.info.balance = caller_account.info.balance.saturating_sub(gas_cost);
 
-        // bump the nonce for calls. Nonce for CREATE will be bumped in `handle_create`.
+        // Bump the nonce for calls. Nonce for CREATE will be bumped in the `call` host function.
         if is_call {
             // Nonce is already checked
             caller_account.info.nonce = caller_account.info.nonce.saturating_add(1);
         }
-        // touch account so we know it is changed.
+        // Touch account so we know it is changed.
         caller_account.mark_touch();
 
         // Ensure tx kind is call
