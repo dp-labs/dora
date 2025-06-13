@@ -616,7 +616,7 @@ impl<'c> EVMCompiler<'c> {
         let pre_exec_block = main_region.append_block(Block::new(&[]));
         setup_block.append_operation(cf::br(&pre_exec_block, &[], location));
         let mut last_block = pre_exec_block;
-        let has_dynamic_or_invalid_jumps = ctx.program.has_dynamic_or_jumps();
+        let has_dynamic_or_invalid_jumps = ctx.program.has_dynamic_or_invalid_jumps();
         // Suspend execution when encountering call or create instructions.
         let suspend = self.opts.suspend && ctx.program.may_suspend();
         // Generate all opcode with the inline mode.
