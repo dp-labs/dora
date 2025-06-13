@@ -1086,7 +1086,7 @@ impl Program {
 
     /// Has dynamic jump operations.
     #[inline]
-    pub fn has_dynamic_or_jumps(&self) -> bool {
+    pub fn has_dynamic_or_invalid_jumps(&self) -> bool {
         self.has_dynamic_or_invalid_jumps
     }
 
